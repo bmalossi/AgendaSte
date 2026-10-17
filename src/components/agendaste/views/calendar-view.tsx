@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Calendar as CalendarIcon,
   ChevronDown,
@@ -45,7 +45,8 @@ interface CalendarViewProps {
   onOpenQuickSale: (prefillAppointment?: CalendarEventItem) => void;
 }
 
-const HOURS = Array.from({ length: 13 }, (_, idx) => idx + 8); // 08:00 .. 20:00
+const START_HOUR = 8;
+const HOURS = Array.from({ length: 15 }, (_, idx) => idx + START_HOUR); // 08:00 .. 22:00 (grade ativa até 23:00)
 
 function getWeekDays(selectedDateISO: string) {
   const parts = selectedDateISO.split("-").map(Number);
@@ -109,8 +110,85 @@ export function CalendarView({
   const [collectDeposit, setCollectDeposit] = useState<boolean>(true);
   const [conflictError, setConflictError] = useState<string | null>(null);
 
+  // Dynamic real-time tracking (updates every 30s, hydration-safe)
+  const [currentTime, setCurrentTime] = useState<{
+    hours: number;
+    minutes: number;
+    formatted: string;
+    totalMinutes: number;
+    todayISO: string;
+  } | null>(null);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolledRef = useRef(false);
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const formatted = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const todayISO = `${year}-${month}-${day}`;
+      setCurrentTime({
+        hours,
+        minutes,
+        formatted,
+        totalMinutes: hours * 60 + minutes,
+        todayISO,
+      });
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const selectedDateISO = state.calendarView.selectedDateISO;
   const viewMode = state.calendarView.mode;
+
+  // Determine if viewing "today" (local date or active project demo date)
+  const isViewingToday =
+    currentTime !== null &&
+    (selectedDateISO === currentTime.todayISO ||
+      selectedDateISO === "2026-10-17");
+
+  // Auto-scroll to current time on mount if viewing today
+  useEffect(() => {
+    if (
+      !hasAutoScrolledRef.current &&
+      currentTime &&
+      isViewingToday &&
+      scrollContainerRef.current
+    ) {
+      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * 80;
+      scrollContainerRef.current.scrollTo({
+        top: Math.max(0, topPx - 160),
+        behavior: "smooth",
+      });
+      hasAutoScrolledRef.current = true;
+    }
+  }, [currentTime, isViewingToday]);
+
+  const handleGoToToday = () => {
+    const targetISO = currentTime?.todayISO ?? "2026-10-17";
+    onUpdateState((prev) => ({
+      ...prev,
+      calendarView: {
+        ...prev.calendarView,
+        selectedDateISO: targetISO,
+      },
+    }));
+    if (currentTime && scrollContainerRef.current) {
+      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * 80;
+      scrollContainerRef.current.scrollTo({
+        top: Math.max(0, topPx - 160),
+        behavior: "smooth",
+      });
+    }
+  };
 
   const eventsForSelectedDate = state.calendarEvents.filter(
     (e) =>
@@ -202,15 +280,7 @@ export function CalendarView({
             </button>
 
             <button
-              onClick={() =>
-                onUpdateState((prev) => ({
-                  ...prev,
-                  calendarView: {
-                    ...prev.calendarView,
-                    selectedDateISO: "2026-10-17",
-                  },
-                }))
-              }
+              onClick={handleGoToToday}
               className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
             >
               Hoje
@@ -447,15 +517,8 @@ export function CalendarView({
               </button>
 
               <button
-                onClick={() =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    calendarView: {
-                      ...prev.calendarView,
-                      selectedDateISO: "2026-10-17",
-                    },
-                  }))
-                }
+                type="button"
+                onClick={handleGoToToday}
                 className="px-2.5 py-1 rounded-full border border-[#E5E5EA] text-[11.5px] font-semibold text-[#1C1C1E] active:scale-95 transition"
               >
                 Hoje
@@ -759,20 +822,30 @@ export function CalendarView({
       </div>
 
       {/* Main Hourly Grid */}
-      <div className="flex-1 overflow-y-auto relative">
-        <div className="min-h-[1040px] relative">
-          {/* Magenta Current Time Line (9:15 indicator from 03-1-calendar.png) */}
-          <div
-            className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
-            style={{ top: `${((9 * 60 + 15 - 8 * 60) / 60) * 80}px` }}
-          >
-            <div className="w-14 sm:w-20 pl-2 sm:pl-3 flex justify-end pr-2">
-              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] sm:text-[11px] font-mono font-bold shadow-sm">
-                9:15
-              </span>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative">
+        <div style={{ minHeight: `${HOURS.length * 80}px` }} className="relative">
+          {/* Magenta Current Time Line (Dynamic real-time indicator) */}
+          {isViewingToday && currentTime && (
+            <div
+              className="absolute left-0 right-0 z-20 flex items-center pointer-events-none transition-all duration-300"
+              style={{
+                top: `${Math.max(
+                  0,
+                  Math.min(
+                    HOURS.length * 80,
+                    ((currentTime.totalMinutes - START_HOUR * 60) / 60) * 80
+                  )
+                )}px`,
+              }}
+            >
+              <div className="w-14 sm:w-20 pl-2 sm:pl-3 flex justify-end pr-2">
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] sm:text-[11px] font-mono font-bold shadow-sm whitespace-nowrap">
+                  {currentTime.formatted}
+                </span>
+              </div>
+              <div className="flex-1 h-[2px] bg-[#E11D8F]" />
             </div>
-            <div className="flex-1 h-[2px] bg-[#E11D8F]" />
-          </div>
+          )}
 
           {/* Hourly Rows */}
           {HOURS.map((hour) => {
@@ -799,7 +872,7 @@ export function CalendarView({
           {eventsForSelectedDate.map((ev) => {
             const startMin = parseTimeMinutes(ev.startTime);
             const endMin = parseTimeMinutes(ev.endTime);
-            const topPx = Math.max(0, ((startMin - 8 * 60) / 60) * 80);
+            const topPx = Math.max(0, ((startMin - START_HOUR * 60) / 60) * 80);
             const heightPx = Math.max(58, ((endMin - startMin) / 60) * 80);
             const hasProcessingWindow = ev.processingDurationMinutes > 0;
             const resourcesUsed = state.resources.filter((r) =>
