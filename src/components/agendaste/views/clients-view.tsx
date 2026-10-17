@@ -702,21 +702,75 @@ export function ClientsView({
                     <p className="text-[12px] text-[#6E6E73]">
                       Tire fotos na agenda ou importe da sua galeria. Nós organizamos e rotulamos por agendamento automaticamente.
                     </p>
-                    <button
-                      onClick={() =>
-                        onUpdateState((prev) =>
-                          uploadAutoSortedClientPhoto(prev, selectedClient.id, {
-                            photoUrl:
-                              "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80",
-                            beforeLabel: "Antes",
-                            afterLabel: "Depois · Finalização Gloss",
-                          })
-                        )
-                      }
-                      className="w-full py-2.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold hover:bg-[#2C2C2E] transition"
-                    >
-                      + Adicionar foto Antes &amp; Depois (Auto-organizar)
-                    </button>
+                    <div className="flex flex-col gap-2 pt-1">
+                      <label className="w-full py-2.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold hover:bg-[#2C2C2E] transition text-center cursor-pointer">
+                        <span>+ Enviar foto do dispositivo (Cloudflare R2)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              formData.append("folder", "clientes");
+
+                              const res = await fetch("/api/upload", {
+                                method: "POST",
+                                body: formData,
+                              });
+                              const data = await res.json();
+
+                              if (res.ok && data.success && data.url) {
+                                onUpdateState((prev) =>
+                                  uploadAutoSortedClientPhoto(prev, selectedClient.id, {
+                                    photoUrl: data.url,
+                                    beforeLabel: "Antes",
+                                    afterLabel: `Depois · ${file.name}`,
+                                  })
+                                );
+                              } else {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  if (typeof reader.result === "string") {
+                                    onUpdateState((prev) =>
+                                      uploadAutoSortedClientPhoto(prev, selectedClient.id, {
+                                        photoUrl: reader.result as string,
+                                        beforeLabel: "Antes",
+                                        afterLabel: `Depois · ${file.name}`,
+                                      })
+                                    );
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            } catch (err) {
+                              console.warn("Erro no upload da foto do cliente:", err);
+                            }
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateState((prev) =>
+                            uploadAutoSortedClientPhoto(prev, selectedClient.id, {
+                              photoUrl:
+                                "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80",
+                              beforeLabel: "Antes",
+                              afterLabel: "Depois · Finalização Gloss",
+                            })
+                          )
+                        }
+                        className="w-full py-2 rounded-full border border-[#D1D1D6] bg-white text-[11.5px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
+                      >
+                        Exemplo de demonstração rápida
+                      </button>
+                    </div>
                   </div>
 
                   {/* Auto-sorted photo groups */}

@@ -516,5 +516,32 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
       assert.match(blocked.error, /Laser Lavieen|Cabine Estética 01/i);
     }
   });
+
+  it("checks Cloudflare R2 configuration helper and graceful upload fallback", async () => {
+    const { isR2Configured } = await import("../cloudflare-r2.ts");
+    // In test environment without cloudflare env vars set, isR2Configured returns false
+    const configured = isR2Configured();
+    assert.equal(typeof configured, "boolean");
+
+    const { POST } = await import("../../app/api/upload/route.ts");
+    const formData = new FormData();
+    const blob = new Blob(["fake-image-bytes"], { type: "image/jpeg" });
+    formData.append("file", blob, "foto-teste.jpg");
+    formData.append("folder", "prontuarios");
+
+    const req = new Request("http://localhost:3000/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const res = await POST(req);
+    const json = (await res.json()) as { success?: boolean; configured?: boolean };
+    assert.equal(res.status, 200);
+    if (!configured) {
+      assert.equal(json.configured, false);
+      assert.equal(json.success, false);
+    }
+  });
 });
+
 

@@ -1937,19 +1937,31 @@ function ClinicalChartsSection({
     }));
   };
 
-  const handleUploadDevicePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadDevicePhoto = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (!activeChart) return;
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "prontuarios");
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success && data.url) {
           const uploadedPhoto: ClinicalChartPhotoItem = {
-            id: `ph-dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            url: reader.result,
-            caption: `${file.name} — Pronta para marcação`,
+            id: `ph-r2-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            url: data.url,
+            caption: `${file.name} — Salvo na Cloudflare R2`,
             stage: "before",
             pins: [],
           };
@@ -1957,10 +1969,59 @@ function ClinicalChartsSection({
             ...c,
             photos: [...c.photos, uploadedPhoto],
           }));
+          onUpdateState((prev) => ({
+            ...prev,
+            lastToastMessage: `Foto "${file.name}" salva com sucesso na Cloudflare R2!`,
+          }));
+        } else {
+          // Fallback para visualização local imediata se R2 ainda não estiver configurada no .env.local
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") {
+              const uploadedPhoto: ClinicalChartPhotoItem = {
+                id: `ph-dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                url: reader.result,
+                caption: `${file.name} — Pronta para marcação (Armazenamento Local)`,
+                stage: "before",
+                pins: [],
+              };
+              updateChartById(activeChart.id, (c) => ({
+                ...c,
+                photos: [...c.photos, uploadedPhoto],
+              }));
+            }
+          };
+          reader.readAsDataURL(file);
+
+          if (data && data.configured === false) {
+            onUpdateState((prev) => ({
+              ...prev,
+              lastToastMessage:
+                "Foto carregada localmente. Configure as variáveis da Cloudflare R2 no .env.local para salvar na nuvem.",
+            }));
+          }
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err) {
+        console.warn("Erro ao enviar foto para /api/upload, aplicando fallback local:", err);
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            const uploadedPhoto: ClinicalChartPhotoItem = {
+              id: `ph-dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              url: reader.result,
+              caption: `${file.name} — Pronta para marcação (Local)`,
+              stage: "before",
+              pins: [],
+            };
+            updateChartById(activeChart.id, (c) => ({
+              ...c,
+              photos: [...c.photos, uploadedPhoto],
+            }));
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
     e.target.value = "";
   };
 
