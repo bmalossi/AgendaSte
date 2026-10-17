@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,
   X,
@@ -37,6 +37,8 @@ import {
   SettingsView,
   ComplementarySectionView,
 } from "@/components/agendaste/views/marketing-and-settings-view";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { loadStudioStateFromSupabase } from "@/lib/supabase/agendaste-sync";
 
 export function AgendaSteApp() {
   const [state, setState] = useState<StudioState>(() =>
@@ -48,6 +50,32 @@ export function AgendaSteApp() {
   const [quickSaleOpen, setQuickSaleOpen] = useState(false);
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
+
+  // Hidratação ao vivo do Supabase e subscrição Realtime
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    loadStudioStateFromSupabase(state).then((liveState) => {
+      setState(liveState);
+    });
+
+    const channel = supabase
+      .channel("agendaste-realtime-appointments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointments" },
+        () => {
+          loadStudioStateFromSupabase(state).then((liveState) => {
+            setState(liveState);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const completedOnboardingCount = state.onboarding.steps.filter(
     (s) => s.completed
