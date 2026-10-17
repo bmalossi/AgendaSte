@@ -44,9 +44,13 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
+      suppressHydrationWarning
       className={`${plusJakarta.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="font-sans min-h-screen bg-white text-[#18181B] antialiased selection:bg-[#ECE9FE] selection:text-[#18181B]">
+      <body
+        suppressHydrationWarning
+        className="font-sans min-h-screen bg-white text-[#18181B] antialiased selection:bg-[#ECE9FE] selection:text-[#18181B]"
+      >
         {children}
       </body>
     </html>
