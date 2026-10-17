@@ -28,12 +28,23 @@ export const metadata: Metadata = {
   title: "AgendaSte · Aura Studio — Plataforma Completa de Agendamento & Gestão",
   description:
     "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AgendaSte",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#FFFFFF",
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#1C1C1E",
 };
 
 export default function RootLayout({

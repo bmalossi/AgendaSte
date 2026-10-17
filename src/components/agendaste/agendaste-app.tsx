@@ -11,6 +11,16 @@ import {
   Settings,
   ExternalLink,
   Plus,
+  Menu,
+  ClipboardList,
+  Users,
+  Banknote,
+  Package,
+  BarChart3,
+  Gift,
+  ShieldCheck,
+  ChevronRight,
+  Clock,
 } from "lucide-react";
 import {
   StudioState,
@@ -55,6 +65,7 @@ export function AgendaSteApp() {
   const [quickSaleOpen, setQuickSaleOpen] = useState(false);
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Manipulador universal de estado com persistência dupla (localStorage + Supabase)
   const handleUpdateStudioState = (
@@ -173,9 +184,483 @@ export function AgendaSteApp() {
     setQuickSaleOpen(true);
   };
 
+  function getSectionTitle(sec: NavigationSectionId): string {
+    switch (sec) {
+      case "calendar":
+        return "Agenda";
+      case "clients":
+        return "Clientes";
+      case "charts":
+        return "Prontuários";
+      case "reception":
+        return "Recepção IA";
+      case "payments_sales_history":
+        return "Vendas";
+      case "payments_invoices":
+        return "Faturas";
+      case "payments_gift_cards":
+        return "Vale-Presentes";
+      case "catalog_services":
+        return "Serviços";
+      case "catalog_packages":
+        return "Pacotes";
+      case "catalog_memberships":
+        return "Assinaturas";
+      case "catalog_resources":
+        return "Recursos";
+      case "team_staff":
+        return "Equipe";
+      case "team_commissions":
+        return "Comissões";
+      case "team_payroll":
+        return "Repasses";
+      case "team_time_tracking":
+        return "Ponto";
+      case "marketing":
+        return "Marketing";
+      case "insights":
+      case "insights_analytics":
+        return "Análises";
+      case "insights_reports":
+        return "Relatórios";
+      case "inventory":
+        return "Estoque";
+      case "refer":
+        return "Indicações";
+      case "settings":
+        return "Configurações";
+      case "get_started":
+      default:
+        return "Primeiros Passos";
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-white text-[#1C1C1E]">
-      {/* Left Collapsible AgendaSte Sidebar */}
+      {/* Mobile Top Header (<768px): Studio & Section Identity + Quick Access */}
+      <header className="md:hidden sticky top-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5E5EA] px-3.5 py-2.5 flex items-center justify-between gap-2 select-none">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-[#FBCFE8] text-[#831843] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            {providerShortName.slice(0, 1).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[14px] font-bold text-[#1C1C1E] leading-tight truncate">
+              {getSectionTitle(activeSection)}
+            </h1>
+            <p className="text-[11px] text-[#6E6E73] leading-tight truncate">
+              {state.settings.business.businessName || "Aura Studio"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setBookingSiteOpen(true)}
+            title="Abrir site de agendamento online"
+            className="h-9 px-3 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] flex items-center gap-1.5 active:scale-95 transition-transform"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-[#1C1C1E]" />
+            <span className="hidden sm:inline">Site Online</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Abrir menu de navegação"
+            className="w-9 h-9 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] flex items-center justify-center text-[#1C1C1E] active:scale-90 transition-transform"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Offcanvas Drawer (<768px): Full Studio Navigation */}
+      {mobileMenuOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex justify-start animate-in fade-in duration-150"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            className="w-[85%] max-w-[320px] bg-white h-full shadow-2xl flex flex-col justify-between animate-in slide-in-from-left duration-200 select-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-[#E5E5EA] flex items-center justify-between gap-3 bg-[#FAF9F6]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-[#FBCFE8] text-[#831843] flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+                  {providerShortName.slice(0, 1).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-[#1C1C1E] truncate">
+                    {providerFullName}
+                  </p>
+                  <p className="text-[11.5px] text-[#6E6E73] truncate">
+                    {state.settings.personal.email}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Fechar menu"
+                className="w-8 h-8 rounded-full border border-[#D1D1D6] flex items-center justify-center text-[#1C1C1E] hover:bg-white active:scale-95 transition-transform shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Navigation Items */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[13.5px]">
+              {/* Grupo 1: Atendimento & Recepção */}
+              <div>
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                  Atendimento &amp; Agenda
+                </p>
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("calendar");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "calendar"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-[#6E56CF]" />
+                      <span>Agenda Inteligente</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("clients");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "clients"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Contact className="w-4 h-4 text-[#6E56CF]" />
+                      <span>Clientes &amp; Fichas</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("charts");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "charts"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <ClipboardList className="w-4 h-4 text-[#6E56CF]" />
+                      <span>Prontuários (Anamnese)</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("reception");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "reception"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Sparkles className="w-4 h-4 text-[#6E56CF]" />
+                      <span>Recepção IA &amp; WhatsApp</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Grupo 2: Financeiro */}
+              <div>
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                  Financeiro &amp; PDV
+                </p>
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleOpenQuickSale();
+                    }}
+                    className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] active:scale-95 transition-transform"
+                  >
+                    <span className="flex items-center gap-3">
+                      <CreditCard className="w-4 h-4 text-[#E11D8F]" />
+                      <span>Venda Rápida POS</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold">
+                      1-Toque
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("payments_sales_history");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "payments_sales_history"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Banknote className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Histórico de Vendas</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("payments_invoices");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "payments_invoices"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <CreditCard className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Faturas &amp; Cobranças</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("insights_analytics");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "insights_analytics" || activeSection === "insights"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <BarChart3 className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Análises &amp; Métricas</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("insights_reports");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "insights_reports"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <BarChart3 className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Relatórios (12 Modelos)</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Grupo 3: Gestão & Catálogo */}
+              <div>
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                  Gestão &amp; Catálogo
+                </p>
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("catalog_services");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection.startsWith("catalog_")
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Package className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Catálogo &amp; Serviços</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("team_staff");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection.startsWith("team_")
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Users className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Equipe &amp; Comissões</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("inventory");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "inventory"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Package className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Estoque &amp; Backbar</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("marketing");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "marketing"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Sparkles className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Marketing IA</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Grupo 4: Sistema & Preferências */}
+              <div>
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                  Sistema
+                </p>
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("settings");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "settings"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Settings className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Configurações</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("get_started");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "get_started"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <ShieldCheck className="w-4 h-4 text-[#5B43D6]" />
+                      <span>Primeiros Passos ({completedOnboardingCount}/{totalOnboardingCount})</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection("refer");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
+                      activeSection === "refer"
+                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Gift className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Indique e Ganhe R$ 150</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Bottom Bar */}
+            <div className="p-3 border-t border-[#E5E5EA] bg-[#FAF9F6] text-center">
+              <span className="text-[11px] font-semibold text-[#8E8E93]">
+                AgendaSte PWA · Aura Studio
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Left Collapsible AgendaSte Sidebar (Desktop/Tablet >=768px) */}
       <AgendaSteSidebar
         activeSection={activeSection}
         onSelectSection={(sec) => setActiveSection(sec)}
@@ -185,8 +670,8 @@ export function AgendaSteApp() {
         providerShortName={providerShortName}
       />
 
-      {/* Main Content Workspace */}
-      <main className="flex-1 min-w-0 pb-20 md:pb-0 overflow-x-hidden">
+      {/* Main Content Workspace with safe area padding for bottom navigation */}
+      <main className="flex-1 min-w-0 pb-[calc(5.2rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden">
         {activeSection === "get_started" && (
           <GetStartedView
             state={state}
@@ -272,53 +757,106 @@ export function AgendaSteApp() {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation Bar (<768px): Agenda, Venda Rápida, Clientes, Recepção IA, Menu */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E5E5EA] px-2 py-1.5 flex items-center justify-around">
-        <button
-          onClick={() => setActiveSection("calendar")}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
-            activeSection === "calendar" ? "text-[#6E56CF]" : "text-[#6E6E73]"
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Agenda</span>
-        </button>
-        <button
-          onClick={() => handleOpenQuickSale()}
-          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold text-[#1C1C1E]"
-        >
-          <CreditCard className="w-4 h-4 text-[#E11D8F]" />
-          <span>Venda Rápida</span>
-        </button>
-        <button
-          onClick={() => setActiveSection("clients")}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
-            activeSection === "clients" ? "text-[#6E56CF]" : "text-[#6E6E73]"
-          }`}
-        >
-          <Contact className="w-4 h-4" />
-          <span>Clientes</span>
-        </button>
-        <button
-          onClick={() => setActiveSection("reception")}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
-            activeSection === "reception" ? "text-[#6E56CF]" : "text-[#6E6E73]"
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Recepção IA</span>
-        </button>
-        <button
-          onClick={() => setActiveSection("get_started")}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
-            activeSection === "get_started"
-              ? "text-[#6E56CF]"
-              : "text-[#6E6E73]"
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          <span>Menu</span>
-        </button>
+      {/* Mobile Fixed Bottom Navigation Bar (<768px): Agenda, Clientes, + Venda, Prontuários, Menu */}
+      <nav
+        aria-label="Navegação móvel principal"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E5E5EA] shadow-[0_-2px_12px_rgba(0,0,0,0.06)] px-2 pt-1 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] select-none"
+      >
+        <div className="grid grid-cols-5 items-center justify-items-center">
+          {/* 1. Agenda */}
+          <button
+            type="button"
+            onClick={() => setActiveSection("calendar")}
+            className="w-full h-12 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+          >
+            <Calendar
+              className={`w-5 h-5 transition-colors ${
+                activeSection === "calendar" ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            />
+            <span
+              className={`text-[10.5px] font-semibold leading-none ${
+                activeSection === "calendar" ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            >
+              Agenda
+            </span>
+          </button>
+
+          {/* 2. Clientes */}
+          <button
+            type="button"
+            onClick={() => setActiveSection("clients")}
+            className="w-full h-12 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+          >
+            <Contact
+              className={`w-5 h-5 transition-colors ${
+                activeSection === "clients" ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            />
+            <span
+              className={`text-[10.5px] font-semibold leading-none ${
+                activeSection === "clients" ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            >
+              Clientes
+            </span>
+          </button>
+
+          {/* 3. Center CTA: + Venda Rápida */}
+          <button
+            type="button"
+            onClick={() => handleOpenQuickSale()}
+            className="w-full h-12 flex flex-col items-center justify-center active:scale-90 transition-transform -mt-2"
+          >
+            <div className="w-11 h-11 rounded-full bg-[#1C1C1E] text-white flex items-center justify-center shadow-md border-2 border-white">
+              <Plus className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <span className="text-[10px] font-bold text-[#1C1C1E] mt-0.5 leading-none">
+              Venda
+            </span>
+          </button>
+
+          {/* 4. Prontuários (Anamnese) */}
+          <button
+            type="button"
+            onClick={() => setActiveSection("charts")}
+            className="w-full h-12 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+          >
+            <ClipboardList
+              className={`w-5 h-5 transition-colors ${
+                activeSection === "charts" ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            />
+            <span
+              className={`text-[10.5px] font-semibold leading-none ${
+                activeSection === "charts" ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            >
+              Prontuários
+            </span>
+          </button>
+
+          {/* 5. Menu Completo */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="w-full h-12 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+          >
+            <Menu
+              className={`w-5 h-5 transition-colors ${
+                mobileMenuOpen ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            />
+            <span
+              className={`text-[10.5px] font-semibold leading-none ${
+                mobileMenuOpen ? "text-[#6E56CF]" : "text-[#71717A]"
+              }`}
+            >
+              Menu
+            </span>
+          </button>
+        </div>
       </nav>
 
       {/* Global Public Booking Site Modal (Aura Studio — 01-1-get-started.png) */}
@@ -341,16 +879,16 @@ export function AgendaSteApp() {
 
       {/* Floating Bottom-Center Dark Toast Notification matching 05-3-clients-added.png & DESIGN.md §4.4 */}
       {state.lastToastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-[#1C1C1E] text-white shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-3">
+        <div className="fixed bottom-[calc(4.8rem+env(safe-area-inset-bottom,0px))] md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-[#1C1C1E] text-white shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-3 max-w-[92vw]">
           <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
-          <span className="text-[13px] font-semibold">
+          <span className="text-[13px] font-semibold truncate">
             {state.lastToastMessage}
           </span>
           <button
             onClick={() =>
               setState((prev) => ({ ...prev, lastToastMessage: null }))
             }
-            className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white"
+            className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white shrink-0"
           >
             <X className="w-3.5 h-3.5" />
           </button>
