@@ -38,7 +38,12 @@ import {
   ComplementarySectionView,
 } from "@/components/agendaste/views/marketing-and-settings-view";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
-import { loadStudioStateFromSupabase } from "@/lib/supabase/agendaste-sync";
+import {
+  loadStudioStateFromSupabase,
+  syncNewAppointmentToSupabase,
+  syncAppointmentUpdateToSupabase,
+  syncNewClientToSupabase,
+} from "@/lib/supabase/agendaste-sync";
 
 export function AgendaSteApp() {
   const [state, setState] = useState<StudioState>(() =>
@@ -51,12 +56,81 @@ export function AgendaSteApp() {
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
 
-  // Hidratação ao vivo do Supabase e subscrição Realtime
+  // Manipulador universal de estado com persistência dupla (localStorage + Supabase)
+  const handleUpdateStudioState = (
+    updater: StudioState | ((prev: StudioState) => StudioState)
+  ) => {
+    setState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+
+      // 1. Persistência Instantânea Local (Zero perda em refresh/reload)
+      try {
+        localStorage.setItem("agendaste_studio_state_v1", JSON.stringify(next));
+      } catch (err) {
+        console.warn("Erro ao salvar no localStorage:", err);
+      }
+
+      // 2. Persistência na Nuvem (Supabase)
+      if (isSupabaseConfigured()) {
+        // Detecta agendamentos recém-criados
+        const prevIds = new Set(prev.calendarEvents.map((e) => e.id));
+        const newEvents = next.calendarEvents.filter((e) => !prevIds.has(e.id));
+        for (const evt of newEvents) {
+          syncNewAppointmentToSupabase(evt, next.staff[0]?.id).catch(console.error);
+        }
+
+        // Detecta agendamentos com status alterado
+        for (const evt of next.calendarEvents) {
+          const oldEvt = prev.calendarEvents.find((e) => e.id === evt.id);
+          if (
+            oldEvt &&
+            (oldEvt.status !== evt.status ||
+              oldEvt.whatsappClientReply !== evt.whatsappClientReply)
+          ) {
+            syncAppointmentUpdateToSupabase(evt).catch(console.error);
+          }
+        }
+
+        // Detecta novos clientes
+        const prevClientIds = new Set(prev.clients.map((c) => c.id));
+        const newClients = next.clients.filter((c) => !prevClientIds.has(c.id));
+        for (const cli of newClients) {
+          syncNewClientToSupabase(cli).catch(console.error);
+        }
+      }
+
+      return next;
+    });
+  };
+
+  // Hidratação ao vivo (localStorage + Supabase) e subscrição Realtime
   useEffect(() => {
+    let localState = state;
+    try {
+      const cached = localStorage.getItem("agendaste_studio_state_v1");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.calendarEvents)) {
+          localState = parsed;
+          setState(parsed);
+        }
+      }
+    } catch (err) {
+      console.warn("Erro ao restaurar do localStorage:", err);
+    }
+
     if (!isSupabaseConfigured()) return;
 
-    loadStudioStateFromSupabase(state).then((liveState) => {
+    loadStudioStateFromSupabase(localState).then((liveState) => {
       setState(liveState);
+      try {
+        localStorage.setItem(
+          "agendaste_studio_state_v1",
+          JSON.stringify(liveState)
+        );
+      } catch (e) {
+        console.warn("Erro ao salvar cache:", e);
+      }
     });
 
     const channel = supabase
@@ -65,8 +139,17 @@ export function AgendaSteApp() {
         "postgres_changes",
         { event: "*", schema: "public", table: "appointments" },
         () => {
-          loadStudioStateFromSupabase(state).then((liveState) => {
-            setState(liveState);
+          setState((curr) => {
+            loadStudioStateFromSupabase(curr).then((liveState) => {
+              setState(liveState);
+              try {
+                localStorage.setItem(
+                  "agendaste_studio_state_v1",
+                  JSON.stringify(liveState)
+                );
+              } catch {}
+            });
+            return curr;
           });
         }
       )
@@ -107,20 +190,20 @@ export function AgendaSteApp() {
         {activeSection === "get_started" && (
           <GetStartedView
             state={state}
-            setState={setState}
+            setState={handleUpdateStudioState}
             onNavigate={(sec) => setActiveSection(sec)}
             onOpenBookingSite={() => setBookingSiteOpen(true)}
           />
         )}
 
         {activeSection === "reception" && (
-          <ReceptionView state={state} setState={setState} />
+          <ReceptionView state={state} setState={handleUpdateStudioState} />
         )}
 
         {activeSection === "calendar" && (
           <CalendarView
             state={state}
-            onUpdateState={setState}
+            onUpdateState={handleUpdateStudioState}
             onOpenQuickSale={handleOpenQuickSale}
           />
         )}
@@ -128,7 +211,7 @@ export function AgendaSteApp() {
         {activeSection === "clients" && (
           <ClientsView
             state={state}
-            onUpdateState={setState}
+            onUpdateState={handleUpdateStudioState}
             onNavigateToCalendarWithClient={() => setActiveSection("calendar")}
             onOpenQuickSale={() => handleOpenQuickSale()}
           />
@@ -140,7 +223,7 @@ export function AgendaSteApp() {
           <PaymentsView
             section={activeSection}
             state={state}
-            onUpdateState={setState}
+            onUpdateState={handleUpdateStudioState}
             onOpenQuickSale={handleOpenQuickSale}
           />
         )}
@@ -152,7 +235,7 @@ export function AgendaSteApp() {
           <CatalogView
             section={activeSection}
             state={state}
-            onUpdateState={setState}
+            onUpdateState={handleUpdateStudioState}
           />
         )}
 
@@ -163,16 +246,16 @@ export function AgendaSteApp() {
           <TeamView
             section={activeSection}
             state={state}
-            onUpdateState={setState}
+            onUpdateState={handleUpdateStudioState}
           />
         )}
 
         {activeSection === "marketing" && (
-          <MarketingView state={state} onUpdateState={setState} />
+          <MarketingView state={state} onUpdateState={handleUpdateStudioState} />
         )}
 
         {activeSection === "settings" && (
-          <SettingsView state={state} onUpdateState={setState} />
+          <SettingsView state={state} onUpdateState={handleUpdateStudioState} />
         )}
 
         {(activeSection === "insights" ||
@@ -182,7 +265,7 @@ export function AgendaSteApp() {
           <ComplementarySectionView
             section={activeSection}
             state={state}
-            onUpdateState={setState}
+            onUpdateState={handleUpdateStudioState}
           />
         )}
       </main>
@@ -240,7 +323,7 @@ export function AgendaSteApp() {
       {bookingSiteOpen && (
         <PublicBookingSiteModal
           state={state}
-          setState={setState}
+          setState={handleUpdateStudioState}
           onClose={() => setBookingSiteOpen(false)}
         />
       )}
@@ -251,7 +334,7 @@ export function AgendaSteApp() {
         onClose={() => setQuickSaleOpen(false)}
         state={state}
         prefillAppointment={quickSalePrefill}
-        onUpdateState={setState}
+        onUpdateState={handleUpdateStudioState}
       />
 
       {/* Floating Bottom-Center Dark Toast Notification matching 05-3-clients-added.png & DESIGN.md §4.4 */}

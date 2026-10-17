@@ -47,15 +47,27 @@ interface CalendarViewProps {
 
 const HOURS = Array.from({ length: 13 }, (_, idx) => idx + 8); // 08:00 .. 20:00
 
-const WEEK_DAYS = [
-  { label: "Dom", dayNum: 11, dateISO: "2026-10-11" },
-  { label: "Seg", dayNum: 12, dateISO: "2026-10-12" },
-  { label: "Ter", dayNum: 13, dateISO: "2026-10-13" },
-  { label: "Qua", dayNum: 14, dateISO: "2026-10-14" },
-  { label: "Qui", dayNum: 15, dateISO: "2026-10-15" },
-  { label: "Sex", dayNum: 16, dateISO: "2026-10-16" },
-  { label: "Sáb", dayNum: 17, dateISO: "2026-10-17" },
-];
+function getWeekDays(selectedDateISO: string) {
+  const parts = selectedDateISO.split("-").map(Number);
+  const baseDate = new Date(parts[0], parts[1] - 1, parts[2]);
+  const dayOfWeek = baseDate.getDay();
+  const sunday = new Date(baseDate);
+  sunday.setDate(baseDate.getDate() - dayOfWeek);
+
+  const labels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return {
+      label: labels[i],
+      dayNum: d.getDate(),
+      dateISO: `${year}-${month}-${day}`,
+    };
+  });
+}
 
 export function CalendarView({
   state,
@@ -158,7 +170,13 @@ export function CalendarView({
       return;
     }
 
-    onUpdateState(() => result.state);
+    onUpdateState(() => ({
+      ...result.state,
+      calendarView: {
+        ...result.state.calendarView,
+        selectedDateISO: eventDateISO,
+      },
+    }));
     setNewAppointmentDrawerOpen(false);
     setShowInlineNewClient(false);
     setInlineClientName("");
@@ -291,9 +309,9 @@ export function CalendarView({
           )}
         </div>
 
-        {/* Center: Week Strip (Dom 11 .. Sáb 17) */}
+        {/* Center: Week Strip (Dom .. Sáb) */}
         <div className="flex items-center gap-1.5 bg-[#F5F5F7] px-2 py-1.5 rounded-full">
-          {WEEK_DAYS.map((wd) => {
+          {getWeekDays(selectedDateISO).map((wd) => {
             const active = selectedDateISO === wd.dateISO;
             return (
               <button
@@ -416,7 +434,7 @@ export function CalendarView({
       {/* Week Mode 7-Day Overview Strip when viewMode === 'week' */}
       {viewMode === "week" && (
         <div className="px-6 py-3 bg-[#F5F3FF] border-b border-[#DDD6FE] grid grid-cols-7 gap-2">
-          {WEEK_DAYS.map((wd) => {
+          {getWeekDays(selectedDateISO).map((wd) => {
             const dayEvents = state.calendarEvents.filter(
               (ev) => ev.dateISO === wd.dateISO && ev.status !== "canceled"
             );
