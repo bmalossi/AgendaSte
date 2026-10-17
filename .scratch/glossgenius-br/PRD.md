@@ -1,14 +1,14 @@
-# PRD: Plataforma de Gestão e Agendamento Padrão GlossGenius (Edição Brasil)
+# PRD: Plataforma de Gestão e Agendamento Padrão AgendaSte (Edição Brasil)
 
 Status: ready-for-agent
 
 ## Problem Statement
 
-Profissionais autônomos e gestores de estúdios de beleza, estética, saúde e bem-estar no Brasil enfrentam uma escolha ruim entre softwares locais visualmente datados, lentos e burocráticos, ou plataformas internacionais de ponta (como o GlossGenius) que operam apenas em inglês, em dólar e sem integração nativa com os motores essenciais de retenção e liquidação do mercado brasileiro: **WhatsApp (via pareamento QR Code 2-Way Sync)** e **Pix Dinâmico (para cobrança de Sinal / Taxa de Reserva, Venda Rápida e Fechamento de Repasse)**. Além disso, agendas genéricas tratam qualquer atendimento como um bloco único de tempo, ignorando a realidade operacional de salões e clínicas — onde serviços exigem **Tempo de Processamento** (janela intermediária em que o produto age e o **Profissional (Provider)** pode encaixar outro cliente), **Tempo de Bloqueio** (higienização pós-atendimento), trava simultânea de **Recursos Físicos (Resources)** como salas e equipamentos de alto custo, controle de créditos de **Pacotes (Packages)** e **Assinaturas (Memberships)**, **Galeria Auto-Organizada (Auto-Sorted Photos)** por visita e **Folha de Ponto (Timesheet)** integrada ao **Fechamento de Repasse (Payroll)**.
+Profissionais autônomos e gestores de estúdios de beleza, estética, saúde e bem-estar no Brasil enfrentam uma escolha ruim entre softwares locais visualmente datados, lentos e burocráticos, ou plataformas internacionais de ponta (como o AgendaSte) que operam apenas em inglês, em dólar e sem integração nativa com os motores essenciais de retenção e liquidação do mercado brasileiro: **WhatsApp (via pareamento QR Code 2-Way Sync)** e **Pix Dinâmico (para cobrança de Sinal / Taxa de Reserva, Venda Rápida e Fechamento de Repasse)**. Além disso, agendas genéricas tratam qualquer atendimento como um bloco único de tempo, ignorando a realidade operacional de salões e clínicas — onde serviços exigem **Tempo de Processamento** (janela intermediária em que o produto age e o **Profissional (Provider)** pode encaixar outro cliente), **Tempo de Bloqueio** (higienização pós-atendimento), trava simultânea de **Recursos Físicos (Resources)** como salas e equipamentos de alto custo, controle de créditos de **Pacotes (Packages)** e **Assinaturas (Memberships)**, **Galeria Auto-Organizada (Auto-Sorted Photos)** por visita e **Folha de Ponto (Timesheet)** integrada ao **Fechamento de Repasse (Payroll)**.
 
 ## Solution
 
-Construir uma plataforma web e mobile-first cuja identidade visual, arquitetura de navegação, layouts, tipografia editorial (títulos em serif editorial combinados com sans-serif limpa e botões pílula `#1C1C1E`), estados de apresentação ("Heros Editoriais" com cards lilás ilustrados) e fluxos de gavetas deslizantes à direita (drawers) e editores de página inteira sejam **idênticos às 39 capturas de referência do GlossGenius**, porém 100% traduzidos e adaptados para a operação brasileira (Português PT-BR, moeda em Reais `R$`, **Sinal / Taxa de Reserva** via Pix Dinâmico, **Recepção IA** conectada ao WhatsApp por QR Code, e suporte a CPF/CNPJ/Salão Parceiro).
+Construir uma plataforma web e mobile-first cuja identidade visual, arquitetura de navegação, layouts, tipografia editorial (títulos em serif editorial combinados com sans-serif limpa e botões pílula `#1C1C1E`), estados de apresentação ("Heros Editoriais" com cards lilás ilustrados) e fluxos de gavetas deslizantes à direita (drawers) e editores de página inteira sejam **idênticos às 39 capturas de referência do AgendaSte**, porém 100% traduzidos e adaptados para a operação brasileira (Português PT-BR, moeda em Reais `R$`, **Sinal / Taxa de Reserva** via Pix Dinâmico, **Recepção IA** conectada ao WhatsApp por QR Code, e suporte a CPF/CNPJ/Salão Parceiro).
 
 A plataforma unifica em uma única experiência:
 1. **Primeiros Passos (`0/3 Get Started`)**: Checklist interativo de ativação em 3 cartões ilustrados (Site de Agendamento Online, Catálogo de Serviços e Pagamentos Pix/Cartão), importação gratuita de dados, status do período de avaliação Gold e atalho ao vivo para o **Site de Agendamento Online (`Aura Studio`)**.
@@ -23,7 +23,7 @@ A plataforma unifica em uma única experiência:
 
 ## User Stories
 
-1. As a **Profissional (Provider)**, I want a collapsible left sidebar identical to GlossGenius with expandable submenus for Pagamentos, Catálogo, Equipe and Relatórios, so that I can navigate between all operational areas with zero visual clutter.
+1. As a **Profissional (Provider)**, I want a collapsible left sidebar identical to AgendaSte with expandable submenus for Pagamentos, Catálogo, Equipe and Relatórios, so that I can navigate between all operational areas with zero visual clutter.
 2. As a **Profissional (Provider)**, I want a `0/3 Primeiros Passos` (`Get Started`) onboarding dashboard with 3 visual cards (Site de Agendamento Online, Catálogo de Serviços, Pagamentos) and a dynamic progress bar (`0/3` to `3/3`), so that I can track and complete my studio setup in minutes.
 3. As a **Profissional (Provider)**, I want to click `"Importar meus dados"` on the Primeiros Passos screen to import existing clients, services and appointments, so that I can migrate from pen-and-paper or another system without manual typing.
 4. As a **Profissional (Provider)**, I want to click `"Meu site de agendamento ↗"` in the top right header (or on the `AURA STUDIO` preview card) to open the interactive **Site de Agendamento Online (Booking Site)**, so that I can preview and test exactly how a **Cliente (Client)** books a service and pays a **Sinal / Taxa de Reserva (Deposit)** via Pix.
@@ -72,13 +72,13 @@ A plataforma unifica em uma única experiência:
 ## Implementation Decisions
 
 ### 1. Design System & Visual Architecture (`DESIGN.md` & `PRODUCT.md`)
-- Replace the previous industrial monospace theme with the **GlossGenius Editorial Design System**:
+- Replace the previous industrial monospace theme with the **AgendaSte Editorial Design System**:
   - **Surfaces**: Pure white primary workspace (`#FFFFFF`), warm light-gray secondary containers (`#F6F6F8`), soft lavender/periwinkle active navigation & showcase cards (`#EEECFF` to `#B8B0FF` subtle gradients), and high-contrast obsidian dark cards (`#18181B`) for live widgets (Smartphone mockups, Weekly Goal tracker, Timeclock, Toast notifications).
   - **Typography**: Editorial Serif display font (`Instrument Serif` / `Newsreader` / `Playfair Display`) for hero headlines (`"Faça cada cliente se sentir o seu favorito"`, `"Expanda suas opções flexíveis de pagamento com faturas"`, `"Apresentando a Recepção"`) paired with geometric Sans-Serif (`Plus Jakarta Sans` / `DM Sans`) for UI controls, tables and forms, and tabular numerals for currency, timers and schedules.
   - **Interactive Primitives**:
     - Primary CTA buttons: Solid pill-shaped dark charcoal (`#1C1C1E`, `border-radius: 9999px`) with white medium-bold text.
     - Secondary CTA buttons: Pill-shaped white or transparent surface with `1px solid #D4D4D8` border (`border-radius: 9999px`).
-    - Toggles: Pill switches in GlossGenius Purple (`#6E56CF`) for general preferences/catalog and GlossGenius Pink (`#E11D8F`) for Staff Time Tracking and Calendar current-time indicators.
+    - Toggles: Pill switches in AgendaSte Purple (`#6E56CF`) for general preferences/catalog and AgendaSte Pink (`#E11D8F`) for Staff Time Tracking and Calendar current-time indicators.
     - Drawers & Full-Page Editors: Slide-over right drawers (`420px–480px` width) for Calendar New Appointment, Calendar Appointment Details/Checkout, Calendar Waitlist, and Client Profile; sticky left-subnav + scrollable form canvas for New Service, New Package, New Invoice, and Settings.
   - **Dual-Layer Presentation (Editorial Hero + Operational View)**: Sections that feature zero-state/onboarding Editorial Heros in the reference screenshots (`Pagamentos → Faturas`, `Clientes`, `Catálogo → Serviços/Recursos`, `Equipe → Profissionais/Comissões/Folha/Ponto`) will include both the exact Editorial Hero banner/view from the screenshots (accessible via a toggle or initial showcase state) and the fully populated, interactive operational tables, forms and drawers.
 
@@ -145,7 +145,7 @@ export interface ServiceItem {
   - If `requiredResourceIds` are attached to the service, the engine checks if any overlapping active appointment is already locking the same **Recurso Físico (Resource)** (`Salas` or `Equipamentos`) and surfaces an explicit conflict warning/block.
 
 ### 4. Database Schema Evolution (`supabase/schema.sql`)
-- Expand the PostgreSQL schema (with RLS policies) to cover all GlossGenius domain entities:
+- Expand the PostgreSQL schema (with RLS policies) to cover all AgendaSte domain entities:
   - `professionals` / `staff_members` (roles, commission policies for services and products, weekly revenue goals, solo vs. team mode, personal/notification preferences).
   - `resources` (categories `equipment` and `room`, assigned services).
   - `services` (segmented durations: `processing_duration_minutes`, `block_after_minutes`, `price_type`, `calendar_color`, `online_booking_enabled`, JSONB `options` and `add_ons`).
@@ -167,7 +167,7 @@ export interface ServiceItem {
 - All tests use the canonical terminology from `CONTEXT.md`.
 
 ### Seam Under Test
-- **Single High-Level Seam**: The **Domain Operations Engine & API Route Seam** (`src/lib/glossgenius-store.ts` / domain controller functions + `/api/pix/create` and `/api/whatsapp/send`).
+- **Single High-Level Seam**: The **Domain Operations Engine & API Route Seam** (`src/lib/AgendaSte-store.ts` / domain controller functions + `/api/pix/create` and `/api/whatsapp/send`).
 - Through this single seam, automated tests and verification scripts can deterministically exercise:
   1. **Segmented Service Scheduling & Resource Locking**: Verifying that creating an appointment with **Tempo de Processamento** and **Tempo de Bloqueio** computes the exact calendar spans and blocks overlapping bookings for the same **Recurso Físico (`Salas`/`Equipamentos`)** while permitting fit-ins during the processing window.
   2. **POS Checkout, Quick Sale & Invoices**: Verifying itemized subtotal, discount, tax, **Vale-Presente** or **Pacote** credit redemption, and dynamic Pix generation.
@@ -177,10 +177,10 @@ export interface ServiceItem {
 
 ## Out of Scope
 
-- US-specific financial lending (`GlossGenius Financing`) and US physical card-reader hardware Bluetooth firmware pairing.
+- US-specific financial lending (`AgendaSte Financing`) and US physical card-reader hardware Bluetooth firmware pairing.
 - US 50-state W-2/1099 federal tax filing with the IRS (replaced by Brazilian **Fechamento de Repasse / Salão Parceiro** via Pix).
 - External third-party e-commerce dropshipping (`GeniusShop`).
 
 ## Further Notes
 
-- Every screen photographed in `C:\Users\sorai\Desktop\Bruno\Projetos\Agenda\glossgenius` (`01-get-started` through `08-3-settings-business`) must have its corresponding visual counterpart faithfully represented in the application, including the floating dark confirmation toasts (e.g., `"Cliente Stefany criado com sucesso!"`), the purple/pink switches, the `+2` to `+8` weeks skip popover on the calendar, the 5 icon tabs in the client drawer, and the hand-held smartphone preview in the Marketing campaign modal.
+- Every screen photographed in `C:\Users\sorai\Desktop\Bruno\Projetos\Agenda\AgendaSte` (`01-get-started` through `08-3-settings-business`) must have its corresponding visual counterpart faithfully represented in the application, including the floating dark confirmation toasts (e.g., `"Cliente Stefany criado com sucesso!"`), the purple/pink switches, the `+2` to `+8` weeks skip popover on the calendar, the 5 icon tabs in the client drawer, and the hand-held smartphone preview in the Marketing campaign modal.

@@ -1,5 +1,5 @@
 // =============================================================================
-// GLOSSGENIUS (EDIÇÃO BRASIL) — MOTOR DE DOMÍNIO & ESTADO OPERACIONAL
+// AGENDASTE (EDIÇÃO BRASIL) — MOTOR DE DOMÍNIO & ESTADO OPERACIONAL
 // Vocabulário canônico alinhado a CONTEXT.md, ADR-0001 e ADR-0002
 // =============================================================================
 
@@ -461,7 +461,7 @@ export function addDaysToDateISO(dateISO: string, daysToAdd: number): string {
 }
 
 // =============================================================================
-// ESTADO INICIAL REALISTA (BASEADO NAS 39 CAPTURAS DO GLOSSGENIUS)
+// ESTADO INICIAL REALISTA DO ESTÚDIO (AGENDASTE)
 // =============================================================================
 
 export function createInitialStudioState(): StudioState {
@@ -935,7 +935,7 @@ export function createInitialStudioState(): StudioState {
         taxCents: 0,
         totalCents: 23000,
         status: "sent",
-        paymentLinkUrl: "https://aurastudio.glossgenius.br/pay/1000948",
+        paymentLinkUrl: "https://aurastudio.agendaste.com.br/pay/1000948",
       },
     ],
     salesHistory: [
@@ -1093,7 +1093,7 @@ export function createInitialStudioState(): StudioState {
         notifyNewReviews: true,
         captureClientNotesFromMe: true,
         sendMeClientNotesBeforeAppointment: true,
-        calendarSyncUrl: "webcal://aurastudio.glossgenius.br/cal/bruno-sync.ics",
+        calendarSyncUrl: "webcal://aurastudio.agendaste.com.br/cal/bruno-sync.ics",
         waitlistNotifications: {
           email: true,
           text: true,
@@ -2081,7 +2081,7 @@ export function createAndSendInvoice(
     taxCents: input.taxCents,
     totalCents,
     status: "sent",
-    paymentLinkUrl: `https://aurastudio.glossgenius.br/pay/${nextNumber.replace("#", "")}`,
+    paymentLinkUrl: `https://aurastudio.agendaste.com.br/pay/${nextNumber.replace("#", "")}`,
   };
 
   return {

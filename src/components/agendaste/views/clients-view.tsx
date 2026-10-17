@@ -27,7 +27,7 @@ import {
   updateClientNotesAndForms,
   uploadAutoSortedClientPhoto,
   importStudioMigrationData,
-} from "@/lib/glossgenius-store";
+} from "@/lib/agendaste-store";
 
 interface ClientsViewProps {
   state: StudioState;

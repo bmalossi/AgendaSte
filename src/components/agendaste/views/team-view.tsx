@@ -20,7 +20,7 @@ import {
   formatBRL,
   calculatePayrollSummary,
   toggleTimeclockAction,
-} from "@/lib/glossgenius-store";
+} from "@/lib/agendaste-store";
 
 interface TeamViewProps {
   section:

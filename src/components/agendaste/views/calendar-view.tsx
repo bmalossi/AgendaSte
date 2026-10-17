@@ -37,7 +37,7 @@ import {
   processWhatsappInboundReply,
   executeQuickSaleCheckout,
   saveCatalogService,
-} from "@/lib/glossgenius-store";
+} from "@/lib/agendaste-store";
 
 interface CalendarViewProps {
   state: StudioState;

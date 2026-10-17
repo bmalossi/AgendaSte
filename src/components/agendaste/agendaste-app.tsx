@@ -17,28 +17,28 @@ import {
   NavigationSectionId,
   CalendarEventItem,
   createInitialStudioState,
-} from "@/lib/glossgenius-store";
-import { GlossGeniusSidebar } from "@/components/glossgenius/sidebar";
+} from "@/lib/agendaste-store";
+import { AgendaSteSidebar } from "@/components/agendaste/sidebar";
 import {
   GetStartedView,
   PublicBookingSiteModal,
   ReceptionView,
-} from "@/components/glossgenius/views/get-started-and-reception";
-import { CalendarView } from "@/components/glossgenius/views/calendar-view";
-import { ClientsView } from "@/components/glossgenius/views/clients-view";
+} from "@/components/agendaste/views/get-started-and-reception";
+import { CalendarView } from "@/components/agendaste/views/calendar-view";
+import { ClientsView } from "@/components/agendaste/views/clients-view";
 import {
   PaymentsView,
   QuickSaleDrawer,
-} from "@/components/glossgenius/views/payments-view";
-import { CatalogView } from "@/components/glossgenius/views/catalog-view";
-import { TeamView } from "@/components/glossgenius/views/team-view";
+} from "@/components/agendaste/views/payments-view";
+import { CatalogView } from "@/components/agendaste/views/catalog-view";
+import { TeamView } from "@/components/agendaste/views/team-view";
 import {
   MarketingView,
   SettingsView,
   ComplementarySectionView,
-} from "@/components/glossgenius/views/marketing-and-settings-view";
+} from "@/components/agendaste/views/marketing-and-settings-view";
 
-export function GlossGeniusApp() {
+export function AgendaSteApp() {
   const [state, setState] = useState<StudioState>(() =>
     createInitialStudioState()
   );
@@ -64,8 +64,8 @@ export function GlossGeniusApp() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-white text-[#1C1C1E]">
-      {/* Left Collapsible GlossGenius Sidebar */}
-      <GlossGeniusSidebar
+      {/* Left Collapsible AgendaSte Sidebar */}
+      <AgendaSteSidebar
         activeSection={activeSection}
         onSelectSection={(sec) => setActiveSection(sec)}
         completedOnboardingCount={completedOnboardingCount}

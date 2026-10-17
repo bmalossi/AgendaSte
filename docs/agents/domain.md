@@ -15,7 +15,7 @@ Single-context repo:
 /
 ├── CONTEXT.md
 ├── docs/adr/
-│   ├── 0001-glossgenius-tropicalized-architecture.md
+│   ├── 0001-agendaste-tropicalized-architecture.md
 │   └── 0002-segmented-service-timing-and-resource-locks.md
 └── src/
 ```

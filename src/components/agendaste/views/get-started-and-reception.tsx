@@ -25,7 +25,7 @@ import {
   bookFromPublicSite,
   processWhatsappInboundReply,
   formatBRL,
-} from "@/lib/glossgenius-store";
+} from "@/lib/agendaste-store";
 
 interface GetStartedProps {
   state: StudioState;
@@ -252,7 +252,7 @@ export function GetStartedView({
             </p>
             <p className="text-[13px] text-zinc-600 leading-relaxed">
               Selecione o plano e adicione seu cartão ou conta Pix para salvar
-              seu progresso e continuar usando o GlossGenius.
+              seu progresso e continuar usando o AgendaSte.
             </p>
           </div>
           <div>
@@ -278,11 +278,11 @@ export function GetStartedView({
             <div className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-9 h-9 rounded-lg bg-[#1C1C1E] text-[#F5B041] flex items-center justify-center font-bold text-sm shrink-0">
-                  G
+                  A
                 </div>
                 <div>
                   <p className="text-[13.5px] font-semibold text-[#18181B]">
-                    Baixe o App GlossGenius Mobile (PWA)
+                    Baixe o App AgendaSte Mobile (PWA)
                   </p>
                   <p className="text-[12.5px] text-zinc-500">
                     Gerencie seu estúdio de qualquer lugar usando seu celular.
@@ -550,7 +550,7 @@ export function PublicBookingSiteModal({
               AURA STUDIO · {state.settings.business.businessName}
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              aurastudio.glossgenius.br/{state.settings.business.bookingSlug} ·{" "}
+              aurastudio.agendaste.com.br/{state.settings.business.bookingSlug} ·{" "}
               {state.settings.business.address}
             </p>
           </div>

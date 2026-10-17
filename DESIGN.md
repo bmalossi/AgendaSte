@@ -1,7 +1,7 @@
-# DESIGN.md — GlossGenius Editorial Design System (Edição Brasil)
+# DESIGN.md — AgendaSte Editorial Design System (Edição Brasil)
 
 ## 1. Direção Estética & Filosofia Visual
-O sistema visual replica fielmente a linguagem de design do **GlossGenius**: **Editorial Clean & Luxury Salon OS**.
+O sistema visual replica fielmente a linguagem de design do **AgendaSte**: **Editorial Clean & Luxury Salon OS**.
 - **Superfícies Claras e Respiráveis**: Área de trabalho principal em branco puro (`#FFFFFF`) com containers secundários em cinza quente sutil (`#F5F5F7`) e bordas finas (`1px solid #E5E7EB`).
 - **Heros Editoriais Ilustrados**: Telas de apresentação de módulos utilizam um card quadrado à esquerda com gradiente lavanda/periwinkle (`linear-gradient(180deg, #A599FF 0%, #DFDCFF 100%)`) contendo um mockup escuro de interface (`#141416`), pareado à direita com tipografia Serif Editorial ampla (`36px–44px`) e chamadas de ação em pílula preta.
 - **Contraste Tátil em Pílulas (`Pill Primitives`)**:

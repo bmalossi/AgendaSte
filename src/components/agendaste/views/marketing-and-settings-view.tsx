@@ -27,7 +27,7 @@ import {
   sendMarketingCampaign,
   updateStudioSettings,
   filterClientsByRetention,
-} from "@/lib/glossgenius-store";
+} from "@/lib/agendaste-store";
 
 // =============================================================================
 // 1. MARKETING VIEW (07-1-marketing.png & 07-1-1-marketing.png)
@@ -94,7 +94,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
           <h2 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
-            Alcance mais clientes com o Marketing GlossGenius
+            Alcance mais clientes com o Marketing AgendaSte
           </h2>
           <p className="text-[15px] text-[#6E6E73] max-w-xl">
             Lance campanhas de e-mail, SMS e WhatsApp redigidas por IA em segundos para preencher horários vagos e reativar clientes ausentes.
@@ -884,7 +884,7 @@ export function ComplementarySectionView({
           Convide outros profissionais de beleza e ganhem créditos na assinatura
         </h1>
         <p className="text-[15px] text-[#6E6E73] max-w-xl">
-          Compartilhe seu link exclusivo do GlossGenius Brasil com colegas de estética, salão e bem-estar.
+          Compartilhe seu link exclusivo do AgendaSte com colegas de estética, salão e bem-estar.
         </p>
         <button
           onClick={() =>

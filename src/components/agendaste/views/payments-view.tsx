@@ -27,7 +27,7 @@ import {
   createAndSendInvoice,
   executeQuickSaleCheckout,
   issueGiftCard,
-} from "@/lib/glossgenius-store";
+} from "@/lib/agendaste-store";
 
 interface PaymentsViewProps {
   section:

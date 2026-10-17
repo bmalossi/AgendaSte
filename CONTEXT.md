@@ -1,4 +1,4 @@
-# Gestão de Salão, Estética e Bem-Estar (Padrão GlossGenius BR)
+# Gestão de Salão, Estética e Bem-Estar (Padrão AgendaSte BR)
 
 Plataforma integrada de agendamento, ponto de venda (POS), relacionamento com clientes (CRM), catálogo de serviços e gestão de equipe para profissionais autônomos e estúdios de beleza, estética e bem-estar no Brasil.
 

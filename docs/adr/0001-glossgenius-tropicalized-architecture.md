@@ -1,3 +1,0 @@
-# Adoção da Arquitetura Visual e Funcional do GlossGenius Tropicalizada para o Brasil
-
-Substituímos a direção anterior ("Swiss-Industrial Ledger") por uma réplica fiel da arquitetura de produto, layout e design system do GlossGenius (estética editorial limpa, títulos serifados, botões pílula `#1C1C1E`, navegação lateral multinível e drawers deslizantes à direita), porém 100% localizada para o mercado brasileiro (Português, R$, Pix Dinâmico, WhatsApp e CPF/CNPJ). Essa escolha entrega a experiência visual e a profundidade de ferramentas de gestão de salão/estúdio do GlossGenius sem abrir mão dos motores locais de conversão e pagamento exigidos no Brasil.

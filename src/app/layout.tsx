@@ -25,9 +25,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GlossGenius · Aura Studio — Plataforma Completa de Agendamento & Gestão",
+  title: "AgendaSte · Aura Studio — Plataforma Completa de Agendamento & Gestão",
   description:
-    "Plataforma de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe inspirada no GlossGenius.",
+    "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
 };
 
 export const viewport: Viewport = {

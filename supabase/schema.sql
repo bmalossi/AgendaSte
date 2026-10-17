@@ -1,17 +1,20 @@
 -- =============================================================================
--- GLOSSGENIUS (EDIÇÃO BRASIL) — SUPABASE POSTGRESQL SCHEMA (RLS READY)
+-- AGENDASTE (EDIÇÃO BRASIL) — SUPABASE POSTGRESQL SCHEMA (RLS & REALTIME READY)
 -- Alinhado a CONTEXT.md, ADR-0001 e ADR-0002
+-- Execute este script no SQL Editor do Supabase (https://supabase.com/dashboard)
 -- =============================================================================
 
 create extension if not exists "uuid-ossp";
 
+-- -----------------------------------------------------------------------------
 -- 1. ESTÚDIOS & PROFISSIONAIS (PROVIDERS / STAFF)
+-- -----------------------------------------------------------------------------
 create table if not exists public.professionals (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid references auth.users(id) on delete cascade,
   first_name text not null,
   last_name text not null default '',
-  studio_name text not null,
+  studio_name text not null default 'Aura Studio',
   slug text unique not null,
   legal_entity_type text not null default 'Sociedade Limitada (LTDA) / Salão Parceiro',
   tax_id_cnpj_cpf text,
@@ -29,7 +32,9 @@ create table if not exists public.professionals (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
 -- 2. RECURSOS FÍSICOS (SALAS E EQUIPAMENTOS — ADR-0002)
+-- -----------------------------------------------------------------------------
 create table if not exists public.resources (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -39,7 +44,9 @@ create table if not exists public.resources (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
 -- 3. CATÁLOGO DE SERVIÇOS (COM DURAÇÃO SEGMENTADA: PROCESSAMENTO + BLOQUEIO)
+-- -----------------------------------------------------------------------------
 create table if not exists public.services (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -65,7 +72,9 @@ create table if not exists public.services (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
 -- 4. PACOTES E ASSINATURAS (PACKAGES & MEMBERSHIPS)
+-- -----------------------------------------------------------------------------
 create table if not exists public.packages (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -91,7 +100,9 @@ create table if not exists public.memberships (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
 -- 5. CLIENTES, FICHA DE ATENDIMENTO E FOTOS AUTO-ORGANIZADAS
+-- -----------------------------------------------------------------------------
 create table if not exists public.clients (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -114,7 +125,9 @@ create table if not exists public.clients (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
 -- 6. EVENTOS DE AGENDA (APPOINTMENT, PERSONAL BLOCK, WORKING HOURS, WAITLIST)
+-- -----------------------------------------------------------------------------
 create table if not exists public.appointments (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -140,7 +153,9 @@ create table if not exists public.appointments (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
 -- 7. LISTA DE ESPERA (WAITLIST)
+-- -----------------------------------------------------------------------------
 create table if not exists public.waitlist_entries (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -152,7 +167,9 @@ create table if not exists public.waitlist_entries (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
 -- 8. FATURAS (INVOICES), VALE-PRESENTES (GIFT CARDS) E COBRANÇAS PIX
+-- -----------------------------------------------------------------------------
 create table if not exists public.invoices (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -196,7 +213,41 @@ create table if not exists public.pix_charges (
   created_at timestamptz not null default now()
 );
 
--- 9. CONTROLE DE PONTO (TIME TRACKING) E CAMPANHAS DE MARKETING
+-- -----------------------------------------------------------------------------
+-- 9. HISTÓRICO DE VENDAS (SALES HISTORY / PDV)
+-- -----------------------------------------------------------------------------
+create table if not exists public.sales_history (
+  id uuid primary key default uuid_generate_v4(),
+  professional_id uuid not null references public.professionals(id) on delete cascade,
+  client_id uuid references public.clients(id) on delete set null,
+  client_name text not null,
+  items_summary text not null,
+  amount_cents integer not null,
+  tip_cents integer not null default 0,
+  payment_method text not null default 'Pix' check (payment_method in ('Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Dinheiro', 'Pacote', 'Vale-Presente')),
+  package_redeemed_id uuid references public.packages(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- -----------------------------------------------------------------------------
+-- 10. ESTOQUE (INVENTORY: RETAIL & BACKBAR)
+-- -----------------------------------------------------------------------------
+create table if not exists public.inventory_items (
+  id uuid primary key default uuid_generate_v4(),
+  professional_id uuid not null references public.professionals(id) on delete cascade,
+  sku text not null,
+  name text not null,
+  category text not null,
+  price_cents integer not null,
+  cost_cents integer not null,
+  stock_quantity integer not null default 0,
+  min_stock_alert integer not null default 3,
+  created_at timestamptz not null default now()
+);
+
+-- -----------------------------------------------------------------------------
+-- 11. CONTROLE DE PONTO (TIME TRACKING)
+-- -----------------------------------------------------------------------------
 create table if not exists public.time_tracking_entries (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -209,6 +260,9 @@ create table if not exists public.time_tracking_entries (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
+-- 12. CAMPANHAS DE MARKETING (MARKETING CAMPAIGNS)
+-- -----------------------------------------------------------------------------
 create table if not exists public.marketing_campaigns (
   id uuid primary key default uuid_generate_v4(),
   professional_id uuid not null references public.professionals(id) on delete cascade,
@@ -222,8 +276,22 @@ create table if not exists public.marketing_campaigns (
   created_at timestamptz not null default now()
 );
 
+-- -----------------------------------------------------------------------------
+-- 13. LOGS DA RECEPÇÃO IA E SINCRONIZAÇÃO WHATSAPP
+-- -----------------------------------------------------------------------------
+create table if not exists public.reception_logs (
+  id uuid primary key default uuid_generate_v4(),
+  professional_id uuid not null references public.professionals(id) on delete cascade,
+  event_type text not null check (event_type in ('whatsapp_outbound', 'whatsapp_inbound', 'voice_call_ai', 'system_event')),
+  client_name text not null,
+  client_phone text not null,
+  message_text text not null,
+  resolved boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 -- =============================================================================
--- ROW LEVEL SECURITY (RLS)
+-- ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================================================
 alter table public.professionals enable row level security;
 alter table public.resources enable row level security;
@@ -236,5 +304,174 @@ alter table public.waitlist_entries enable row level security;
 alter table public.invoices enable row level security;
 alter table public.gift_cards enable row level security;
 alter table public.pix_charges enable row level security;
+alter table public.sales_history enable row level security;
+alter table public.inventory_items enable row level security;
 alter table public.time_tracking_entries enable row level security;
 alter table public.marketing_campaigns enable row level security;
+alter table public.reception_logs enable row level security;
+
+-- Políticas de desenvolvimento / teste (Permitem leitura e escrita públicas via ANON_KEY)
+-- Em produção fechada, substitua por: USING (auth.uid() = user_id)
+do $$
+declare
+  t text;
+begin
+  for t in select unnest(array[
+    'professionals', 'resources', 'services', 'packages', 'memberships',
+    'clients', 'appointments', 'waitlist_entries', 'invoices', 'gift_cards',
+    'pix_charges', 'sales_history', 'inventory_items', 'time_tracking_entries',
+    'marketing_campaigns', 'reception_logs'
+  ]) loop
+    execute format('drop policy if exists "Enable full access for dev and anon" on public.%I;', t);
+    execute format('create policy "Enable full access for dev and anon" on public.%I for all using (true) with check (true);', t);
+  end loop;
+end $$;
+
+-- =============================================================================
+-- SUPABASE REALTIME (WebSockets para 2-Way Sync WhatsApp e Atualização ao Vivo)
+-- =============================================================================
+do $$
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+end $$;
+
+alter publication supabase_realtime add table public.appointments;
+alter publication supabase_realtime add table public.waitlist_entries;
+alter publication supabase_realtime add table public.clients;
+alter publication supabase_realtime add table public.sales_history;
+alter publication supabase_realtime add table public.reception_logs;
+
+-- =============================================================================
+-- SEED DATA INICIAL (AURA STUDIO / AGENDASTE)
+-- =============================================================================
+insert into public.professionals (
+  id, first_name, last_name, studio_name, slug, legal_entity_type, tax_id_cnpj_cpf, role, email, phone_whatsapp, pix_key, default_deposit_percent, service_commission_percent, product_commission_percent, weekly_goal_cents
+) values (
+  '11111111-1111-1111-1111-111111111111',
+  'Bruno',
+  'Fernandes Malossi Silva',
+  'Aura Studio',
+  'aura-studio',
+  'Sociedade Limitada (LTDA) / Salão Parceiro',
+  '45.892.103/0001-44',
+  'Proprietário & Especialista',
+  'bruno@aurastudio.com.br',
+  '(11) 99123-4567',
+  '45.892.103/0001-44',
+  30,
+  60,
+  20,
+  580000
+) on conflict (id) do nothing;
+
+insert into public.resources (
+  id, professional_id, name, category, description
+) values 
+  ('22222222-2222-2222-2222-222222222221', '11111111-1111-1111-1111-111111111111', 'Laser Lavieen', 'equipment', 'Aparelho laser fracionado de alta precisão para rejuvenescimento.'),
+  ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'Cabine Estética 01', 'room', 'Cabine isolada acústica e climatizada para procedimentos invasivos.')
+on conflict (id) do nothing;
+
+insert into public.services (
+  id, professional_id, name, description, category, calendar_color, online_booking_enabled, price_type, price_cents, require_deposit, deposit_cents, duration_minutes, processing_time_enabled, processing_start_offset_minutes, processing_duration_minutes, block_time_enabled, block_after_minutes, required_resource_ids
+) values
+  (
+    '33333333-3333-3333-3333-333333333331',
+    '11111111-1111-1111-1111-111111111111',
+    'Loiro Iluminado & Glossing',
+    'Técnica avançada de mechas com proteção capilar e banho de brilho espelhado.',
+    'Cabelo & Colorimetria',
+    '#E11D8F',
+    true,
+    'fixed',
+    48000,
+    true,
+    14400,
+    150,
+    true,
+    45,
+    30,
+    true,
+    15,
+    '{}'
+  ),
+  (
+    '33333333-3333-3333-3333-333333333332',
+    '11111111-1111-1111-1111-111111111111',
+    'Protocolo Facial Glow & Laser',
+    'Limpeza de pele profunda associada ao Laser Lavieen para renovação do colágeno.',
+    'Estética Facial',
+    '#6E56CF',
+    true,
+    'fixed',
+    35000,
+    true,
+    10500,
+    70,
+    false,
+    0,
+    0,
+    true,
+    10,
+    array['22222222-2222-2222-2222-222222222221'::uuid, '22222222-2222-2222-2222-222222222222'::uuid]
+  ),
+  (
+    '33333333-3333-3333-3333-333333333333',
+    '11111111-1111-1111-1111-111111111111',
+    'Escova Modelada & Glossing',
+    'Finalização modelada com escova italiana e tratamento de brilho vinílico.',
+    'Cabelo & Finalização',
+    '#E11D8F',
+    true,
+    'fixed',
+    15000,
+    true,
+    4500,
+    45,
+    false,
+    0,
+    0,
+    false,
+    0,
+    '{}'
+  )
+on conflict (id) do nothing;
+
+insert into public.clients (
+  id, professional_id, full_name, email, phone_whatsapp, anamnesis_notes, allergies_warnings, preferences_notes, birthday, total_spent_cents, visits_count
+) values
+  (
+    '44444444-4444-4444-4444-444444444441',
+    '11111111-1111-1111-1111-111111111111',
+    'Stefany Malossi',
+    'stefany@aurastudio.com.br',
+    '(11) 99876-5432',
+    'Prefere água com gás e temperatura fria no lavatório. Cabelo com mechas recentes.',
+    'Nenhuma alergia conhecida a cosméticos.',
+    'Tonalizante 9.89 com emulsão de 6 volumes.',
+    '14/05',
+    132000,
+    6
+  ),
+  (
+    '44444444-4444-4444-4444-444444444442',
+    '11111111-1111-1111-1111-111111111111',
+    'Mariana Albuquerque',
+    'mariana@albuquerque.adv.br',
+    '(11) 98765-4321',
+    'Pele mista a sensível. Procedimento com Laser Lavieen realizado com sucesso.',
+    'Sensibilidade leve ao ácido retinóico.',
+    'FPS 50 fluido pós-procedimento.',
+    '22/09',
+    78000,
+    3
+  )
+on conflict (id) do nothing;
+
+insert into public.inventory_items (
+  id, professional_id, sku, name, category, price_cents, cost_cents, stock_quantity, min_stock_alert
+) values
+  ('55555555-5555-5555-5555-555555555551', '11111111-1111-1111-1111-111111111111', 'KER-NUT-250', 'Shampoo Kérastase Nutritive 250ml', 'Home Care', 18500, 9500, 14, 4),
+  ('55555555-5555-5555-5555-555555555552', '11111111-1111-1111-1111-111111111111', 'LAV-TIP-01', 'Ponteira Laser Lavieen Descartável', 'Consumo Clínico', 32000, 18000, 2, 3)
+on conflict (id) do nothing;

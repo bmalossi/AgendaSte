@@ -31,7 +31,7 @@ import {
   saveCatalogPackage,
   saveCatalogMembership,
   savePhysicalResource,
-} from "@/lib/glossgenius-store";
+} from "@/lib/agendaste-store";
 
 interface CatalogViewProps {
   section:

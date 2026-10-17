@@ -1,5 +1,5 @@
-import { GlossGeniusApp } from "@/components/glossgenius/glossgenius-app";
+import { AgendaSteApp } from "@/components/agendaste/agendaste-app";
 
 export default function HomePage() {
-  return <GlossGeniusApp />;
+  return <AgendaSteApp />;
 }

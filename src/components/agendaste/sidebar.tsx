@@ -21,7 +21,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
-import type { NavigationSectionId } from "@/lib/glossgenius-store";
+import type { NavigationSectionId } from "@/lib/agendaste-store";
 
 interface SidebarProps {
   activeSection: NavigationSectionId;
@@ -32,7 +32,7 @@ interface SidebarProps {
   providerShortName: string;
 }
 
-export function GlossGeniusSidebar({
+export function AgendaSteSidebar({
   activeSection,
   onSelectSection,
   completedOnboardingCount,
@@ -645,7 +645,7 @@ export function GlossGeniusSidebar({
         </div>
       </div>
 
-      {/* Footer items identical to GlossGenius */}
+      {/* Footer items */}
       <div className="border-t border-[#E5E7EB] px-2.5 py-2.5 space-y-0.5 bg-white">
         <button
           type="button"

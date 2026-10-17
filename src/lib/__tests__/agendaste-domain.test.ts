@@ -30,7 +30,7 @@ import {
   generateMarketingDraftAI,
   sendMarketingCampaign,
   updateStudioSettings,
-} from "../glossgenius-store.ts";
+} from "../agendaste-store.ts";
 
 describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Online (Aura Studio)", () => {
   it("tracks 0/3 Primeiros Passos progress and increments as onboarding steps are completed", () => {
@@ -289,7 +289,7 @@ describe("Ticket 03 — Agenda Inteligente (Calendar), Salto de Semanas, Trava d
 });
 
 describe("Ticket 04 — Clientes (Clients), Drawer 5 Abas, Notas/Fichas e Fotos Auto-organizadas", () => {
-  it("creates a client with the exact GlossGenius toast and filters absent +30/45d clients", () => {
+  it("creates a client with the exact AgendaSte toast and filters absent +30/45d clients", () => {
     const initial = createInitialStudioState();
     const afterCreate = createClientProfile(initial, {
       fullName: "Beatriz Monteiro",
