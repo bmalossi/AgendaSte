@@ -446,3 +446,75 @@ describe("Ticket 08 — Marketing (Campanhas IA) & Configurações (Settings)", 
     assert.equal(state.settings.business.defaultDepositPercent, 40);
   });
 });
+
+describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002)", () => {
+  it("POST /api/pix/create generates a valid Pix Copia e Cola payload for depositCents or totalCents", async () => {
+    const { POST: createPixPOST } = await import("../../app/api/pix/create/route.ts");
+    const req = new Request("http://localhost:3000/api/pix/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointmentId: "evt-pix-test",
+        clientName: "Stefany Malossi",
+        depositCents: 6500,
+      }),
+    });
+    const res = await createPixPOST(req);
+    assert.equal(res.status, 200);
+    const json = (await res.json()) as {
+      ok: boolean;
+      depositCents: number;
+      pixCopiaECola: string;
+      qrCodePayload: string;
+    };
+    assert.equal(json.ok, true);
+    assert.equal(json.depositCents, 6500);
+    assert.match(json.pixCopiaECola, /BR\.GOV\.BCB\.PIX/);
+    assert.equal(json.qrCodePayload, json.pixCopiaECola);
+  });
+
+  it("POST /api/whatsapp/send dispatches 2-way WhatsApp template and listens for webhook reply", async () => {
+    const { POST: sendWhatsAppPOST } = await import("../../app/api/whatsapp/send/route.ts");
+    const req = new Request("http://localhost:3000/api/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointmentId: "evt-1",
+        clientName: "Stefany Malossi",
+        clientPhone: "(11) 99876-5432",
+        templateType: "reminder_24h",
+      }),
+    });
+    const res = await sendWhatsAppPOST(req);
+    assert.equal(res.status, 200);
+    const json = (await res.json()) as {
+      ok: boolean;
+      twoWayWebhookListening: boolean;
+      previewMessage: string;
+    };
+    assert.equal(json.ok, true);
+    assert.equal(json.twoWayWebhookListening, true);
+    assert.match(json.previewMessage, /Stefany Malossi/);
+  });
+
+  it("enforces ADR-0002 Resource Lock on bookFromPublicSite when a shared resource is busy", () => {
+    const initial = createInitialStudioState();
+    // evt-2 uses res-laser-1 on 2026-10-17 from 12:30 to 13:40
+    const blocked = bookFromPublicSite(initial, {
+      clientName: "Cliente Online Conflito",
+      clientEmail: "conflito@teste.com",
+      clientPhone: "(11) 97777-6666",
+      serviceId: "srv-rejuv",
+      providerId: "staff-clara",
+      dateISO: "2026-10-17",
+      startTime: "12:45",
+      selectedAddOnIds: [],
+      depositPaidViaPix: true,
+    });
+    assert.equal(blocked.ok, false);
+    if (!blocked.ok) {
+      assert.match(blocked.error, /Laser Lavieen|Cabine Estética 01/i);
+    }
+  });
+});
+

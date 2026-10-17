@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-
 interface WhatsAppSendPayload {
   appointmentId?: string;
   clientName: string;
@@ -18,7 +16,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as WhatsAppSendPayload;
 
     if (!body.clientName || !body.clientPhone || !body.templateType) {
-      return NextResponse.json(
+      return Response.json(
         {
           ok: false,
           error:
@@ -40,7 +38,7 @@ export async function POST(request: Request) {
         `Perfeito, ${body.clientName}! Seu retorno programado foi travado na agenda. Enviaremos um lembrete automático 24h antes.`,
     };
 
-    return NextResponse.json({
+    return Response.json({
       ok: true,
       engine: "evolution-baileys-v2",
       instance: process.env.WHATSAPP_INSTANCE_NAME || "veloce-studio-01",
@@ -51,7 +49,7 @@ export async function POST(request: Request) {
       twoWayWebhookListening: true,
     });
   } catch {
-    return NextResponse.json(
+    return Response.json(
       {
         ok: false,
         error:

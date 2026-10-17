@@ -709,7 +709,7 @@ export function createInitialStudioState(): StudioState {
         id: "pkg-rejuv-3",
         name: "Rejuvenation Package (3 Sessões)",
         description:
-          "Combo de 3 sessões do Protocolo Rejuvenation & Glow com acompanhamento fotográfico Antes & Depois.",
+          "Pacote de 3 sessões do Protocolo Rejuvenation & Glow com acompanhamento fotográfico Antes & Depois.",
         sellOnWebsite: true,
         includedServiceIds: ["srv-rejuv"],
         sessionsCount: 3,
@@ -1184,6 +1184,72 @@ export function importStudioMigrationData(
   };
 }
 
+export function checkCalendarSlotConflict(
+  state: StudioState,
+  params: {
+    dateISO: string;
+    startMin: number;
+    endMin: number;
+    providerId: string;
+    providerFullName: string;
+    requiredResourceIds: string[];
+  }
+):
+  | { ok: true }
+  | { ok: false; conflictType: "resource" | "provider"; message: string } {
+  const sameDayEvents = state.calendarEvents.filter(
+    (ev) =>
+      ev.dateISO === params.dateISO &&
+      ev.status !== "canceled" &&
+      ev.eventType === "appointment"
+  );
+
+  for (const ev of sameDayEvents) {
+    const evStart = parseTimeMinutes(ev.startTime);
+    const evEnd = parseTimeMinutes(ev.endTime);
+    const overlapsTotalWindow =
+      params.startMin < evEnd && params.endMin > evStart;
+    if (!overlapsTotalWindow) continue;
+
+    // 1. Verifica conflito de Recurso Físico (Salas e Equipamentos)
+    const sharedResourceIds = params.requiredResourceIds.filter((rId) =>
+      ev.resourceIds.includes(rId)
+    );
+    if (sharedResourceIds.length > 0) {
+      const resNames = state.resources
+        .filter((r) => sharedResourceIds.includes(r.id))
+        .map((r) => r.name)
+        .join(", ");
+      return {
+        ok: false,
+        conflictType: "resource",
+        message: `Conflito de Recurso Físico: ${resNames} já está reservado das ${ev.startTime} às ${ev.endTime} (${ev.clientName}).`,
+      };
+    }
+
+    // 2. Verifica conflito de Profissional (permitindo encaixe dentro da janela de Tempo de Processamento)
+    if (ev.providerId === params.providerId) {
+      const hasProcessingGap = ev.processingDurationMinutes > 0;
+      const gapStart = evStart + ev.processingStartOffsetMinutes;
+      const gapEnd = gapStart + ev.processingDurationMinutes;
+      const fitsInProcessingGap =
+        hasProcessingGap &&
+        params.startMin >= gapStart &&
+        params.endMin <= gapEnd;
+
+      if (!fitsInProcessingGap) {
+        return {
+          ok: false,
+          conflictType: "provider",
+          message: `Conflito de Agenda: ${params.providerFullName} já possui atendimento ativo das ${ev.startTime} às ${ev.endTime}.`,
+        };
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
 export function bookFromPublicSite(
   state: StudioState,
   input: {
@@ -1217,9 +1283,22 @@ export function bookFromPublicSite(
   const activeDuration = service.durationMinutes + addOnsDuration;
   const blockAfter = service.blockTimeEnabled ? service.blockAfterMinutes : 0;
   const startMin = parseTimeMinutes(input.startTime);
-  const endTime = formatMinutesToHHMM(startMin + activeDuration + blockAfter);
+  const endMin = startMin + activeDuration + blockAfter;
+  const endTime = formatMinutesToHHMM(endMin);
   const totalCents = service.priceCents + addOnsPrice;
   const depositCents = service.requireDeposit ? service.depositCents : 0;
+
+  const conflictCheck = checkCalendarSlotConflict(state, {
+    dateISO: input.dateISO,
+    startMin,
+    endMin,
+    providerId: provider.id,
+    providerFullName: provider.fullName,
+    requiredResourceIds: service.requiredResourceIds,
+  });
+  if (!conflictCheck.ok) {
+    return { ok: false, error: conflictCheck.message };
+  }
 
   // Verifica se o cliente já existe ou cria novo
   let existingClient = state.clients.find(
@@ -1597,51 +1676,16 @@ export function validateAndCreateCalendarEvent(
 
   // Validação de conflito em agendamentos existentes do mesmo dia
   if (input.eventType === "appointment") {
-    const sameDayEvents = state.calendarEvents.filter(
-      (ev) =>
-        ev.dateISO === input.dateISO &&
-        ev.status !== "canceled" &&
-        ev.eventType === "appointment"
-    );
-
-    for (const ev of sameDayEvents) {
-      const evStart = parseTimeMinutes(ev.startTime);
-      const evEnd = parseTimeMinutes(ev.endTime);
-      const overlapsTotalWindow = startMin < evEnd && endMin > evStart;
-      if (!overlapsTotalWindow) continue;
-
-      // 1. Verifica conflito de Recurso Físico (Salas e Equipamentos)
-      const sharedResourceIds = requiredResourceIds.filter((rId) =>
-        ev.resourceIds.includes(rId)
-      );
-      if (sharedResourceIds.length > 0) {
-        const resNames = state.resources
-          .filter((r) => sharedResourceIds.includes(r.id))
-          .map((r) => r.name)
-          .join(", ");
-        return {
-          ok: false,
-          conflictType: "resource",
-          message: `Conflito de Recurso Físico: ${resNames} já está reservado das ${ev.startTime} às ${ev.endTime} (${ev.clientName}).`,
-        };
-      }
-
-      // 2. Verifica conflito de Profissional (permitindo encaixe se cair dentro da janela de Tempo de Processamento!)
-      if (ev.providerId === provider.id) {
-        const hasProcessingGap = ev.processingDurationMinutes > 0;
-        const gapStart = evStart + ev.processingStartOffsetMinutes;
-        const gapEnd = gapStart + ev.processingDurationMinutes;
-        const fitsInProcessingGap =
-          hasProcessingGap && startMin >= gapStart && endMin <= gapEnd;
-
-        if (!fitsInProcessingGap) {
-          return {
-            ok: false,
-            conflictType: "provider",
-            message: `Conflito de Agenda: ${provider.fullName} já possui atendimento ativo das ${ev.startTime} às ${ev.endTime}.`,
-          };
-        }
-      }
+    const conflictCheck = checkCalendarSlotConflict(state, {
+      dateISO: input.dateISO,
+      startMin,
+      endMin,
+      providerId: provider.id,
+      providerFullName: provider.fullName,
+      requiredResourceIds,
+    });
+    if (!conflictCheck.ok) {
+      return conflictCheck;
     }
   }
 
@@ -1746,9 +1790,23 @@ export function bookFromWaitlistEntry(
     state.services.find((s) => s.id === entry.serviceId) ?? state.services[0];
   const startMin = parseTimeMinutes(startTime);
   const blockAfter = service.blockTimeEnabled ? service.blockAfterMinutes : 0;
-  const endTime = formatMinutesToHHMM(
-    startMin + service.durationMinutes + blockAfter
-  );
+  const endMin = startMin + service.durationMinutes + blockAfter;
+  const endTime = formatMinutesToHHMM(endMin);
+
+  const conflictCheck = checkCalendarSlotConflict(state, {
+    dateISO: entry.preferredDateISO,
+    startMin,
+    endMin,
+    providerId: entry.providerId,
+    providerFullName: entry.providerName,
+    requiredResourceIds: service.requiredResourceIds,
+  });
+  if (!conflictCheck.ok) {
+    return {
+      ...state,
+      lastToastMessage: conflictCheck.message,
+    };
+  }
 
   const createdEvent: CalendarEventItem = {
     id: `evt-wl-${Date.now()}`,

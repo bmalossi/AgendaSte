@@ -532,6 +532,95 @@ export function CatalogView({
                   })}
                 </div>
               </div>
+
+              {/* Card 4: Options & Add-ons (06-2-services-add.png) */}
+              <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-[18px] font-bold text-[#1C1C1E]">
+                      Opções &amp; Adicionais (Options &amp; Add-ons)
+                    </h2>
+                    <p className="text-[12px] text-[#6E6E73]">
+                      Personalize variações de preço/duração e itens extras sugeridos no checkout online.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSrvOptions((prev) => [
+                          ...prev,
+                          {
+                            id: `opt-${prev.length + 1}`,
+                            name: `Opção Extra ${prev.length + 1}`,
+                            priceDeltaCents: 4000,
+                            durationDeltaMinutes: 15,
+                          },
+                        ])
+                      }
+                      className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] text-[12px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    >
+                      + Opção
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSrvAddOns((prev) => [
+                          ...prev,
+                          {
+                            id: `add-${prev.length + 1}`,
+                            name: `Adicional Premium ${prev.length + 1}`,
+                            priceCents: 4500,
+                            durationMinutes: 10,
+                          },
+                        ])
+                      }
+                      className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] text-[12px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    >
+                      + Adicional
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-bold text-[#6E6E73] uppercase tracking-wider">
+                      Opções ({srvOptions.length})
+                    </p>
+                    {srvOptions.map((opt) => (
+                      <div
+                        key={opt.id}
+                        className="p-3 rounded-[12px] bg-[#FAFAFC] border border-[#EFEFF4] flex items-center justify-between text-[12px]"
+                      >
+                        <span className="font-semibold text-[#1C1C1E]">
+                          {opt.name} (+{ opt.durationDeltaMinutes }m)
+                        </span>
+                        <span className="font-mono font-bold text-[#6E56CF]">
+                          +{formatBRL(opt.priceDeltaCents)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-bold text-[#6E6E73] uppercase tracking-wider">
+                      Adicionais ({srvAddOns.length})
+                    </p>
+                    {srvAddOns.map((add) => (
+                      <div
+                        key={add.id}
+                        className="p-3 rounded-[12px] bg-[#FAFAFC] border border-[#EFEFF4] flex items-center justify-between text-[12px]"
+                      >
+                        <span className="font-semibold text-[#1C1C1E]">
+                          {add.name} (+{add.durationMinutes}m)
+                        </span>
+                        <span className="font-mono font-bold text-[#16A34A]">
+                          +{formatBRL(add.priceCents)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -820,7 +909,7 @@ export function CatalogView({
                       name: pkgName.trim(),
                       description:
                         pkgDescription.trim() ||
-                        "Pacote promocional de sessões Aura Studio.",
+                        "Pacote de sessões Aura Studio.",
                       sellOnWebsite: pkgSellOnline,
                       includedServiceIds: pkgServiceIds,
                       sessionsCount: Math.max(

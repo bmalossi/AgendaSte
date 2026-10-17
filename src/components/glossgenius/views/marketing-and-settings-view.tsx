@@ -215,9 +215,22 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
             {/* Left Builder Pane */}
             <div className="lg:col-span-7 p-6 lg:p-8 overflow-y-auto space-y-5 border-r border-[#EFEFF4]">
               <div className="flex items-center justify-between">
-                <h2 className="text-[22px] font-bold text-[#1C1C1E]">
-                  Nova campanha (New campaign)
-                </h2>
+                <div>
+                  <h2 className="text-[22px] font-bold text-[#1C1C1E]">
+                    Nova campanha (New campaign)
+                  </h2>
+                  <div className="flex items-center gap-2 mt-1.5 text-[11px] font-bold">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white">
+                      1. Canal &amp; Segmento
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF]">
+                      2. Mensagem IA
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#F5F5F7] text-[#6E6E73]">
+                      3. Revisão &amp; Disparo
+                    </span>
+                  </div>
+                </div>
                 <button
                   onClick={() => setCampaignModalOpen(false)}
                   className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center"
@@ -865,7 +878,7 @@ export function ComplementarySectionView({
     <div className="p-6 lg:p-10 max-w-[1360px] mx-auto">
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-10 space-y-4 shadow-gg-card">
         <span className="inline-block px-3 py-1 rounded-full bg-white/80 text-[12px] font-semibold text-[#6E56CF]">
-          Indique e Ganhe R$ 300
+          Indique e ganhe R$ 150
         </span>
         <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
           Convide outros profissionais de beleza e ganhem créditos na assinatura

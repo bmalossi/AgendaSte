@@ -36,6 +36,7 @@ import {
   rebookAppointmentOneTap,
   processWhatsappInboundReply,
   executeQuickSaleCheckout,
+  saveCatalogService,
 } from "@/lib/glossgenius-store";
 
 interface CalendarViewProps {
@@ -63,6 +64,8 @@ export function CalendarView({
 }: CalendarViewProps) {
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [waitlistDrawerOpen, setWaitlistDrawerOpen] = useState(false);
+  const [waitlistProviderFilter, setWaitlistProviderFilter] =
+    useState<string>("all");
   const [newAppointmentDrawerOpen, setNewAppointmentDrawerOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(
     null
@@ -78,6 +81,10 @@ export function CalendarView({
   const [inlineClientName, setInlineClientName] = useState("");
   const [inlineClientPhone, setInlineClientPhone] = useState("");
   const [inlineClientEmail, setInlineClientEmail] = useState("");
+  const [showInlineNewService, setShowInlineNewService] = useState(false);
+  const [inlineServiceName, setInlineServiceName] = useState("");
+  const [inlineServicePriceBRL, setInlineServicePriceBRL] = useState("180");
+  const [inlineServiceDurationMin, setInlineServiceDurationMin] = useState("45");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
     state.services[0] ? [state.services[0].id] : []
   );
@@ -386,16 +393,75 @@ export function CalendarView({
             )}
           </button>
 
+          {/* Quick Sale POS Button */}
+          <button
+            onClick={() => onOpenQuickSale()}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition"
+          >
+            <CreditCard className="w-4 h-4 text-[#E11D8F]" />
+            <span>Venda rápida</span>
+          </button>
+
           {/* + Novo Appointment Drawer Trigger (03-4-calendar.png) */}
           <button
             onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>Novo</span>
+            <span>Adicionar</span>
           </button>
         </div>
       </header>
+
+      {/* Week Mode 7-Day Overview Strip when viewMode === 'week' */}
+      {viewMode === "week" && (
+        <div className="px-6 py-3 bg-[#F5F3FF] border-b border-[#DDD6FE] grid grid-cols-7 gap-2">
+          {WEEK_DAYS.map((wd) => {
+            const dayEvents = state.calendarEvents.filter(
+              (ev) => ev.dateISO === wd.dateISO && ev.status !== "canceled"
+            );
+            const isSelected = selectedDateISO === wd.dateISO;
+            return (
+              <div
+                key={wd.dateISO}
+                onClick={() =>
+                  onUpdateState((prev) => ({
+                    ...prev,
+                    calendarView: {
+                      ...prev.calendarView,
+                      selectedDateISO: wd.dateISO,
+                    },
+                  }))
+                }
+                className={`p-2.5 rounded-[14px] border cursor-pointer transition ${
+                  isSelected
+                    ? "bg-white border-[#6E56CF] shadow-sm"
+                    : "bg-white/70 border-[#E5E5EA] hover:bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px] font-bold text-[#1C1C1E] mb-1">
+                  <span>
+                    {wd.label} {wd.dayNum}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[10px]">
+                    {dayEvents.length}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {dayEvents.slice(0, 2).map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="text-[10px] truncate px-1.5 py-0.5 rounded bg-[#F5F5F7] text-[#1C1C1E] font-medium"
+                    >
+                      {ev.startTime} {ev.clientName}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Provider Subheader Bar */}
       <div className="px-6 py-2.5 bg-[#FAFAFC] border-b border-[#E5E5EA] flex items-center justify-between">
@@ -612,20 +678,34 @@ export function CalendarView({
                 </div>
               </div>
 
-              {/* Filter Pill */}
-              <div className="px-6 py-3 border-b border-[#EFEFF4] flex items-center justify-between">
+              {/* Filter Pill + Provider Filter */}
+              <div className="px-6 py-3 border-b border-[#EFEFF4] flex items-center justify-between gap-2">
                 <span className="px-3 py-1 rounded-full bg-[#F5F5F7] text-[12px] font-semibold text-[#1C1C1E]">
                   Hoje · Outubro 2026
                 </span>
-                <span className="text-[12px] text-[#6E6E73]">
-                  {state.waitlist.length} solicitação(ões)
-                </span>
+                <select
+                  aria-label="Filtrar lista de espera por profissional"
+                  value={waitlistProviderFilter}
+                  onChange={(e) => setWaitlistProviderFilter(e.target.value)}
+                  className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[12px] font-medium text-[#1C1C1E] bg-white"
+                >
+                  <option value="all">Todos profissionais</option>
+                  {state.staff.map((st) => (
+                    <option key={st.id} value={st.id}>
+                      {st.fullName}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {state.waitlist.length === 0 ? (
+              {state.waitlist.filter(
+                (w) =>
+                  waitlistProviderFilter === "all" ||
+                  w.providerId === waitlistProviderFilter
+              ).length === 0 ? (
                 <div className="text-center py-16">
                   <div className="w-16 h-16 rounded-2xl bg-[#ECE9FE] text-[#6E56CF] mx-auto flex items-center justify-center mb-4">
                     <CalendarIcon className="w-8 h-8" />
@@ -638,40 +718,46 @@ export function CalendarView({
                   </p>
                 </div>
               ) : (
-                state.waitlist.map((wl) => (
-                  <div
-                    key={wl.id}
-                    className="p-4 rounded-[18px] border border-[#E5E5EA] bg-[#FAFAFC] space-y-3"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-[15px] font-bold text-[#1C1C1E]">
-                          {wl.clientName}
-                        </h4>
-                        <p className="text-[12px] text-[#6E6E73]">
-                          {wl.serviceName} · com {wl.providerName}
-                        </p>
+                state.waitlist
+                  .filter(
+                    (w) =>
+                      waitlistProviderFilter === "all" ||
+                      w.providerId === waitlistProviderFilter
+                  )
+                  .map((wl) => (
+                    <div
+                      key={wl.id}
+                      className="p-4 rounded-[18px] border border-[#E5E5EA] bg-[#FAFAFC] space-y-3"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="text-[15px] font-bold text-[#1C1C1E]">
+                            {wl.clientName}
+                          </h4>
+                          <p className="text-[12px] text-[#6E6E73]">
+                            {wl.serviceName} · com {wl.providerName}
+                          </p>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold">
+                          {wl.preferredTimeWindow}
+                        </span>
                       </div>
-                      <span className="px-2.5 py-1 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold">
-                        {wl.preferredTimeWindow}
-                      </span>
+                      <p className="text-[12px] text-[#6E6E73]">{wl.notes}</p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            onUpdateState((prev) =>
+                              bookFromWaitlistEntry(prev, wl.id, "14:00")
+                            );
+                            setWaitlistDrawerOpen(false);
+                          }}
+                          className="flex-1 py-2 px-4 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold hover:bg-[#2C2C2E] transition"
+                        >
+                          Agendar às 14:00 (1-Toque)
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[12px] text-[#6E6E73]">{wl.notes}</p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        onClick={() => {
-                          onUpdateState((prev) =>
-                            bookFromWaitlistEntry(prev, wl.id, "14:00")
-                          );
-                          setWaitlistDrawerOpen(false);
-                        }}
-                        className="flex-1 py-2 px-4 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold hover:bg-[#2C2C2E] transition"
-                      >
-                        Agendar às 14:00 (1-Toque)
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))
               )}
 
               {/* Editorial Promo Card at Bottom of Waitlist Drawer (03-3-calendar.png) */}
@@ -789,7 +875,7 @@ export function CalendarView({
                         <UserPlus className="w-3.5 h-3.5" />
                         {showInlineNewClient
                           ? "Selecionar cliente existente"
-                          : "+ Criar novo cliente"}
+                          : "+ Adicionar Novo Cliente"}
                       </button>
                     </div>
 
@@ -839,12 +925,102 @@ export function CalendarView({
                   </div>
                 )}
 
-              {/* Services Multi-Select */}
+              {/* Services Multi-Select + Inline Service Creation */}
               {eventType !== "personal_block" && (
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1.5">
-                    Serviços
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[12px] font-semibold text-[#6E6E73]">
+                      Serviços
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowInlineNewService((v) => !v)}
+                      className="text-[12px] font-semibold text-[#6E56CF] hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {showInlineNewService
+                        ? "Fechar novo serviço"
+                        : "+ Adicionar novo serviço"}
+                    </button>
+                  </div>
+
+                  {showInlineNewService && (
+                    <div className="p-3.5 mb-2.5 rounded-[14px] bg-[#F5F5F7] space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Nome do novo serviço"
+                        value={inlineServiceName}
+                        onChange={(e) => setInlineServiceName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-[10px] border border-[#E5E5EA] bg-white text-[13px]"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          placeholder="Preço (R$)"
+                          value={inlineServicePriceBRL}
+                          onChange={(e) =>
+                            setInlineServicePriceBRL(e.target.value)
+                          }
+                          className="w-full px-3 py-2 rounded-[10px] border border-[#E5E5EA] bg-white text-[13px] font-mono"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Duração (min)"
+                          value={inlineServiceDurationMin}
+                          onChange={(e) =>
+                            setInlineServiceDurationMin(e.target.value)
+                          }
+                          className="w-full px-3 py-2 rounded-[10px] border border-[#E5E5EA] bg-white text-[13px] font-mono"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!inlineServiceName.trim()) return;
+                          const priceCents =
+                            Math.max(
+                              0,
+                              parseInt(inlineServicePriceBRL || "150", 10)
+                            ) * 100;
+                          const durationMinutes = Math.max(
+                            15,
+                            parseInt(inlineServiceDurationMin || "45", 10)
+                          );
+                          const newId = `srv-inline-${Date.now()}`;
+                          onUpdateState((prev) =>
+                            saveCatalogService(prev, {
+                              id: newId,
+                              name: inlineServiceName.trim(),
+                              description: "Criado inline na Agenda.",
+                              category: "Geral",
+                              calendarColor: "#6E56CF",
+                              onlineBookingEnabled: true,
+                              priceType: "fixed",
+                              priceCents,
+                              requireDeposit: true,
+                              depositCents: Math.round(priceCents * 0.3),
+                              durationMinutes,
+                              processingTimeEnabled: false,
+                              processingStartOffsetMinutes: 0,
+                              processingDurationMinutes: 0,
+                              blockTimeEnabled: false,
+                              blockAfterMinutes: 0,
+                              requiredResourceIds: [],
+                              options: [],
+                              addOns: [],
+                            })
+                          );
+                          setSelectedServiceIds((prev) => [...prev, newId]);
+                          setInlineServiceName("");
+                          setShowInlineNewService(false);
+                        }}
+                        className="w-full py-2 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold"
+                      >
+                        Salvar e selecionar serviço
+                      </button>
+                    </div>
+                  )}
+
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {state.services.map((srv) => {
                       const checked = selectedServiceIds.includes(srv.id);

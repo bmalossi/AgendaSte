@@ -102,6 +102,7 @@ export function GlossGeniusApp() {
             state={state}
             onUpdateState={setState}
             onNavigateToCalendarWithClient={() => setActiveSection("calendar")}
+            onOpenQuickSale={() => handleOpenQuickSale()}
           />
         )}
 
@@ -158,50 +159,53 @@ export function GlossGeniusApp() {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation Bar (<768px) */}
+      {/* Mobile Bottom Navigation Bar (<768px): Agenda, Venda Rápida, Clientes, Recepção IA, Menu */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E5E5EA] px-2 py-1.5 flex items-center justify-around">
-        {[
-          {
-            id: "get_started" as NavigationSectionId,
-            label: "Início",
-            icon: Sparkles,
-          },
-          {
-            id: "calendar" as NavigationSectionId,
-            label: "Agenda",
-            icon: Calendar,
-          },
-          {
-            id: "clients" as NavigationSectionId,
-            label: "Clientes",
-            icon: Contact,
-          },
-          {
-            id: "payments_sales_history" as NavigationSectionId,
-            label: "Vendas",
-            icon: CreditCard,
-          },
-          {
-            id: "settings" as NavigationSectionId,
-            label: "Ajustes",
-            icon: Settings,
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-          const active = activeSection === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
-                active ? "text-[#6E56CF]" : "text-[#6E6E73]"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+        <button
+          onClick={() => setActiveSection("calendar")}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
+            activeSection === "calendar" ? "text-[#6E56CF]" : "text-[#6E6E73]"
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          <span>Agenda</span>
+        </button>
+        <button
+          onClick={() => handleOpenQuickSale()}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold text-[#1C1C1E]"
+        >
+          <CreditCard className="w-4 h-4 text-[#E11D8F]" />
+          <span>Venda Rápida</span>
+        </button>
+        <button
+          onClick={() => setActiveSection("clients")}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
+            activeSection === "clients" ? "text-[#6E56CF]" : "text-[#6E6E73]"
+          }`}
+        >
+          <Contact className="w-4 h-4" />
+          <span>Clientes</span>
+        </button>
+        <button
+          onClick={() => setActiveSection("reception")}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
+            activeSection === "reception" ? "text-[#6E56CF]" : "text-[#6E6E73]"
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Recepção IA</span>
+        </button>
+        <button
+          onClick={() => setActiveSection("get_started")}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-semibold ${
+            activeSection === "get_started"
+              ? "text-[#6E56CF]"
+              : "text-[#6E6E73]"
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          <span>Menu</span>
+        </button>
       </nav>
 
       {/* Global Public Booking Site Modal (Aura Studio — 01-1-get-started.png) */}
@@ -222,9 +226,9 @@ export function GlossGeniusApp() {
         onUpdateState={setState}
       />
 
-      {/* Floating Bottom-Right Dark Toast Notification matching 05-3-clients-added.png */}
+      {/* Floating Bottom-Center Dark Toast Notification matching 05-3-clients-added.png & DESIGN.md §4.4 */}
       {state.lastToastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] text-white shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-3">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-[#1C1C1E] text-white shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-3">
           <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
           <span className="text-[13px] font-semibold">
             {state.lastToastMessage}

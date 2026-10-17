@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
-
 interface CreatePixPayload {
   appointmentId: string;
   clientName: string;
-  serviceName: string;
-  totalCents: number;
+  serviceName?: string;
+  totalCents?: number;
+  depositCents?: number;
   depositPercent?: number;
 }
 
@@ -12,37 +11,43 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CreatePixPayload;
 
-    if (!body.appointmentId || !body.clientName || !body.totalCents) {
-      return NextResponse.json(
+    const effectiveTotalCents = body.totalCents ?? body.depositCents ?? 0;
+    if (!body.appointmentId || !body.clientName || effectiveTotalCents <= 0) {
+      return Response.json(
         {
           ok: false,
           error:
-            "Dados incompletos para gerar Pix dinâmico: informe appointmentId, clientName e totalCents.",
+            "Dados incompletos para gerar Pix dinâmico: informe appointmentId, clientName e totalCents (ou depositCents).",
         },
         { status: 400 }
       );
     }
 
     const percent = body.depositPercent ?? 30;
-    const depositCents = Math.round((body.totalCents * percent) / 100);
+    const depositCents =
+      body.depositCents ?? Math.round((effectiveTotalCents * percent) / 100);
     const amountBRL = (depositCents / 100).toFixed(2);
-    const txId = `VELOCE${body.appointmentId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}99A`;
+    const txId = `AURA${body.appointmentId
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase()}99A`;
 
-    const brCode = `00020126580014BR.GOV.BCB.PIX0136camilaborges-pix-sinal@veloce.app520400005303986540${amountBRL.length}${amountBRL}5802BR5925ATELIER DRA CAMILA BORGES6009SAO PAULO62190515${txId}6304D1F8`;
+    const brCode = `00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br520400005303986540${amountBRL.length}${amountBRL}5802BR5920AURA STUDIO GLOSS6009SAO PAULO62190515${txId}6304D1F8`;
 
-    return NextResponse.json({
+    return Response.json({
       ok: true,
       provider: process.env.PIX_PROVIDER || "mercadopago",
       txId,
       appointmentId: body.appointmentId,
       depositPercent: percent,
       depositCents,
+      totalCents: effectiveTotalCents,
       expiresInMinutes: 30,
       pixCopiaECola: brCode,
+      qrCodePayload: brCode,
       status: "pending_payment",
     });
   } catch {
-    return NextResponse.json(
+    return Response.json(
       {
         ok: false,
         error:

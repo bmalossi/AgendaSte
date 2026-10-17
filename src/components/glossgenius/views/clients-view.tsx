@@ -33,6 +33,7 @@ interface ClientsViewProps {
   state: StudioState;
   onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
   onNavigateToCalendarWithClient?: (clientId: string) => void;
+  onOpenQuickSale?: () => void;
 }
 
 type ClientDrawerTab =
@@ -46,6 +47,7 @@ export function ClientsView({
   state,
   onUpdateState,
   onNavigateToCalendarWithClient,
+  onOpenQuickSale,
 }: ClientsViewProps) {
   const [showEditorialHero, setShowEditorialHero] = useState(false);
   const [retentionFilter, setRetentionFilter] = useState<
@@ -56,6 +58,9 @@ export function ClientsView({
     state.clients[0]?.id ?? null
   );
   const [activeTab, setActiveTab] = useState<ClientDrawerTab>("appointments");
+  const [appointmentsSubTab, setAppointmentsSubTab] = useState<
+    "upcoming" | "canceled" | "past"
+  >("upcoming");
 
   // Add Client Modal (05-2-clients-add.png)
   const [addClientModalOpen, setAddClientModalOpen] = useState(false);
@@ -156,7 +161,18 @@ export function ClientsView({
           </button>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() =>
+              onUpdateState((prev) => ({
+                ...prev,
+                lastToastMessage: `Diretório de ${prev.clients.length} clientes exportado em CSV!`,
+              }))
+            }
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[#E5E5EA] bg-white hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition"
+          >
+            <span>Exportar clientes</span>
+          </button>
           <button
             onClick={() =>
               onUpdateState((prev) =>
@@ -177,7 +193,7 @@ export function ClientsView({
             className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition"
           >
             <Plus className="w-4 h-4" />
-            <span>Adicionar</span>
+            <span>Adicionar cliente</span>
           </button>
         </div>
       </div>
@@ -345,13 +361,35 @@ export function ClientsView({
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <p className="text-[14px] font-mono font-bold text-[#1C1C1E]">
-                      {formatBRL(client.totalSpentCents)}
-                    </p>
-                    <p className="text-[11px] text-[#8E8E93]">
-                      {client.visitsCount} visita(s)
-                    </p>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      title="Adição rápida de foto Antes & Depois"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectClient(client);
+                        setActiveTab("photos");
+                        onUpdateState((prev) =>
+                          uploadAutoSortedClientPhoto(prev, client.id, {
+                            photoUrl:
+                              "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80",
+                            beforeLabel: "Antes",
+                            afterLabel: "Depois",
+                          })
+                        );
+                      }}
+                      className="w-8 h-8 rounded-full border border-[#E5E5EA] hover:bg-[#ECE9FE] hover:text-[#6E56CF] flex items-center justify-center text-[#6E6E73] transition"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
+                    <div className="text-right">
+                      <p className="text-[14px] font-mono font-bold text-[#1C1C1E]">
+                        {formatBRL(client.totalSpentCents)}
+                      </p>
+                      <p className="text-[11px] text-[#8E8E93]">
+                        {client.visitsCount} visita(s)
+                      </p>
+                    </div>
                   </div>
                 </div>
               );
@@ -382,14 +420,20 @@ export function ClientsView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   <button
                     onClick={() =>
                       onNavigateToCalendarWithClient?.(selectedClient.id)
                     }
-                    className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition"
+                    className="px-3.5 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12px] font-semibold transition"
                   >
-                    Agendar
+                    Agendar horário
+                  </button>
+                  <button
+                    onClick={() => onOpenQuickSale?.()}
+                    className="px-3.5 py-2 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12px] font-semibold transition"
+                  >
+                    Venda rápida
                   </button>
                   <button
                     onClick={() => setSelectedClientId(null)}
@@ -501,26 +545,48 @@ export function ClientsView({
 
             {/* Tab Content Area */}
             <div className="p-6 space-y-4 max-h-[520px] overflow-y-auto">
-              {/* TAB 1: APPOINTMENTS */}
+              {/* TAB 1: APPOINTMENTS with Próximos | Cancelados | Anteriores sub-tabs */}
               {activeTab === "appointments" && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[14px] font-bold text-[#1C1C1E]">
-                      Histórico e Próximos Agendamentos
-                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      {[
+                        { id: "upcoming" as const, label: "Próximos" },
+                        { id: "canceled" as const, label: "Cancelados" },
+                        { id: "past" as const, label: "Anteriores" },
+                      ].map((st) => (
+                        <button
+                          key={st.id}
+                          onClick={() => setAppointmentsSubTab(st.id)}
+                          className={`px-3 py-1 rounded-full text-[11px] font-semibold transition ${
+                            appointmentsSubTab === st.id
+                              ? "bg-[#1C1C1E] text-white"
+                              : "bg-[#F5F5F7] text-[#6E6E73]"
+                          }`}
+                        >
+                          {st.label}
+                        </button>
+                      ))}
+                    </div>
                     <span className="text-[12px] text-[#6E6E73]">
                       {clientAppointments.length} registro(s)
                     </span>
                   </div>
 
-                  {clientAppointments.length === 0 ? (
+                  {clientAppointments.filter((ev) =>
+                    appointmentsSubTab === "canceled"
+                      ? ev.status === "canceled"
+                      : appointmentsSubTab === "past"
+                        ? ev.status === "completed"
+                        : ev.status !== "canceled"
+                  ).length === 0 ? (
                     <div className="p-8 rounded-[18px] bg-[#FAFAFC] border border-[#EFEFF4] text-center space-y-3">
                       <Calendar className="w-8 h-8 text-[#8E8E93] mx-auto" />
                       <p className="text-[14px] font-bold text-[#1C1C1E]">
-                        Nenhum agendamento ainda
+                        Nenhum agendamento nesta aba
                       </p>
                       <p className="text-[12px] text-[#6E6E73]">
-                        Agende o primeiro atendimento de {selectedClient.fullName} em 1 toque.
+                        Agende o atendimento de {selectedClient.fullName} em 1 toque.
                       </p>
                       <button
                         onClick={() =>
@@ -532,24 +598,32 @@ export function ClientsView({
                       </button>
                     </div>
                   ) : (
-                    clientAppointments.map((ev) => (
-                      <div
-                        key={ev.id}
-                        className="p-4 rounded-[16px] border border-[#E5E5EA] flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="text-[13px] font-bold text-[#1C1C1E]">
-                            {ev.serviceNames.join(" + ")}
-                          </p>
-                          <p className="text-[12px] text-[#6E6E73]">
-                            {ev.dateISO} · {ev.startTime} – {ev.endTime}
-                          </p>
+                    clientAppointments
+                      .filter((ev) =>
+                        appointmentsSubTab === "canceled"
+                          ? ev.status === "canceled"
+                          : appointmentsSubTab === "past"
+                            ? ev.status === "completed"
+                            : ev.status !== "canceled"
+                      )
+                      .map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="p-4 rounded-[16px] border border-[#E5E5EA] flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-[13px] font-bold text-[#1C1C1E]">
+                              {ev.serviceNames.join(" + ")}
+                            </p>
+                            <p className="text-[12px] text-[#6E6E73]">
+                              {ev.dateISO} · {ev.startTime} – {ev.endTime}
+                            </p>
+                          </div>
+                          <span className="font-mono text-[13px] font-bold text-[#1C1C1E]">
+                            {formatBRL(ev.totalCents)}
+                          </span>
                         </div>
-                        <span className="font-mono text-[13px] font-bold text-[#1C1C1E]">
-                          {formatBRL(ev.totalCents)}
-                        </span>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               )}
