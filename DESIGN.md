@@ -1,95 +1,50 @@
----
-name: Veloce OS
-description: Terminal operacional de agendamento de alta velocidade, checkout e retenção em 1 toque
-colors:
-  primary: "#0d0e0d"
-  neutral-bg: "#f4f4f2"
-  surface: "#ffffff"
-  line: "#d4d4ce"
-  confirmed: "#15803d"
-  pending: "#d97706"
-  risk: "#dc2626"
-typography:
-  display:
-    fontFamily: "Public Sans, -apple-system, BlinkMacSystemFont, sans-serif"
-    fontSize: "1.25rem"
-    fontWeight: 700
-    lineHeight: 1.2
-  body:
-    fontFamily: "Public Sans, -apple-system, BlinkMacSystemFont, sans-serif"
-    fontSize: "0.875rem"
-    fontWeight: 400
-    lineHeight: 1.5
-  mono:
-    fontFamily: "Chivo Mono, monospace"
-    fontSize: "0.75rem"
-    fontWeight: 600
-    lineHeight: 1.4
-rounded:
-  sm: "2px"
-  md: "2px"
-spacing:
-  sm: "8px"
-  md: "16px"
----
+# DESIGN.md — GlossGenius Editorial Design System (Edição Brasil)
 
-# Design System: Veloce OS
+## 1. Direção Estética & Filosofia Visual
+O sistema visual replica fielmente a linguagem de design do **GlossGenius**: **Editorial Clean & Luxury Salon OS**.
+- **Superfícies Claras e Respiráveis**: Área de trabalho principal em branco puro (`#FFFFFF`) com containers secundários em cinza quente sutil (`#F5F5F7`) e bordas finas (`1px solid #E5E7EB`).
+- **Heros Editoriais Ilustrados**: Telas de apresentação de módulos utilizam um card quadrado à esquerda com gradiente lavanda/periwinkle (`linear-gradient(180deg, #A599FF 0%, #DFDCFF 100%)`) contendo um mockup escuro de interface (`#141416`), pareado à direita com tipografia Serif Editorial ampla (`36px–44px`) e chamadas de ação em pílula preta.
+- **Contraste Tátil em Pílulas (`Pill Primitives`)**:
+  - Botão Primário: Fundo carvão profundo (`#1C1C1E`), texto branco (`#FFFFFF`), `border-radius: 9999px`, `padding: 10px 20px`, `font-weight: 600`.
+  - Botão Secundário: Fundo branco (`#FFFFFF`), borda `1px solid #D4D4D8`, texto `#1C1C1E`, `border-radius: 9999px`.
+  - Badge `Gold`: Pílula dourada (`#C69214` / `#B78103`) com texto branco em caixa alta/média (`11px`, `font-weight: 700`).
+  - Badge `Beta`: Pílula roxa vibrante (`#6E56CF`) com texto branco (`11px`, `font-weight: 600`).
+  - Badge `Novo` (`New`): Pílula azul celeste (`#BAE6FD`) com texto `#0369A1`.
 
-## Overview
+## 2. Tipografia
+- **Display Editorial (`--font-serif` / `Instrument Serif` / `Playfair Display` / `Newsreader`)**:
+  - Usada nos títulos de Heros Editoriais (`"Apresentando a Recepção"`, `"Expanda suas opções flexíveis de pagamento com faturas"`, `"Faça cada cliente se sentir o seu favorito"`, `"Evite conflitos de horário e aproveite ao máximo seu espaço"`).
+- **Interface & Operação (`--font-sans` / `Plus Jakarta Sans` / `Inter`)**:
+  - Usada na navegação lateral, cabeçalhos de página (`22px`, `font-weight: 700`), tabelas, formulários, drawers e botões.
+- **Numerais Tabulares (`--font-mono` / `tabular-nums`)**:
+  - Aplicados em preços (`R$ 230,00`), cronômetro de ponto (`04:21:18`), grade de horários (`9:15 am`) e barras de metas (`R$ 1.450,50 de R$ 5.800,00`).
 
-**Creative North Star: "Swiss Timetable & Precision POS Terminal"**
+## 3. Paleta de Cores & Tokens Semânticos
+- **Workspace & Navegação**:
+  - `--bg-canvas`: `#FFFFFF`
+  - `--bg-subtle`: `#F6F6F8`
+  - `--nav-active-bg`: `#ECE9FE` (destaque lavanda suave do item ativo na sidebar)
+  - `--nav-group-border`: `#6E56CF` (contorno roxo suave quando um grupo de submenu está expandido e focado)
+- **Acentos & Indicadores**:
+  - `--accent-purple`: `#6E56CF` (switches ativos em Catálogo/Preferências, ícones de destaque)
+  - `--accent-magenta`: `#E11D8F` (pílula e linha de horário atual na Agenda `9:15`, switches de Controle de Ponto)
+  - `--accent-gold`: `#C28E1E` (badges `Gold`)
+  - `--status-verified-bg`: `#86EFAC` / `--status-verified-fg`: `#14532D` (badge `✓ Verificado`)
+- **Avatares e Categorias**:
+  - Rosa Quartzo: `#FBCFE8` (texto `#831843`) — ex.: avatar `S` de Stefany e categoria `Equipamentos`.
+  - Verde Sálvia: `#BBF7D0` (texto `#14532D`) — ex.: categoria `Salas`.
+  - Lavanda: `#DDD6FE` (texto `#4C1D95`).
 
-O Veloce OS adota a disciplina visual de tabelas horárias ferroviárias suíças combinada com a objetividade tátil de terminais de ponto de venda (POS). Elimina por completo os clichês estéticos de IA generativa (pílulas pastéis verdes/amarelas, cantos excessivamente arredondados e ícones decorativos).
-
-A hierarquia é construída sobre uma grade estrutural exposta de 1px com tipografia de alta densidade e indicadores funcionais sólidos.
-
-**Key Characteristics:**
-- Grade arquitetônica contínua de 1px com cantos secos de 2px.
-- Sinalização semântica por pontos LED sólidos (Verde `#15803d`, Âmbar `#d97706`, Carmim `#dc2626`), sem fundos pastéis.
-- Numerais em `Chivo Mono` tabular para horários e valores monetários.
-
-## Colors
-
-Paleta operacional austera baseada em contraste neutro puro com sinalização semântica funcional estrita.
-
-### Primary
-- **Carbon Black** (`#0d0e0d`): Chassi de comando e botões de ação prioritária.
-
-### Neutral
-- **Architectural Paper** (`#f4f4f2`): Fundo de baixa fadiga visual.
-- **Pure Surface** (`#ffffff`): Células de dados e painéis operacionais.
-- **Hairline Border** (`#d4d4ce`): Grade ortogonal divisória de 1px.
-
-### Semantic Status
-- **Signal Emerald** (`#15803d`): Horário confirmado e sinal Pix liquidado.
-- **Amber Warning** (`#d97706`): Pendência de sinal ou confirmação 2h antes.
-- **Signal Red** (`#dc2626`): Risco de no-show ou falta confirmada.
-
-## Typography
-
-**Display / Interface Font:** Public Sans (sans-serif)
-**Data / Numeric Font:** Chivo Mono (monospace tabular)
-
-## Layout
-
-Grade exposta com três colunas no desktop (Sidebar 232px, Tabela Central de Despacho e Painel de Retenção 348px) e navegação inferior de 1 toque no mobile.
-
-## Elevation & Depth
-
-Surperfície plana (flat) por padrão. A profundidade é comunicada através de linhas de grade de 1px e contraste tonal, sem sombras decorativas difusas.
-
-## Shapes
-
-Cantos vivos de 2px (`rounded-sm`), reforçando o caráter industrial de terminal de trabalho.
-
-## Do's and Don'ts
-
-### Do:
-- **Do** utilizar numerais tabulares (`Chivo Mono`) para valores, horários e códigos Pix.
-- **Do** manter botões e gatilhos de ação direta com no máximo 1 a 2 toques.
-- **Do** utilizar pontos LED sólidos para codificação de status.
-
-### Don't:
-- **Don't** utilizar badges ou pílulas coloridas em tons pastéis com ícones decorativos.
-- **Don't** criar caixas arredondadas coloridas ao redor dos horários da agenda.
-- **Don't** utilizar cards aninhados dentro de cards.
+## 4. Padrões de Layout & Navegação
+1. **Sidebar Esquerda Fixa (`240px`)**:
+   - Topo com seletor de conta (`Bruno Fernandes...`) e botão de recolher sidebar.
+   - Item `0/3 Primeiros Passos` no topo.
+   - Seção `Colegas de IA` (`Recepção`).
+   - Seção `Negócio` (`Agenda`, `Pagamentos`, `Clientes`, `Catálogo`, `Equipe`, `Marketing`, `Relatórios`, `Estoque`, `Prontuários`).
+   - Rodapé com `Indique e ganhe R$ 150`, `Configurações` e `Ajuda`.
+2. **Drawers Deslizantes à Direita (`420px–460px`)**:
+   - Usados na **Agenda** (`Novo agendamento`, `Lista de espera`, `Detalhes do Agendamento`, `Venda rápida`) e em **Clientes** (Perfil completo com 5 abas de ícones).
+3. **Editores de Página Inteira com Sub-navegação Lateral (`Left Anchor Subnav`)**:
+   - Usados em `Novo serviço`, `Novo pacote`, `Nova Fatura` e `Configurações`, com coluna esquerda de âncoras em pílula cinza (`#D4D4D8` / `#E4E4E7` quando ativa) e coluna central de formulário limpo.
+4. **Toast Escuro Flutuante**:
+   - Barra flutuante centralizada na base da tela (`#1C1C1E`, texto branco, ícone de check e botão `×`) para confirmações imediatas (ex.: `"Cliente Stefany criado com sucesso!"`).

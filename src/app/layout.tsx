@@ -1,31 +1,39 @@
 import type { Metadata, Viewport } from "next";
-import { Public_Sans, Chivo_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const publicSans = Public_Sans({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-public-sans",
+  variable: "--font-sans",
   display: "swap",
 });
 
-const chivoMono = Chivo_Mono({
+const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-chivo-mono",
+  weight: ["400"],
+  style: ["normal", "italic"],
+  variable: "--font-serif",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Veloce · Agenda Inteligente & Retenção em 1 Toque",
+  title: "GlossGenius · Aura Studio — Plataforma Completa de Agendamento & Gestão",
   description:
-    "Terminal operacional de agendamento, checkout rápido, trava anti-no-show via Pix e sincronização WhatsApp 2-Way para profissionais autônomos.",
+    "Plataforma de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe inspirada no GlossGenius.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#121514",
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({
@@ -34,8 +42,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${publicSans.variable} ${chivoMono.variable}`}>
-      <body className="font-sans min-h-screen bg-canvas text-ink antialiased selection:bg-status-confirmed-bg selection:text-status-confirmed-fg">
+    <html
+      lang="pt-BR"
+      className={`${plusJakarta.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}
+    >
+      <body className="font-sans min-h-screen bg-white text-[#18181B] antialiased selection:bg-[#ECE9FE] selection:text-[#18181B]">
         {children}
       </body>
     </html>

@@ -1,0 +1,2463 @@
+// =============================================================================
+// GLOSSGENIUS (EDIÇÃO BRASIL) — MOTOR DE DOMÍNIO & ESTADO OPERACIONAL
+// Vocabulário canônico alinhado a CONTEXT.md, ADR-0001 e ADR-0002
+// =============================================================================
+
+export type NavigationSectionId =
+  | "get_started"
+  | "reception"
+  | "calendar"
+  | "payments_gift_cards"
+  | "payments_invoices"
+  | "payments_sales_history"
+  | "clients"
+  | "catalog_services"
+  | "catalog_packages"
+  | "catalog_memberships"
+  | "catalog_resources"
+  | "team_staff"
+  | "team_payroll"
+  | "team_commissions"
+  | "team_time_tracking"
+  | "marketing"
+  | "insights"
+  | "inventory"
+  | "charts"
+  | "refer"
+  | "settings";
+
+export type CalendarEventType =
+  | "appointment"
+  | "personal_block"
+  | "working_hours"
+  | "waitlist_entry";
+
+export type PriceType = "fixed" | "starting_at" | "hidden";
+
+export type ResourceCategory = "equipment" | "room";
+
+export interface PhysicalResource {
+  id: string;
+  name: string;
+  category: ResourceCategory;
+  description: string;
+  assignedServiceIds: string[];
+}
+
+export interface ServiceOptionItem {
+  id: string;
+  name: string;
+  priceDeltaCents: number;
+  durationDeltaMinutes: number;
+}
+
+export interface ServiceAddOnItem {
+  id: string;
+  name: string;
+  priceCents: number;
+  durationMinutes: number;
+}
+
+export interface ServiceCatalogItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  calendarColor: string;
+  imageUrl?: string;
+  onlineBookingEnabled: boolean;
+  priceType: PriceType;
+  priceCents: number;
+  requireDeposit: boolean;
+  depositCents: number;
+  durationMinutes: number;
+  processingTimeEnabled: boolean;
+  processingStartOffsetMinutes: number;
+  processingDurationMinutes: number;
+  blockTimeEnabled: boolean;
+  blockAfterMinutes: number;
+  requiredResourceIds: string[];
+  options: ServiceOptionItem[];
+  addOns: ServiceAddOnItem[];
+}
+
+export interface SuggestedServiceTemplate {
+  id: string;
+  name: string;
+  category: string;
+  priceCents: number;
+  durationMinutes: number;
+  selected: boolean;
+}
+
+export interface PackageCatalogItem {
+  id: string;
+  name: string;
+  description: string;
+  sellOnWebsite: boolean;
+  includedServiceIds: string[];
+  sessionsCount: number;
+  priceCents: number;
+  expirationDays: number;
+  termsAndConditions: string;
+}
+
+export interface MembershipPlanItem {
+  id: string;
+  name: string;
+  description: string;
+  monthlyPriceCents: number;
+  includedCreditsPerMonth: number;
+  discountPercentOnExtras: number;
+  activeSubscribersCount: number;
+}
+
+export interface ClientPhotoGroup {
+  id: string;
+  appointmentId?: string;
+  appointmentDateISO: string;
+  serviceName: string;
+  beforeLabel?: string;
+  afterLabel?: string;
+  photoUrls: string[];
+  notes: string;
+}
+
+export interface ClientPackageCredit {
+  packageId: string;
+  packageName: string;
+  remainingSessions: number;
+  totalSessions: number;
+  expiresAtISO: string;
+}
+
+export interface ClientMembershipSubscription {
+  membershipId: string;
+  membershipName: string;
+  status: "active" | "paused";
+  remainingMonthlyCredits: number;
+  renewsAtISO: string;
+}
+
+export interface ClientProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  avatarColor: string;
+  createdAtISO: string;
+  lastVisitISO: string | null;
+  daysSinceLastVisit: number | null;
+  totalSpentCents: number;
+  visitsCount: number;
+  noShowCount: number;
+  sendAutomaticReminders: boolean;
+  notesAndForms: {
+    anamnesis: string;
+    allergies: string;
+    formulasAndPreferences: string;
+    birthday: string;
+  };
+  autoSortedPhotos: ClientPhotoGroup[];
+  packages: ClientPackageCredit[];
+  memberships: ClientMembershipSubscription[];
+}
+
+export interface CalendarEventItem {
+  id: string;
+  eventType: CalendarEventType;
+  dateISO: string; // YYYY-MM-DD
+  startTime: string; // HH:mm (24h)
+  endTime: string; // HH:mm (24h)
+  activeDurationMinutes: number;
+  processingStartOffsetMinutes: number;
+  processingDurationMinutes: number;
+  blockAfterMinutes: number;
+  providerId: string;
+  providerName: string;
+  clientId?: string;
+  clientName: string;
+  serviceIds: string[];
+  serviceNames: string[];
+  resourceIds: string[];
+  addressOrNotes: string;
+  isRepeating: boolean;
+  collectDeposit: boolean;
+  depositCents: number;
+  depositPaid: boolean;
+  totalCents: number;
+  status: "confirmed" | "completed" | "pending" | "canceled" | "no_show";
+  calendarColor: string;
+  whatsappReminderSent: boolean;
+  whatsappClientReply: "1_confirmed" | "2_reschedule" | "none";
+}
+
+export interface WaitlistEntryItem {
+  id: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  providerId: string;
+  providerName: string;
+  serviceId: string;
+  serviceName: string;
+  preferredDateISO: string;
+  preferredTimeWindow: string;
+  notes: string;
+  createdAtISO: string;
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  label: string;
+  itemType: "service" | "product" | "package" | "custom";
+  amountCents: number;
+  quantity: number;
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoiceNumber: string;
+  title: string;
+  providerId: string;
+  providerName: string;
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  memo: string;
+  issuedAtISO: string;
+  dueDateISO: string;
+  lineItems: InvoiceLineItem[];
+  subtotalCents: number;
+  discountCents: number;
+  taxCents: number;
+  totalCents: number;
+  status: "draft" | "sent" | "paid" | "overdue";
+  paymentLinkUrl: string;
+  pixPayload?: string;
+}
+
+export interface SaleHistoryRecord {
+  id: string;
+  appointmentTimeLabel: string;
+  dateISO: string;
+  clientId: string;
+  clientName: string;
+  providerId: string;
+  providerName: string;
+  itemsSummary: string;
+  status: "Pago" | "Sinal Pago" | "Pendente" | "Reembolsado";
+  paymentMethod: "Pix" | "Cartão" | "Dinheiro" | "Vale-Presente" | "Pacote";
+  amountCents: number;
+  tipCents: number;
+}
+
+export interface GiftCardItem {
+  id: string;
+  code: string;
+  recipientName: string;
+  recipientEmail: string;
+  initialBalanceCents: number;
+  remainingBalanceCents: number;
+  status: "active" | "redeemed";
+  issuedAtISO: string;
+}
+
+export interface StaffMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  initials: string;
+  role: string;
+  email: string;
+  phone: string;
+  avatarColor: string;
+  serviceCommissionPercent: number;
+  productCommissionPercent: number;
+  weeklyGoalCents: number;
+  bookedThisWeekCents: number;
+  clockInNotificationsEnabled: boolean;
+  assignedServiceIds: string[];
+}
+
+export interface TimesheetLog {
+  id: string;
+  staffId: string;
+  staffName: string;
+  dateISO: string;
+  checkInTime: string;
+  checkOutTime: string | null;
+  breakMinutes: number;
+  totalWorkedSeconds: number;
+  status: "clocked_in" | "on_break" | "completed";
+}
+
+export interface MarketingCampaignItem {
+  id: string;
+  channel: "email" | "text";
+  subject: string;
+  message: string;
+  imageUrl?: string;
+  audienceSegment: "all" | "absent_45d" | "vip" | "waitlist";
+  recipientsCount: number;
+  status: "sent" | "draft";
+  sentAtISO: string;
+}
+
+export interface InventoryProductItem {
+  id: string;
+  name: string;
+  sku: string;
+  category: "Revenda (Retail)" | "Uso Profissional (Backbar)";
+  stockQuantity: number;
+  minStockAlert: number;
+  priceCents: number;
+  costCents: number;
+}
+
+export interface ReceptionAiLog {
+  id: string;
+  timestampLabel: string;
+  clientName: string;
+  clientPhone: string;
+  direction: "inbound" | "outbound";
+  channel: "WhatsApp 2-Way" | "Recepção Voz IA";
+  messageText: string;
+  outcomeBadge: string;
+}
+
+export interface StudioState {
+  onboarding: {
+    steps: Array<{
+      id: "booking_site" | "add_services" | "start_getting_paid";
+      title: string;
+      description: string;
+      completed: boolean;
+    }>;
+    importedData: boolean;
+    trialDaysLeft: number;
+    planTier: "Gold" | "Platinum" | "Standard";
+  };
+  reception: {
+    activeStep: "meet" | "setup" | "ready";
+    whatsappConnected: boolean;
+    whatsappNumber: string;
+    autoReplyMissedCallsAndTexts: boolean;
+    send24hReminder: boolean;
+    send2hReminder: boolean;
+    logs: ReceptionAiLog[];
+  };
+  calendarView: {
+    selectedDateISO: string;
+    mode: "day" | "week";
+    selectedProviderId: string | "all";
+  };
+  services: ServiceCatalogItem[];
+  suggestedServices: SuggestedServiceTemplate[];
+  packages: PackageCatalogItem[];
+  memberships: MembershipPlanItem[];
+  resources: PhysicalResource[];
+  clients: ClientProfile[];
+  calendarEvents: CalendarEventItem[];
+  waitlist: WaitlistEntryItem[];
+  invoices: InvoiceItem[];
+  salesHistory: SaleHistoryRecord[];
+  giftCards: GiftCardItem[];
+  staffMode: "team" | "solo";
+  staff: StaffMember[];
+  timeTracking: {
+    enabled: boolean;
+    firstBreakTypeEnabled: boolean;
+    firstBreakDurationMinutes: number;
+    activeClockInStaffId: string;
+    activeSessionStatus: "idle" | "clocked_in" | "on_break";
+    activeElapsedSeconds: number;
+    logs: TimesheetLog[];
+  };
+  marketing: {
+    smsCreditsRemaining: number;
+    campaigns: MarketingCampaignItem[];
+  };
+  inventory: InventoryProductItem[];
+  settings: {
+    personal: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      phoneVerified: boolean;
+      licenseNumber: string;
+      smsConsent: boolean;
+    };
+    preferences: {
+      appointmentNotifications: {
+        email: boolean;
+        text: boolean;
+        push: boolean;
+      };
+      notifyNewReviews: boolean;
+      captureClientNotesFromMe: boolean;
+      sendMeClientNotesBeforeAppointment: boolean;
+      calendarSyncUrl: string;
+      waitlistNotifications: {
+        email: boolean;
+        text: boolean;
+        push: boolean;
+      };
+    };
+    business: {
+      businessName: string;
+      bookingSlug: string;
+      legalEntityType: string;
+      taxIdCnpjCpf: string;
+      address: string;
+      cityState: string;
+      pixKey: string;
+      defaultDepositPercent: number;
+      requireCardOrPixOnOnlineBooking: boolean;
+      cancellationWindowHours: number;
+      noShowFeePercent: number;
+    };
+  };
+  lastToastMessage: string | null;
+}
+
+// =============================================================================
+// HELPERS DE TEMPO E FORMATAÇÃO
+// =============================================================================
+
+export function parseTimeMinutes(timeHHMM: string): number {
+  const [hh, mm] = timeHHMM.split(":").map((n) => parseInt(n, 10));
+  return (Number.isNaN(hh) ? 9 : hh) * 60 + (Number.isNaN(mm) ? 0 : mm);
+}
+
+export function formatMinutesToHHMM(totalMinutes: number): string {
+  const clamped = Math.max(0, Math.min(23 * 60 + 59, totalMinutes));
+  const hh = Math.floor(clamped / 60);
+  const mm = clamped % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+export function formatBRL(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+export function addWeeksToDateISO(dateISO: string, weeksToAdd: number): string {
+  const [y, m, d] = dateISO.split("-").map((n) => parseInt(n, 10));
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + weeksToAdd * 7);
+  return dt.toISOString().slice(0, 10);
+}
+
+export function addDaysToDateISO(dateISO: string, daysToAdd: number): string {
+  const [y, m, d] = dateISO.split("-").map((n) => parseInt(n, 10));
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + daysToAdd);
+  return dt.toISOString().slice(0, 10);
+}
+
+// =============================================================================
+// ESTADO INICIAL REALISTA (BASEADO NAS 39 CAPTURAS DO GLOSSGENIUS)
+// =============================================================================
+
+export function createInitialStudioState(): StudioState {
+  return {
+    onboarding: {
+      steps: [
+        {
+          id: "booking_site",
+          title: "Seja encontrado e agendado online",
+          description:
+            "Garanta sua URL personalizada e lance um site de agendamento onde clientes reservam em 30 segundos.",
+          completed: false,
+        },
+        {
+          id: "add_services",
+          title: "Adicione seus serviços",
+          description:
+            "Defina seus preços, envie fotos e construa um menu de serviços que se vende sozinho.",
+          completed: false,
+        },
+        {
+          id: "start_getting_paid",
+          title: "Comece a receber pagamentos",
+          description:
+            "Aceite Pix Dinâmico, cartão e faturas, aumentando a retenção de receita em até 65% em média.",
+          completed: false,
+        },
+      ],
+      importedData: false,
+      trialDaysLeft: 14,
+      planTier: "Gold",
+    },
+    reception: {
+      activeStep: "meet",
+      whatsappConnected: true,
+      whatsappNumber: "+55 (11) 99752-5522",
+      autoReplyMissedCallsAndTexts: true,
+      send24hReminder: true,
+      send2hReminder: true,
+      logs: [
+        {
+          id: "rec-log-1",
+          timestampLabel: "Hoje, 08:42",
+          clientName: "Stefany",
+          clientPhone: "(520) 788-8522",
+          direction: "outbound",
+          channel: "WhatsApp 2-Way",
+          messageText:
+            "Olá Stefany! Lembrete do seu horário hoje às 10:00 no Aura Studio. Responda 1 para Confirmar ou 2 para Reagendar.",
+          outcomeBadge: "Entregue · Aguardando 1/2",
+        },
+        {
+          id: "rec-log-2",
+          timestampLabel: "Hoje, 08:50",
+          clientName: "Isolde Quinn",
+          clientPhone: "(11) 99410-2219",
+          direction: "inbound",
+          channel: "WhatsApp 2-Way",
+          messageText: "1 — Confirmado! Estarei aí no horário.",
+          outcomeBadge: "Agenda Sincronizada ✓",
+        },
+        {
+          id: "rec-log-3",
+          timestampLabel: "Ontem, 21:15",
+          clientName: "Mariana Albuquerque",
+          clientPhone: "(11) 98821-7700",
+          direction: "inbound",
+          channel: "Recepção Voz IA",
+          messageText:
+            "Cliente ligou após o expediente perguntando valor de Mechas + Tratamento. Recepção IA enviou link do Aura Studio e reservou horário.",
+          outcomeBadge: "Reserva Salva (+R$ 380)",
+        },
+      ],
+    },
+    calendarView: {
+      selectedDateISO: "2026-10-17",
+      mode: "day",
+      selectedProviderId: "staff-bruno",
+    },
+    resources: [
+      {
+        id: "res-laser-1",
+        name: "Laser Lavieen & Ultrassom Microfocado",
+        category: "equipment",
+        description: "Equipamento compartilhado — trava automática contra reserva dupla.",
+        assignedServiceIds: ["srv-rejuv"],
+      },
+      {
+        id: "res-room-1",
+        name: "Cabine Estética 01 (Haircut Room 2)",
+        category: "room",
+        description: "Sala principal climatizada para procedimentos longos.",
+        assignedServiceIds: ["srv-color", "srv-rejuv"],
+      },
+      {
+        id: "res-chair-1",
+        name: "Poltrona VIP Colorimetria",
+        category: "equipment",
+        description: "Estação completa com lavatório ergonômico.",
+        assignedServiceIds: ["srv-color", "srv-hydration"],
+      },
+    ],
+    services: [
+      {
+        id: "srv-color",
+        name: "Coloração Personalizada & Iluminação",
+        description:
+          "Diagnóstico de visagismo, aplicação de mechas/coloração com pausa assistida e finalização de salão.",
+        category: "Colorimetria & Cabelo",
+        calendarColor: "#E11D8F",
+        onlineBookingEnabled: true,
+        priceType: "fixed",
+        priceCents: 38000,
+        requireDeposit: true,
+        depositCents: 11400,
+        durationMinutes: 90,
+        processingTimeEnabled: true,
+        processingStartOffsetMinutes: 30,
+        processingDurationMinutes: 30,
+        blockTimeEnabled: true,
+        blockAfterMinutes: 15,
+        requiredResourceIds: ["res-room-1"],
+        options: [
+          {
+            id: "opt-short",
+            name: "Cabelo Curto / Médio",
+            priceDeltaCents: 0,
+            durationDeltaMinutes: 0,
+          },
+          {
+            id: "opt-long",
+            name: "Cabelo Longo / Extra Volume",
+            priceDeltaCents: 7000,
+            durationDeltaMinutes: 30,
+          },
+        ],
+        addOns: [
+          {
+            id: "add-ampola",
+            name: "Ampola Reconstrutora K-Pak",
+            priceCents: 4500,
+            durationMinutes: 10,
+          },
+          {
+            id: "add-scalp",
+            name: "Massagem Craniana Detox",
+            priceCents: 3500,
+            durationMinutes: 10,
+          },
+        ],
+      },
+      {
+        id: "srv-rejuv",
+        name: "Protocolo Rejuvenation & Glow",
+        description:
+          "Bioestimulação facial com tecnologia de ponta, máscara calmante e proteção antioxidante.",
+        category: "Estética Avançada",
+        calendarColor: "#6E56CF",
+        onlineBookingEnabled: true,
+        priceType: "starting_at",
+        priceCents: 23000,
+        requireDeposit: true,
+        depositCents: 7000,
+        durationMinutes: 60,
+        processingTimeEnabled: false,
+        processingStartOffsetMinutes: 0,
+        processingDurationMinutes: 0,
+        blockTimeEnabled: true,
+        blockAfterMinutes: 10,
+        requiredResourceIds: ["res-laser-1", "res-room-1"],
+        options: [
+          {
+            id: "opt-face",
+            name: "Face Completa",
+            priceDeltaCents: 0,
+            durationDeltaMinutes: 0,
+          },
+          {
+            id: "opt-face-neck",
+            name: "Face + Pescoço e Colo",
+            priceDeltaCents: 9000,
+            durationDeltaMinutes: 20,
+          },
+        ],
+        addOns: [
+          {
+            id: "add-led",
+            name: "Fototerapia LED Regeneradora",
+            priceCents: 5000,
+            durationMinutes: 15,
+          },
+        ],
+      },
+      {
+        id: "srv-hydration",
+        name: "Tratamento Condicionamento Profundo",
+        description:
+          "Reposição lipídica e selagem de cutículas para brilho espelhado imediato.",
+        category: "Tratamentos Capilares",
+        calendarColor: "#0D9488",
+        onlineBookingEnabled: true,
+        priceType: "fixed",
+        priceCents: 15000,
+        requireDeposit: false,
+        depositCents: 0,
+        durationMinutes: 45,
+        processingTimeEnabled: false,
+        processingStartOffsetMinutes: 0,
+        processingDurationMinutes: 0,
+        blockTimeEnabled: false,
+        blockAfterMinutes: 0,
+        requiredResourceIds: ["res-chair-1"],
+        options: [],
+        addOns: [],
+      },
+    ],
+    suggestedServices: [
+      {
+        id: "sug-1",
+        name: "Consultoria de coloração personalizada (Custom hair color consultations)",
+        category: "Colorimetria & Cabelo",
+        priceCents: 15000,
+        durationMinutes: 45,
+        selected: false,
+      },
+      {
+        id: "sug-2",
+        name: "Tratamento de condicionamento profundo (Deep conditioning treatments)",
+        category: "Tratamentos Capilares",
+        priceCents: 20000,
+        durationMinutes: 60,
+        selected: false,
+      },
+      {
+        id: "sug-3",
+        name: "Avaliação de alongamento e mega hair (Hair extension consultations)",
+        category: "Alongamento",
+        priceCents: 12500,
+        durationMinutes: 30,
+        selected: false,
+      },
+    ],
+    packages: [
+      {
+        id: "pkg-rejuv-3",
+        name: "Rejuvenation Package (3 Sessões)",
+        description:
+          "Combo de 3 sessões do Protocolo Rejuvenation & Glow com acompanhamento fotográfico Antes & Depois.",
+        sellOnWebsite: true,
+        includedServiceIds: ["srv-rejuv"],
+        sessionsCount: 3,
+        priceCents: 59000,
+        expirationDays: 180,
+        termsAndConditions:
+          "Válido por 6 meses a partir da compra. Cancelamentos com menos de 24h consomem 1 crédito.",
+      },
+    ],
+    memberships: [
+      {
+        id: "mem-club-glow",
+        name: "Aura Glow Club Mensal",
+        description:
+          "2 sessões de Tratamento Capilar ou Hidratação por mês + 15% OFF em todo o catálogo.",
+        monthlyPriceCents: 24900,
+        includedCreditsPerMonth: 2,
+        discountPercentOnExtras: 15,
+        activeSubscribersCount: 12,
+      },
+    ],
+    clients: [
+      {
+        id: "cli-stefany",
+        fullName: "Stefany",
+        email: "bfernandescorretor@gmail.com",
+        phone: "(520) 788-8522",
+        avatarColor: "#FBCFE8",
+        createdAtISO: "2026-10-17",
+        lastVisitISO: "2026-10-02",
+        daysSinceLastVisit: 15,
+        totalSpentCents: 61000,
+        visitsCount: 4,
+        noShowCount: 0,
+        sendAutomaticReminders: true,
+        notesAndForms: {
+          anamnesis:
+            "Couro cabeludo sensível; prefere oxidante de 20 volumes sem amônia. Não apresenta histórico alérgico a ácidos leves.",
+          allergies: "Nenhuma alergia medicamentosa relatada.",
+          formulasAndPreferences:
+            "Fórmula loiro manteiga: 8.31 + 9.1 (1:1). Gosta de café expresso sem açúcar e música ambiente baixa.",
+          birthday: "14/05",
+        },
+        autoSortedPhotos: [
+          {
+            id: "ph-grp-1",
+            appointmentId: "evt-1",
+            appointmentDateISO: "2026-10-17",
+            serviceName: "Coloração Personalizada & Iluminação",
+            beforeLabel: "Antes · Raiz 4cm natural",
+            afterLabel: "Depois · Iluminação Avelã & Brilho",
+            photoUrls: [
+              "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=400&q=80",
+              "https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=400&q=80",
+            ],
+            notes: "Fotos organizadas e rotuladas automaticamente pelo agendamento.",
+          },
+        ],
+        packages: [
+          {
+            packageId: "pkg-rejuv-3",
+            packageName: "Rejuvenation Package (3 Sessões)",
+            remainingSessions: 2,
+            totalSessions: 3,
+            expiresAtISO: "2027-04-17",
+          },
+        ],
+        memberships: [
+          {
+            membershipId: "mem-club-glow",
+            membershipName: "Aura Glow Club Mensal",
+            status: "active",
+            remainingMonthlyCredits: 1,
+            renewsAtISO: "2026-11-17",
+          },
+        ],
+      },
+      {
+        id: "cli-isolde",
+        fullName: "Isolde Quinn",
+        email: "isolde.quinn@aurastudio.com",
+        phone: "(11) 99410-2219",
+        avatarColor: "#DDD6FE",
+        createdAtISO: "2026-06-10",
+        lastVisitISO: "2026-10-10",
+        daysSinceLastVisit: 7,
+        totalSpentCents: 142000,
+        visitsCount: 8,
+        noShowCount: 0,
+        sendAutomaticReminders: true,
+        notesAndForms: {
+          anamnesis: "Pele fototipo III, em protocolo de bioestimulação trimestral.",
+          allergies: "Sensibilidade a ácidos retinóicos concentrados.",
+          formulasAndPreferences: "Cabine Estética 01 aquecida; chá de camomila.",
+          birthday: "22/08",
+        },
+        autoSortedPhotos: [],
+        packages: [],
+        memberships: [],
+      },
+      {
+        id: "cli-mariana",
+        fullName: "Mariana Albuquerque",
+        email: "mariana.alb@gmail.com",
+        phone: "(11) 98821-7700",
+        avatarColor: "#BBF7D0",
+        createdAtISO: "2026-04-01",
+        lastVisitISO: "2026-08-25",
+        daysSinceLastVisit: 53,
+        totalSpentCents: 89000,
+        visitsCount: 5,
+        noShowCount: 1,
+        sendAutomaticReminders: true,
+        notesAndForms: {
+          anamnesis: "Cliente ausente há 53 dias — elegível para campanha de reativação.",
+          allergies: "Nenhuma.",
+          formulasAndPreferences: "Prefere horários de sábado pela manhã.",
+          birthday: "03/11",
+        },
+        autoSortedPhotos: [],
+        packages: [],
+        memberships: [],
+      },
+    ],
+    calendarEvents: [
+      {
+        id: "evt-1",
+        eventType: "appointment",
+        dateISO: "2026-10-17",
+        startTime: "10:00",
+        endTime: "11:45",
+        activeDurationMinutes: 90,
+        processingStartOffsetMinutes: 30,
+        processingDurationMinutes: 30,
+        blockAfterMinutes: 15,
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        clientId: "cli-stefany",
+        clientName: "Stefany",
+        serviceIds: ["srv-color"],
+        serviceNames: ["Coloração Personalizada & Iluminação"],
+        resourceIds: ["res-room-1"],
+        addressOrNotes: "Cabine Estética 01 · Loiro iluminado sem amônia",
+        isRepeating: false,
+        collectDeposit: true,
+        depositCents: 11400,
+        depositPaid: true,
+        totalCents: 38000,
+        status: "pending",
+        calendarColor: "#E11D8F",
+        whatsappReminderSent: true,
+        whatsappClientReply: "none",
+      },
+      {
+        id: "evt-2",
+        eventType: "appointment",
+        dateISO: "2026-10-17",
+        startTime: "12:30",
+        endTime: "13:40",
+        activeDurationMinutes: 60,
+        processingStartOffsetMinutes: 0,
+        processingDurationMinutes: 0,
+        blockAfterMinutes: 10,
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        clientId: "cli-isolde",
+        clientName: "Isolde Quinn",
+        serviceIds: ["srv-rejuv"],
+        serviceNames: ["Protocolo Rejuvenation & Glow"],
+        resourceIds: ["res-laser-1", "res-room-1"],
+        addressOrNotes: "Haircut Room 2 · Sessão 1 do Rejuvenation Package",
+        isRepeating: false,
+        collectDeposit: true,
+        depositCents: 7000,
+        depositPaid: true,
+        totalCents: 23000,
+        status: "confirmed",
+        calendarColor: "#6E56CF",
+        whatsappReminderSent: true,
+        whatsappClientReply: "1_confirmed",
+      },
+    ],
+    waitlist: [
+      {
+        id: "wl-1",
+        clientId: "cli-mariana",
+        clientName: "Mariana Albuquerque",
+        clientPhone: "(11) 98821-7700",
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        serviceId: "srv-hydration",
+        serviceName: "Tratamento Condicionamento Profundo",
+        preferredDateISO: "2026-10-17",
+        preferredTimeWindow: "Manhã (10:30 — 12:00)",
+        notes: "Pode encaixar durante o tempo de pausa da coloração das 10:30!",
+        createdAtISO: "2026-10-16",
+      },
+    ],
+    invoices: [
+      {
+        id: "inv-1000948",
+        invoiceNumber: "#1000948",
+        title: "Rejuvenation Package",
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        clientId: "cli-isolde",
+        clientName: "Isolde Quinn",
+        clientEmail: "isolde.quinn@aurastudio.com",
+        memo: "Fatura referente ao protocolo facial completo no Aura Studio.",
+        issuedAtISO: "2026-10-10",
+        dueDateISO: "2026-10-25",
+        lineItems: [
+          {
+            id: "li-1",
+            label: "Protocolo Rejuvenation & Glow",
+            itemType: "service",
+            amountCents: 23000,
+            quantity: 1,
+          },
+        ],
+        subtotalCents: 23000,
+        discountCents: 0,
+        taxCents: 0,
+        totalCents: 23000,
+        status: "sent",
+        paymentLinkUrl: "https://aurastudio.glossgenius.br/pay/1000948",
+      },
+    ],
+    salesHistory: [
+      {
+        id: "sale-1",
+        appointmentTimeLabel: "17 Out 2026, 09:00",
+        dateISO: "2026-10-17",
+        clientId: "cli-stefany",
+        clientName: "Stefany",
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        itemsSummary: "Sinal Pix · Coloração Personalizada & Iluminação",
+        status: "Sinal Pago",
+        paymentMethod: "Pix",
+        amountCents: 11400,
+        tipCents: 0,
+      },
+      {
+        id: "sale-2",
+        appointmentTimeLabel: "10 Out 2026, 14:00",
+        dateISO: "2026-10-10",
+        clientId: "cli-isolde",
+        clientName: "Isolde Quinn",
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        itemsSummary: "Protocolo Rejuvenation & Glow + Ampola",
+        status: "Pago",
+        paymentMethod: "Pix",
+        amountCents: 27500,
+        tipCents: 2000,
+      },
+    ],
+    giftCards: [
+      {
+        id: "gc-1",
+        code: "AURA-GIFT-200",
+        recipientName: "Stefany",
+        recipientEmail: "bfernandescorretor@gmail.com",
+        initialBalanceCents: 20000,
+        remainingBalanceCents: 20000,
+        status: "active",
+        issuedAtISO: "2026-10-05",
+      },
+    ],
+    staffMode: "team",
+    staff: [
+      {
+        id: "staff-bruno",
+        firstName: "Bruno",
+        lastName: "Fernandes Malossi Silva",
+        fullName: "Bruno Fernandes Malossi Silva",
+        initials: "BS",
+        role: "Proprietário & Especialista Master",
+        email: "bfernandescorretor@gmail.com",
+        phone: "+1 (520) 752-5522",
+        avatarColor: "#FBCFE8",
+        serviceCommissionPercent: 60,
+        productCommissionPercent: 20,
+        weeklyGoalCents: 580000,
+        bookedThisWeekCents: 145050,
+        clockInNotificationsEnabled: true,
+        assignedServiceIds: ["srv-color", "srv-rejuv", "srv-hydration"],
+      },
+      {
+        id: "staff-clara",
+        firstName: "Clara",
+        lastName: "Mendes",
+        fullName: "Clara Mendes",
+        initials: "CM",
+        role: "Especialista em Estética & Laser",
+        email: "clara.mendes@aurastudio.com",
+        phone: "+55 (11) 99123-4567",
+        avatarColor: "#DDD6FE",
+        serviceCommissionPercent: 50,
+        productCommissionPercent: 15,
+        weeklyGoalCents: 350000,
+        bookedThisWeekCents: 185000,
+        clockInNotificationsEnabled: true,
+        assignedServiceIds: ["srv-rejuv", "srv-hydration"],
+      },
+    ],
+    timeTracking: {
+      enabled: true,
+      firstBreakTypeEnabled: false,
+      firstBreakDurationMinutes: 30,
+      activeClockInStaffId: "staff-bruno",
+      activeSessionStatus: "clocked_in",
+      activeElapsedSeconds: 15678, // 04:21:18 (exatamente como no print 06-5-catalog-team-time-tracking.png!)
+      logs: [
+        {
+          id: "ts-1",
+          staffId: "staff-bruno",
+          staffName: "Bruno Fernandes Malossi Silva",
+          dateISO: "2026-10-16",
+          checkInTime: "09:00",
+          checkOutTime: "18:15",
+          breakMinutes: 45,
+          totalWorkedSeconds: 30600,
+          status: "completed",
+        },
+      ],
+    },
+    marketing: {
+      smsCreditsRemaining: 500,
+      campaigns: [],
+    },
+    inventory: [
+      {
+        id: "inv-prod-1",
+        name: "Máscara Reconstrutora K-Pak Professional 500ml",
+        sku: "KPAK-500",
+        category: "Revenda (Retail)",
+        stockQuantity: 14,
+        minStockAlert: 5,
+        priceCents: 18900,
+        costCents: 9500,
+      },
+      {
+        id: "inv-prod-2",
+        name: "Sérum Vitamina C 20% Aura Derm 30ml",
+        sku: "AURA-VITC",
+        category: "Revenda (Retail)",
+        stockQuantity: 4,
+        minStockAlert: 6,
+        priceCents: 16500,
+        costCents: 7200,
+      },
+      {
+        id: "inv-prod-3",
+        name: "Pó Descolorante Plex Free Dust 1kg",
+        sku: "BACK-PLEX",
+        category: "Uso Profissional (Backbar)",
+        stockQuantity: 8,
+        minStockAlert: 3,
+        priceCents: 21000,
+        costCents: 14000,
+      },
+    ],
+    settings: {
+      personal: {
+        firstName: "Bruno",
+        lastName: "Fernandes Malossi Silva",
+        email: "bfernandescorretor@gmail.com",
+        phone: "+1 (520) 752-5522",
+        phoneVerified: true,
+        licenseNumber: "",
+        smsConsent: false,
+      },
+      preferences: {
+        appointmentNotifications: {
+          email: true,
+          text: true,
+          push: true,
+        },
+        notifyNewReviews: true,
+        captureClientNotesFromMe: true,
+        sendMeClientNotesBeforeAppointment: true,
+        calendarSyncUrl: "webcal://aurastudio.glossgenius.br/cal/bruno-sync.ics",
+        waitlistNotifications: {
+          email: true,
+          text: true,
+          push: true,
+        },
+      },
+      business: {
+        businessName: "Bruno Fernandes Malossi Silva",
+        bookingSlug: "aura-studio-bruno",
+        legalEntityType: "Sociedade Limitada (LTDA) / Salão Parceiro",
+        taxIdCnpjCpf: "48.192.301/0001-82",
+        address: "Av. Brigadeiro Faria Lima, 2355 - Sala 804",
+        cityState: "São Paulo, SP",
+        pixKey: "pix@aurastudio.com.br",
+        defaultDepositPercent: 30,
+        requireCardOrPixOnOnlineBooking: true,
+        cancellationWindowHours: 24,
+        noShowFeePercent: 50,
+      },
+    },
+    lastToastMessage: null,
+  };
+}
+
+// =============================================================================
+// TICKET 01 — FUNÇÕES DE DOMÍNIO: ONBOARDING & SITE DE AGENDAMENTO ONLINE
+// =============================================================================
+
+export function completeOnboardingStep(
+  state: StudioState,
+  stepId: "booking_site" | "add_services" | "start_getting_paid"
+): StudioState {
+  return {
+    ...state,
+    onboarding: {
+      ...state.onboarding,
+      steps: state.onboarding.steps.map((s) =>
+        s.id === stepId ? { ...s, completed: true } : s
+      ),
+    },
+    lastToastMessage: "Etapa de Primeiros Passos concluída!",
+  };
+}
+
+export function importStudioMigrationData(
+  state: StudioState,
+  payload: {
+    sourceName: string;
+    clientsCount: number;
+    servicesCount: number;
+  }
+): StudioState {
+  const importedClients: ClientProfile[] = Array.from(
+    { length: payload.clientsCount },
+    (_, idx) => ({
+      id: `cli-import-${Date.now()}-${idx}`,
+      fullName: idx === 0 ? "Helena Vasconcelos" : `Cliente Importado ${idx + 1}`,
+      email: `helena.${idx + 1}@importado.com.br`,
+      phone: `(11) 99100-000${idx + 1}`,
+      avatarColor: "#FBCFE8",
+      createdAtISO: "2026-10-17",
+      lastVisitISO: "2026-09-20",
+      daysSinceLastVisit: 27,
+      totalSpentCents: 32000,
+      visitsCount: 2,
+      noShowCount: 0,
+      sendAutomaticReminders: true,
+      notesAndForms: {
+        anamnesis: `Dados transferidos de ${payload.sourceName}.`,
+        allergies: "Nenhuma.",
+        formulasAndPreferences: "Importado gratuitamente pelo assistente de migração.",
+        birthday: "10/10",
+      },
+      autoSortedPhotos: [],
+      packages: [],
+      memberships: [],
+    })
+  );
+
+  return {
+    ...state,
+    clients: [...importedClients, ...state.clients],
+    onboarding: {
+      ...state.onboarding,
+      importedData: true,
+    },
+    lastToastMessage: `Dados de "${payload.sourceName}" importados com sucesso!`,
+  };
+}
+
+export function bookFromPublicSite(
+  state: StudioState,
+  input: {
+    clientName: string;
+    clientEmail: string;
+    clientPhone: string;
+    serviceId: string;
+    providerId: string;
+    dateISO: string;
+    startTime: string;
+    selectedAddOnIds: string[];
+    depositPaidViaPix: boolean;
+  }
+): { ok: true; state: StudioState } | { ok: false; error: string } {
+  const service = state.services.find((s) => s.id === input.serviceId);
+  if (!service) {
+    return { ok: false, error: "Serviço não encontrado." };
+  }
+  const provider =
+    state.staff.find((p) => p.id === input.providerId) ?? state.staff[0];
+
+  const addOnsSelected = service.addOns.filter((a) =>
+    input.selectedAddOnIds.includes(a.id)
+  );
+  const addOnsDuration = addOnsSelected.reduce(
+    (sum, a) => sum + a.durationMinutes,
+    0
+  );
+  const addOnsPrice = addOnsSelected.reduce((sum, a) => sum + a.priceCents, 0);
+
+  const activeDuration = service.durationMinutes + addOnsDuration;
+  const blockAfter = service.blockTimeEnabled ? service.blockAfterMinutes : 0;
+  const startMin = parseTimeMinutes(input.startTime);
+  const endTime = formatMinutesToHHMM(startMin + activeDuration + blockAfter);
+  const totalCents = service.priceCents + addOnsPrice;
+  const depositCents = service.requireDeposit ? service.depositCents : 0;
+
+  // Verifica se o cliente já existe ou cria novo
+  let existingClient = state.clients.find(
+    (c) =>
+      c.email.toLowerCase() === input.clientEmail.toLowerCase() ||
+      c.fullName.toLowerCase() === input.clientName.toLowerCase()
+  );
+
+  let updatedClients = state.clients;
+  if (!existingClient) {
+    existingClient = {
+      id: `cli-online-${Date.now()}`,
+      fullName: input.clientName,
+      email: input.clientEmail,
+      phone: input.clientPhone,
+      avatarColor: "#FBCFE8",
+      createdAtISO: input.dateISO,
+      lastVisitISO: input.dateISO,
+      daysSinceLastVisit: 0,
+      totalSpentCents: input.depositPaidViaPix ? depositCents : 0,
+      visitsCount: 1,
+      noShowCount: 0,
+      sendAutomaticReminders: true,
+      notesAndForms: {
+        anamnesis: "Cadastro automático via Site de Agendamento Online (Aura Studio).",
+        allergies: "A preencher na visita.",
+        formulasAndPreferences: "",
+        birthday: "",
+      },
+      autoSortedPhotos: [],
+      packages: [],
+      memberships: [],
+    };
+    updatedClients = [existingClient, ...state.clients];
+  }
+
+  const newEvent: CalendarEventItem = {
+    id: `evt-online-${Date.now()}`,
+    eventType: "appointment",
+    dateISO: input.dateISO,
+    startTime: input.startTime,
+    endTime,
+    activeDurationMinutes: activeDuration,
+    processingStartOffsetMinutes: service.processingTimeEnabled
+      ? service.processingStartOffsetMinutes
+      : 0,
+    processingDurationMinutes: service.processingTimeEnabled
+      ? service.processingDurationMinutes
+      : 0,
+    blockAfterMinutes: blockAfter,
+    providerId: provider.id,
+    providerName: provider.fullName,
+    clientId: existingClient.id,
+    clientName: existingClient.fullName,
+    serviceIds: [service.id],
+    serviceNames: [service.name],
+    resourceIds: service.requiredResourceIds,
+    addressOrNotes: "Agendado via Site Online Aura Studio",
+    isRepeating: false,
+    collectDeposit: service.requireDeposit,
+    depositCents,
+    depositPaid: input.depositPaidViaPix,
+    totalCents,
+    status: input.depositPaidViaPix ? "confirmed" : "pending",
+    calendarColor: service.calendarColor,
+    whatsappReminderSent: true,
+    whatsappClientReply: input.depositPaidViaPix ? "1_confirmed" : "none",
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      clients: updatedClients,
+      calendarEvents: [newEvent, ...state.calendarEvents],
+      onboarding: {
+        ...state.onboarding,
+        steps: state.onboarding.steps.map((s) =>
+          s.id === "booking_site" ? { ...s, completed: true } : s
+        ),
+      },
+      lastToastMessage: `Reserva online de ${existingClient.fullName} confirmada com Sinal Pix!`,
+    },
+  };
+}
+
+// =============================================================================
+// TICKET 02 — CATÁLOGO (SERVIÇOS, PACOTES, ASSINATURAS E RECURSOS FÍSICOS)
+// =============================================================================
+
+export function toggleSuggestedService(
+  state: StudioState,
+  suggestionId: string
+): StudioState {
+  return {
+    ...state,
+    suggestedServices: state.suggestedServices.map((item) =>
+      item.id === suggestionId ? { ...item, selected: !item.selected } : item
+    ),
+  };
+}
+
+export function createSelectedSuggestedServices(
+  state: StudioState
+): StudioState {
+  const selected = state.suggestedServices.filter((s) => s.selected);
+  if (selected.length === 0) return state;
+
+  const createdServices: ServiceCatalogItem[] = selected.map((sug, idx) => ({
+    id: `srv-sug-${Date.now()}-${idx}`,
+    name: sug.name,
+    description: generateServiceDescriptionAI(sug.name, sug.category),
+    category: sug.category,
+    calendarColor: idx % 2 === 0 ? "#E11D8F" : "#6E56CF",
+    onlineBookingEnabled: true,
+    priceType: "fixed",
+    priceCents: sug.priceCents,
+    requireDeposit: true,
+    depositCents: Math.round(sug.priceCents * 0.3),
+    durationMinutes: sug.durationMinutes,
+    processingTimeEnabled: false,
+    processingStartOffsetMinutes: 0,
+    processingDurationMinutes: 0,
+    blockTimeEnabled: true,
+    blockAfterMinutes: 10,
+    requiredResourceIds: [],
+    options: [],
+    addOns: [],
+  }));
+
+  return {
+    ...state,
+    services: [...createdServices, ...state.services],
+    suggestedServices: state.suggestedServices.map((s) => ({
+      ...s,
+      selected: false,
+    })),
+    onboarding: {
+      ...state.onboarding,
+      steps: state.onboarding.steps.map((s) =>
+        s.id === "add_services" ? { ...s, completed: true } : s
+      ),
+    },
+    lastToastMessage: `${createdServices.length} serviço(s) sugerido(s) adicionado(s) ao catálogo!`,
+  };
+}
+
+export function regenerateSuggestedServices(state: StudioState): StudioState {
+  const alternatePool: SuggestedServiceTemplate[] = [
+    {
+      id: `sug-alt-1-${Date.now()}`,
+      name: "Mechas Contour & Glossing Personalizado",
+      category: "Colorimetria & Cabelo",
+      priceCents: 42000,
+      durationMinutes: 120,
+      selected: false,
+    },
+    {
+      id: `sug-alt-2-${Date.now()}`,
+      name: "Detox Capilar c/ Argila Branca & Ozônio",
+      category: "Terapia Capilar",
+      priceCents: 18500,
+      durationMinutes: 50,
+      selected: false,
+    },
+    {
+      id: `sug-alt-3-${Date.now()}`,
+      name: "Design de Sobrancelhas & Brow Lamination",
+      category: "Olhar & Sobrancelhas",
+      priceCents: 14000,
+      durationMinutes: 45,
+      selected: false,
+    },
+  ];
+  return {
+    ...state,
+    suggestedServices: alternatePool,
+    lastToastMessage: "Novas sugestões de serviços geradas por IA!",
+  };
+}
+
+export function generateServiceDescriptionAI(
+  serviceName: string,
+  category: string
+): string {
+  return `Experiência exclusiva de ${serviceName} (${category || "Estética & Beleza"}): avaliação personalizada, produtos de alta performance e acabamento impecável pensado para realçar sua beleza com conforto e durabilidade.`;
+}
+
+export function saveCatalogService(
+  state: StudioState,
+  input: Omit<ServiceCatalogItem, "id"> & { id?: string }
+): StudioState {
+  const newService: ServiceCatalogItem = {
+    ...input,
+    id: input.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  };
+
+  const exists = state.services.some((s) => s.id === newService.id);
+  const updatedServices = exists
+    ? state.services.map((s) => (s.id === newService.id ? newService : s))
+    : [newService, ...state.services];
+
+  return {
+    ...state,
+    services: updatedServices,
+    onboarding: {
+      ...state.onboarding,
+      steps: state.onboarding.steps.map((s) =>
+        s.id === "add_services" ? { ...s, completed: true } : s
+      ),
+    },
+    lastToastMessage: `Serviço "${newService.name}" salvo com sucesso!`,
+  };
+}
+
+export function saveCatalogPackage(
+  state: StudioState,
+  input: Omit<PackageCatalogItem, "id"> & { id?: string }
+): StudioState {
+  const pkg: PackageCatalogItem = {
+    ...input,
+    id: input.id ?? `pkg-${Date.now()}`,
+  };
+  return {
+    ...state,
+    packages: [pkg, ...state.packages],
+    lastToastMessage: `Pacote "${pkg.name}" salvo com sucesso!`,
+  };
+}
+
+export function saveCatalogMembership(
+  state: StudioState,
+  input: Omit<MembershipPlanItem, "id" | "activeSubscribersCount"> & {
+    id?: string;
+    activeSubscribersCount?: number;
+  }
+): StudioState {
+  const plan: MembershipPlanItem = {
+    id: input.id ?? `mem-${Date.now()}`,
+    name: input.name,
+    description: input.description,
+    monthlyPriceCents: input.monthlyPriceCents,
+    includedCreditsPerMonth: input.includedCreditsPerMonth,
+    discountPercentOnExtras: input.discountPercentOnExtras,
+    activeSubscribersCount: input.activeSubscribersCount ?? 1,
+  };
+  return {
+    ...state,
+    memberships: [plan, ...state.memberships],
+    lastToastMessage: `Assinatura "${plan.name}" criada com sucesso!`,
+  };
+}
+
+export function savePhysicalResource(
+  state: StudioState,
+  input: Omit<PhysicalResource, "id"> & { id?: string }
+): StudioState {
+  const resource: PhysicalResource = {
+    ...input,
+    id: input.id ?? `res-${Date.now()}`,
+  };
+  return {
+    ...state,
+    resources: [resource, ...state.resources],
+    lastToastMessage: `Recurso "${resource.name}" adicionado com sucesso!`,
+  };
+}
+
+// =============================================================================
+// TICKET 03 — AGENDA (CALENDAR), SALTO DE SEMANAS, TRAVA DE RECURSOS E ENCAIXES
+// =============================================================================
+
+export function skipCalendarByWeeks(
+  state: StudioState,
+  weeksToAdd: number
+): StudioState {
+  const nextDateISO = addWeeksToDateISO(
+    state.calendarView.selectedDateISO,
+    weeksToAdd
+  );
+  return {
+    ...state,
+    calendarView: {
+      ...state.calendarView,
+      selectedDateISO: nextDateISO,
+    },
+    lastToastMessage: `Agenda avançada em +${weeksToAdd} semanas (${nextDateISO}).`,
+  };
+}
+
+export function validateAndCreateCalendarEvent(
+  state: StudioState,
+  input: {
+    eventType: CalendarEventType;
+    dateISO: string;
+    startTime: string;
+    endTime?: string;
+    providerId: string;
+    clientId?: string;
+    newClientInline?: { fullName: string; email: string; phone: string };
+    serviceIds: string[];
+    addressOrNotes: string;
+    isRepeating: boolean;
+    collectDeposit: boolean;
+  }
+):
+  | { ok: true; state: StudioState; createdEvent: CalendarEventItem }
+  | { ok: false; conflictType: "resource" | "provider"; message: string } {
+  const provider =
+    state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
+
+  // Resolve ou cria cliente inline
+  let updatedClients = state.clients;
+  let client = state.clients.find((c) => c.id === input.clientId);
+  if (!client && input.newClientInline?.fullName) {
+    client = {
+      id: `cli-inline-${Date.now()}`,
+      fullName: input.newClientInline.fullName,
+      email: input.newClientInline.email || "cliente@aurastudio.com.br",
+      phone: input.newClientInline.phone || "(11) 99999-0000",
+      avatarColor: "#FBCFE8",
+      createdAtISO: input.dateISO,
+      lastVisitISO: input.dateISO,
+      daysSinceLastVisit: 0,
+      totalSpentCents: 0,
+      visitsCount: 1,
+      noShowCount: 0,
+      sendAutomaticReminders: true,
+      notesAndForms: {
+        anamnesis: "",
+        allergies: "",
+        formulasAndPreferences: "",
+        birthday: "",
+      },
+      autoSortedPhotos: [],
+      packages: [],
+      memberships: [],
+    };
+    updatedClients = [client, ...state.clients];
+  }
+
+  // Se for Entrada na Lista de Espera, adiciona também na lista de espera
+  const selectedServices = state.services.filter((s) =>
+    input.serviceIds.includes(s.id)
+  );
+  const primaryService = selectedServices[0] ?? state.services[0];
+
+  const activeDuration =
+    selectedServices.length > 0
+      ? selectedServices.reduce((acc, s) => acc + s.durationMinutes, 0)
+      : 60;
+  const blockAfter =
+    selectedServices.length > 0
+      ? selectedServices.reduce(
+          (acc, s) => acc + (s.blockTimeEnabled ? s.blockAfterMinutes : 0),
+          0
+        )
+      : 0;
+  const processingOffset = primaryService?.processingTimeEnabled
+    ? primaryService.processingStartOffsetMinutes
+    : 0;
+  const processingDuration = primaryService?.processingTimeEnabled
+    ? primaryService.processingDurationMinutes
+    : 0;
+
+  const startMin = parseTimeMinutes(input.startTime);
+  const endMin = input.endTime
+    ? parseTimeMinutes(input.endTime)
+    : startMin + activeDuration + blockAfter;
+  const computedEndTime = formatMinutesToHHMM(endMin);
+
+  const requiredResourceIds = Array.from(
+    new Set(selectedServices.flatMap((s) => s.requiredResourceIds))
+  );
+
+  // Validação de conflito em agendamentos existentes do mesmo dia
+  if (input.eventType === "appointment") {
+    const sameDayEvents = state.calendarEvents.filter(
+      (ev) =>
+        ev.dateISO === input.dateISO &&
+        ev.status !== "canceled" &&
+        ev.eventType === "appointment"
+    );
+
+    for (const ev of sameDayEvents) {
+      const evStart = parseTimeMinutes(ev.startTime);
+      const evEnd = parseTimeMinutes(ev.endTime);
+      const overlapsTotalWindow = startMin < evEnd && endMin > evStart;
+      if (!overlapsTotalWindow) continue;
+
+      // 1. Verifica conflito de Recurso Físico (Salas e Equipamentos)
+      const sharedResourceIds = requiredResourceIds.filter((rId) =>
+        ev.resourceIds.includes(rId)
+      );
+      if (sharedResourceIds.length > 0) {
+        const resNames = state.resources
+          .filter((r) => sharedResourceIds.includes(r.id))
+          .map((r) => r.name)
+          .join(", ");
+        return {
+          ok: false,
+          conflictType: "resource",
+          message: `Conflito de Recurso Físico: ${resNames} já está reservado das ${ev.startTime} às ${ev.endTime} (${ev.clientName}).`,
+        };
+      }
+
+      // 2. Verifica conflito de Profissional (permitindo encaixe se cair dentro da janela de Tempo de Processamento!)
+      if (ev.providerId === provider.id) {
+        const hasProcessingGap = ev.processingDurationMinutes > 0;
+        const gapStart = evStart + ev.processingStartOffsetMinutes;
+        const gapEnd = gapStart + ev.processingDurationMinutes;
+        const fitsInProcessingGap =
+          hasProcessingGap && startMin >= gapStart && endMin <= gapEnd;
+
+        if (!fitsInProcessingGap) {
+          return {
+            ok: false,
+            conflictType: "provider",
+            message: `Conflito de Agenda: ${provider.fullName} já possui atendimento ativo das ${ev.startTime} às ${ev.endTime}.`,
+          };
+        }
+      }
+    }
+  }
+
+  const totalCents = selectedServices.reduce((acc, s) => acc + s.priceCents, 0);
+  const depositCents = input.collectDeposit
+    ? selectedServices.reduce(
+        (acc, s) => acc + (s.depositCents || Math.round(s.priceCents * 0.3)),
+        0
+      )
+    : 0;
+
+  const newEvent: CalendarEventItem = {
+    id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventType: input.eventType,
+    dateISO: input.dateISO,
+    startTime: input.startTime,
+    endTime: computedEndTime,
+    activeDurationMinutes: activeDuration,
+    processingStartOffsetMinutes: processingOffset,
+    processingDurationMinutes: processingDuration,
+    blockAfterMinutes: blockAfter,
+    providerId: provider.id,
+    providerName: provider.fullName,
+    clientId: client?.id,
+    clientName:
+      input.eventType === "personal_block"
+        ? "Bloqueio Pessoal"
+        : input.eventType === "working_hours"
+          ? "Ajuste de Expediente"
+          : client?.fullName ?? "Cliente s/ Cadastro",
+    serviceIds: selectedServices.map((s) => s.id),
+    serviceNames:
+      selectedServices.length > 0
+        ? selectedServices.map((s) => s.name)
+        : [
+            input.eventType === "personal_block"
+              ? "Indisponível / Pessoal"
+              : "Horário Especial",
+          ],
+    resourceIds: requiredResourceIds,
+    addressOrNotes: input.addressOrNotes,
+    isRepeating: input.isRepeating,
+    collectDeposit: input.collectDeposit,
+    depositCents,
+    depositPaid: false,
+    totalCents,
+    status: input.collectDeposit ? "pending" : "confirmed",
+    calendarColor:
+      input.eventType === "personal_block"
+        ? "#64748B"
+        : primaryService?.calendarColor ?? "#E11D8F",
+    whatsappReminderSent: false,
+    whatsappClientReply: "none",
+  };
+
+  let updatedWaitlist = state.waitlist;
+  if (input.eventType === "waitlist_entry" && client) {
+    updatedWaitlist = [
+      {
+        id: `wl-${Date.now()}`,
+        clientId: client.id,
+        clientName: client.fullName,
+        clientPhone: client.phone,
+        providerId: provider.id,
+        providerName: provider.fullName,
+        serviceId: primaryService.id,
+        serviceName: primaryService.name,
+        preferredDateISO: input.dateISO,
+        preferredTimeWindow: `${input.startTime} — ${computedEndTime}`,
+        notes: input.addressOrNotes || "Adicionado pelo drawer da Agenda.",
+        createdAtISO: input.dateISO,
+      },
+      ...state.waitlist,
+    ];
+  }
+
+  return {
+    ok: true,
+    createdEvent: newEvent,
+    state: {
+      ...state,
+      clients: updatedClients,
+      waitlist: updatedWaitlist,
+      calendarEvents: [newEvent, ...state.calendarEvents],
+      lastToastMessage:
+        input.eventType === "appointment"
+          ? `Agendamento de ${newEvent.clientName} criado às ${newEvent.startTime}!`
+          : `Evento (${input.eventType}) registrado na agenda!`,
+    },
+  };
+}
+
+export function bookFromWaitlistEntry(
+  state: StudioState,
+  waitlistId: string,
+  startTime: string
+): StudioState {
+  const entry = state.waitlist.find((w) => w.id === waitlistId);
+  if (!entry) return state;
+
+  const service =
+    state.services.find((s) => s.id === entry.serviceId) ?? state.services[0];
+  const startMin = parseTimeMinutes(startTime);
+  const blockAfter = service.blockTimeEnabled ? service.blockAfterMinutes : 0;
+  const endTime = formatMinutesToHHMM(
+    startMin + service.durationMinutes + blockAfter
+  );
+
+  const createdEvent: CalendarEventItem = {
+    id: `evt-wl-${Date.now()}`,
+    eventType: "appointment",
+    dateISO: entry.preferredDateISO,
+    startTime,
+    endTime,
+    activeDurationMinutes: service.durationMinutes,
+    processingStartOffsetMinutes: service.processingTimeEnabled
+      ? service.processingStartOffsetMinutes
+      : 0,
+    processingDurationMinutes: service.processingTimeEnabled
+      ? service.processingDurationMinutes
+      : 0,
+    blockAfterMinutes: blockAfter,
+    providerId: entry.providerId,
+    providerName: entry.providerName,
+    clientId: entry.clientId,
+    clientName: entry.clientName,
+    serviceIds: [service.id],
+    serviceNames: [service.name],
+    resourceIds: service.requiredResourceIds,
+    addressOrNotes: `Encaixado da Lista de Espera · ${entry.notes}`,
+    isRepeating: false,
+    collectDeposit: service.requireDeposit,
+    depositCents: service.depositCents,
+    depositPaid: false,
+    totalCents: service.priceCents,
+    status: "confirmed",
+    calendarColor: service.calendarColor,
+    whatsappReminderSent: true,
+    whatsappClientReply: "1_confirmed",
+  };
+
+  return {
+    ...state,
+    waitlist: state.waitlist.filter((w) => w.id !== waitlistId),
+    calendarEvents: [createdEvent, ...state.calendarEvents],
+    lastToastMessage: `${entry.clientName} movido(a) da Lista de Espera para a Agenda às ${startTime}!`,
+  };
+}
+
+export function rebookAppointmentOneTap(
+  state: StudioState,
+  eventId: string,
+  daysForward: number
+): StudioState {
+  const source = state.calendarEvents.find((e) => e.id === eventId);
+  if (!source) return state;
+
+  const nextDateISO = addDaysToDateISO(source.dateISO, daysForward);
+  const rebookedEvent: CalendarEventItem = {
+    ...source,
+    id: `evt-rebook-${Date.now()}`,
+    dateISO: nextDateISO,
+    status: "confirmed",
+    depositPaid: false,
+    whatsappReminderSent: false,
+    whatsappClientReply: "none",
+    addressOrNotes: `Retorno +${daysForward}d agendado em 1 toque`,
+  };
+
+  return {
+    ...state,
+    calendarEvents: [rebookedEvent, ...state.calendarEvents],
+    lastToastMessage: `Retorno de ${source.clientName} agendado para ${nextDateISO} (+${daysForward} dias)!`,
+  };
+}
+
+// =============================================================================
+// TICKET 04 — CLIENTES (CLIENTS), NOTAS/FICHAS E FOTOS AUTO-ORGANIZADAS
+// =============================================================================
+
+export function createClientProfile(
+  state: StudioState,
+  input: {
+    fullName: string;
+    email: string;
+    phone: string;
+    birthday?: string;
+    anamnesis?: string;
+  }
+): StudioState {
+  const palette = ["#FBCFE8", "#DDD6FE", "#BBF7D0", "#FDE68A", "#BAE6FD"];
+  const newClient: ClientProfile = {
+    id: `cli-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+    fullName: input.fullName,
+    email: input.email || "cliente@aurastudio.com.br",
+    phone: input.phone || "(11) 99999-0000",
+    avatarColor: palette[state.clients.length % palette.length],
+    createdAtISO: "2026-10-17",
+    lastVisitISO: null,
+    daysSinceLastVisit: null,
+    totalSpentCents: 0,
+    visitsCount: 0,
+    noShowCount: 0,
+    sendAutomaticReminders: true,
+    notesAndForms: {
+      anamnesis: input.anamnesis ?? "",
+      allergies: "",
+      formulasAndPreferences: "",
+      birthday: input.birthday ?? "",
+    },
+    autoSortedPhotos: [],
+    packages: [],
+    memberships: [],
+  };
+
+  return {
+    ...state,
+    clients: [newClient, ...state.clients],
+    lastToastMessage: `Cliente ${newClient.fullName} criado com sucesso!`,
+  };
+}
+
+export function filterClientsByRetention(
+  state: StudioState,
+  filter: "all" | "absent_30_45" | "vip",
+  query: string
+): ClientProfile[] {
+  const q = query.trim().toLowerCase();
+  return state.clients.filter((c) => {
+    const matchesSearch =
+      !q ||
+      c.fullName.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      c.phone.toLowerCase().includes(q);
+    if (!matchesSearch) return false;
+
+    if (filter === "absent_30_45") {
+      return (c.daysSinceLastVisit ?? 0) >= 30;
+    }
+    if (filter === "vip") {
+      return (
+        c.totalSpentCents >= 50000 ||
+        c.packages.length > 0 ||
+        c.memberships.length > 0
+      );
+    }
+    return true;
+  });
+}
+
+export function updateClientNotesAndForms(
+  state: StudioState,
+  clientId: string,
+  notesAndForms: ClientProfile["notesAndForms"]
+): StudioState {
+  return {
+    ...state,
+    clients: state.clients.map((c) =>
+      c.id === clientId ? { ...c, notesAndForms } : c
+    ),
+    lastToastMessage: "Ficha de atendimento e notas salvas com sucesso!",
+  };
+}
+
+export function uploadAutoSortedClientPhoto(
+  state: StudioState,
+  clientId: string,
+  input: {
+    photoUrl: string;
+    appointmentDateISO?: string;
+    serviceName?: string;
+    beforeLabel?: string;
+    afterLabel?: string;
+  }
+): StudioState {
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client) return state;
+
+  const latestAppointment = state.calendarEvents.find(
+    (e) => e.clientId === clientId && e.eventType === "appointment"
+  );
+  const dateISO =
+    input.appointmentDateISO ??
+    latestAppointment?.dateISO ??
+    "2026-10-17";
+  const serviceName =
+    input.serviceName ??
+    latestAppointment?.serviceNames[0] ??
+    "Atendimento Aura Studio";
+
+  const existingGroup = client.autoSortedPhotos.find(
+    (g) => g.appointmentDateISO === dateISO
+  );
+
+  let updatedGroups: ClientPhotoGroup[];
+  if (existingGroup) {
+    updatedGroups = client.autoSortedPhotos.map((g) =>
+      g.id === existingGroup.id
+        ? {
+            ...g,
+            photoUrls: [...g.photoUrls, input.photoUrl],
+            beforeLabel: input.beforeLabel ?? g.beforeLabel,
+            afterLabel: input.afterLabel ?? g.afterLabel,
+          }
+        : g
+    );
+  } else {
+    updatedGroups = [
+      {
+        id: `ph-grp-${Date.now()}`,
+        appointmentId: latestAppointment?.id,
+        appointmentDateISO: dateISO,
+        serviceName,
+        beforeLabel: input.beforeLabel ?? "Antes",
+        afterLabel: input.afterLabel ?? "Depois",
+        photoUrls: [input.photoUrl],
+        notes: "Auto-organizada e rotulada pelo agendamento.",
+      },
+      ...client.autoSortedPhotos,
+    ];
+  }
+
+  return {
+    ...state,
+    clients: state.clients.map((c) =>
+      c.id === clientId ? { ...c, autoSortedPhotos: updatedGroups } : c
+    ),
+    lastToastMessage: `Foto de ${client.fullName} auto-organizada por agendamento!`,
+  };
+}
+
+// =============================================================================
+// TICKET 05 — PAGAMENTOS (FATURAS, VENDA RÁPIDA POS E VALE-PRESENTES)
+// =============================================================================
+
+export function createAndSendInvoice(
+  state: StudioState,
+  input: {
+    title: string;
+    providerId: string;
+    clientId: string;
+    memo: string;
+    dueDateISO: string;
+    lineItems: InvoiceLineItem[];
+    discountCents: number;
+    taxCents: number;
+  }
+): StudioState {
+  const provider =
+    state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
+  const client =
+    state.clients.find((c) => c.id === input.clientId) ?? state.clients[0];
+
+  const subtotalCents = input.lineItems.reduce(
+    (sum, item) => sum + item.amountCents * item.quantity,
+    0
+  );
+  const totalCents = Math.max(
+    0,
+    subtotalCents - input.discountCents + input.taxCents
+  );
+  const nextNumber = `#${1000949 + state.invoices.length}`;
+
+  const newInvoice: InvoiceItem = {
+    id: `inv-${Date.now()}`,
+    invoiceNumber: nextNumber,
+    title: input.title || "Fatura de Serviços Aura Studio",
+    providerId: provider.id,
+    providerName: provider.fullName,
+    clientId: client.id,
+    clientName: client.fullName,
+    clientEmail: client.email,
+    memo: input.memo,
+    issuedAtISO: "2026-10-17",
+    dueDateISO: input.dueDateISO || "2026-10-30",
+    lineItems: input.lineItems,
+    subtotalCents,
+    discountCents: input.discountCents,
+    taxCents: input.taxCents,
+    totalCents,
+    status: "sent",
+    paymentLinkUrl: `https://aurastudio.glossgenius.br/pay/${nextNumber.replace("#", "")}`,
+  };
+
+  return {
+    ...state,
+    invoices: [newInvoice, ...state.invoices],
+    onboarding: {
+      ...state.onboarding,
+      steps: state.onboarding.steps.map((s) =>
+        s.id === "start_getting_paid" ? { ...s, completed: true } : s
+      ),
+    },
+    lastToastMessage: `Fatura ${nextNumber} (${formatBRL(totalCents)}) enviada para ${client.fullName}!`,
+  };
+}
+
+export function executeQuickSaleCheckout(
+  state: StudioState,
+  input: {
+    appointmentId?: string;
+    clientId: string;
+    providerId: string;
+    itemsSummary: string;
+    amountCents: number;
+    tipCents: number;
+    paymentMethod: SaleHistoryRecord["paymentMethod"];
+    redeemPackageId?: string;
+    redeemGiftCardId?: string;
+  }
+): StudioState {
+  const client =
+    state.clients.find((c) => c.id === input.clientId) ?? state.clients[0];
+  const provider =
+    state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
+
+  const newSale: SaleHistoryRecord = {
+    id: `sale-${Date.now()}`,
+    appointmentTimeLabel: "17 Out 2026, Agora",
+    dateISO: "2026-10-17",
+    clientId: client.id,
+    clientName: client.fullName,
+    providerId: provider.id,
+    providerName: provider.fullName,
+    itemsSummary: input.itemsSummary,
+    status: "Pago",
+    paymentMethod: input.paymentMethod,
+    amountCents: input.amountCents,
+    tipCents: input.tipCents,
+  };
+
+  const updatedClients = state.clients.map((c) => {
+    if (c.id !== client.id) return c;
+    const updatedPackages = c.packages.map((p) =>
+      input.redeemPackageId && p.packageId === input.redeemPackageId
+        ? { ...p, remainingSessions: Math.max(0, p.remainingSessions - 1) }
+        : p
+    );
+    return {
+      ...c,
+      totalSpentCents: c.totalSpentCents + input.amountCents,
+      visitsCount: c.visitsCount + 1,
+      lastVisitISO: "2026-10-17",
+      daysSinceLastVisit: 0,
+      packages: updatedPackages,
+    };
+  });
+
+  const updatedGiftCards = state.giftCards.map((gc) => {
+    if (!input.redeemGiftCardId || gc.id !== input.redeemGiftCardId) return gc;
+    const nextBalance = Math.max(0, gc.remainingBalanceCents - input.amountCents);
+    return {
+      ...gc,
+      remainingBalanceCents: nextBalance,
+      status: nextBalance === 0 ? ("redeemed" as const) : ("active" as const),
+    };
+  });
+
+  const updatedEvents = input.appointmentId
+    ? state.calendarEvents.map((ev) =>
+        ev.id === input.appointmentId
+          ? { ...ev, status: "completed" as const, depositPaid: true }
+          : ev
+      )
+    : state.calendarEvents;
+
+  const updatedStaff = state.staff.map((s) =>
+    s.id === provider.id
+      ? { ...s, bookedThisWeekCents: s.bookedThisWeekCents + input.amountCents }
+      : s
+  );
+
+  return {
+    ...state,
+    clients: updatedClients,
+    giftCards: updatedGiftCards,
+    calendarEvents: updatedEvents,
+    staff: updatedStaff,
+    salesHistory: [newSale, ...state.salesHistory],
+    onboarding: {
+      ...state.onboarding,
+      steps: state.onboarding.steps.map((s) =>
+        s.id === "start_getting_paid" ? { ...s, completed: true } : s
+      ),
+    },
+    lastToastMessage: `Venda de ${formatBRL(input.amountCents + input.tipCents)} via ${input.paymentMethod} concluída!`,
+  };
+}
+
+export function issueGiftCard(
+  state: StudioState,
+  input: {
+    recipientName: string;
+    recipientEmail: string;
+    initialBalanceCents: number;
+  }
+): StudioState {
+  const code = `AURA-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.round(input.initialBalanceCents / 100)}`;
+  const newGiftCard: GiftCardItem = {
+    id: `gc-${Date.now()}`,
+    code,
+    recipientName: input.recipientName,
+    recipientEmail: input.recipientEmail,
+    initialBalanceCents: input.initialBalanceCents,
+    remainingBalanceCents: input.initialBalanceCents,
+    status: "active",
+    issuedAtISO: "2026-10-17",
+  };
+
+  return {
+    ...state,
+    giftCards: [newGiftCard, ...state.giftCards],
+    lastToastMessage: `Vale-presente ${code} (${formatBRL(input.initialBalanceCents)}) emitido!`,
+  };
+}
+
+// =============================================================================
+// TICKET 06 — RECEPÇÃO IA (RECEPTION) & WHATSAPP 2-WAY SYNC
+// =============================================================================
+
+export function processWhatsappInboundReply(
+  state: StudioState,
+  eventId: string,
+  reply: "1_confirmed" | "2_reschedule"
+): StudioState {
+  const targetEvent = state.calendarEvents.find((e) => e.id === eventId);
+  if (!targetEvent) return state;
+
+  const updatedEvents = state.calendarEvents.map((e) => {
+    if (e.id !== eventId) return e;
+    return {
+      ...e,
+      whatsappReminderSent: true,
+      whatsappClientReply: reply,
+      status:
+        reply === "1_confirmed"
+          ? ("confirmed" as const)
+          : ("pending" as const),
+    };
+  });
+
+  const newLog: ReceptionAiLog = {
+    id: `rec-log-${Date.now()}`,
+    timestampLabel: "Agora mesmo",
+    clientName: targetEvent.clientName,
+    clientPhone: "(11) 99888-7766",
+    direction: "inbound",
+    channel: "WhatsApp 2-Way",
+    messageText:
+      reply === "1_confirmed"
+        ? "1 — Confirmado! Estarei no horário combinado."
+        : "2 — Preciso reagendar meu horário para mais tarde.",
+    outcomeBadge:
+      reply === "1_confirmed"
+        ? "Confirmado na Agenda ✓"
+        : "Solicitou Reagendamento",
+  };
+
+  return {
+    ...state,
+    calendarEvents: updatedEvents,
+    reception: {
+      ...state.reception,
+      logs: [newLog, ...state.reception.logs],
+    },
+    lastToastMessage:
+      reply === "1_confirmed"
+        ? `WhatsApp 2-Way: ${targetEvent.clientName} respondeu "1" e confirmou presença!`
+        : `WhatsApp 2-Way: ${targetEvent.clientName} respondeu "2" solicitando reagendamento.`,
+  };
+}
+
+// =============================================================================
+// TICKET 07 — EQUIPE (TEAM): COMISSÕES, FECHAMENTO DE REPASSE E PONTO
+// =============================================================================
+
+export interface PayrollStaffSummary {
+  staffId: string;
+  staffName: string;
+  role: string;
+  bookedCents: number;
+  serviceCommissionCents: number;
+  productCommissionCents: number;
+  tipsCents: number;
+  loggedHours: number;
+  totalPayoutCents: number;
+}
+
+export function calculatePayrollSummary(
+  state: StudioState
+): PayrollStaffSummary[] {
+  return state.staff.map((member) => {
+    const memberSales = state.salesHistory.filter(
+      (s) => s.providerId === member.id && s.status !== "Reembolsado"
+    );
+    const salesTotalCents =
+      memberSales.reduce((acc, s) => acc + s.amountCents, 0) ||
+      member.bookedThisWeekCents;
+    const tipsCents = memberSales.reduce((acc, s) => acc + s.tipCents, 0);
+
+    const serviceCommissionCents = Math.round(
+      salesTotalCents * (member.serviceCommissionPercent / 100)
+    );
+    const productCommissionCents = Math.round(
+      salesTotalCents * 0.1 * (member.productCommissionPercent / 100)
+    );
+
+    const memberLogs = state.timeTracking.logs.filter(
+      (l) => l.staffId === member.id
+    );
+    const totalSeconds =
+      memberLogs.reduce((acc, l) => acc + l.totalWorkedSeconds, 0) +
+      (state.timeTracking.activeClockInStaffId === member.id
+        ? state.timeTracking.activeElapsedSeconds
+        : 0);
+    const loggedHours = Math.round((totalSeconds / 3600) * 10) / 10;
+
+    return {
+      staffId: member.id,
+      staffName: member.fullName,
+      role: member.role,
+      bookedCents: member.bookedThisWeekCents,
+      serviceCommissionCents,
+      productCommissionCents,
+      tipsCents,
+      loggedHours,
+      totalPayoutCents:
+        serviceCommissionCents + productCommissionCents + tipsCents,
+    };
+  });
+}
+
+export function toggleTimeclockAction(
+  state: StudioState,
+  action: "check_in" | "take_break" | "resume_work" | "check_out"
+): StudioState {
+  const activeMember =
+    state.staff.find((s) => s.id === state.timeTracking.activeClockInStaffId) ??
+    state.staff[0];
+
+  if (action === "check_in") {
+    return {
+      ...state,
+      timeTracking: {
+        ...state.timeTracking,
+        activeSessionStatus: "clocked_in",
+        activeElapsedSeconds: 0,
+      },
+      lastToastMessage: `Ponto iniciado (Check in) para ${activeMember.fullName}!`,
+    };
+  }
+
+  if (action === "take_break") {
+    return {
+      ...state,
+      timeTracking: {
+        ...state.timeTracking,
+        activeSessionStatus: "on_break",
+      },
+      lastToastMessage: `Intervalo (Break) iniciado para ${activeMember.fullName}.`,
+    };
+  }
+
+  if (action === "resume_work") {
+    return {
+      ...state,
+      timeTracking: {
+        ...state.timeTracking,
+        activeSessionStatus: "clocked_in",
+      },
+      lastToastMessage: `Retorno do intervalo registrado para ${activeMember.fullName}.`,
+    };
+  }
+
+  // check_out
+  const newLog: TimesheetLog = {
+    id: `ts-${Date.now()}`,
+    staffId: activeMember.id,
+    staffName: activeMember.fullName,
+    dateISO: "2026-10-17",
+    checkInTime: "09:00",
+    checkOutTime: "13:21",
+    breakMinutes: state.timeTracking.firstBreakTypeEnabled
+      ? state.timeTracking.firstBreakDurationMinutes
+      : 15,
+    totalWorkedSeconds: state.timeTracking.activeElapsedSeconds || 15678,
+    status: "completed",
+  };
+
+  return {
+    ...state,
+    timeTracking: {
+      ...state.timeTracking,
+      activeSessionStatus: "idle",
+      activeElapsedSeconds: 0,
+      logs: [newLog, ...state.timeTracking.logs],
+    },
+    lastToastMessage: `Saída (Check out) registrada e sincronizada com a Folha de Pagamento!`,
+  };
+}
+
+// =============================================================================
+// TICKET 08 — MARKETING (CAMPANHAS IA) & CONFIGURAÇÕES (SETTINGS)
+// =============================================================================
+
+export function generateMarketingDraftAI(
+  templateKind: "absent_45d" | "installments_pix" | "special_date",
+  providerFullName: string
+): { subject: string; message: string } {
+  if (templateKind === "installments_pix") {
+    return {
+      subject: "Novidade no Aura Studio: Reserve agora com Sinal Pix ou Parcelamento!",
+      message: `Olá! Aqui é ${providerFullName}. Boas notícias! Por tempo limitado, você já pode reservar seus procedimentos favoritos online em 30 segundos com confirmação imediata. Garanta seu horário desta semana clicando no botão abaixo!`,
+    };
+  }
+  if (templateKind === "special_date") {
+    return {
+      subject: "Presente Especial · Dia de Cuidado & Bem-Estar no Aura Studio",
+      message: `Olá! Aqui é ${providerFullName}. Quem você ama passa o ano inteiro cuidando de todo mundo — que tal reservar um momento exclusivo de autocuidado ou enviar um Vale-Presente do Aura Studio? Clique abaixo para agendar!`,
+    };
+  }
+  return {
+    subject: "Sentimos sua falta no Aura Studio ✨ Seu horário especial te espera",
+    message: `Olá! Aqui é ${providerFullName}. Notamos que já faz mais de 45 dias desde a sua última visita ao estúdio! Preparamos uma condição especial de retorno com hidratação de cortesia para você renovar seu visual esta semana. Toque abaixo para escolher seu horário!`,
+  };
+}
+
+export function sendMarketingCampaign(
+  state: StudioState,
+  input: {
+    channel: "email" | "text";
+    subject: string;
+    message: string;
+    imageUrl?: string;
+    audienceSegment: MarketingCampaignItem["audienceSegment"];
+  }
+): StudioState {
+  const targetClients =
+    input.audienceSegment === "absent_45d"
+      ? filterClientsByRetention(state, "absent_30_45", "")
+      : input.audienceSegment === "vip"
+        ? filterClientsByRetention(state, "vip", "")
+        : state.clients;
+
+  const recipientsCount = Math.max(1, targetClients.length);
+  const creditsUsed = input.channel === "text" ? recipientsCount : 0;
+
+  const newCampaign: MarketingCampaignItem = {
+    id: `cmp-${Date.now()}`,
+    channel: input.channel,
+    subject: input.subject,
+    message: input.message,
+    imageUrl: input.imageUrl,
+    audienceSegment: input.audienceSegment,
+    recipientsCount,
+    status: "sent",
+    sentAtISO: "17 Out 2026, Agora",
+  };
+
+  return {
+    ...state,
+    marketing: {
+      smsCreditsRemaining: Math.max(
+        0,
+        state.marketing.smsCreditsRemaining - creditsUsed
+      ),
+      campaigns: [newCampaign, ...state.marketing.campaigns],
+    },
+    lastToastMessage: `Campanha enviada com sucesso para ${recipientsCount} cliente(s)!`,
+  };
+}
+
+export function updateStudioSettings(
+  state: StudioState,
+  patch: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    licenseNumber?: string;
+    smsConsent?: boolean;
+    businessName?: string;
+    legalEntityType?: string;
+    taxIdCnpjCpf?: string;
+    defaultDepositPercent?: number;
+    pixKey?: string;
+  }
+): StudioState {
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      personal: {
+        ...state.settings.personal,
+        firstName: patch.firstName ?? state.settings.personal.firstName,
+        lastName: patch.lastName ?? state.settings.personal.lastName,
+        email: patch.email ?? state.settings.personal.email,
+        phone: patch.phone ?? state.settings.personal.phone,
+        licenseNumber:
+          patch.licenseNumber ?? state.settings.personal.licenseNumber,
+        smsConsent: patch.smsConsent ?? state.settings.personal.smsConsent,
+      },
+      business: {
+        ...state.settings.business,
+        businessName:
+          patch.businessName ?? state.settings.business.businessName,
+        legalEntityType:
+          patch.legalEntityType ?? state.settings.business.legalEntityType,
+        taxIdCnpjCpf:
+          patch.taxIdCnpjCpf ?? state.settings.business.taxIdCnpjCpf,
+        defaultDepositPercent:
+          patch.defaultDepositPercent ??
+          state.settings.business.defaultDepositPercent,
+        pixKey: patch.pixKey ?? state.settings.business.pixKey,
+      },
+    },
+    lastToastMessage: "Configurações salvas com sucesso!",
+  };
+}

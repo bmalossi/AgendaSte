@@ -1,5 +1,5 @@
-import { AgendaCockpit } from "@/components/agenda-cockpit";
+import { GlossGeniusApp } from "@/components/glossgenius/glossgenius-app";
 
 export default function HomePage() {
-  return <AgendaCockpit />;
+  return <GlossGeniusApp />;
 }

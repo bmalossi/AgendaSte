@@ -3,97 +3,50 @@
 @tailwind utilities;
 
 :root {
-  /* Superfícies & Chassi (Swiss-Industrial Timetable & POS Ledger) */
-  --color-canvas: #f4f4f2;
-  --color-surface: #ffffff;
-  --color-surface-subtle: #eaeae6;
-  --color-chassis: #0d0e0d;
-
-  /* Tipografia & Tinta (Contraste Arquitetônico Puro) */
-  --color-ink: #0d0e0d;
-  --color-ink-secondary: #333533;
-  --color-ink-muted: #575a57;
-  --color-ink-inverted: #f4f4f2;
-
-  /* Linhas de Grade Expostas (1px Hairlines) */
-  --color-border: #d4d4ce;
-  --color-border-strong: #0d0e0d;
-
-  /* Ação Primária (Carbono Industrial & Verde Sinal Sólido) */
-  --color-primary: #0d0e0d;
-  --color-primary-hover: #262926;
-  --color-primary-soft: #eaeae6;
-
-  /* Indicadores Semânticos Sólidos (Sem fundos pastéis "AI Slop") */
-  --color-status-confirmed-fg: #15803d;
-  --color-status-confirmed-bg: #15803d;
-  --color-status-confirmed-border: #15803d;
-
-  --color-status-pending-fg: #b45309;
-  --color-status-pending-bg: #d97706;
-  --color-status-pending-border: #b45309;
-
-  --color-status-risk-fg: #b91c1c;
-  --color-status-risk-bg: #dc2626;
-  --color-status-risk-border: #b91c1c;
-
-  /* Cantos Secos de Precisão (Zero Puffy Cards) */
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 4px;
+  --bg-canvas: #ffffff;
+  --bg-subtle: #f5f5f7;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+  --border-subtle: #e5e7eb;
+  --gg-black: #1c1c1e;
+  --gg-lavender: #ece9fe;
+  --gg-purple: #6e56cf;
+  --gg-magenta: #e11d8f;
+  --gg-gold: #c69214;
 }
 
 @layer base {
-  html {
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
-    caret-color: var(--color-ink);
-    scroll-behavior: smooth;
-    scrollbar-color: #a1a19a var(--color-canvas);
-    scrollbar-width: thin;
+  * {
+    border-color: var(--border-subtle);
   }
-
   body {
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    overflow-x: hidden;
-  }
-
-  ::selection {
-    background-color: #0d0e0d;
-    color: #ffffff;
-  }
-
-  a {
-    text-underline-offset: 3px;
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-ink);
-    outline-offset: 2px;
   }
 }
 
+.gg-hero-card {
+  background: linear-gradient(180deg, #9f94ff 0%, #dcd8ff 65%, #efedff 100%);
+}
+
+.gg-waveform-pill {
+  background: radial-gradient(circle at 25% 40%, #3b6978 0%, #5c786c 45%, #c5c392 95%);
+}
+
+/* Custom sleek scrollbars matching GlossGenius */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: var(--color-canvas);
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #a1a19a;
+  background: #a1a1aa;
+  border-radius: 9999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-ink);
-}
-
-.tabular-data {
-  font-variant-numeric: tabular-nums;
+  background: #71717a;
 }
