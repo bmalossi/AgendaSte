@@ -21,6 +21,8 @@ export type NavigationSectionId =
   | "team_time_tracking"
   | "marketing"
   | "insights"
+  | "insights_analytics"
+  | "insights_reports"
   | "inventory"
   | "charts"
   | "refer"

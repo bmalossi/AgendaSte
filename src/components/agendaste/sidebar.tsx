@@ -48,15 +48,20 @@ export function AgendaSteSidebar({
     activeSection.startsWith("catalog_")
   );
   const [teamOpen, setTeamOpen] = useState(activeSection.startsWith("team_"));
+  const [insightsOpen, setInsightsOpen] = useState(
+    activeSection.startsWith("insights")
+  );
 
   const isPaymentsGroup = activeSection.startsWith("payments_");
   const isCatalogGroup = activeSection.startsWith("catalog_");
   const isTeamGroup = activeSection.startsWith("team_");
+  const isInsightsGroup = activeSection.startsWith("insights");
 
   useEffect(() => {
     if (activeSection.startsWith("payments_")) setPaymentsOpen(true);
     if (activeSection.startsWith("catalog_")) setCatalogOpen(true);
     if (activeSection.startsWith("team_")) setTeamOpen(true);
+    if (activeSection.startsWith("insights")) setInsightsOpen(true);
   }, [activeSection]);
 
   if (collapsed) {
@@ -586,28 +591,68 @@ export function AgendaSteSidebar({
             <span>Marketing</span>
           </button>
 
-          {/* Insights */}
-          <button
-            type="button"
-            onClick={() => onSelectSection("insights")}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-              activeSection === "insights"
-                ? "bg-[#ECE9FE] text-[#18181B] font-semibold"
-                : "text-[#27272A] hover:bg-zinc-100"
+          {/* Insights / Relatórios expandable group (matches Analytics & Reports screenshots) */}
+          <div
+            className={`rounded-xl transition-all ${
+              insightsOpen ? "border border-[#7C66DC] p-1 bg-white" : ""
             }`}
           >
-            <span className="flex items-center gap-2.5">
-              <TrendingUp
-                className={`w-4 h-4 ${
-                  activeSection === "insights"
-                    ? "text-[#5B43D6]"
-                    : "text-zinc-700"
-                }`}
-              />
-              <span>Relatórios</span>
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !insightsOpen;
+                setInsightsOpen(next);
+                if (next && !isInsightsGroup) {
+                  onSelectSection("insights_analytics");
+                }
+              }}
+              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] font-medium text-[#27272A] hover:bg-zinc-100"
+            >
+              <span className="flex items-center gap-2.5">
+                <TrendingUp
+                  className={`w-4 h-4 ${
+                    isInsightsGroup ? "text-[#5B43D6]" : "text-zinc-700"
+                  }`}
+                />
+                <span className={isInsightsGroup ? "font-semibold" : ""}>
+                  Relatórios
+                </span>
+              </span>
+              {insightsOpen ? (
+                <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+              )}
+            </button>
+
+            {insightsOpen && (
+              <div className="mt-1 space-y-0.5 pl-2">
+                <button
+                  type="button"
+                  onClick={() => onSelectSection("insights_analytics")}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-[13px] transition-colors ${
+                    activeSection === "insights_analytics" ||
+                    activeSection === "insights"
+                      ? "bg-[#ECE9FE] text-[#18181B] font-semibold"
+                      : "text-zinc-700 hover:bg-zinc-100"
+                  }`}
+                >
+                  Análises
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSelectSection("insights_reports")}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-[13px] transition-colors ${
+                    activeSection === "insights_reports"
+                      ? "bg-[#ECE9FE] text-[#18181B] font-semibold"
+                      : "text-zinc-700 hover:bg-zinc-100"
+                  }`}
+                >
+                  Relatórios
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Inventory */}
           <button

@@ -18,6 +18,19 @@ import {
   Smartphone,
   TrendingUp,
   AlertTriangle,
+  Calendar,
+  ChevronDown,
+  Info,
+  ArrowUp,
+  Banknote,
+  ShoppingCart,
+  ShoppingBag,
+  Receipt,
+  FileText,
+  Users,
+  PieChart,
+  Calculator,
+  Clock,
 } from "lucide-react";
 import {
   StudioState,
@@ -739,65 +752,965 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
 }
 
 // =============================================================================
-// 3. COMPLEMENTARY SIDEBAR VIEWS (Insights, Inventory, Charts, Refer)
+// 3. COMPLEMENTARY SIDEBAR VIEWS (Insights/Analytics, Reports, Inventory, Charts, Refer)
 // =============================================================================
+
+type AnalyticsPeriodId = "this_month" | "last_30_days" | "last_7_days" | "this_year";
+
+const ANALYTICS_PERIOD_OPTIONS: Array<{
+  id: AnalyticsPeriodId;
+  label: string;
+  multiplier: number;
+}> = [
+  { id: "this_month", label: "Este mês", multiplier: 1 },
+  { id: "last_30_days", label: "Últimos 30 dias", multiplier: 1.15 },
+  { id: "last_7_days", label: "Últimos 7 dias", multiplier: 0.35 },
+  { id: "this_year", label: "Este ano", multiplier: 4.8 },
+];
+
+type ReportCardId =
+  | "custom_report"
+  | "sales"
+  | "appointments"
+  | "retail_sales"
+  | "packages_activity"
+  | "sales_tax"
+  | "inventory"
+  | "transaction_detail"
+  | "most_valuable_clients"
+  | "commission_earnings"
+  | "expenses"
+  | "timesheets";
+
+interface ReportCardDefinition {
+  id: ReportCardId;
+  title: string;
+  description: string;
+  badge?: "Gold";
+  isCustomAi?: boolean;
+}
+
+const REPORT_CARDS: ReportCardDefinition[] = [
+  {
+    id: "custom_report",
+    title: "Criar relatório personalizado",
+    description: "Peça ao seu Analista de Crescimento qualquer relatório personalizado",
+    isCustomAi: true,
+  },
+  {
+    id: "sales",
+    title: "Vendas",
+    description: "Detalhamento do histórico de transações brutas e líquidas",
+  },
+  {
+    id: "appointments",
+    title: "Agendamentos",
+    description: "Inclui informações sobre o histórico de agendamentos",
+  },
+  {
+    id: "retail_sales",
+    title: "Vendas de produtos",
+    description: "Inclui informações sobre o histórico de vendas de produtos",
+  },
+  {
+    id: "packages_activity",
+    title: "Atividade de pacotes",
+    description: "Inclui relatório detalhado acompanhando todas as ações de créditos",
+  },
+  {
+    id: "sales_tax",
+    title: "Impostos sobre vendas",
+    description: "Inclui informações sobre o histórico de impostos sobre vendas",
+  },
+  {
+    id: "inventory",
+    title: "Estoque",
+    description: "Inclui informações sobre vendas e giro de estoque",
+  },
+  {
+    id: "transaction_detail",
+    title: "Detalhes de transações",
+    description: "Inclui todos os itens discriminados de cada transação",
+  },
+  {
+    id: "most_valuable_clients",
+    title: "Clientes mais valiosos",
+    description: "Inclui a lista dos 10 principais clientes",
+  },
+  {
+    id: "commission_earnings",
+    title: "Ganhos de comissão",
+    description: "Detalhamento de ganhos para suporte ao cálculo de comissões",
+    badge: "Gold",
+  },
+  {
+    id: "expenses",
+    title: "Despesas",
+    description: "Detalhamento das despesas operacionais do negócio",
+  },
+  {
+    id: "timesheets",
+    title: "Folha de ponto",
+    description: "Resumo de horas trabalhadas pela equipe remunerada por hora",
+    badge: "Gold",
+  },
+];
+
+function renderReportCardIcon(id: ReportCardId) {
+  switch (id) {
+    case "custom_report":
+      return <Sparkles className="w-4 h-4 text-[#1C1C1E]" />;
+    case "sales":
+      return <Banknote className="w-4 h-4 text-[#1C1C1E]" />;
+    case "appointments":
+      return <Calendar className="w-4 h-4 text-[#1C1C1E]" />;
+    case "retail_sales":
+      return <ShoppingCart className="w-4 h-4 text-[#1C1C1E]" />;
+    case "packages_activity":
+      return <ShoppingBag className="w-4 h-4 text-[#1C1C1E]" />;
+    case "sales_tax":
+      return <Receipt className="w-4 h-4 text-[#1C1C1E]" />;
+    case "inventory":
+      return <Package className="w-4 h-4 text-[#1C1C1E]" />;
+    case "transaction_detail":
+      return <FileText className="w-4 h-4 text-[#1C1C1E]" />;
+    case "most_valuable_clients":
+      return <Users className="w-4 h-4 text-[#1C1C1E]" />;
+    case "commission_earnings":
+      return <PieChart className="w-4 h-4 text-[#1C1C1E]" />;
+    case "expenses":
+      return <Calculator className="w-4 h-4 text-[#1C1C1E]" />;
+    case "timesheets":
+      return <Clock className="w-4 h-4 text-[#1C1C1E]" />;
+  }
+}
+
+function InsightsAnalyticsSection({ state }: { state: StudioState }) {
+  const [periodId, setPeriodId] = useState<AnalyticsPeriodId>("this_month");
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null);
+
+  const selectedPeriod =
+    ANALYTICS_PERIOD_OPTIONS.find((p) => p.id === periodId) ??
+    ANALYTICS_PERIOD_OPTIONS[0];
+
+  const ownerFullName =
+    `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() ||
+    "Profissional Principal";
+  const subtitleText = `${ownerFullName} (você), ${selectedPeriod.label}`;
+
+  // Base calculations from studio state
+  const paidSales = state.salesHistory.filter((s) => s.status !== "Reembolsado");
+  const baseNetRevenueCents = paidSales.reduce(
+    (sum, s) => sum + s.amountCents + s.tipCents,
+    0
+  );
+
+  const appointmentEvents = state.calendarEvents.filter(
+    (e) => e.eventType === "appointment" && e.status !== "canceled"
+  );
+  const baseAppointmentsRevenueCents = appointmentEvents.reduce(
+    (sum, e) => sum + e.totalCents,
+    0
+  );
+
+  const retailSalesCents = paidSales
+    .filter((s) =>
+      /produto|óleo|shampoo|máscara|kit|home care|revenda/i.test(s.itemsSummary)
+    )
+    .reduce((sum, s) => sum + s.amountCents, 0);
+
+  const scaledNetRevenueCents = Math.round(
+    baseNetRevenueCents * selectedPeriod.multiplier
+  );
+  const scaledRetailRevenueCents = Math.round(
+    retailSalesCents * selectedPeriod.multiplier
+  );
+  const scaledServiceRevenueCents = Math.max(
+    0,
+    scaledNetRevenueCents - scaledRetailRevenueCents
+  );
+  const scaledProjectedRevenueCents = Math.round(
+    (baseNetRevenueCents + baseAppointmentsRevenueCents) *
+      selectedPeriod.multiplier
+  );
+
+  const totalBookingsCount = Math.max(
+    0,
+    Math.round(appointmentEvents.length * selectedPeriod.multiplier)
+  );
+  const totalTransactionsOrBookings = Math.max(
+    paidSales.length,
+    appointmentEvents.length
+  );
+  const averageTicketCents =
+    totalTransactionsOrBookings > 0
+      ? Math.round(baseNetRevenueCents / totalTransactionsOrBookings)
+      : 0;
+
+  const returningClientsCount = state.clients.filter(
+    (c) => c.visitsCount > 1
+  ).length;
+  const clientRetentionPercent =
+    state.clients.length > 0
+      ? Math.round((returningClientsCount / state.clients.length) * 100)
+      : 0;
+
+  const totalBookedMinutes = appointmentEvents.reduce(
+    (sum, e) =>
+      sum +
+      e.activeDurationMinutes +
+      e.processingDurationMinutes +
+      e.blockAfterMinutes,
+    0
+  );
+  // Standard 8h/day (480 min) reference window
+  const bookingUtilizationPercent = Math.min(
+    100,
+    Math.round((totalBookedMinutes / 480) * 100)
+  );
+
+  const handleAskDataQuestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = question.trim();
+    if (!trimmed) return;
+
+    const lower = trimmed.toLowerCase();
+    if (lower.includes("cliente") || lower.includes("valioso") || lower.includes("vip")) {
+      const topClient = [...state.clients].sort(
+        (a, b) => b.totalSpentCents - a.totalSpentCents
+      )[0];
+      setAiResponse(
+        topClient
+          ? `Sua cliente com maior faturamento acumulado é ${topClient.fullName} (${formatBRL(topClient.totalSpentCents)} em ${topClient.visitsCount} visitas). A taxa de retenção geral está em ${clientRetentionPercent}%.`
+          : "Ainda não há clientes suficientes para ranquear."
+      );
+    } else if (lower.includes("serviço") || lower.includes("ticket")) {
+      setAiResponse(
+        `Em "${selectedPeriod.label}", sua receita de serviços é de ${formatBRL(scaledServiceRevenueCents)} com ticket médio de ${formatBRL(averageTicketCents)} em ${totalBookingsCount} agendamentos.`
+      );
+    } else {
+      setAiResponse(
+        `Resumo para "${selectedPeriod.label}": Receita líquida de ${formatBRL(scaledNetRevenueCents)}, receita projetada de ${formatBRL(scaledProjectedRevenueCents)}, retenção de clientes em ${clientRetentionPercent}% e taxa de ocupação da agenda em ${bookingUtilizationPercent}%.`
+      );
+    }
+  };
+
+  const secondaryMetrics = [
+    {
+      id: "projected_revenue",
+      title: "Receita projetada",
+      value: formatBRL(scaledProjectedRevenueCents),
+      tooltip:
+        "Soma da receita líquida já realizada com o valor previsto dos agendamentos confirmados no período.",
+    },
+    {
+      id: "service_revenue",
+      title: "Receita de serviços",
+      value: formatBRL(scaledServiceRevenueCents),
+      tooltip:
+        "Total faturado exclusivamente com procedimentos e serviços do catálogo no período.",
+    },
+    {
+      id: "retail_revenue",
+      title: "Receita de produtos",
+      value: formatBRL(scaledRetailRevenueCents),
+      tooltip:
+        "Total faturado com vendas de produtos de revenda (Home Care / Retail) no período.",
+    },
+    {
+      id: "client_retention",
+      title: "Retenção de clientes",
+      value: `${clientRetentionPercent}%`,
+      tooltip:
+        "Percentual de clientes atendidas que retornaram para 2 ou mais visitas no estúdio.",
+    },
+    {
+      id: "booking_utilization",
+      title: "Taxa de ocupação",
+      value: `${bookingUtilizationPercent}%`,
+      tooltip:
+        "Proporção de horas ocupadas com atendimentos em relação à carga horária disponível.",
+    },
+    {
+      id: "average_ticket",
+      title: "Ticket médio",
+      value: formatBRL(averageTicketCents),
+      tooltip:
+        "Valor médio gasto por atendimento concluído no período selecionado.",
+    },
+    {
+      id: "total_bookings",
+      title: "Total de agendamentos",
+      value: `${totalBookingsCount}`,
+      tooltip:
+        "Quantidade total de agendamentos confirmados e concluídos no período.",
+    },
+  ];
+
+  return (
+    <div className="w-full px-6 lg:px-10 xl:px-12 py-7 space-y-5">
+      {/* Header Row */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-[22px] font-semibold text-[#1C1C1E] tracking-tight">
+          Análises
+        </h1>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setPeriodMenuOpen((prev) => !prev)}
+            className="inline-flex items-center gap-2 rounded-full border border-[#1C1C1E] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+          >
+            <Calendar className="w-3.5 h-3.5 text-[#1C1C1E]" />
+            <span>{selectedPeriod.label}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E]" />
+          </button>
+
+          {periodMenuOpen && (
+            <div className="absolute right-0 mt-2 w-48 rounded-[12px] border border-[#E5E5EA] bg-white py-1.5 shadow-lg z-20">
+              {ANALYTICS_PERIOD_OPTIONS.map((option) => {
+                const active = option.id === periodId;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      setPeriodId(option.id);
+                      setPeriodMenuOpen(false);
+                    }}
+                    className={`w-full px-3.5 py-2 text-left text-[13px] flex items-center justify-between transition-colors ${
+                      active
+                        ? "bg-[#F2F2F7] font-semibold text-[#1C1C1E]"
+                        : "text-[#3A3A3C] hover:bg-[#F9F9FB]"
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    {active && <Check className="w-3.5 h-3.5 text-[#1C1C1E]" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Ask Anything AI Search Bar */}
+      <form
+        onSubmit={handleAskDataQuestion}
+        className="flex items-center gap-3 w-full rounded-full border border-[#E5E5EA] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors"
+      >
+        <Sparkles className="w-4 h-4 text-[#1C1C1E] shrink-0" />
+        <input
+          type="text"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Pergunte qualquer coisa sobre seus dados..."
+          className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none"
+        />
+        <button
+          type="submit"
+          aria-label="Enviar pergunta sobre dados"
+          className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+            question.trim()
+              ? "bg-[#1C1C1E] text-white hover:bg-[#2C2C2E]"
+              : "bg-[#F2F2F7] text-[#8E8E93]"
+          }`}
+        >
+          <ArrowUp className="w-3.5 h-3.5" />
+        </button>
+      </form>
+
+      {aiResponse && (
+        <div className="rounded-[14px] border border-[#1C1C1E] bg-white p-4 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-7 h-7 rounded-full bg-[#C5D82D] flex items-center justify-center shrink-0 mt-0.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#1C1C1E]" />
+            </div>
+            <div>
+              <p className="text-[12px] font-bold uppercase tracking-wider text-[#6E6E73]">
+                Analista de Crescimento AgendaSte
+              </p>
+              <p className="text-[13.5px] text-[#1C1C1E] mt-1 leading-relaxed">
+                {aiResponse}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAiResponse(null)}
+            className="text-[#8E8E93] hover:text-[#1C1C1E] p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Top Full-Width Card: Net Revenue */}
+      <div className="bg-white rounded-[14px] border border-[#E5E5EA] p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-[14px] font-semibold text-[#1C1C1E]">
+              Receita líquida
+            </h2>
+            <p className="text-[12px] text-[#8E8E93] mt-0.5">{subtitleText}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setActiveTooltipId(
+                activeTooltipId === "net_revenue" ? null : "net_revenue"
+              )
+            }
+            title="Receita total descontando reembolsos e cancelamentos no período."
+            className="text-[#8E8E93] hover:text-[#1C1C1E] transition-colors"
+          >
+            <Info className="w-4 h-4" />
+          </button>
+        </div>
+        {activeTooltipId === "net_revenue" && (
+          <p className="mt-2 text-[12px] text-[#6E6E73] bg-[#F5F5F7] rounded-[8px] px-3 py-2">
+            Receita total descontando reembolsos e cancelamentos no período selecionado.
+          </p>
+        )}
+        <p className="font-serif text-[36px] leading-none text-[#1C1C1E] mt-8 tracking-tight">
+          {formatBRL(scaledNetRevenueCents)}
+        </p>
+      </div>
+
+      {/* 2-Column Grid for Remaining 7 Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {secondaryMetrics.map((metric) => (
+          <div
+            key={metric.id}
+            className="bg-white rounded-[14px] border border-[#E5E5EA] p-5 flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-[14px] font-semibold text-[#1C1C1E]">
+                    {metric.title}
+                  </h2>
+                  <p className="text-[12px] text-[#8E8E93] mt-0.5">
+                    {subtitleText}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveTooltipId(
+                      activeTooltipId === metric.id ? null : metric.id
+                    )
+                  }
+                  title={metric.tooltip}
+                  className="text-[#8E8E93] hover:text-[#1C1C1E] transition-colors"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </div>
+              {activeTooltipId === metric.id && (
+                <p className="mt-2 text-[12px] text-[#6E6E73] bg-[#F5F5F7] rounded-[8px] px-3 py-2">
+                  {metric.tooltip}
+                </p>
+              )}
+            </div>
+
+            <p className="font-serif text-[36px] leading-none text-[#1C1C1E] mt-8 tracking-tight">
+              {metric.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InsightsReportsSection({ state }: { state: StudioState }) {
+  const [selectedReportId, setSelectedReportId] = useState<ReportCardId | null>(
+    "appointments"
+  );
+  const [selectedStaffId, setSelectedStaffId] = useState<string>("owner");
+  const [dateRangePreset, setDateRangePreset] = useState<string>("month_to_date");
+  const [startDateISO, setStartDateISO] = useState<string>("2026-10-01");
+  const [endDateISO, setEndDateISO] = useState<string>("2026-10-17");
+  const [customPrompt, setCustomPrompt] = useState<string>("");
+  const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
+
+  const ownerFullName =
+    `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() ||
+    "Profissional Principal";
+
+  const selectedReport = REPORT_CARDS.find((r) => r.id === selectedReportId) ?? null;
+
+  const handleDatePresetChange = (preset: string) => {
+    setDateRangePreset(preset);
+    if (preset === "month_to_date") {
+      setStartDateISO("2026-10-01");
+      setEndDateISO("2026-10-17");
+    } else if (preset === "last_month") {
+      setStartDateISO("2026-09-01");
+      setEndDateISO("2026-09-30");
+    } else if (preset === "last_30_days") {
+      setStartDateISO("2026-09-17");
+      setEndDateISO("2026-10-17");
+    } else if (preset === "this_year") {
+      setStartDateISO("2026-01-01");
+      setEndDateISO("2026-10-17");
+    }
+  };
+
+  const buildReportCsvRows = (reportId: ReportCardId): string[][] => {
+    switch (reportId) {
+      case "sales":
+        return [
+          ["ID", "Data", "Horário", "Cliente", "Profissional", "Itens", "Método", "Status", "Valor", "Gorjeta"],
+          ...state.salesHistory.map((s) => [
+            s.id,
+            s.dateISO,
+            s.appointmentTimeLabel,
+            s.clientName,
+            s.providerName,
+            s.itemsSummary,
+            s.paymentMethod,
+            s.status,
+            formatBRL(s.amountCents),
+            formatBRL(s.tipCents),
+          ]),
+        ];
+      case "appointments":
+        return [
+          ["ID", "Data", "Início", "Fim", "Cliente", "Profissional", "Serviços", "Status", "Sinal Pago", "Valor Total"],
+          ...state.calendarEvents
+            .filter((e) => e.eventType === "appointment")
+            .map((e) => [
+              e.id,
+              e.dateISO,
+              e.startTime,
+              e.endTime,
+              e.clientName,
+              e.providerName,
+              e.serviceNames.join(" + "),
+              e.status,
+              e.depositPaid ? "Sim" : "Não",
+              formatBRL(e.totalCents),
+            ]),
+        ];
+      case "retail_sales":
+        return [
+          ["SKU", "Produto", "Categoria", "Estoque Atual", "Preço Venda", "Custo Unitário"],
+          ...state.inventory
+            .filter((item) => item.category === "Revenda (Retail)")
+            .map((item) => [
+              item.sku,
+              item.name,
+              item.category,
+              String(item.stockQuantity),
+              formatBRL(item.priceCents),
+              formatBRL(item.costCents),
+            ]),
+        ];
+      case "packages_activity":
+        return [
+          ["Cliente", "Pacote", "Sessões Restantes", "Total de Sessões", "Expira em"],
+          ...state.clients.flatMap((c) =>
+            c.packages.map((p) => [
+              c.fullName,
+              p.packageName,
+              String(p.remainingSessions),
+              String(p.totalSessions),
+              p.expiresAtISO,
+            ])
+          ),
+        ];
+      case "sales_tax":
+        return [
+          ["Fatura", "Cliente", "Data Emissão", "Subtotal", "Impostos Retidos", "Total"],
+          ...state.invoices.map((inv) => [
+            inv.invoiceNumber,
+            inv.clientName,
+            inv.issuedAtISO,
+            formatBRL(inv.subtotalCents),
+            formatBRL(inv.taxCents),
+            formatBRL(inv.totalCents),
+          ]),
+        ];
+      case "inventory":
+        return [
+          ["SKU", "Produto", "Categoria", "Quantidade em Estoque", "Alerta Mínimo", "Preço", "Custo"],
+          ...state.inventory.map((item) => [
+            item.sku,
+            item.name,
+            item.category,
+            String(item.stockQuantity),
+            String(item.minStockAlert),
+            formatBRL(item.priceCents),
+            formatBRL(item.costCents),
+          ]),
+        ];
+      case "transaction_detail":
+        return [
+          ["Transação", "Data", "Cliente", "Resumo de Itens", "Forma de Pagamento", "Status", "Total"],
+          ...state.salesHistory.map((s) => [
+            s.id,
+            s.dateISO,
+            s.clientName,
+            s.itemsSummary,
+            s.paymentMethod,
+            s.status,
+            formatBRL(s.amountCents + s.tipCents),
+          ]),
+        ];
+      case "most_valuable_clients":
+        return [
+          ["Posição", "Cliente", "Telefone", "Visitas", "Faltas (No-Show)", "Total Gasto"],
+          ...[...state.clients]
+            .sort((a, b) => b.totalSpentCents - a.totalSpentCents)
+            .slice(0, 10)
+            .map((c, idx) => [
+              `#${idx + 1}`,
+              c.fullName,
+              c.phone,
+              String(c.visitsCount),
+              String(c.noShowCount),
+              formatBRL(c.totalSpentCents),
+            ]),
+        ];
+      case "commission_earnings":
+        return [
+          ["Profissional", "Cargo", "% Comissão Serviços", "% Comissão Produtos", "Meta Semanal", "Faturado na Semana", "Comissão Estimada"],
+          ...state.staff.map((m) => [
+            m.fullName,
+            m.role,
+            `${m.serviceCommissionPercent}%`,
+            `${m.productCommissionPercent}%`,
+            formatBRL(m.weeklyGoalCents),
+            formatBRL(m.bookedThisWeekCents),
+            formatBRL(Math.round((m.bookedThisWeekCents * m.serviceCommissionPercent) / 100)),
+          ]),
+        ];
+      case "expenses":
+        return [
+          ["Item / Insumo", "SKU", "Categoria", "Unidades", "Custo Unitário", "Custo Total em Estoque"],
+          ...state.inventory.map((item) => [
+            item.name,
+            item.sku,
+            item.category,
+            String(item.stockQuantity),
+            formatBRL(item.costCents),
+            formatBRL(item.costCents * item.stockQuantity),
+          ]),
+        ];
+      case "timesheets":
+        return [
+          ["Profissional", "Data", "Entrada", "Saída", "Pausa (min)", "Horas Trabalhadas", "Status"],
+          ...state.timeTracking.logs.map((log) => [
+            log.staffName,
+            log.dateISO,
+            log.checkInTime,
+            log.checkOutTime ?? "Em andamento",
+            String(log.breakMinutes),
+            `${(log.totalWorkedSeconds / 3600).toFixed(2)}h`,
+            log.status,
+          ]),
+        ];
+      case "custom_report":
+      default:
+        return [
+          ["Relatório Personalizado", "Filtro Solicitação", "Período", "Profissional"],
+          [
+            customPrompt.trim() || "Resumo Geral de Crescimento",
+            `${startDateISO} a ${endDateISO}`,
+            selectedStaffId === "owner" ? ownerFullName : "Toda a equipe",
+            formatBRL(
+              state.salesHistory.reduce((acc, s) => acc + s.amountCents, 0)
+            ),
+          ],
+        ];
+    }
+  };
+
+  const handleDownloadCsv = () => {
+    if (!selectedReport) return;
+    const rows = buildReportCsvRows(selectedReport.id);
+    const csvContent =
+      "\uFEFF" +
+      rows
+        .map((row) =>
+          row
+            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+            .join(",")
+        )
+        .join("\n");
+
+    if (typeof window !== "undefined") {
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `agendaste-relatorio-${selectedReport.id}-${startDateISO}-a-${endDateISO}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    setFeedbackBanner(
+      `Download concluído: ${selectedReport.title} (${startDateISO} a ${endDateISO}).`
+    );
+  };
+
+  const handleSendEmail = () => {
+    if (!selectedReport) return;
+    const recipient = state.settings.personal.email || "contato@agendaste.com.br";
+    setFeedbackBanner(
+      `Relatório "${selectedReport.title}" enviado por e-mail para ${recipient}.`
+    );
+  };
+
+  const previewRows = selectedReport
+    ? buildReportCsvRows(selectedReport.id)
+    : [];
+  const previewRecordCount = Math.max(0, previewRows.length - 1);
+
+  return (
+    <div className="w-full min-h-[calc(100vh-56px)] flex flex-col lg:flex-row">
+      {/* Main Left/Center Report Cards Grid */}
+      <div className="flex-1 px-6 lg:px-10 xl:px-12 py-7">
+        <h1 className="text-[22px] font-semibold text-[#1C1C1E] tracking-tight mb-6">
+          Relatórios
+        </h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          {REPORT_CARDS.map((card) => {
+            const isSelected = selectedReportId === card.id;
+            return (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => {
+                  setSelectedReportId(card.id);
+                  setFeedbackBanner(null);
+                }}
+                className={`w-full text-left rounded-[14px] p-4 flex items-center justify-between gap-4 transition-all ${
+                  isSelected
+                    ? "border-[1.5px] border-[#1C1C1E] bg-[#EFF3F0]"
+                    : "border border-[#E5E5EA] bg-white hover:border-[#C7C7CC]"
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                      card.isCustomAi ? "bg-[#C5D82D]" : "bg-[#F2F4F2]"
+                    }`}
+                  >
+                    {renderReportCardIcon(card.id)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-semibold text-[#1C1C1E] leading-snug">
+                      {card.title}
+                    </p>
+                    <p className="text-[12.5px] text-[#6E6E73] mt-0.5 leading-snug">
+                      {card.description}
+                    </p>
+                  </div>
+                </div>
+
+                {card.badge === "Gold" && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#B48327] text-white text-[10px] font-bold tracking-wide shrink-0">
+                    Gold
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Right Docked Report Configuration Drawer */}
+      {selectedReport && (
+        <aside className="w-full lg:w-[350px] xl:w-[380px] bg-white border-t lg:border-t-0 lg:border-l border-[#E5E5EA] flex flex-col justify-between shrink-0">
+          <div className="p-6 space-y-6">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
+                {selectedReport.title}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setSelectedReportId(null)}
+                aria-label="Fechar painel de relatório"
+                className="p-1 rounded-full text-[#1C1C1E] hover:bg-[#F2F2F7] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {selectedReport.isCustomAi && (
+              <div className="space-y-2">
+                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                  O que você gostaria de incluir?
+                </label>
+                <textarea
+                  rows={3}
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="Ex.: Clientes que fizeram Mechas nos últimos 60 dias e ainda não agendaram retorno..."
+                  className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3.5 py-2.5 text-[13px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+            )}
+
+            {/* Staff Selector */}
+            <div className="space-y-2">
+              <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                Profissional
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedStaffId}
+                  onChange={(e) => setSelectedStaffId(e.target.value)}
+                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] bg-white px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                >
+                  <option value="owner">{ownerFullName} (você)</option>
+                  <option value="all">
+                    Toda a equipe ({state.staff.length} profissionais)
+                  </option>
+                  {state.staff.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.fullName} — {member.role}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+              </div>
+            </div>
+
+            {/* Dates Selector */}
+            <div className="space-y-2.5">
+              <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                Datas
+              </label>
+              <div className="relative">
+                <select
+                  value={dateRangePreset}
+                  onChange={(e) => handleDatePresetChange(e.target.value)}
+                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] bg-white px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                >
+                  <option value="month_to_date">Mês até a data</option>
+                  <option value="last_month">Mês passado</option>
+                  <option value="last_30_days">Últimos 30 dias</option>
+                  <option value="this_year">Este ano</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-1.5">
+                  <span className="block text-[11px] text-[#8E8E93]">
+                    Data inicial
+                  </span>
+                  <input
+                    type="date"
+                    value={startDateISO}
+                    onChange={(e) => {
+                      setStartDateISO(e.target.value);
+                      setDateRangePreset("custom");
+                    }}
+                    className="w-full bg-transparent text-[13px] font-medium text-[#1C1C1E] focus:outline-none mt-0.5"
+                  />
+                </div>
+
+                <div className="rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-1.5">
+                  <span className="block text-[11px] text-[#8E8E93]">
+                    Data final
+                  </span>
+                  <input
+                    type="date"
+                    value={endDateISO}
+                    onChange={(e) => {
+                      setEndDateISO(e.target.value);
+                      setDateRangePreset("custom");
+                    }}
+                    className="w-full bg-transparent text-[13px] font-medium text-[#1C1C1E] focus:outline-none mt-0.5"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Summary Preview Box */}
+            <div className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between text-[12px]">
+                <span className="font-semibold text-[#1C1C1E]">
+                  Registros encontrados
+                </span>
+                <span className="font-mono font-bold text-[#1C1C1E]">
+                  {previewRecordCount}
+                </span>
+              </div>
+              <p className="text-[11.5px] text-[#6E6E73]">
+                Formato de exportação: planilha CSV compatível com Excel e Google Sheets.
+              </p>
+            </div>
+
+            {feedbackBanner && (
+              <div className="rounded-[10px] border border-[#1C1C1E] bg-[#EFF3F0] px-3.5 py-2.5 text-[12px] font-medium text-[#1C1C1E]">
+                {feedbackBanner}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Action Buttons (Email / Download) */}
+          <div className="p-5 border-t border-[#E5E5EA] bg-white">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleSendEmail}
+                className="w-full py-2.5 px-4 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13.5px] font-semibold transition-colors"
+              >
+                E-mail
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadCsv}
+                className="w-full py-2.5 px-4 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13.5px] font-semibold transition-colors"
+              >
+                Baixar
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
+    </div>
+  );
+}
 
 export function ComplementarySectionView({
   section,
   state,
   onUpdateState,
 }: {
-  section: "insights" | "inventory" | "charts" | "refer";
+  section:
+    | "insights"
+    | "insights_analytics"
+    | "insights_reports"
+    | "inventory"
+    | "charts"
+    | "refer";
   state: StudioState;
   onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
 }) {
-  if (section === "insights") {
-    const totalSalesCents = state.salesHistory.reduce(
-      (sum, s) => sum + s.amountCents + s.tipCents,
-      0
-    );
-    return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-        <h1 className="text-[28px] font-bold text-[#1C1C1E]">
-          Relatórios &amp; Insights Financeiros
-        </h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card">
-            <span className="text-[12px] text-[#6E6E73] font-semibold">
-              Receita Consolidada
-            </span>
-            <p className="text-[30px] font-mono font-bold text-[#1C1C1E] mt-1">
-              {formatBRL(totalSalesCents)}
-            </p>
-            <span className="text-[12px] text-[#16A34A] font-semibold">
-              +24% vs. mês anterior
-            </span>
-          </div>
-          <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card">
-            <span className="text-[12px] text-[#6E6E73] font-semibold">
-              Taxa de Retenção (Rebooking 1-Toque)
-            </span>
-            <p className="text-[30px] font-mono font-bold text-[#6E56CF] mt-1">
-              88,4%
-            </p>
-            <span className="text-[12px] text-[#6E6E73]">
-              Zero faltas (No-show) com Sinal Pix ativo
-            </span>
-          </div>
-          <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card">
-            <span className="text-[12px] text-[#6E6E73] font-semibold">
-              Clientes Cadastrados
-            </span>
-            <p className="text-[30px] font-mono font-bold text-[#1C1C1E] mt-1">
-              {state.clients.length}
-            </p>
-            <span className="text-[12px] text-[#E11D8F] font-semibold">
-              WhatsApp 2-Way ativo 24/7
-            </span>
-          </div>
-        </div>
-      </div>
-    );
+  if (section === "insights" || section === "insights_analytics") {
+    return <InsightsAnalyticsSection state={state} />;
+  }
+
+  if (section === "insights_reports") {
+    return <InsightsReportsSection state={state} />;
   }
 
   if (section === "inventory") {

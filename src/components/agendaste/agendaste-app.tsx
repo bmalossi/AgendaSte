@@ -259,6 +259,8 @@ export function AgendaSteApp() {
         )}
 
         {(activeSection === "insights" ||
+          activeSection === "insights_analytics" ||
+          activeSection === "insights_reports" ||
           activeSection === "inventory" ||
           activeSection === "charts" ||
           activeSection === "refer") && (
