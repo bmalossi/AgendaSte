@@ -21,6 +21,7 @@ import {
   filterClientsByRetention,
   updateClientNotesAndForms,
   uploadAutoSortedClientPhoto,
+  deleteClientPhoto,
   createAndSendInvoice,
   executeQuickSaleCheckout,
   issueGiftCard,
@@ -326,6 +327,23 @@ describe("Ticket 04 — Clientes (Clients), Drawer 5 Abas, Notas/Fichas e Fotos 
     });
     const updatedStefany = state.clients.find((c) => c.id === "cli-stefany")!;
     assert.equal(updatedStefany.autoSortedPhotos[0].photoUrls.length, 3);
+  });
+
+  it("deletes an uploaded client photo from autoSortedPhotos and updates toast", () => {
+    let state = createInitialStudioState();
+    const photoUrl = "https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=400";
+    state = uploadAutoSortedClientPhoto(state, "cli-stefany", {
+      photoUrl,
+      beforeLabel: "Antes",
+      afterLabel: "Depois",
+    });
+    let stefany = state.clients.find((c) => c.id === "cli-stefany")!;
+    assert.ok(stefany.autoSortedPhotos.some((g) => g.photoUrls.includes(photoUrl)));
+
+    state = deleteClientPhoto(state, "cli-stefany", photoUrl);
+    stefany = state.clients.find((c) => c.id === "cli-stefany")!;
+    assert.ok(!stefany.autoSortedPhotos.some((g) => g.photoUrls.includes(photoUrl)));
+    assert.match(state.lastToastMessage ?? "", /Foto removida com sucesso/i);
   });
 });
 

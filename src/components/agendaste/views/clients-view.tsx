@@ -17,6 +17,11 @@ import {
   AlertCircle,
   MoreHorizontal,
   UserCheck,
+  Loader2,
+  Download,
+  Trash2,
+  Maximize2,
+  ExternalLink,
 } from "lucide-react";
 import {
   StudioState,
@@ -26,6 +31,7 @@ import {
   filterClientsByRetention,
   updateClientNotesAndForms,
   uploadAutoSortedClientPhoto,
+  deleteClientPhoto,
   importStudioMigrationData,
 } from "@/lib/agendaste-store";
 
@@ -88,6 +94,15 @@ export function ClientsView({
   const [birthdayDraft, setBirthdayDraft] = useState(
     selectedClient?.notesAndForms.birthday ?? ""
   );
+
+  // Photo gallery state
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    url: string;
+    title: string;
+    date?: string;
+    notes?: string;
+  } | null>(null);
 
   const handleSelectClient = (client: ClientProfile) => {
     setSelectedClientId(client.id);
@@ -703,15 +718,33 @@ export function ClientsView({
                       Tire fotos na agenda ou importe da sua galeria. Nós organizamos e rotulamos por agendamento automaticamente.
                     </p>
                     <div className="flex flex-col gap-2 pt-1">
-                      <label className="w-full py-2.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold hover:bg-[#2C2C2E] transition text-center cursor-pointer">
-                        <span>+ Enviar foto do dispositivo (Cloudflare R2)</span>
+                      <label
+                        className={`w-full py-2.5 px-4 rounded-full text-[12px] font-semibold text-center cursor-pointer transition flex items-center justify-center gap-2 ${
+                          isUploadingPhoto
+                            ? "bg-[#2C2C2E] text-white opacity-85 cursor-wait pointer-events-none"
+                            : "bg-[#1C1C1E] text-white hover:bg-[#2C2C2E] active:scale-95"
+                        }`}
+                      >
+                        {isUploadingPhoto ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-white" />
+                            <span>Enviando foto...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 text-white" />
+                            <span>+ Enviar foto do dispositivo</span>
+                          </>
+                        )}
                         <input
                           type="file"
                           accept="image/*"
+                          disabled={isUploadingPhoto}
                           className="hidden"
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
+                            setIsUploadingPhoto(true);
                             try {
                               const formData = new FormData();
                               formData.append("file", file);
@@ -748,11 +781,20 @@ export function ClientsView({
                               }
                             } catch (err) {
                               console.warn("Erro no upload da foto do cliente:", err);
+                            } finally {
+                              setIsUploadingPhoto(false);
+                              e.target.value = "";
                             }
-                            e.target.value = "";
                           }}
                         />
                       </label>
+
+                      {isUploadingPhoto && (
+                        <div className="p-2.5 rounded-[12px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center gap-2 text-[11.5px] text-[#6E56CF] animate-pulse">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                          <span>Salvando imagem na nuvem com segurança...</span>
+                        </div>
+                      )}
 
                       <button
                         type="button"
@@ -773,30 +815,92 @@ export function ClientsView({
                     </div>
                   </div>
 
-                  {/* Auto-sorted photo groups */}
-                  {selectedClient.autoSortedPhotos.map((grp) => (
-                    <div
-                      key={grp.id}
-                      className="p-4 rounded-[16px] border border-[#E5E5EA] space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-bold text-[#1C1C1E]">
-                          {grp.serviceName}
-                        </span>
-                        <span className="text-[11px] font-mono text-[#6E56CF] font-bold">
-                          {grp.appointmentDateISO}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#6E6E73]">{grp.notes}</p>
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="px-2.5 py-1 rounded-lg bg-[#F5F5F7] text-[11px] font-semibold text-[#1C1C1E]">
-                          📷 {grp.beforeLabel ?? "Antes"} /{" "}
-                          {grp.afterLabel ?? "Depois"} ({grp.photoUrls.length}{" "}
-                          foto(s))
-                        </span>
-                      </div>
+                  {/* Auto-sorted photo groups with Thumbnails, Lightbox & Actions */}
+                  {selectedClient.autoSortedPhotos.length === 0 ? (
+                    <div className="p-8 rounded-[16px] border border-[#E5E5EA] bg-[#FAFAFC] text-center space-y-2">
+                      <Camera className="w-8 h-8 text-[#8E8E93] mx-auto" />
+                      <p className="text-[13px] font-bold text-[#1C1C1E]">
+                        Nenhuma foto salva para esta cliente
+                      </p>
+                      <p className="text-[11.5px] text-[#6E6E73]">
+                        Envie fotos do antes e depois pelo botão acima para criar a galeria automática.
+                      </p>
                     </div>
-                  ))}
+                  ) : (
+                    selectedClient.autoSortedPhotos.map((grp) => (
+                      <div
+                        key={grp.id}
+                        className="p-4 rounded-[16px] border border-[#E5E5EA] space-y-3 bg-white"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[13px] font-bold text-[#1C1C1E]">
+                            {grp.serviceName}
+                          </span>
+                          <span className="text-[11px] font-mono text-[#6E56CF] font-bold">
+                            {grp.appointmentDateISO}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6E6E73]">{grp.notes}</p>
+
+                        {/* Photos Grid Thumbnails */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                          {grp.photoUrls.map((url, idx) => (
+                            <div
+                              key={`${url}-${idx}`}
+                              className="group relative aspect-square rounded-[12px] overflow-hidden border border-[#E5E5EA] bg-[#F5F5F7] shadow-sm hover:shadow-md transition cursor-pointer"
+                              onClick={() =>
+                                setPreviewPhoto({
+                                  url,
+                                  title: `${grp.serviceName} · ${selectedClient.fullName}`,
+                                  date: grp.appointmentDateISO,
+                                  notes: grp.notes,
+                                })
+                              }
+                            >
+                              <img
+                                src={url}
+                                alt={grp.serviceName}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                loading="lazy"
+                              />
+
+                              {/* Hover Overlay with Quick Action Buttons */}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                                <div className="flex justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm("Excluir esta foto da cliente?")) {
+                                        onUpdateState((prev) =>
+                                          deleteClientPhoto(prev, selectedClient.id, url)
+                                        );
+                                      }
+                                    }}
+                                    className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition shadow-sm"
+                                    title="Excluir foto"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center justify-center">
+                                  <span className="px-2.5 py-1 rounded-full bg-white/95 text-[#1C1C1E] text-[10.5px] font-bold shadow-sm flex items-center gap-1">
+                                    <Maximize2 className="w-3 h-3" />
+                                    <span>Abrir foto</span>
+                                  </span>
+                                </div>
+
+                                <span className="text-[10px] text-white font-semibold truncate bg-black/60 px-1.5 py-0.5 rounded">
+                                  {grp.beforeLabel || grp.afterLabel || `Foto ${idx + 1}`}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
 
@@ -958,6 +1062,113 @@ export function ClientsView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox / Full-screen Photo Modal */}
+      {previewPhoto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-150"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          {/* Lightbox Header */}
+          <div
+            className="flex items-center justify-between text-white max-w-4xl w-full mx-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="min-w-0 pr-4">
+              <h3 className="text-[15px] sm:text-[17px] font-bold truncate">
+                {previewPhoto.title}
+              </h3>
+              {previewPhoto.date && (
+                <p className="text-[12px] text-white/70">
+                  Data: {previewPhoto.date}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreviewPhoto(null)}
+              className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition shrink-0"
+              title="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Lightbox Image Container */}
+          <div
+            className="flex-1 flex items-center justify-center py-4 max-w-4xl w-full mx-auto min-h-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewPhoto.url}
+              alt={previewPhoto.title}
+              className="max-h-[70vh] max-w-full rounded-[14px] object-contain shadow-2xl border border-white/10"
+            />
+          </div>
+
+          {/* Lightbox Actions */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 max-w-4xl w-full mx-auto pt-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <a
+              href={previewPhoto.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-[12px] font-semibold flex items-center gap-1.5 transition"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Abrir original</span>
+            </a>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(previewPhoto.url);
+                    const blob = await res.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = blobUrl;
+                    a.download = `foto-${Date.now()}.jpg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(blobUrl);
+                  } catch {
+                    window.open(previewPhoto.url, "_blank");
+                  }
+                }}
+                className="px-4 py-2 rounded-full bg-white text-[#1C1C1E] text-[12.5px] font-bold hover:bg-[#F5F5F7] flex items-center gap-1.5 transition active:scale-95 shadow-md"
+              >
+                <Download className="w-4 h-4" />
+                <span>Baixar foto</span>
+              </button>
+
+              {selectedClient && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Tem certeza que deseja excluir esta foto permanentemente?")) {
+                      onUpdateState((prev) =>
+                        deleteClientPhoto(prev, selectedClient.id, previewPhoto.url)
+                      );
+                      setPreviewPhoto(null);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-full bg-[#EF4444] hover:bg-[#DC2626] text-white text-[12.5px] font-bold flex items-center gap-1.5 transition active:scale-95 shadow-md"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Excluir foto</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

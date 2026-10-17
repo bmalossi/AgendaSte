@@ -39,6 +39,10 @@ import {
   Settings,
   Trash2,
   MapPin,
+  Loader2,
+  Download,
+  Maximize2,
+  ExternalLink,
 } from "lucide-react";
 import {
   StudioState,
@@ -1779,6 +1783,8 @@ function ClinicalChartsSection({
   const [productLotSku, setProductLotSku] = useState("");
   const [productQuantity, setProductQuantity] = useState("1 unid.");
   const [productNotes, setProductNotes] = useState("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<{ url: string; title: string } | null>(null);
 
   const ownerFullName =
     `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() ||
@@ -1944,44 +1950,66 @@ function ClinicalChartsSection({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    for (const file of Array.from(files)) {
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("folder", "prontuarios");
+    setIsUploadingPhoto(true);
+    try {
+      for (const file of Array.from(files)) {
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("folder", "prontuarios");
 
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        const data = await res.json();
+          const data = await res.json();
 
-        if (res.ok && data.success && data.url) {
-          const uploadedPhoto: ClinicalChartPhotoItem = {
-            id: `ph-r2-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            url: data.url,
-            caption: `${file.name} — Salvo na Cloudflare R2`,
-            stage: "before",
-            pins: [],
-          };
-          updateChartById(activeChart.id, (c) => ({
-            ...c,
-            photos: [...c.photos, uploadedPhoto],
-          }));
-          onUpdateState((prev) => ({
-            ...prev,
-            lastToastMessage: `Foto "${file.name}" salva com sucesso na Cloudflare R2!`,
-          }));
-        } else {
-          // Fallback para visualização local imediata se R2 ainda não estiver configurada no .env.local
+          if (res.ok && data.success && data.url) {
+            const uploadedPhoto: ClinicalChartPhotoItem = {
+              id: `ph-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              url: data.url,
+              caption: file.name,
+              stage: "before",
+              pins: [],
+            };
+            updateChartById(activeChart.id, (c) => ({
+              ...c,
+              photos: [...c.photos, uploadedPhoto],
+            }));
+            onUpdateState((prev) => ({
+              ...prev,
+              lastToastMessage: `Foto "${file.name}" salva com sucesso!`,
+            }));
+          } else {
+            // Fallback para visualização local imediata
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === "string") {
+                const uploadedPhoto: ClinicalChartPhotoItem = {
+                  id: `ph-dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  url: reader.result,
+                  caption: file.name,
+                  stage: "before",
+                  pins: [],
+                };
+                updateChartById(activeChart.id, (c) => ({
+                  ...c,
+                  photos: [...c.photos, uploadedPhoto],
+                }));
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        } catch (err) {
+          console.warn("Erro ao enviar foto para /api/upload, aplicando fallback local:", err);
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result === "string") {
               const uploadedPhoto: ClinicalChartPhotoItem = {
                 id: `ph-dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
                 url: reader.result,
-                caption: `${file.name} — Pronta para marcação (Armazenamento Local)`,
+                caption: file.name,
                 stage: "before",
                 pins: [],
               };
@@ -1992,37 +2020,12 @@ function ClinicalChartsSection({
             }
           };
           reader.readAsDataURL(file);
-
-          if (data && data.configured === false) {
-            onUpdateState((prev) => ({
-              ...prev,
-              lastToastMessage:
-                "Foto carregada localmente. Configure as variáveis da Cloudflare R2 no .env.local para salvar na nuvem.",
-            }));
-          }
         }
-      } catch (err) {
-        console.warn("Erro ao enviar foto para /api/upload, aplicando fallback local:", err);
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result === "string") {
-            const uploadedPhoto: ClinicalChartPhotoItem = {
-              id: `ph-dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              url: reader.result,
-              caption: `${file.name} — Pronta para marcação (Local)`,
-              stage: "before",
-              pins: [],
-            };
-            updateChartById(activeChart.id, (c) => ({
-              ...c,
-              photos: [...c.photos, uploadedPhoto],
-            }));
-          }
-        };
-        reader.readAsDataURL(file);
       }
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = "";
     }
-    e.target.value = "";
   };
 
   const handlePhotoCanvasClick = (
@@ -2379,24 +2382,44 @@ function ClinicalChartsSection({
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5">
-                    <label className="cursor-pointer px-4 py-2 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-semibold text-[#1C1C1E] transition-colors">
-                      Adicionar do dispositivo
+                    <label
+                      className={`cursor-pointer px-4 py-2 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-semibold text-[#1C1C1E] transition-colors inline-flex items-center gap-2 ${
+                        isUploadingPhoto ? "opacity-60 pointer-events-none" : ""
+                      }`}
+                    >
+                      {isUploadingPhoto ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E]" />
+                          <span>Enviando foto...</span>
+                        </>
+                      ) : (
+                        <span>Adicionar do dispositivo</span>
+                      )}
                       <input
                         type="file"
                         accept="image/*"
                         multiple
+                        disabled={isUploadingPhoto}
                         onChange={handleUploadDevicePhoto}
                         className="hidden"
                       />
                     </label>
                     <button
                       type="button"
+                      disabled={isUploadingPhoto}
                       onClick={handleAddPhotoFromGallery}
                       className="px-4 py-2 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-semibold text-[#1C1C1E] transition-colors"
                     >
                       Adicionar da galeria da cliente
                     </button>
                   </div>
+
+                  {isUploadingPhoto && (
+                    <div className="flex items-center justify-center gap-2 mt-3 text-[12px] font-medium text-[#1C1C1E] animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E]" />
+                      <span>Processando e enviando imagem...</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Interactive Photos & Markup Pins Canvas */}
@@ -2407,25 +2430,56 @@ function ClinicalChartsSection({
                         key={photo.id}
                         className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 space-y-3"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[12.5px] font-semibold text-[#1C1C1E]">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-[12.5px] font-semibold text-[#1C1C1E] truncate max-w-[200px] sm:max-w-md">
                             {photo.caption}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateChartById(activeChart.id, (c) => ({
-                                ...c,
-                                photos: c.photos.filter(
-                                  (p) => p.id !== photo.id
-                                ),
-                              }))
-                            }
-                            className="text-[12px] text-[#B91C1C] hover:underline inline-flex items-center gap-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Remover foto
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewPhotoUrl({
+                                  url: photo.url,
+                                  title: photo.caption,
+                                })
+                              }
+                              className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                              Ampliar
+                            </button>
+                            <a
+                              href={photo.url}
+                              download={`prontuario-${photo.id}.jpg`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Baixar
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    "Deseja realmente remover esta foto do prontuário?"
+                                  )
+                                ) {
+                                  updateChartById(activeChart.id, (c) => ({
+                                    ...c,
+                                    photos: c.photos.filter(
+                                      (p) => p.id !== photo.id
+                                    ),
+                                  }));
+                                }
+                              }}
+                              className="px-2.5 py-1 rounded-[6px] border border-[#FCA5A5] bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[11.5px] font-medium text-[#B91C1C] inline-flex items-center gap-1 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Excluir
+                            </button>
+                          </div>
                         </div>
 
                         <div
@@ -2839,6 +2893,60 @@ function ClinicalChartsSection({
             </section>
           </div>
         </div>
+
+        {/* Modal Lightbox de Foto do Prontuário */}
+        {previewPhotoUrl && (
+          <div
+            className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm"
+            onClick={() => setPreviewPhotoUrl(null)}
+          >
+            <div
+              className="relative max-w-4xl max-h-[90vh] bg-[#1C1C1E] rounded-[16px] overflow-hidden flex flex-col shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 bg-[#1C1C1E] text-white">
+                <span className="text-[13.5px] font-semibold text-white/90 truncate max-w-[260px] sm:max-w-md">
+                  {previewPhotoUrl.title || "Visualização da Foto do Prontuário"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewPhotoUrl.url}
+                    download="foto-prontuario.jpg"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-[8px] bg-white/10 hover:bg-white/20 text-white text-[12px] font-medium inline-flex items-center gap-1.5 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Baixar</span>
+                  </a>
+                  <a
+                    href={previewPhotoUrl.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-[8px] bg-white/10 hover:bg-white/20 text-white text-[12px] font-medium inline-flex items-center gap-1.5 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Original</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPhotoUrl(null)}
+                    className="p-1.5 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors ml-2"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 flex items-center justify-center bg-black/90 p-2 sm:p-6 min-h-[300px]">
+                <img
+                  src={previewPhotoUrl.url}
+                  alt={previewPhotoUrl.title || "Foto do prontuário ampliada"}
+                  className="max-h-[75vh] w-auto max-w-full object-contain rounded-[8px] select-none shadow-lg"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

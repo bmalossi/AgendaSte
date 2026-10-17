@@ -2104,7 +2104,31 @@ export function uploadAutoSortedClientPhoto(
     clients: state.clients.map((c) =>
       c.id === clientId ? { ...c, autoSortedPhotos: updatedGroups } : c
     ),
-    lastToastMessage: `Foto de ${client.fullName} auto-organizada por agendamento!`,
+    lastToastMessage: `Foto de ${client.fullName} adicionada com sucesso!`,
+  };
+}
+
+export function deleteClientPhoto(
+  state: StudioState,
+  clientId: string,
+  photoUrl: string
+): StudioState {
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client) return state;
+
+  const updatedGroups = client.autoSortedPhotos
+    .map((grp) => ({
+      ...grp,
+      photoUrls: grp.photoUrls.filter((url) => url !== photoUrl),
+    }))
+    .filter((grp) => grp.photoUrls.length > 0);
+
+  return {
+    ...state,
+    clients: state.clients.map((c) =>
+      c.id === clientId ? { ...c, autoSortedPhotos: updatedGroups } : c
+    ),
+    lastToastMessage: "Foto removida com sucesso!",
   };
 }
 
