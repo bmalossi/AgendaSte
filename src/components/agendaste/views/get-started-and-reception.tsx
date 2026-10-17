@@ -61,7 +61,7 @@ export function GetStartedView({
   };
 
   return (
-    <div className="max-w-[1220px] mx-auto px-6 py-6 space-y-6">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       {/* Top header identical to 01-get-started.png */}
       <div className="flex items-center justify-between">
         <h1 className="text-[22px] font-bold tracking-tight text-[#18181B]">
@@ -581,7 +581,7 @@ export function PublicBookingSiteModal({
                     }}
                     className={`w-full text-left p-3 rounded-xl border transition-all ${
                       selectedService?.id === srv.id
-                        ? "border-[#1C1C1E] bg-[#ECE9FE]/40"
+                        ? "border-2 border-[#1C1C1E] bg-[#F5F5F7] shadow-sm"
                         : "border-zinc-200 hover:border-zinc-300"
                     }`}
                   >
@@ -768,7 +768,7 @@ export function PublicBookingSiteModal({
                           navigator.clipboard?.writeText(pixPayload);
                           setCopiedPix(true);
                         }}
-                        className="w-full py-1.5 rounded-full bg-[#ECE9FE] text-[#5B43D6] text-[11.5px] font-semibold flex items-center justify-center gap-1"
+                        className="w-full py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-sm transition"
                       >
                         {copiedPix ? (
                           <>
@@ -829,7 +829,7 @@ export function ReceptionView({
   return (
     <div className="min-h-screen flex flex-col justify-between bg-white">
       {/* Top 3-step progress bar identical to 02-reception-ia.png */}
-      <div className="max-w-[1180px] w-full mx-auto px-8 pt-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 pt-6">
         <div className="flex items-start justify-between gap-6">
           <div className="grid grid-cols-3 gap-3 flex-1 max-w-[780px]">
             <button
@@ -1192,13 +1192,13 @@ export function ReceptionView({
                     <span className="text-[11.5px] text-zinc-500">
                       {log.clientPhone} · {log.timestampLabel}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#ECE9FE] text-[#5B43D6] text-[10.5px] font-semibold">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10.5px] font-semibold">
                       {log.channel}
                     </span>
                   </div>
                   <p className="text-[13px] text-zinc-700">{log.messageText}</p>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-zinc-100 text-zinc-800 text-[11.5px] font-semibold shrink-0">
+                <span className="px-3 py-1 rounded-full bg-[#16A34A] text-white text-[11px] font-bold shadow-sm shrink-0">
                   {log.outcomeBadge}
                 </span>
               </div>

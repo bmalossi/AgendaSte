@@ -104,7 +104,7 @@ export function PaymentsView({
     );
 
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-[28px] font-bold text-[#1C1C1E] tracking-tight">
@@ -196,10 +196,12 @@ export function PaymentsView({
                     </td>
                     <td className="py-4 px-5">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                        className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-sm inline-block ${
                           sale.status === "Pago"
-                            ? "bg-[#DCFCE7] text-[#16A34A]"
-                            : "bg-[#ECE9FE] text-[#6E56CF]"
+                            ? "bg-[#16A34A] text-white"
+                            : sale.status === "Sinal Pago"
+                            ? "bg-[#E11D8F] text-white"
+                            : "bg-[#D97706] text-white"
                         }`}
                       >
                         {sale.status}
@@ -287,10 +289,10 @@ export function PaymentsView({
           </div>
 
           {/* Two-Column Builder Layout matching 04-2-1-invoices.png */}
-          <div className="max-w-[1160px] mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="w-full px-6 lg:px-8 xl:px-10 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left Anchor Nav */}
             <div className="lg:col-span-3 space-y-1">
-              <div className="px-4 py-2.5 rounded-[12px] bg-[#ECE9FE] text-[#1C1C1E] font-semibold text-[13px]">
+              <div className="px-4 py-2.5 rounded-[12px] bg-[#1C1C1E] text-white font-semibold text-[13px] shadow-sm">
                 Detalhes básicos
               </div>
               <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px]">
@@ -500,7 +502,7 @@ export function PaymentsView({
 
     // Default Invoices Landing + List (04-2-invoices.png)
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         {/* Editorial Hero Card matching 04-2-invoices.png */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
@@ -529,7 +531,7 @@ export function PaymentsView({
               <span className="text-[12px] font-mono font-bold text-[#6E56CF]">
                 FATURA #1000948
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[11px] font-bold">
+              <span className="px-3 py-1 rounded-full bg-[#16A34A] text-white text-[11px] font-bold shadow-sm">
                 Pix &amp; Cartão Ativo
               </span>
             </div>
@@ -569,7 +571,15 @@ export function PaymentsView({
                     <span className="text-[15px] font-bold text-[#1C1C1E]">
                       {inv.title}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold uppercase">
+                    <span
+                      className={`px-3 py-1 rounded-full text-white text-[11px] font-bold uppercase shadow-sm ${
+                        inv.status === "paid"
+                          ? "bg-[#16A34A]"
+                          : inv.status === "sent"
+                          ? "bg-[#E11D8F]"
+                          : "bg-[#D97706]"
+                      }`}
+                    >
                       {inv.status}
                     </span>
                   </div>
@@ -595,7 +605,7 @@ export function PaymentsView({
   // 3. GIFT CARDS (Vale-Presentes)
   // ===========================================================================
   return (
-    <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-[#DDD6FE] text-[12px] font-semibold text-[#1C1C1E]">
@@ -888,8 +898,8 @@ export function QuickSaleDrawer({
                   onClick={() => setPaymentMethod(method)}
                   className={`py-2.5 px-3 rounded-[12px] border text-[13px] font-semibold transition ${
                     paymentMethod === method
-                      ? "border-[#6E56CF] bg-[#ECE9FE] text-[#6E56CF]"
-                      : "border-[#E5E5EA] text-[#1C1C1E]"
+                      ? "border-2 border-[#1C1C1E] bg-[#1C1C1E] text-white shadow-sm"
+                      : "border-[#E5E5EA] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7]"
                   }`}
                 >
                   {method}
@@ -900,7 +910,7 @@ export function QuickSaleDrawer({
 
           {/* Dynamic Pix QR Preview when Pix is selected */}
           {paymentMethod === "Pix" && (
-            <div className="p-4 rounded-[18px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center gap-4">
+            <div className="p-4 rounded-[18px] bg-[#FAFAFC] border border-[#E5E5EA] flex items-center gap-4">
               <div className="w-16 h-16 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center shrink-0">
                 <QrCode className="w-10 h-10 text-[#1C1C1E]" />
               </div>

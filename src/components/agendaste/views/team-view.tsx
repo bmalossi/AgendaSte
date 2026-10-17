@@ -54,7 +54,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
   // ===========================================================================
   if (section === "team_staff") {
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         {/* Editorial Hero Card matching 06-5-staff.png */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
@@ -107,7 +107,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[11px] font-bold">
+              <span className="px-3 py-1 rounded-full bg-[#16A34A] text-white text-[11px] font-bold shadow-sm">
                 Ativo
               </span>
             </div>
@@ -145,7 +145,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                       <p className="text-[15px] font-bold text-[#1C1C1E]">
                         {member.fullName}
                       </p>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[11px] font-semibold">
                         {member.role}
                       </span>
                     </div>
@@ -274,7 +274,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
   // ===========================================================================
   if (section === "team_commissions") {
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         {/* Editorial Hero Card matching 06-5-commissions.png */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
@@ -442,7 +442,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
     );
 
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         {/* Editorial Hero matching 06-5-payroll.png */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
@@ -545,7 +545,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
   );
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       {/* Editorial Hero + Live Dark Timeclock Widget (06-5-time-tracking.png) */}
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
@@ -627,7 +627,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Anchor Nav */}
         <div className="lg:col-span-3 space-y-1">
-          <div className="px-4 py-2.5 rounded-[12px] bg-[#ECE9FE] text-[#1C1C1E] font-semibold text-[13px]">
+          <div className="px-4 py-2.5 rounded-[12px] bg-[#1C1C1E] text-white font-semibold text-[13px] shadow-sm">
             Configurações gerais
           </div>
           <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px]">

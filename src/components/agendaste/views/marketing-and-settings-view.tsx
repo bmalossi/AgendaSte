@@ -68,7 +68,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
   ).length;
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       {/* Top Bar matching 07-1-marketing.png */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -109,7 +109,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
 
         {/* Right Mockup Card */}
         <div className="lg:col-span-5 bg-white rounded-[20px] p-6 border border-[#E5E5EA] shadow-gg-card space-y-3">
-          <span className="px-2.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold">
+          <span className="px-3 py-1 rounded-full bg-[#E11D8F] text-white text-[11px] font-bold shadow-sm inline-block">
             Campanha Automática · Alta Conversão
           </span>
           <p className="text-[16px] font-bold text-[#1C1C1E]">
@@ -152,7 +152,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
               className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card flex flex-col justify-between space-y-4"
             >
               <div className="space-y-2">
-                <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold">
+                <span className="inline-block px-3 py-1 rounded-full bg-[#E11D8F] text-white text-[11px] font-bold shadow-sm">
                   {idea.badge}
                 </span>
                 <h4 className="text-[16px] font-bold text-[#1C1C1E]">
@@ -186,7 +186,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
             >
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[11px] font-bold uppercase">
+                  <span className="px-3 py-1 rounded-full bg-[#16A34A] text-white text-[11px] font-bold uppercase shadow-sm">
                     {cmp.channel === "text" ? "SMS / WhatsApp" : "E-mail"}
                   </span>
                   <p className="text-[15px] font-bold text-[#1C1C1E]">
@@ -223,7 +223,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
                     <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white">
                       1. Canal &amp; Segmento
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF]">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#E11D8F] text-white">
                       2. Mensagem IA
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#F5F5F7] text-[#6E6E73]">
@@ -430,7 +430,7 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
   );
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1260px] mx-auto space-y-8">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       {/* Header + 4 Horizontal Top Tabs (08-1-settings.png) */}
       <div className="space-y-4 border-b border-[#E5E5EA] pb-4">
         <h1 className="text-[28px] font-bold text-[#1C1C1E]">
@@ -449,7 +449,7 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
               onClick={() => setTopTab(t.id)}
               className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${
                 topTab === t.id
-                  ? "bg-[#1C1C1E] text-white"
+                  ? "bg-[#1C1C1E] text-white shadow-sm"
                   : "bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1C1C1E]"
               }`}
             >
@@ -463,7 +463,7 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
       {topTab === "personal" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-3 space-y-1">
-            <div className="px-4 py-2.5 rounded-[12px] bg-[#ECE9FE] text-[#1C1C1E] font-semibold text-[13px]">
+            <div className="px-4 py-2.5 rounded-[12px] bg-[#1C1C1E] text-white font-semibold text-[13px] shadow-sm">
               Detalhes pessoais
             </div>
             <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px]">
@@ -528,7 +528,7 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
                     <label className="text-[12px] font-semibold text-[#6E6E73]">
                       Telefone
                     </label>
-                    <span className="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[10px] font-bold">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#16A34A] text-white text-[10px] font-bold shadow-sm">
                       Verificado ✓
                     </span>
                   </div>
@@ -637,7 +637,7 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
                 key={item}
                 className={`px-4 py-2.5 rounded-[12px] text-[13px] ${
                   idx === 0
-                    ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                    ? "bg-[#1C1C1E] text-white font-semibold shadow-sm"
                     : "text-[#6E6E73] font-medium"
                 }`}
               >
@@ -757,7 +757,7 @@ export function ComplementarySectionView({
       0
     );
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         <h1 className="text-[28px] font-bold text-[#1C1C1E]">
           Relatórios &amp; Insights Financeiros
         </h1>
@@ -802,7 +802,7 @@ export function ComplementarySectionView({
 
   if (section === "inventory") {
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         <h1 className="text-[28px] font-bold text-[#1C1C1E]">
           Estoque (Inventory — Retail &amp; Backbar)
         </h1>
@@ -823,10 +823,10 @@ export function ComplementarySectionView({
                 </div>
                 <div className="flex items-center gap-4">
                   <span
-                    className={`px-3 py-1 rounded-full text-[12px] font-bold ${
+                    className={`px-3 py-1 rounded-full text-[12px] font-bold text-white shadow-sm ${
                       item.stockQuantity <= item.minStockAlert
-                        ? "bg-[#FEF3C7] text-[#D97706]"
-                        : "bg-[#DCFCE7] text-[#16A34A]"
+                        ? "bg-[#D97706]"
+                        : "bg-[#16A34A]"
                     }`}
                   >
                     {item.stockQuantity} unid. em estoque
@@ -845,7 +845,7 @@ export function ComplementarySectionView({
 
   if (section === "charts") {
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         <h1 className="text-[28px] font-bold text-[#1C1C1E]">
           Fichas Clínicas &amp; Anamnese (Charts)
         </h1>
@@ -875,7 +875,7 @@ export function ComplementarySectionView({
 
   // Refer & Earn
   return (
-    <div className="p-6 lg:p-10 max-w-[1360px] mx-auto">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6">
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-10 space-y-4 shadow-gg-card">
         <span className="inline-block px-3 py-1 rounded-full bg-white/80 text-[12px] font-semibold text-[#6E56CF]">
           Indique e ganhe R$ 150

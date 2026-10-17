@@ -141,7 +141,7 @@ export function ClientsView({
   );
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1440px] mx-auto space-y-6">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       {/* Top Header Bar (05-3-clients-added.png) */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -153,7 +153,7 @@ export function ClientsView({
           </h1>
           <button
             onClick={() => setShowEditorialHero((v) => !v)}
-            className="px-3 py-1 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[12px] font-semibold hover:opacity-90 transition"
+            className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] bg-white text-[#1C1C1E] text-[12px] font-semibold hover:bg-[#F5F5F7] transition"
           >
             {showEditorialHero
               ? "Ocultar Apresentação Editorial"
@@ -286,8 +286,8 @@ export function ClientsView({
             onClick={() => setRetentionFilter("absent_30_45")}
             className={`px-4 py-2 rounded-full text-[12px] font-semibold transition flex items-center gap-1.5 ${
               retentionFilter === "absent_30_45"
-                ? "bg-[#E11D8F] text-white"
-                : "bg-[#FCE7F3] text-[#E11D8F] hover:opacity-90"
+                ? "bg-[#E11D8F] text-white shadow-sm"
+                : "bg-white border border-[#E5E5EA] text-[#1C1C1E] hover:bg-[#F5F5F7]"
             }`}
           >
             <span>Ausentes 30/45+ dias ({absentCount})</span>
@@ -296,8 +296,8 @@ export function ClientsView({
             onClick={() => setRetentionFilter("vip")}
             className={`px-4 py-2 rounded-full text-[12px] font-semibold transition ${
               retentionFilter === "vip"
-                ? "bg-[#6E56CF] text-white"
-                : "bg-[#ECE9FE] text-[#6E56CF] hover:opacity-90"
+                ? "bg-[#1C1C1E] text-white shadow-sm"
+                : "bg-white border border-[#E5E5EA] text-[#1C1C1E] hover:bg-[#F5F5F7]"
             }`}
           >
             VIPs, Pacotes &amp; Assinaturas
@@ -345,12 +345,12 @@ export function ClientsView({
                           {client.fullName}
                         </p>
                         {isAbsentAlert && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#D97706] text-[10px] font-bold">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#D97706] text-white text-[10px] font-bold shadow-sm">
                             Ausente há {client.daysSinceLastVisit}d · Reativar
                           </span>
                         )}
                         {client.memberships.length > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[10px] font-bold">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] font-bold shadow-sm">
                             Assinante VIP
                           </span>
                         )}
@@ -378,7 +378,7 @@ export function ClientsView({
                           })
                         );
                       }}
-                      className="w-8 h-8 rounded-full border border-[#E5E5EA] hover:bg-[#ECE9FE] hover:text-[#6E56CF] flex items-center justify-center text-[#6E6E73] transition"
+                      className="w-8 h-8 rounded-full border border-[#E5E5EA] hover:bg-[#1C1C1E] hover:text-white flex items-center justify-center text-[#6E6E73] transition"
                     >
                       <Camera className="w-4 h-4" />
                     </button>
@@ -531,7 +531,7 @@ export function ClientsView({
                       onClick={() => setActiveTab(tab.id)}
                       className={`py-2.5 px-1 rounded-[12px] flex flex-col items-center gap-1 text-[11px] font-semibold transition ${
                         active
-                          ? "bg-[#ECE9FE] text-[#6E56CF]"
+                          ? "bg-[#1C1C1E] text-white shadow-sm"
                           : "text-[#6E6E73] hover:bg-[#F5F5F7]"
                       }`}
                     >

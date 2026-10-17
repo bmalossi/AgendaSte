@@ -276,7 +276,7 @@ export function CalendarView({
                         onUpdateState((prev) => skipCalendarByWeeks(prev, weeks));
                         setDatePopoverOpen(false);
                       }}
-                      className="px-3 py-1.5 rounded-full bg-[#F5F5F7] hover:bg-[#ECE9FE] hover:text-[#6E56CF] text-[12px] font-semibold text-[#1C1C1E] transition"
+                      className="px-3 py-1.5 rounded-full bg-[#F5F5F7] hover:bg-[#1C1C1E] hover:text-white text-[12px] font-semibold text-[#1C1C1E] transition"
                     >
                       +{weeks} sem.
                     </button>
@@ -387,7 +387,7 @@ export function CalendarView({
             <Clock className="w-4 h-4 text-[#6E56CF]" />
             <span>Lista de espera</span>
             {state.waitlist.length > 0 && (
-              <span className="px-1.5 py-0.5 text-[11px] rounded-full bg-[#ECE9FE] text-[#6E56CF] font-bold">
+              <span className="px-2 py-0.5 text-[11px] rounded-full bg-[#1C1C1E] text-white font-bold">
                 {state.waitlist.length}
               </span>
             )}
@@ -443,7 +443,7 @@ export function CalendarView({
                   <span>
                     {wd.label} {wd.dayNum}
                   </span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[10px]">
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold">
                     {dayEvents.length}
                   </span>
                 </div>
@@ -489,7 +489,7 @@ export function CalendarView({
             Tempo ativo
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-[#6E56CF] bg-[#ECE9FE]" />
+            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-[#1C1C1E] bg-[#F5F5F7]" />
             Janela de Pausa / Processamento (Permite Encaixe)
           </span>
           <span className="flex items-center gap-1.5">
@@ -587,22 +587,22 @@ export function CalendarView({
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     {ev.depositPaid && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[10px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#16A34A] text-white text-[10px] font-bold shadow-sm">
                         Sinal Pix ✓
                       </span>
                     )}
                     {ev.whatsappClientReply === "1_confirmed" && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[10px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] font-bold shadow-sm">
                         WhatsApp 1 ✓
                       </span>
                     )}
                     {ev.whatsappClientReply === "2_reschedule" && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#D97706] text-[10px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#D97706] text-white text-[10px] font-bold shadow-sm">
                         Pediu Reagendar
                       </span>
                     )}
                     {ev.status === "completed" && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold shadow-sm">
                         Pago ✓
                       </span>
                     )}
@@ -707,7 +707,7 @@ export function CalendarView({
                   w.providerId === waitlistProviderFilter
               ).length === 0 ? (
                 <div className="text-center py-16">
-                  <div className="w-16 h-16 rounded-2xl bg-[#ECE9FE] text-[#6E56CF] mx-auto flex items-center justify-center mb-4">
+                  <div className="w-16 h-16 rounded-2xl bg-[#F5F5F7] text-[#1C1C1E] mx-auto flex items-center justify-center mb-4">
                     <CalendarIcon className="w-8 h-8" />
                   </div>
                   <h3 className="text-[16px] font-bold text-[#1C1C1E] mb-1">
@@ -738,7 +738,7 @@ export function CalendarView({
                             {wl.serviceName} · com {wl.providerName}
                           </p>
                         </div>
-                        <span className="px-2.5 py-1 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold">
+                        <span className="px-3 py-1 rounded-full bg-[#1C1C1E] text-white text-[11px] font-semibold shadow-sm">
                           {wl.preferredTimeWindow}
                         </span>
                       </div>
@@ -1032,7 +1032,7 @@ export function CalendarView({
                           key={srv.id}
                           className={`flex items-center justify-between p-3 rounded-[14px] border cursor-pointer transition ${
                             checked
-                              ? "border-[#6E56CF] bg-[#ECE9FE]/50"
+                              ? "border-2 border-[#1C1C1E] bg-[#F5F5F7] shadow-sm"
                               : "border-[#E5E5EA] hover:bg-[#FAFAFC]"
                           }`}
                         >
@@ -1248,7 +1248,7 @@ export function CalendarView({
                         );
                         setSelectedEvent(null);
                       }}
-                      className="py-2 px-3 rounded-full bg-[#F5F5F7] hover:bg-[#ECE9FE] hover:text-[#6E56CF] text-[12px] font-bold text-[#1C1C1E] transition"
+                      className="py-2 px-3 rounded-full bg-[#F5F5F7] hover:bg-[#1C1C1E] hover:text-white text-[12px] font-bold text-[#1C1C1E] transition"
                     >
                       +{days} dias
                     </button>
@@ -1279,7 +1279,7 @@ export function CalendarView({
                       );
                       setSelectedEvent(null);
                     }}
-                    className="py-2 px-3 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[12px] font-bold hover:opacity-90 transition"
+                    className="py-2.5 px-3 rounded-full bg-[#16A34A] text-white text-[12px] font-bold shadow-sm hover:opacity-95 transition"
                   >
                     Respondeu &ldquo;1 Confirmar&rdquo;
                   </button>
@@ -1294,7 +1294,7 @@ export function CalendarView({
                       );
                       setSelectedEvent(null);
                     }}
-                    className="py-2 px-3 rounded-full bg-[#FEF3C7] text-[#D97706] text-[12px] font-bold hover:opacity-90 transition"
+                    className="py-2.5 px-3 rounded-full bg-[#D97706] text-white text-[12px] font-bold shadow-sm hover:opacity-95 transition"
                   >
                     Respondeu &ldquo;2 Reagendar&rdquo;
                   </button>

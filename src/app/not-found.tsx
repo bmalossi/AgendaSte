@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white text-[#1C1C1E] text-center">
       <div className="max-w-md space-y-4">
-        <span className="px-3 py-1 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[12px] font-bold">
+        <span className="px-3 py-1 rounded-full bg-[#E11D8F] text-white text-[12px] font-bold shadow-sm">
           404 · Página não encontrada
         </span>
         <h1 className="font-display text-[36px] text-[#1C1C1E]">

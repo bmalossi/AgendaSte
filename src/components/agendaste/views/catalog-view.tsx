@@ -202,7 +202,7 @@ export function CatalogView({
           </div>
 
           {/* 2-Column Layout matching 06-2-services-add.png & 06-2-services-add-1.png */}
-          <div className="max-w-[1160px] mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="w-full px-6 lg:px-8 xl:px-10 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-3 space-y-1">
               {[
                 "Detalhes básicos",
@@ -215,7 +215,7 @@ export function CatalogView({
                   key={item}
                   className={`px-4 py-2.5 rounded-[12px] text-[13px] ${
                     idx === 0
-                      ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                      ? "bg-[#1C1C1E] text-white font-semibold shadow-sm"
                       : "text-[#6E6E73] font-medium"
                   }`}
                 >
@@ -503,8 +503,8 @@ export function CatalogView({
                         key={res.id}
                         className={`p-3.5 rounded-[14px] border flex items-center justify-between cursor-pointer ${
                           checked
-                            ? "border-[#6E56CF] bg-[#ECE9FE]/50"
-                            : "border-[#E5E5EA]"
+                            ? "border-2 border-[#1C1C1E] bg-[#F5F5F7] shadow-sm"
+                            : "border-[#E5E5EA] hover:bg-[#FAFAFC]"
                         }`}
                       >
                         <div>
@@ -629,7 +629,7 @@ export function CatalogView({
 
     // Default Services Landing + Suggested Services + Active List (06-1-services.png)
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         {/* Editorial Hero Card (06-1-services.png) */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
@@ -709,8 +709,8 @@ export function CatalogView({
                 key={sug.id}
                 className={`p-4 rounded-[16px] border cursor-pointer transition flex items-start justify-between gap-3 ${
                   sug.selected
-                    ? "border-[#6E56CF] bg-[#ECE9FE]/50"
-                    : "border-[#E5E5EA] hover:bg-[#FAFAFC]"
+                    ? "border-2 border-[#1C1C1E] bg-[#F5F5F7] shadow-sm"
+                    : "border-[#E5E5EA] bg-white hover:bg-[#FAFAFC]"
                 }`}
               >
                 <div>
@@ -720,7 +720,7 @@ export function CatalogView({
                   <p className="text-[12px] text-[#6E6E73]">
                     {sug.category} · {sug.durationMinutes} min
                   </p>
-                  <p className="text-[13px] font-mono font-bold text-[#6E56CF] mt-1">
+                  <p className="text-[13px] font-mono font-bold text-[#E11D8F] mt-1">
                     {formatBRL(sug.priceCents)}
                   </p>
                 </div>
@@ -732,7 +732,7 @@ export function CatalogView({
                       toggleSuggestedService(prev, sug.id)
                     )
                   }
-                  className="w-4 h-4 accent-[#6E56CF] mt-1"
+                  className="w-4 h-4 accent-[#1C1C1E] mt-1"
                 />
               </label>
             ))}
@@ -768,16 +768,16 @@ export function CatalogView({
                       <h3 className="text-[15px] font-bold text-[#1C1C1E]">
                         {srv.name}
                       </h3>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#F5F5F7] text-[11px] font-semibold text-[#6E6E73]">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-[11px] font-semibold text-white shadow-sm">
                         {srv.category}
                       </span>
                       {srv.processingTimeEnabled && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#ECE9FE] text-[#6E56CF] text-[11px] font-bold">
+                        <span className="px-3 py-1 rounded-full bg-[#E11D8F] text-white text-[11px] font-bold shadow-sm inline-flex items-center gap-1">
                           ⏳ Pausa de {srv.processingDurationMinutes}m p/ encaixe
                         </span>
                       )}
                       {srv.blockTimeEnabled && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#FEF3C7] text-[#D97706] text-[11px] font-bold">
+                        <span className="px-3 py-1 rounded-full bg-[#D97706] text-white text-[11px] font-bold shadow-sm inline-flex items-center gap-1">
                           +{srv.blockAfterMinutes}m bloqueio limpeza
                         </span>
                       )}
@@ -810,7 +810,7 @@ export function CatalogView({
   // ---------------------------------------------------------------------------
   if (section === "catalog_packages") {
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[28px] font-bold text-[#1C1C1E]">
@@ -838,7 +838,7 @@ export function CatalogView({
                     key={label}
                     className={`px-4 py-2.5 rounded-[12px] text-[13px] ${
                       idx === 0
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
+                        ? "bg-[#1C1C1E] text-white font-semibold shadow-sm"
                         : "text-[#6E6E73]"
                     }`}
                   >
@@ -967,7 +967,7 @@ export function CatalogView({
   // ---------------------------------------------------------------------------
   if (section === "catalog_memberships") {
     return (
-      <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 flex flex-wrap items-center justify-between gap-6 shadow-gg-card">
           <div className="max-w-xl space-y-3">
             <span className="inline-block px-3 py-1 rounded-full bg-white/80 text-[12px] font-semibold text-[#1C1C1E]">
@@ -1095,7 +1095,7 @@ export function CatalogView({
   const roomsList = state.resources.filter((r) => r.category === "room");
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1360px] mx-auto space-y-8">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       {/* Editorial Hero matching 06-4-resources.png */}
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
@@ -1132,7 +1132,7 @@ export function CatalogView({
             </div>
           </div>
           <div className="bg-white rounded-[18px] p-4 border border-[#E5E5EA] shadow-sm flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center">
+            <div className="w-11 h-11 rounded-2xl bg-[#F5F5F7] text-[#16A34A] flex items-center justify-center">
               <DoorOpen className="w-5 h-5" />
             </div>
             <div>
@@ -1185,7 +1185,7 @@ export function CatalogView({
                   </p>
                   <p className="text-[12px] text-[#6E6E73]">{eq.description}</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-[#FCE7F3] text-[#E11D8F] text-[11px] font-bold">
+                <span className="px-3 py-1 rounded-full bg-[#E11D8F] text-white text-[11px] font-bold shadow-sm">
                   {eq.assignedServiceIds.length} serviço(s)
                 </span>
               </div>
@@ -1197,7 +1197,7 @@ export function CatalogView({
         <div className="bg-white rounded-[22px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center">
+              <div className="w-11 h-11 rounded-2xl bg-[#F5F5F7] text-[#16A34A] flex items-center justify-center">
                 <DoorOpen className="w-5 h-5" />
               </div>
               <div>
@@ -1229,7 +1229,7 @@ export function CatalogView({
                   </p>
                   <p className="text-[12px] text-[#6E6E73]">{rm.description}</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[11px] font-bold">
+                <span className="px-3 py-1 rounded-full bg-[#16A34A] text-white text-[11px] font-bold shadow-sm">
                   {rm.assignedServiceIds.length} serviço(s)
                 </span>
               </div>
