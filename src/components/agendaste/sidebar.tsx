@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShieldCheck,
   AudioLines,
@@ -52,6 +52,12 @@ export function AgendaSteSidebar({
   const isPaymentsGroup = activeSection.startsWith("payments_");
   const isCatalogGroup = activeSection.startsWith("catalog_");
   const isTeamGroup = activeSection.startsWith("team_");
+
+  useEffect(() => {
+    if (activeSection.startsWith("payments_")) setPaymentsOpen(true);
+    if (activeSection.startsWith("catalog_")) setCatalogOpen(true);
+    if (activeSection.startsWith("team_")) setTeamOpen(true);
+  }, [activeSection]);
 
   if (collapsed) {
     return (
@@ -293,7 +299,7 @@ export function AgendaSteSidebar({
           {/* Payments expandable group (matches 04-1 purple frame when open/active) */}
           <div
             className={`rounded-xl transition-all ${
-              paymentsOpen || isPaymentsGroup
+              paymentsOpen
                 ? "border border-[#7C66DC] p-1 bg-white"
                 : ""
             }`}
@@ -319,14 +325,14 @@ export function AgendaSteSidebar({
                   Pagamentos
                 </span>
               </span>
-              {paymentsOpen || isPaymentsGroup ? (
+              {paymentsOpen ? (
                 <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
               ) : (
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
               )}
             </button>
 
-            {(paymentsOpen || isPaymentsGroup) && (
+            {paymentsOpen && (
               <div className="mt-1 space-y-0.5 pl-2">
                 <button
                   type="button"
@@ -388,7 +394,7 @@ export function AgendaSteSidebar({
           {/* Catalog expandable group (matches 06-1 purple frame when open/active) */}
           <div
             className={`rounded-xl transition-all ${
-              catalogOpen || isCatalogGroup
+              catalogOpen
                 ? "border border-[#7C66DC] p-1 bg-white"
                 : ""
             }`}
@@ -414,14 +420,14 @@ export function AgendaSteSidebar({
                   Catálogo
                 </span>
               </span>
-              {catalogOpen || isCatalogGroup ? (
+              {catalogOpen ? (
                 <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
               ) : (
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
               )}
             </button>
 
-            {(catalogOpen || isCatalogGroup) && (
+            {catalogOpen && (
               <div className="mt-1 space-y-0.5 pl-2">
                 <button
                   type="button"
@@ -477,7 +483,7 @@ export function AgendaSteSidebar({
           {/* Team expandable group (matches 06-5 purple frame when open/active) */}
           <div
             className={`rounded-xl transition-all ${
-              teamOpen || isTeamGroup
+              teamOpen
                 ? "border border-[#7C66DC] p-1 bg-white"
                 : ""
             }`}
@@ -503,14 +509,14 @@ export function AgendaSteSidebar({
                   Equipe
                 </span>
               </span>
-              {teamOpen || isTeamGroup ? (
+              {teamOpen ? (
                 <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
               ) : (
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
               )}
             </button>
 
-            {(teamOpen || isTeamGroup) && (
+            {teamOpen && (
               <div className="mt-1 space-y-0.5 pl-2">
                 <button
                   type="button"
