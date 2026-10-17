@@ -31,10 +31,22 @@ import {
   PieChart,
   Calculator,
   Clock,
+  ArrowLeft,
+  CheckCircle2,
+  User,
+  MoreVertical,
+  ChevronsUpDown,
+  Settings,
+  Trash2,
+  MapPin,
 } from "lucide-react";
 import {
   StudioState,
   MarketingCampaignItem,
+  ClinicalChartEntry,
+  ClinicalChartPhotoItem,
+  ClinicalChartProductUsage,
+  ClinicalChartMarkupPin,
   formatBRL,
   generateMarketingDraftAI,
   sendMarketingCampaign,
@@ -1690,6 +1702,1372 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
   );
 }
 
+type ChartSectionAnchorId =
+  | "chart_details"
+  | "photos_markup"
+  | "product_details"
+  | "treatment_note";
+
+const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
+  {
+    id: "chart-stefany-1",
+    clientId: "cli-stefany",
+    clientName: "Stefany",
+    chartName: "17 de out. de 2026",
+    serviceIds: [],
+    serviceNames: [],
+    providerId: "staff-bruno",
+    providerName: "Bruno Fernandes Malossi Silva",
+    status: "completed",
+    version: 1,
+    createdDateLabel: "17 de out. de 2026",
+    lastModifiedLabel: "17 de out. de 2026 15:38",
+    photos: [],
+    productsUsed: [],
+    templateType: "soap",
+    soapNoteName: "Avaliação e Protocolo Inicial",
+    subjective:
+      "Cliente relata desejo de iluminação natural sem sensibilizar o couro cabeludo.",
+    objective:
+      "Fios com boa elasticidade, fundo natural 6.0 com 4cm de crescimento na raiz.",
+    assessment:
+      "Apta para protocolo de iluminação com proteção de pontes dissulfeto (Plex).",
+    plan: "Realizar teste de mecha preventivo, aplicar proteção plex e agendar manutenção de gloss em 30 dias.",
+  },
+];
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "C";
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function ClinicalChartsSection({
+  state,
+  onUpdateState,
+}: {
+  state: StudioState;
+  onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
+}) {
+  const charts: ClinicalChartEntry[] =
+    state.clinicalCharts && state.clinicalCharts.length > 0
+      ? state.clinicalCharts
+      : DEFAULT_FALLBACK_CHARTS;
+
+  // Mode: null = List table view ("Prontuários"), string = active chart id in Editor ("Entradas de prontuário")
+  const [activeChartId, setActiveChartId] = useState<string | null>(null);
+  const [activeAnchor, setActiveAnchor] =
+    useState<ChartSectionAnchorId>("chart_details");
+
+  // List filters & menus
+  const [filterClientId, setFilterClientId] = useState<string>("all");
+  const [filterProviderId, setFilterProviderId] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "created" | "completed"
+  >("all");
+  const [openRowMenuId, setOpenRowMenuId] = useState<string | null>(null);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+
+  // Editor helper states
+  const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
+  const [addingProductOpen, setAddingProductOpen] = useState(false);
+  const [selectedInventoryId, setSelectedInventoryId] = useState<string>(
+    state.inventory[0]?.id ?? "custom"
+  );
+  const [customProductName, setCustomProductName] = useState("");
+  const [productLotSku, setProductLotSku] = useState("");
+  const [productQuantity, setProductQuantity] = useState("1 unid.");
+  const [productNotes, setProductNotes] = useState("");
+
+  const ownerFullName =
+    `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() ||
+    "Bruno Fernandes Malossi Silva";
+
+  const activeChart =
+    charts.find((c) => c.id === activeChartId) ?? null;
+
+  const updateChartById = (
+    chartId: string,
+    updater: (chart: ClinicalChartEntry) => ClinicalChartEntry
+  ) => {
+    onUpdateState((prev) => {
+      const currentList =
+        prev.clinicalCharts && prev.clinicalCharts.length > 0
+          ? prev.clinicalCharts
+          : DEFAULT_FALLBACK_CHARTS;
+      const nowTime = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return {
+        ...prev,
+        clinicalCharts: currentList.map((item) =>
+          item.id === chartId
+            ? {
+                ...updater(item),
+                lastModifiedLabel: `17 de out. de 2026 ${nowTime}`,
+              }
+            : item
+        ),
+      };
+    });
+  };
+
+  const handleCreateNewChart = () => {
+    const defaultClient = state.clients[0] ?? {
+      id: "cli-stefany",
+      fullName: "Stefany",
+    };
+    const nowTime = new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const newChart: ClinicalChartEntry = {
+      id: `chart-${Date.now()}`,
+      clientId: defaultClient.id,
+      clientName: defaultClient.fullName,
+      chartName: "17 de out. de 2026",
+      serviceIds: [],
+      serviceNames: [],
+      providerId: state.staff[0]?.id ?? "staff-bruno",
+      providerName: ownerFullName,
+      status: "created",
+      version: 1,
+      createdDateLabel: "17 de out. de 2026",
+      lastModifiedLabel: `17 de out. de 2026 ${nowTime}`,
+      photos: [],
+      productsUsed: [],
+      templateType: "soap",
+      soapNoteName: "",
+      subjective: "",
+      objective: "",
+      assessment: "",
+      plan: "",
+    };
+
+    onUpdateState((prev) => {
+      const currentList =
+        prev.clinicalCharts && prev.clinicalCharts.length > 0
+          ? prev.clinicalCharts
+          : DEFAULT_FALLBACK_CHARTS;
+      return {
+        ...prev,
+        clinicalCharts: [newChart, ...currentList],
+      };
+    });
+
+    setActiveChartId(newChart.id);
+    setActiveAnchor("chart_details");
+    setOpenRowMenuId(null);
+  };
+
+  const handleMarkAsComplete = (chartId: string) => {
+    updateChartById(chartId, (c) => ({
+      ...c,
+      status: "completed",
+    }));
+    onUpdateState((prev) => ({
+      ...prev,
+      lastToastMessage: "Prontuário assinado e marcado como concluído!",
+    }));
+    setActiveChartId(null);
+  };
+
+  const handleAmendChart = (chartId: string) => {
+    updateChartById(chartId, (c) => ({
+      ...c,
+      status: "created",
+      version: c.version + 1,
+    }));
+    setActiveChartId(chartId);
+    setActiveAnchor("chart_details");
+    setOpenRowMenuId(null);
+    onUpdateState((prev) => ({
+      ...prev,
+      lastToastMessage: "Modo de retificação ativado (nova versão criada).",
+    }));
+  };
+
+  const handleDeleteChart = (chart: ClinicalChartEntry) => {
+    if (chart.status === "completed") return; // Completed clinical charts cannot be deleted
+    onUpdateState((prev) => {
+      const currentList =
+        prev.clinicalCharts && prev.clinicalCharts.length > 0
+          ? prev.clinicalCharts
+          : DEFAULT_FALLBACK_CHARTS;
+      return {
+        ...prev,
+        clinicalCharts: currentList.filter((item) => item.id !== chart.id),
+        lastToastMessage: "Rascunho de prontuário excluído.",
+      };
+    });
+    setOpenRowMenuId(null);
+  };
+
+  const scrollToChartSection = (anchor: ChartSectionAnchorId) => {
+    setActiveAnchor(anchor);
+    if (typeof document !== "undefined") {
+      const el = document.getElementById(`agendaste-chart-${anchor}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
+
+  const handleAddPhotoFromGallery = () => {
+    if (!activeChart) return;
+    const samplePhoto: ClinicalChartPhotoItem = {
+      id: `ph-${Date.now()}`,
+      url: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80",
+      caption: "Antes & Mapeamento Anatômico — Clique na imagem para marcar pontos",
+      stage: "mapping",
+      pins: [
+        {
+          id: `pin-${Date.now()}-1`,
+          xPercent: 48,
+          yPercent: 34,
+          label: "Ponto 1 · Área Frontal / Glabela",
+        },
+      ],
+    };
+    updateChartById(activeChart.id, (c) => ({
+      ...c,
+      photos: [...c.photos, samplePhoto],
+    }));
+  };
+
+  const handleUploadDevicePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeChart) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          const uploadedPhoto: ClinicalChartPhotoItem = {
+            id: `ph-dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            url: reader.result,
+            caption: `${file.name} — Pronta para marcação`,
+            stage: "before",
+            pins: [],
+          };
+          updateChartById(activeChart.id, (c) => ({
+            ...c,
+            photos: [...c.photos, uploadedPhoto],
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
+  const handlePhotoCanvasClick = (
+    photoId: string,
+    e: React.MouseEvent<HTMLDivElement>
+  ) => {
+    if (!activeChart) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xPercent = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const yPercent = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+
+    updateChartById(activeChart.id, (c) => ({
+      ...c,
+      photos: c.photos.map((ph) => {
+        if (ph.id !== photoId) return ph;
+        const nextNum = ph.pins.length + 1;
+        const newPin: ClinicalChartMarkupPin = {
+          id: `pin-${Date.now()}`,
+          xPercent,
+          yPercent,
+          label: `Ponto ${nextNum} · Área de aplicação`,
+        };
+        return {
+          ...ph,
+          pins: [...ph.pins, newPin],
+        };
+      }),
+    }));
+  };
+
+  const handleConfirmAddProduct = () => {
+    if (!activeChart) return;
+    const invItem = state.inventory.find((i) => i.id === selectedInventoryId);
+    const productName =
+      selectedInventoryId === "custom"
+        ? customProductName.trim() || "Insumo Profissional"
+        : invItem?.name || "Produto do Estoque";
+    const skuOrLot =
+      productLotSku.trim() || invItem?.sku || "LOTE-2026-BR";
+
+    const newUsage: ClinicalChartProductUsage = {
+      id: `prd-use-${Date.now()}`,
+      inventoryProductId:
+        selectedInventoryId === "custom" ? undefined : selectedInventoryId,
+      productName,
+      skuOrLot,
+      quantity: productQuantity.trim() || "1 unid.",
+      notes: productNotes.trim(),
+    };
+
+    updateChartById(activeChart.id, (c) => ({
+      ...c,
+      productsUsed: [...c.productsUsed, newUsage],
+    }));
+
+    setAddingProductOpen(false);
+    setCustomProductName("");
+    setProductLotSku("");
+    setProductQuantity("1 unid.");
+    setProductNotes("");
+  };
+
+  // ===========================================================================
+  // VIEW A: CHART ENTRY EDITOR ("Entradas de prontuário" / "Chart entries")
+  // ===========================================================================
+  if (activeChart) {
+    const anchorItems: Array<{ id: ChartSectionAnchorId; label: string }> = [
+      { id: "chart_details", label: "Detalhes do prontuário" },
+      { id: "photos_markup", label: "Fotos e marcações" },
+      { id: "product_details", label: "Detalhes de produtos" },
+      { id: "treatment_note", label: "Nota de evolução" },
+    ];
+
+    return (
+      <div className="w-full min-h-[calc(100vh-56px)] bg-white flex flex-col">
+        {/* Top Sticky Header Bar */}
+        <div className="w-full border-b border-[#EFEFF4] bg-white px-6 lg:px-10 py-3.5 flex items-center justify-between gap-4 sticky top-0 z-20">
+          <button
+            type="button"
+            onClick={() => setActiveChartId(null)}
+            className="inline-flex items-center gap-2.5 text-[#1C1C1E] hover:opacity-75 transition-opacity"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
+            <span className="text-[16px] font-semibold tracking-tight">
+              Entradas de prontuário
+            </span>
+          </button>
+
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6E6E73]">
+              <CheckCircle2 className="w-4 h-4 text-[#6E6E73]" />
+              <span>Salvo</span>
+            </span>
+
+            {activeChart.status === "created" ? (
+              <button
+                type="button"
+                onClick={() => handleMarkAsComplete(activeChart.id)}
+                className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition-colors"
+              >
+                Marcar como concluído
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleAmendChart(activeChart.id)}
+                className="px-4 py-2 rounded-full border border-[#1C1C1E] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13px] font-semibold transition-colors"
+              >
+                Retificar prontuário (v{activeChart.version + 1})
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Main Two-Column Content */}
+        <div className="w-full px-6 lg:px-10 py-8 flex flex-col lg:flex-row items-start gap-10 lg:gap-20">
+          {/* Left Sticky Section Anchor Navigation */}
+          <nav className="w-full lg:w-[190px] shrink-0 lg:sticky lg:top-20 flex lg:flex-col gap-1.5 overflow-x-auto pb-2 lg:pb-0">
+            {anchorItems.map((item) => {
+              const isActive = activeAnchor === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => scrollToChartSection(item.id)}
+                  className={`text-left px-3.5 py-2 rounded-[8px] text-[13px] whitespace-nowrap transition-all ${
+                    isActive
+                      ? "bg-[#D1D1D6] text-[#1C1C1E] font-semibold"
+                      : "text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] font-medium"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Center Form Body */}
+          <div className="flex-1 max-w-[660px] w-full space-y-10 pb-24">
+            {/* 1. DETALHES DO PRONTUÁRIO */}
+            <section
+              id="agendaste-chart-chart_details"
+              onMouseEnter={() => setActiveAnchor("chart_details")}
+              className="space-y-6 scroll-mt-24"
+            >
+              {/* Client Hero */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-[#F6C6EA] flex items-center justify-center text-[#9D174D] shrink-0">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <h1 className="font-serif text-[38px] leading-none text-[#1C1C1E] tracking-tight">
+                    {activeChart.clientName}
+                  </h1>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-[13px] text-[#6E6E73]">
+                  <span>
+                    {activeChart.createdDateLabel} | Profissional:{" "}
+                    {activeChart.providerName}
+                  </span>
+                  {activeChart.status === "completed" ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#9EE37D] text-[#1C1C1E] text-[11.5px] font-semibold">
+                      Concluído
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#E5E5EA] text-[#1C1C1E] text-[11.5px] font-semibold">
+                      Criado
+                    </span>
+                  )}
+                  {activeChart.version > 1 && (
+                    <span className="px-2 py-0.5 rounded-full border border-[#D1D1D6] text-[#1C1C1E] text-[11px] font-semibold">
+                      v{activeChart.version}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Stacked Form Controls */}
+              <div className="space-y-3">
+                {/* Client Field */}
+                <div className="rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors">
+                  <label className="block text-[11.5px] text-[#6E6E73]">
+                    Cliente
+                  </label>
+                  <div className="relative flex items-center gap-2 mt-1">
+                    <span className="w-5 h-5 rounded-full bg-[#ECEEF0] text-[#1C1C1E] text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {getInitials(activeChart.clientName)}
+                    </span>
+                    <select
+                      value={activeChart.clientId}
+                      onChange={(e) => {
+                        const found = state.clients.find(
+                          (c) => c.id === e.target.value
+                        );
+                        if (found) {
+                          updateChartById(activeChart.id, (c) => ({
+                            ...c,
+                            clientId: found.id,
+                            clientName: found.fullName,
+                          }));
+                        }
+                      }}
+                      className="w-full appearance-none bg-transparent pr-6 text-[13.5px] font-medium text-[#1C1C1E] focus:outline-none"
+                    >
+                      {state.clients.map((cli) => (
+                        <option key={cli.id} value={cli.id}>
+                          {cli.fullName}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-0" />
+                  </div>
+                </div>
+
+                {/* Chart Name Field */}
+                <div className="rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors">
+                  <label className="block text-[11.5px] text-[#6E6E73]">
+                    Nome do prontuário
+                  </label>
+                  <input
+                    type="text"
+                    value={activeChart.chartName}
+                    onChange={(e) =>
+                      updateChartById(activeChart.id, (c) => ({
+                        ...c,
+                        chartName: e.target.value,
+                      }))
+                    }
+                    placeholder="17 de out. de 2026"
+                    className="w-full bg-transparent text-[13.5px] font-medium text-[#1C1C1E] focus:outline-none mt-0.5"
+                  />
+                </div>
+
+                {/* Select Services Multi-select */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setServicesDropdownOpen((prev) => !prev)
+                    }
+                    className="w-full rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-3.5 text-left flex items-center justify-between gap-3 hover:border-[#1C1C1E] transition-colors"
+                  >
+                    <span
+                      className={`text-[13.5px] ${
+                        activeChart.serviceNames.length > 0
+                          ? "font-medium text-[#1C1C1E]"
+                          : "text-[#6E6E73]"
+                      }`}
+                    >
+                      {activeChart.serviceNames.length > 0
+                        ? activeChart.serviceNames.join(", ")
+                        : "Selecionar serviços"}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-[#1C1C1E] shrink-0" />
+                  </button>
+
+                  {servicesDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1.5 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-2 z-20 max-h-60 overflow-y-auto">
+                      {state.services.map((srv) => {
+                        const checked = activeChart.serviceIds.includes(srv.id);
+                        return (
+                          <button
+                            key={srv.id}
+                            type="button"
+                            onClick={() => {
+                              updateChartById(activeChart.id, (c) => {
+                                const exists = c.serviceIds.includes(srv.id);
+                                const nextIds = exists
+                                  ? c.serviceIds.filter((id) => id !== srv.id)
+                                  : [...c.serviceIds, srv.id];
+                                const nextNames = state.services
+                                  .filter((s) => nextIds.includes(s.id))
+                                  .map((s) => s.name);
+                                return {
+                                  ...c,
+                                  serviceIds: nextIds,
+                                  serviceNames: nextNames,
+                                };
+                              });
+                            }}
+                            className="w-full px-4 py-2.5 text-left text-[13px] flex items-center justify-between hover:bg-[#F5F5F7]"
+                          >
+                            <span className="font-medium text-[#1C1C1E]">
+                              {srv.name}
+                            </span>
+                            <span
+                              className={`w-4 h-4 rounded flex items-center justify-center border ${
+                                checked
+                                  ? "bg-[#1C1C1E] border-[#1C1C1E] text-white"
+                                  : "border-[#C7C7CC] bg-white"
+                              }`}
+                            >
+                              {checked && <Check className="w-3 h-3" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* 2. FOTOS E MARCAÇÕES */}
+            <section
+              id="agendaste-chart-photos_markup"
+              onMouseEnter={() => setActiveAnchor("photos_markup")}
+              className="space-y-3 scroll-mt-24"
+            >
+              <div>
+                <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
+                  Fotos e marcações
+                </h2>
+                <p className="text-[13px] text-[#6E6E73] mt-0.5">
+                  Mapeie pontos de aplicação e áreas de tratamento
+                </p>
+              </div>
+
+              <div className="rounded-[14px] border border-dashed border-[#D1D1D6] bg-white p-8">
+                {/* Visual Collage Header */}
+                <div className="flex flex-col items-center text-center max-w-md mx-auto">
+                  <div className="relative w-56 h-36 flex items-center justify-center mb-4">
+                    {/* Left Tilted Photo Card */}
+                    <div className="w-24 h-28 rounded-[12px] overflow-hidden border-2 border-white shadow-md -rotate-6 -mr-4 bg-[#E5E5EA]">
+                      <img
+                        src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=300&q=80"
+                        alt="Antes"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    {/* Right Tilted Photo Card */}
+                    <div className="w-28 h-32 rounded-[12px] overflow-hidden border-2 border-white shadow-md rotate-6 bg-[#E5E5EA] z-10">
+                      <img
+                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"
+                        alt="Depois"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    {/* Floating Solid Pill Top-Right */}
+                    <span className="absolute -right-6 top-6 z-20 px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
+                      + Organizando fotos...
+                    </span>
+                    {/* Floating Solid Pill Bottom-Left */}
+                    <span className="absolute -left-10 bottom-3 z-20 px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
+                      + Gerando documentação...
+                    </span>
+                  </div>
+
+                  <p className="text-[14.5px] font-medium text-[#1C1C1E] leading-snug">
+                    Adicione fotos de antes e depois.
+                    <br />
+                    Organizadas e rotuladas - prontas para marcação.
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5">
+                    <label className="cursor-pointer px-4 py-2 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-semibold text-[#1C1C1E] transition-colors">
+                      Adicionar do dispositivo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleUploadDevicePhoto}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddPhotoFromGallery}
+                      className="px-4 py-2 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-semibold text-[#1C1C1E] transition-colors"
+                    >
+                      Adicionar da galeria da cliente
+                    </button>
+                  </div>
+                </div>
+
+                {/* Interactive Photos & Markup Pins Canvas */}
+                {activeChart.photos.length > 0 && (
+                  <div className="mt-8 pt-6 border-t border-[#EFEFF4] space-y-6">
+                    {activeChart.photos.map((photo) => (
+                      <div
+                        key={photo.id}
+                        className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 space-y-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[12.5px] font-semibold text-[#1C1C1E]">
+                            {photo.caption}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateChartById(activeChart.id, (c) => ({
+                                ...c,
+                                photos: c.photos.filter(
+                                  (p) => p.id !== photo.id
+                                ),
+                              }))
+                            }
+                            className="text-[12px] text-[#B91C1C] hover:underline inline-flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Remover foto
+                          </button>
+                        </div>
+
+                        <div
+                          onClick={(e) => handlePhotoCanvasClick(photo.id, e)}
+                          title="Clique em qualquer ponto da foto para adicionar uma marcação"
+                          className="relative w-full max-h-[340px] overflow-hidden rounded-[10px] border border-[#D1D1D6] cursor-crosshair bg-[#1C1C1E]"
+                        >
+                          <img
+                            src={photo.url}
+                            alt={photo.caption}
+                            className="w-full h-[300px] object-cover select-none"
+                          />
+                          {photo.pins.map((pin, idx) => (
+                            <div
+                              key={pin.id}
+                              style={{
+                                left: `${pin.xPercent}%`,
+                                top: `${pin.yPercent}%`,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#1C1C1E] border-2 border-white text-white text-[11px] font-bold flex items-center justify-center shadow-md"
+                            >
+                              {idx + 1}
+                            </div>
+                          ))}
+                        </div>
+
+                        {photo.pins.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[11.5px] font-semibold text-[#6E6E73]">
+                              Pontos mapeados na imagem (clique na foto para adicionar mais):
+                            </p>
+                            {photo.pins.map((pin, idx) => (
+                              <div
+                                key={pin.id}
+                                className="flex items-center gap-2"
+                              >
+                                <span className="w-5 h-5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={pin.label}
+                                  onChange={(e) => {
+                                    const nextVal = e.target.value;
+                                    updateChartById(activeChart.id, (c) => ({
+                                      ...c,
+                                      photos: c.photos.map((ph) =>
+                                        ph.id === photo.id
+                                          ? {
+                                              ...ph,
+                                              pins: ph.pins.map((p) =>
+                                                p.id === pin.id
+                                                  ? { ...p, label: nextVal }
+                                                  : p
+                                              ),
+                                            }
+                                          : ph
+                                      ),
+                                    }));
+                                  }}
+                                  className="flex-1 rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-1.5 text-[12.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateChartById(activeChart.id, (c) => ({
+                                      ...c,
+                                      photos: c.photos.map((ph) =>
+                                        ph.id === photo.id
+                                          ? {
+                                              ...ph,
+                                              pins: ph.pins.filter(
+                                                (p) => p.id !== pin.id
+                                              ),
+                                            }
+                                          : ph
+                                      ),
+                                    }))
+                                  }
+                                  className="p-1 text-[#8E8E93] hover:text-[#1C1C1E]"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* 3. DETALHES DE PRODUTOS */}
+            <section
+              id="agendaste-chart-product_details"
+              onMouseEnter={() => setActiveAnchor("product_details")}
+              className="space-y-3 scroll-mt-24"
+            >
+              <div>
+                <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
+                  Detalhes de produtos
+                </h2>
+                <p className="text-[13px] text-[#6E6E73] mt-0.5">
+                  Registre os produtos utilizados durante o procedimento para conformidade e controle de estoque.
+                </p>
+              </div>
+
+              {activeChart.productsUsed.length > 0 && (
+                <div className="space-y-2">
+                  {activeChart.productsUsed.map((prod) => (
+                    <div
+                      key={prod.id}
+                      className="rounded-[12px] border border-[#E5E5EA] bg-white px-4 py-3 flex items-center justify-between gap-4"
+                    >
+                      <div>
+                        <p className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                          {prod.productName}
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73]">
+                          Lote/SKU: {prod.skuOrLot} · Qtd.: {prod.quantity}
+                          {prod.notes ? ` · ${prod.notes}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateChartById(activeChart.id, (c) => ({
+                            ...c,
+                            productsUsed: c.productsUsed.filter(
+                              (item) => item.id !== prod.id
+                            ),
+                          }))
+                        }
+                        className="p-1.5 rounded-full text-[#8E8E93] hover:text-[#B91C1C] hover:bg-[#F5F5F7]"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {addingProductOpen ? (
+                <div className="rounded-[14px] border border-[#1C1C1E] bg-white p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                      Adicionar produto utilizado no atendimento
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAddingProductOpen(false)}
+                      className="text-[#8E8E93] hover:text-[#1C1C1E]"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
+                        Selecionar do estoque
+                      </label>
+                      <select
+                        value={selectedInventoryId}
+                        onChange={(e) => setSelectedInventoryId(e.target.value)}
+                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                      >
+                        {state.inventory.map((inv) => (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.name} ({inv.sku})
+                          </option>
+                        ))}
+                        <option value="custom">Outro produto / fórmula manual</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
+                        Quantidade / Dosagem
+                      </label>
+                      <input
+                        type="text"
+                        value={productQuantity}
+                        onChange={(e) => setProductQuantity(e.target.value)}
+                        placeholder="Ex.: 30ml, 2 ampolas, 50g"
+                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                      />
+                    </div>
+                  </div>
+
+                  {selectedInventoryId === "custom" && (
+                    <div>
+                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
+                        Nome do produto / ativo
+                      </label>
+                      <input
+                        type="text"
+                        value={customProductName}
+                        onChange={(e) => setCustomProductName(e.target.value)}
+                        placeholder="Ex.: Toxina Botulínica / Coloração 8.31"
+                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
+                        Lote / Validade (Anvisa)
+                      </label>
+                      <input
+                        type="text"
+                        value={productLotSku}
+                        onChange={(e) => setProductLotSku(e.target.value)}
+                        placeholder="Ex.: LOTE-9942A"
+                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
+                        Observações de aplicação
+                      </label>
+                      <input
+                        type="text"
+                        value={productNotes}
+                        onChange={(e) => setProductNotes(e.target.value)}
+                        placeholder="Ex.: Diluição 1:1.5 com oxidante 20v"
+                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setAddingProductOpen(false)}
+                      className="px-4 py-2 rounded-full border border-[#D1D1D6] text-[12.5px] font-semibold text-[#1C1C1E]"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmAddProduct}
+                      className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-semibold"
+                    >
+                      Confirmar produto
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingProductOpen(true)}
+                  className="w-full py-3 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[13.5px] font-semibold text-[#1C1C1E] flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-4 h-4 text-[#1C1C1E]" />
+                  <span>Adicionar produto</span>
+                </button>
+              )}
+            </section>
+
+            {/* 4. NOTA DE EVOLUÇÃO (TREATMENT NOTE / SOAP NOTE) */}
+            <section
+              id="agendaste-chart-treatment_note"
+              onMouseEnter={() => setActiveAnchor("treatment_note")}
+              className="space-y-5 scroll-mt-24"
+            >
+              <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
+                Nota de evolução
+              </h2>
+
+              {/* Select Template */}
+              <div className="rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors">
+                <label className="block text-[11.5px] text-[#6E6E73]">
+                  Selecionar modelo
+                </label>
+                <div className="relative mt-0.5">
+                  <select
+                    value={activeChart.templateType}
+                    onChange={(e) =>
+                      updateChartById(activeChart.id, (c) => ({
+                        ...c,
+                        templateType: e.target
+                          .value as ClinicalChartEntry["templateType"],
+                      }))
+                    }
+                    className="w-full appearance-none bg-transparent pr-6 text-[13.5px] font-medium text-[#1C1C1E] focus:outline-none"
+                  >
+                    <option value="soap">Nota SOAP</option>
+                    <option value="aesthetic_anamnesis">
+                      Anamnese Estética &amp; Capilar
+                    </option>
+                    <option value="injectables">
+                      Protocolo de Injetáveis &amp; Harmonização
+                    </option>
+                    <option value="free_note">Nota Livre de Evolução</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+
+              {/* SOAP note name */}
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                  Nome da nota SOAP
+                </label>
+                <input
+                  type="text"
+                  value={activeChart.soapNoteName}
+                  onChange={(e) =>
+                    updateChartById(activeChart.id, (c) => ({
+                      ...c,
+                      soapNoteName: e.target.value,
+                    }))
+                  }
+                  placeholder="Nome da nota SOAP"
+                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-3 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+
+              {/* Subjective */}
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                  Subjetivo
+                </label>
+                <p className="text-[12.5px] text-[#6E6E73]">
+                  Insira os relatos da cliente sobre queixas, sintomas ou objetivos.
+                </p>
+                <textarea
+                  rows={5}
+                  value={activeChart.subjective}
+                  onChange={(e) =>
+                    updateChartById(activeChart.id, (c) => ({
+                      ...c,
+                      subjective: e.target.value,
+                    }))
+                  }
+                  placeholder="Subjetivo"
+                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+
+              {/* Objective */}
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                  Objetivo
+                </label>
+                <p className="text-[12.5px] text-[#6E6E73]">
+                  Insira observações de sinais visíveis, medidas ou achados físicos.
+                </p>
+                <textarea
+                  rows={5}
+                  value={activeChart.objective}
+                  onChange={(e) =>
+                    updateChartById(activeChart.id, (c) => ({
+                      ...c,
+                      objective: e.target.value,
+                    }))
+                  }
+                  placeholder="Objetivo"
+                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+
+              {/* Assessment */}
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                  Avaliação
+                </label>
+                <p className="text-[12.5px] text-[#6E6E73]">
+                  Insira sua avaliação profissional com base nos achados clínicos.
+                </p>
+                <textarea
+                  rows={5}
+                  value={activeChart.assessment}
+                  onChange={(e) =>
+                    updateChartById(activeChart.id, (c) => ({
+                      ...c,
+                      assessment: e.target.value,
+                    }))
+                  }
+                  placeholder="Avaliação"
+                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+
+              {/* Plan */}
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                  Plano
+                </label>
+                <p className="text-[12.5px] text-[#6E6E73]">
+                  Insira o procedimento realizado e os próximos passos.
+                </p>
+                <textarea
+                  rows={5}
+                  value={activeChart.plan}
+                  onChange={(e) =>
+                    updateChartById(activeChart.id, (c) => ({
+                      ...c,
+                      plan: e.target.value,
+                    }))
+                  }
+                  placeholder="Plano"
+                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // VIEW B: CHARTS TABLE LIST VIEW ("Prontuários" / "Charts")
+  // ===========================================================================
+  const filteredCharts = charts.filter((c) => {
+    if (filterClientId !== "all" && c.clientId !== filterClientId) return false;
+    if (filterProviderId !== "all" && c.providerId !== filterProviderId)
+      return false;
+    if (filterStatus !== "all" && c.status !== filterStatus) return false;
+    return true;
+  });
+
+  return (
+    <div className="w-full min-h-[calc(100vh-56px)] bg-white px-6 lg:px-10 xl:px-12 py-7 space-y-5">
+      {/* Top Header Row */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-[22px] font-semibold text-[#1C1C1E] tracking-tight">
+          Prontuários
+        </h1>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setSettingsModalOpen((prev) => !prev)}
+            aria-label="Configurações de modelos de prontuário"
+            className="w-9 h-9 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] flex items-center justify-center text-[#1C1C1E] transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCreateNewChart}
+            className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition-colors"
+          >
+            Criar prontuário
+          </button>
+        </div>
+      </div>
+
+      {settingsModalOpen && (
+        <div className="rounded-[14px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[13px] font-semibold text-[#1C1C1E]">
+              Modelos de Prontuário &amp; Conformidade Clínica
+            </p>
+            <p className="text-[12px] text-[#6E6E73]">
+              Modelo padrão ativo: Nota SOAP (Subjetivo, Objetivo, Avaliação e Plano). Prontuários concluídos são bloqueados contra exclusão e exigem retificação versionada (v1, v2).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSettingsModalOpen(false)}
+            className="p-1 text-[#6E6E73] hover:text-[#1C1C1E]"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Filter Pills Row */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        {/* Client Filter Pill */}
+        <div className="relative inline-flex items-center">
+          <select
+            value={filterClientId}
+            onChange={(e) => setFilterClientId(e.target.value)}
+            className="appearance-none rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] pl-3.5 pr-8 py-1.5 text-[12.5px] font-medium text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E] cursor-pointer"
+          >
+            <option value="all">Cliente</option>
+            {state.clients.map((cli) => (
+              <option key={cli.id} value={cli.id}>
+                {cli.fullName}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E] pointer-events-none absolute right-3" />
+        </div>
+
+        {/* Provider Filter Pill */}
+        <div className="relative inline-flex items-center">
+          <select
+            value={filterProviderId}
+            onChange={(e) => setFilterProviderId(e.target.value)}
+            className="appearance-none rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] pl-3.5 pr-8 py-1.5 text-[12.5px] font-medium text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E] cursor-pointer"
+          >
+            <option value="all">Profissional</option>
+            {state.staff.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.fullName}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E] pointer-events-none absolute right-3" />
+        </div>
+
+        {/* Status Filter Pill */}
+        <div className="relative inline-flex items-center">
+          <select
+            value={filterStatus}
+            onChange={(e) =>
+              setFilterStatus(
+                e.target.value as "all" | "created" | "completed"
+              )
+            }
+            className="appearance-none rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] pl-3.5 pr-8 py-1.5 text-[12.5px] font-medium text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E] cursor-pointer"
+          >
+            <option value="all">Todos os status</option>
+            <option value="completed">Concluído</option>
+            <option value="created">Criado</option>
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E] pointer-events-none absolute right-3" />
+        </div>
+      </div>
+
+      {/* Charts Table */}
+      <div className="w-full overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-[#E5E5EA] text-[12px] font-medium text-[#6E6E73]">
+              <th className="py-3 px-3 font-medium">Cliente</th>
+              <th className="py-3 px-3 font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Nome do prontuário
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                </span>
+              </th>
+              <th className="py-3 px-3 font-medium">Serviços</th>
+              <th className="py-3 px-3 font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Status
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                </span>
+              </th>
+              <th className="py-3 px-3 font-medium">Enviado por</th>
+              <th className="py-3 px-3 font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Versão
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                </span>
+              </th>
+              <th className="py-3 px-3 font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Última modificação
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                </span>
+              </th>
+              <th className="py-3 px-3 font-medium text-right">Ações</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-[#EFEFF4] text-[13px] text-[#1C1C1E]">
+            {filteredCharts.map((chart) => {
+              const menuOpen = openRowMenuId === chart.id;
+              return (
+                <tr
+                  key={chart.id}
+                  onClick={() => {
+                    setActiveChartId(chart.id);
+                    setActiveAnchor("chart_details");
+                  }}
+                  className="hover:bg-[#F5F6F7] transition-colors cursor-pointer"
+                >
+                  {/* Client */}
+                  <td className="py-3.5 px-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-full bg-[#ECEEF0] text-[#1C1C1E] text-[10.5px] font-bold flex items-center justify-center shrink-0">
+                        {getInitials(chart.clientName)}
+                      </span>
+                      <span className="font-medium text-[#1C1C1E]">
+                        {chart.clientName}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Chart Name */}
+                  <td className="py-3.5 px-3 text-[#1C1C1E]">
+                    {chart.chartName}
+                  </td>
+
+                  {/* Services */}
+                  <td className="py-3.5 px-3 text-[#6E6E73]">
+                    {chart.serviceNames.length > 0
+                      ? chart.serviceNames.join(", ")
+                      : ""}
+                  </td>
+
+                  {/* Status */}
+                  <td className="py-3.5 px-3">
+                    {chart.status === "completed" ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-[#9EE37D] text-[#1C1C1E]">
+                        Concluído
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-[#E5E5EA] text-[#1C1C1E]">
+                        Criado
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Submitted by */}
+                  <td className="py-3.5 px-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-[#ECEEF0] text-[#1C1C1E] text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {getInitials(chart.providerName)}
+                      </span>
+                      <span className="text-[#1C1C1E] leading-snug max-w-[180px]">
+                        {chart.providerName}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Version */}
+                  <td className="py-3.5 px-3 text-[#1C1C1E]">
+                    v{chart.version}
+                  </td>
+
+                  {/* Last modified */}
+                  <td className="py-3.5 px-3 text-[#1C1C1E]">
+                    {chart.lastModifiedLabel}
+                  </td>
+
+                  {/* Actions */}
+                  <td
+                    className="py-3.5 px-3 text-right relative"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenRowMenuId(menuOpen ? null : chart.id)
+                      }
+                      aria-label="Ações do prontuário"
+                      className={`w-8 h-8 rounded-full inline-flex items-center justify-center transition-colors ${
+                        menuOpen
+                          ? "border border-[#1C1C1E] bg-white"
+                          : "border border-transparent hover:border-[#D1D1D6] hover:bg-white"
+                      }`}
+                    >
+                      <MoreVertical className="w-4 h-4 text-[#1C1C1E]" />
+                    </button>
+
+                    {menuOpen && (
+                      <div className="absolute right-3 mt-1.5 w-36 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-1.5 text-left z-30">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveChartId(chart.id);
+                            setActiveAnchor("chart_details");
+                            setOpenRowMenuId(null);
+                          }}
+                          className="w-full px-4 py-2 text-[13px] text-[#1C1C1E] hover:bg-[#F5F5F7] block"
+                        >
+                          Visualizar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAmendChart(chart.id)}
+                          className="w-full px-4 py-2 text-[13px] text-[#1C1C1E] hover:bg-[#F5F5F7] block"
+                        >
+                          Retificar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={chart.status === "completed"}
+                          onClick={() => handleDeleteChart(chart)}
+                          className={`w-full px-4 py-2 text-[13px] block ${
+                            chart.status === "completed"
+                              ? "text-[#C7C7CC] cursor-not-allowed"
+                              : "text-[#B91C1C] hover:bg-[#F5F5F7]"
+                          }`}
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function ComplementarySectionView({
   section,
   state,
@@ -1758,31 +3136,7 @@ export function ComplementarySectionView({
 
   if (section === "charts") {
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-        <h1 className="text-[28px] font-bold text-[#1C1C1E]">
-          Fichas Clínicas &amp; Anamnese (Charts)
-        </h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {state.clients.map((cli) => (
-            <div
-              key={cli.id}
-              className="bg-white rounded-[20px] border border-[#E5E5EA] p-5 shadow-gg-card space-y-2"
-            >
-              <p className="text-[15px] font-bold text-[#1C1C1E]">
-                {cli.fullName}
-              </p>
-              <p className="text-[12px] text-[#6E6E73]">
-                <strong>Anamnese:</strong>{" "}
-                {cli.notesAndForms.anamnesis || "Sem observações."}
-              </p>
-              <p className="text-[12px] text-[#6E6E73]">
-                <strong>Fórmulas:</strong>{" "}
-                {cli.notesAndForms.formulasAndPreferences || "Não informado."}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ClinicalChartsSection state={state} onUpdateState={onUpdateState} />
     );
   }
 

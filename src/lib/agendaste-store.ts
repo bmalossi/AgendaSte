@@ -318,6 +318,53 @@ export interface InventoryProductItem {
   costCents: number;
 }
 
+export interface ClinicalChartMarkupPin {
+  id: string;
+  xPercent: number;
+  yPercent: number;
+  label: string;
+}
+
+export interface ClinicalChartPhotoItem {
+  id: string;
+  url: string;
+  caption: string;
+  stage: "before" | "after" | "mapping";
+  pins: ClinicalChartMarkupPin[];
+}
+
+export interface ClinicalChartProductUsage {
+  id: string;
+  inventoryProductId?: string;
+  productName: string;
+  skuOrLot: string;
+  quantity: string;
+  notes: string;
+}
+
+export interface ClinicalChartEntry {
+  id: string;
+  clientId: string;
+  clientName: string;
+  chartName: string;
+  serviceIds: string[];
+  serviceNames: string[];
+  providerId: string;
+  providerName: string;
+  status: "created" | "completed";
+  version: number;
+  createdDateLabel: string;
+  lastModifiedLabel: string;
+  photos: ClinicalChartPhotoItem[];
+  productsUsed: ClinicalChartProductUsage[];
+  templateType: "soap" | "aesthetic_anamnesis" | "injectables" | "free_note";
+  soapNoteName: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}
+
 export interface ReceptionAiLog {
   id: string;
   timestampLabel: string;
@@ -382,6 +429,7 @@ export interface StudioState {
     campaigns: MarketingCampaignItem[];
   };
   inventory: InventoryProductItem[];
+  clinicalCharts?: ClinicalChartEntry[];
   settings: {
     personal: {
       firstName: string;
@@ -1074,6 +1122,33 @@ export function createInitialStudioState(): StudioState {
         minStockAlert: 3,
         priceCents: 21000,
         costCents: 14000,
+      },
+    ],
+    clinicalCharts: [
+      {
+        id: "chart-stefany-1",
+        clientId: "cli-stefany",
+        clientName: "Stefany",
+        chartName: "17 de out. de 2026",
+        serviceIds: [],
+        serviceNames: [],
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        status: "completed",
+        version: 1,
+        createdDateLabel: "17 de out. de 2026",
+        lastModifiedLabel: "17 de out. de 2026 15:38",
+        photos: [],
+        productsUsed: [],
+        templateType: "soap",
+        soapNoteName: "Avaliação e Protocolo Inicial",
+        subjective:
+          "Cliente relata desejo de iluminação natural sem sensibilizar o couro cabeludo.",
+        objective:
+          "Fios com boa elasticidade, fundo natural 6.0 com 4cm de crescimento na raiz.",
+        assessment:
+          "Apta para protocolo de iluminação com proteção de pontes dissulfeto (Plex).",
+        plan: "Realizar teste de mecha preventivo, aplicar proteção plex e agendar manutenção de gloss em 30 dias.",
       },
     ],
     settings: {
