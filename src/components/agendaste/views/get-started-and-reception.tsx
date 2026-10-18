@@ -489,12 +489,16 @@ export function PublicBookingSiteModal({
   const [clientPhone, setClientPhone] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [pixPayload, setPixPayload] = useState<string | null>(null);
+  const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
+  const [pixTicketUrl, setPixTicketUrl] = useState<string | null>(null);
+  const [isGeneratingPix, setIsGeneratingPix] = useState(false);
   const [copiedPix, setCopiedPix] = useState(false);
 
   const selectedService =
     state.services.find((s) => s.id === selectedServiceId) ?? state.services[0];
 
   const handleGeneratePix = async () => {
+    setIsGeneratingPix(true);
     try {
       const res = await fetch("/api/pix/create", {
         method: "POST",
@@ -502,6 +506,8 @@ export function PublicBookingSiteModal({
         body: JSON.stringify({
           appointmentId: `aura-${Date.now()}`,
           clientName: clientName || "Cliente Aura Studio",
+          clientEmail: clientEmail || "cliente@aurastudio.com.br",
+          serviceId: selectedService?.id ?? "srv-agendaste",
           serviceName: selectedService?.name ?? "Procedimento",
           depositCents: selectedService?.depositCents || 5000,
         }),
@@ -511,10 +517,14 @@ export function PublicBookingSiteModal({
         data.qrCodePayload ??
           "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD"
       );
+      if (data.qrCodeBase64) setPixQrBase64(data.qrCodeBase64);
+      if (data.ticketUrl) setPixTicketUrl(data.ticketUrl);
     } catch {
       setPixPayload(
         "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD"
       );
+    } finally {
+      setIsGeneratingPix(false);
     }
   };
 
@@ -742,7 +752,7 @@ export function PublicBookingSiteModal({
                 <div className="p-3.5 rounded-xl bg-white border border-zinc-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-semibold text-[#18181B]">
-                      Sinal de Reserva (Pix Dinâmico)
+                      Sinal de Reserva (Pix · Mercado Pago)
                     </span>
                     <span className="text-[13px] font-mono font-bold text-[#6E56CF]">
                       {formatBRL(selectedService.depositCents)}
@@ -751,14 +761,28 @@ export function PublicBookingSiteModal({
                   {!pixPayload ? (
                     <button
                       type="button"
+                      disabled={isGeneratingPix}
                       onClick={handleGeneratePix}
-                      className="w-full py-2 rounded-full border border-zinc-300 text-[12px] font-semibold hover:bg-zinc-50 flex items-center justify-center gap-1.5"
+                      className="w-full py-2 rounded-full border border-zinc-300 text-[12px] font-semibold hover:bg-zinc-50 disabled:opacity-60 flex items-center justify-center gap-1.5"
                     >
                       <QrCode className="w-3.5 h-3.5" />
-                      <span>Gerar QR Code Pix do Sinal</span>
+                      <span>
+                        {isGeneratingPix
+                          ? "Gerando Pix no Mercado Pago..."
+                          : "Gerar QR Code Pix do Sinal"}
+                      </span>
                     </button>
                   ) : (
-                    <div className="space-y-2 pt-1">
+                    <div className="space-y-2.5 pt-1">
+                      {pixQrBase64 && (
+                        <div className="flex justify-center p-2 bg-white rounded-xl border border-zinc-200">
+                          <img
+                            src={`data:image/png;base64,${pixQrBase64}`}
+                            alt="QR Code Pix Mercado Pago"
+                            className="w-36 h-36 object-contain"
+                          />
+                        </div>
+                      )}
                       <div className="p-2 rounded-lg bg-zinc-50 border border-zinc-200 font-mono text-[10px] break-all text-zinc-600">
                         {pixPayload}
                       </div>
@@ -782,6 +806,16 @@ export function PublicBookingSiteModal({
                           </>
                         )}
                       </button>
+                      {pixTicketUrl && (
+                        <a
+                          href={pixTicketUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-center text-[11px] font-medium text-[#6E56CF] hover:underline"
+                        >
+                          Abrir comprovante / instruções Pix no Mercado Pago ↗
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>

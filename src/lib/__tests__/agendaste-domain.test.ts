@@ -560,6 +560,73 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
       assert.equal(json.success, false);
     }
   });
+
+  it("validates Mercado Pago webhook HMAC signature and processes order notifications", async () => {
+    const crypto = await import("node:crypto");
+    const {
+      verifyMercadoPagoWebhookSignature,
+      splitFullName,
+    } = await import("../mercadopago.ts");
+
+    assert.deepEqual(splitFullName("Stefany Malossi Silva"), {
+      firstName: "Stefany",
+      lastName: "Malossi Silva",
+    });
+
+    const secret = "mp_test_webhook_secret_123";
+    const dataId = "ORD01HRYFWNYRE1MR1E60MW3X0T2P";
+    const xRequestId = "req-998877";
+    const ts = "1704908010";
+    const manifest = `id:${dataId.toLowerCase()};request-id:${xRequestId};ts:${ts};`;
+    const v1 = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+
+    assert.equal(
+      verifyMercadoPagoWebhookSignature({
+        xSignature: `ts=${ts},v1=${v1}`,
+        xRequestId,
+        dataId,
+        secret,
+      }),
+      true
+    );
+
+    assert.equal(
+      verifyMercadoPagoWebhookSignature({
+        xSignature: `ts=${ts},v1=deadbeef`,
+        xRequestId,
+        dataId,
+        secret,
+      }),
+      false
+    );
+
+    const { POST: webhookPOST } = await import(
+      "../../app/api/webhooks/mercadopago/route.ts"
+    );
+    const req = new Request(
+      `http://localhost:3000/api/webhooks/mercadopago?data.id=${dataId}&type=order`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "order.processed",
+          type: "order",
+          data: { id: dataId },
+        }),
+      }
+    );
+    const res = await webhookPOST(req);
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      topic: string;
+      resourceId: string;
+    };
+    assert.equal(body.ok, true);
+    assert.equal(body.topic, "order");
+    assert.equal(body.resourceId, dataId);
+  });
 });
+
 
 

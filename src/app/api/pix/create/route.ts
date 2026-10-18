@@ -1,7 +1,15 @@
+import {
+  isMercadoPagoConfigured,
+  createMercadoPagoPixOrder,
+} from "../../../../lib/mercadopago.ts";
+
 interface CreatePixPayload {
   appointmentId: string;
   clientName: string;
+  clientEmail?: string;
+  serviceId?: string;
   serviceName?: string;
+  serviceDescription?: string;
   totalCents?: number;
   depositCents?: number;
   depositPercent?: number;
@@ -31,11 +39,52 @@ export async function POST(request: Request) {
       .replace(/[^a-zA-Z0-9]/g, "")
       .toUpperCase()}99A`;
 
+    // Tenta criar a Order Pix real na API v1/orders do Mercado Pago quando configurado
+    if (isMercadoPagoConfigured()) {
+      try {
+        const mpOrder = await createMercadoPagoPixOrder({
+          appointmentId: body.appointmentId,
+          clientName: body.clientName,
+          clientEmail: body.clientEmail,
+          serviceId: body.serviceId,
+          serviceName: body.serviceName,
+          serviceDescription: body.serviceDescription,
+          amountCents: depositCents,
+        });
+
+        return Response.json({
+          ok: true,
+          provider: "mercadopago",
+          mode: "mercadopago_orders_api",
+          orderId: mpOrder.orderId,
+          paymentId: mpOrder.paymentId,
+          txId: mpOrder.orderId,
+          appointmentId: body.appointmentId,
+          depositPercent: percent,
+          depositCents,
+          totalCents: effectiveTotalCents,
+          expiresInMinutes: 30,
+          pixCopiaECola: mpOrder.qrCode,
+          qrCodePayload: mpOrder.qrCode,
+          qrCodeBase64: mpOrder.qrCodeBase64,
+          ticketUrl: mpOrder.ticketUrl,
+          status: mpOrder.status,
+          statusDetail: mpOrder.statusDetail,
+        });
+      } catch (mpError) {
+        console.warn(
+          "[Mercado Pago Orders API] Fallback local acionado:",
+          mpError instanceof Error ? mpError.message : mpError
+        );
+      }
+    }
+
     const brCode = `00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br520400005303986540${amountBRL.length}${amountBRL}5802BR5920AURA STUDIO GLOSS6009SAO PAULO62190515${txId}6304D1F8`;
 
     return Response.json({
       ok: true,
       provider: process.env.PIX_PROVIDER || "mercadopago",
+      mode: "sandbox_fallback",
       txId,
       appointmentId: body.appointmentId,
       depositPercent: percent,
