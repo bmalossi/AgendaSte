@@ -2,7 +2,7 @@
   "name": "AgendaSte · Gestão e Agendamento",
   "short_name": "AgendaSte",
   "description": "Plataforma completa de agendamento online, prontuários, ponto de venda Pix e gestão de clientes para estética e beleza.",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#FFFFFF",

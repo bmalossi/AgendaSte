@@ -31,13 +31,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const percent = body.depositPercent ?? 30;
+    // Se depositCents for fornecido expressamente, respeitamos o valor exato.
+    // Se depositPercent for fornecido, calculamos proporcionalmente a partir de effectiveTotalCents.
+    // Se nenhum for fornecido, o padrão é 100% (pagamento integral).
     const depositCents =
-      body.depositCents ?? Math.round((effectiveTotalCents * percent) / 100);
+      body.depositCents !== undefined
+        ? body.depositCents
+        : body.depositPercent !== undefined
+        ? Math.round((effectiveTotalCents * body.depositPercent) / 100)
+        : effectiveTotalCents;
+
+    const percent =
+      body.depositPercent !== undefined
+        ? body.depositPercent
+        : effectiveTotalCents > 0
+        ? Math.round((depositCents / effectiveTotalCents) * 100)
+        : 100;
+
     const amountBRL = (depositCents / 100).toFixed(2);
     const txId = `AURA${body.appointmentId
       .replace(/[^a-zA-Z0-9]/g, "")
       .toUpperCase()}99A`;
+
+    let fallbackReason: string | undefined;
 
     // Tenta criar a Order Pix real na API v1/orders do Mercado Pago quando configurado
     if (isMercadoPagoConfigured()) {
@@ -72,9 +88,11 @@ export async function POST(request: Request) {
           statusDetail: mpOrder.statusDetail,
         });
       } catch (mpError) {
+        fallbackReason =
+          mpError instanceof Error ? mpError.message : String(mpError);
         console.warn(
           "[Mercado Pago Orders API] Fallback local acionado:",
-          mpError instanceof Error ? mpError.message : mpError
+          fallbackReason
         );
       }
     }
@@ -85,6 +103,7 @@ export async function POST(request: Request) {
       ok: true,
       provider: process.env.PIX_PROVIDER || "mercadopago",
       mode: "sandbox_fallback",
+      fallbackReason,
       txId,
       appointmentId: body.appointmentId,
       depositPercent: percent,
@@ -95,7 +114,8 @@ export async function POST(request: Request) {
       qrCodePayload: brCode,
       status: "pending_payment",
     });
-  } catch {
+  } catch (err) {
+    console.error("Error in POST /api/pix/create:", err);
     return Response.json(
       {
         ok: false,

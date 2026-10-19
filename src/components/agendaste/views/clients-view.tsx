@@ -27,6 +27,7 @@ import {
   StudioState,
   ClientProfile,
   formatBRL,
+  formatDateBR,
   createClientProfile,
   filterClientsByRetention,
   updateClientNotesAndForms,
@@ -127,19 +128,18 @@ export function ClientsView({
   const handleCreateClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFullName.trim()) return;
-    onUpdateState((prev) => {
-      const next = createClientProfile(prev, {
+    const newClientId = `cli-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    onUpdateState((prev) =>
+      createClientProfile(prev, {
+        id: newClientId,
         fullName: newFullName.trim(),
         email: newEmail.trim(),
         phone: newPhone.trim(),
         birthday: newBirthday.trim(),
         anamnesis: newAnamnesis.trim(),
-      });
-      if (next.clients[0]) {
-        setSelectedClientId(next.clients[0].id);
-      }
-      return next;
-    });
+      })
+    );
+    setSelectedClientId(newClientId);
     setAddClientModalOpen(false);
     setNewFullName("");
     setNewEmail("");
@@ -430,7 +430,7 @@ export function ClientsView({
                       {selectedClient.fullName}
                     </h2>
                     <p className="text-[12px] text-[#6E6E73]">
-                      Cliente desde {selectedClient.createdAtISO}
+                      Cliente desde {formatDateBR(selectedClient.createdAtISO)}
                     </p>
                   </div>
                 </div>
@@ -631,7 +631,7 @@ export function ClientsView({
                               {ev.serviceNames.join(" + ")}
                             </p>
                             <p className="text-[12px] text-[#6E6E73]">
-                              {ev.dateISO} · {ev.startTime} – {ev.endTime}
+                              {formatDateBR(ev.dateISO)} · {ev.startTime} – {ev.endTime}
                             </p>
                           </div>
                           <span className="font-mono text-[13px] font-bold text-[#1C1C1E]">
@@ -837,7 +837,7 @@ export function ClientsView({
                             {grp.serviceName}
                           </span>
                           <span className="text-[11px] font-mono text-[#6E56CF] font-bold">
-                            {grp.appointmentDateISO}
+                            {formatDateBR(grp.appointmentDateISO)}
                           </span>
                         </div>
                         <p className="text-[11px] text-[#6E6E73]">{grp.notes}</p>
@@ -852,7 +852,7 @@ export function ClientsView({
                                 setPreviewPhoto({
                                   url,
                                   title: `${grp.serviceName} · ${selectedClient.fullName}`,
-                                  date: grp.appointmentDateISO,
+                                  date: formatDateBR(grp.appointmentDateISO),
                                   notes: grp.notes,
                                 })
                               }
@@ -924,7 +924,7 @@ export function ClientsView({
                           {m.membershipName}
                         </p>
                         <p className="text-[12px] text-[#6E56CF] font-semibold">
-                          {m.remainingMonthlyCredits} crédito(s) disponíveis neste mês · Renova em {m.renewsAtISO}
+                          {m.remainingMonthlyCredits} crédito(s) disponíveis neste mês · Renova em {formatDateBR(m.renewsAtISO)}
                         </p>
                       </div>
                     ))
@@ -953,7 +953,7 @@ export function ClientsView({
                         </p>
                         <p className="text-[12px] text-[#16A34A] font-semibold">
                           Restam {pkg.remainingSessions} de {pkg.totalSessions}{" "}
-                          sessões · Válido até {pkg.expiresAtISO}
+                          sessões · Válido até {formatDateBR(pkg.expiresAtISO)}
                         </p>
                       </div>
                     ))

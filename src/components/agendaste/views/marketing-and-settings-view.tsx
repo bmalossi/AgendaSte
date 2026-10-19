@@ -57,6 +57,7 @@ import {
   updateStudioSettings,
   filterClientsByRetention,
 } from "@/lib/agendaste-store";
+import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
 
 // =============================================================================
 // 1. MARKETING VIEW (07-1-marketing.png & 07-1-1-marketing.png)
@@ -427,7 +428,7 @@ interface SettingsViewProps {
 
 export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
   const [topTab, setTopTab] = useState<
-    "personal" | "team" | "business" | "membership"
+    "personal" | "team" | "business" | "whatsapp" | "membership"
   >("personal");
 
   const [firstName, setFirstName] = useState(
@@ -460,7 +461,7 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
 
   return (
     <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-      {/* Header + 4 Horizontal Top Tabs (08-1-settings.png) */}
+      {/* Header + 5 Horizontal Top Tabs (08-1-settings.png) */}
       <div className="space-y-4 border-b border-[#E5E5EA] pb-4">
         <h1 className="text-[28px] font-bold text-[#1C1C1E]">
           Configurações (Settings)
@@ -471,6 +472,7 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
             { id: "personal" as const, label: "Pessoal (Personal)" },
             { id: "team" as const, label: "Equipe (Team)" },
             { id: "business" as const, label: "Negócio (Business)" },
+            { id: "whatsapp" as const, label: "WhatsApp & Mensagens" },
             { id: "membership" as const, label: "Plano & Assinatura" },
           ].map((t) => (
             <button
@@ -760,6 +762,33 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
             >
               Salvar Configurações do Negócio
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: WHATSAPP & MENSAGENS */}
+      {topTab === "whatsapp" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4">
+            <div>
+              <h2 className="text-[18px] font-bold text-[#1C1C1E]">
+                WhatsApp &amp; Automações de Atendimento
+              </h2>
+              <p className="text-[13px] text-[#6E6E73] mt-0.5">
+                Configure seu próprio número, selecione seu provedor (Evolution API, Meta Cloud ou wa.me) e personalize seus modelos de confirmação e lembretes automáticos.
+              </p>
+            </div>
+            <WhatsAppConfigCard
+              state={state}
+              setState={(updater) => {
+                if (typeof updater === "function") {
+                  onUpdateState(updater);
+                } else {
+                  onUpdateState(() => updater);
+                }
+              }}
+              showSaveAndContinue={true}
+            />
           </div>
         </div>
       )}

@@ -25,7 +25,11 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgendaSte · Aura Studio — Plataforma Completa de Agendamento & Gestão",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://agendaste.com.br"),
+  title: {
+    default: "AgendaSte — Plataforma de Agendamento & Gestão para Estética",
+    template: "%s · AgendaSte",
+  },
   description:
     "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
   manifest: "/manifest.json",
@@ -36,6 +40,15 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    title: "AgendaSte — Plataforma de Agendamento & Gestão para Estética",
+    description:
+      "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
+    url: "https://agendaste.com.br",
+    siteName: "AgendaSte",
+    locale: "pt_BR",
+    type: "website",
   },
 };
 

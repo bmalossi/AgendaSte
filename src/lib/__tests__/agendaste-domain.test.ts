@@ -25,12 +25,17 @@ import {
   createAndSendInvoice,
   executeQuickSaleCheckout,
   issueGiftCard,
+  formatDateBR,
+  getTodayDateISO,
   processWhatsappInboundReply,
   calculatePayrollSummary,
   toggleTimeclockAction,
   generateMarketingDraftAI,
   sendMarketingCampaign,
   updateStudioSettings,
+  updateUserWhatsAppConfig,
+  disconnectUserWhatsApp,
+  formatWhatsAppMessage,
 } from "../agendaste-store.ts";
 
 describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Online (Aura Studio)", () => {
@@ -198,10 +203,14 @@ describe("Ticket 02 — Catálogo Completo (Serviços, Pacotes, Assinaturas e Re
 describe("Ticket 03 — Agenda Inteligente (Calendar), Salto de Semanas, Trava de Recursos e Tempo de Processamento", () => {
   it("skips calendar date forward by +2 to +8 weeks", () => {
     const initial = createInitialStudioState();
-    assert.equal(initial.calendarView.selectedDateISO, "2026-10-17");
-    const jumped2 = skipCalendarByWeeks(initial, 2);
+    assert.equal(initial.calendarView.selectedDateISO, getTodayDateISO());
+    const baseState = {
+      ...initial,
+      calendarView: { ...initial.calendarView, selectedDateISO: "2026-10-17" },
+    };
+    const jumped2 = skipCalendarByWeeks(baseState, 2);
     assert.equal(jumped2.calendarView.selectedDateISO, "2026-10-31");
-    const jumped4 = skipCalendarByWeeks(initial, 4);
+    const jumped4 = skipCalendarByWeeks(baseState, 4);
     assert.equal(jumped4.calendarView.selectedDateISO, "2026-11-14");
   });
 
@@ -399,6 +408,39 @@ describe("Ticket 05 — Pagamentos (Payments): Venda Rápida POS, Faturas (Invoi
     });
     assert.equal(state.giftCards[0].initialBalanceCents, 30000);
   });
+
+  it("registers appointment on calendar and navigates calendarView when Quick Sale is completed without existing appointment", () => {
+    const initial = createInitialStudioState();
+    const prevEventsCount = initial.calendarEvents.length;
+
+    const updated = executeQuickSaleCheckout(initial, {
+      clientId: "cli-stefany",
+      providerId: "staff-bruno",
+      itemsSummary: "Protocolo Rejuvenation Laser",
+      amountCents: 18000,
+      paymentMethod: "Pix",
+      status: "Pago",
+      dateISO: "2026-10-19",
+      appointmentTime: "14:30",
+    });
+
+    assert.equal(updated.calendarEvents.length, prevEventsCount + 1);
+    const newEvent = updated.calendarEvents[0];
+    assert.equal(newEvent.eventType, "appointment");
+    assert.equal(newEvent.dateISO, "2026-10-19");
+    assert.equal(newEvent.startTime, "14:30");
+    assert.equal(newEvent.status, "completed");
+    assert.equal(newEvent.depositPaid, true);
+    assert.equal(newEvent.clientName, "Stefany");
+    assert.equal(updated.calendarView.selectedDateISO, "2026-10-19");
+  });
+
+  it("formats dates in Brazilian DD/MM/YYYY format with formatDateBR", () => {
+    assert.equal(formatDateBR("2026-10-19"), "19/10/2026");
+    assert.equal(formatDateBR("2026-05-03"), "03/05/2026");
+    assert.equal(formatDateBR("2026-10-19T10:15:00.000Z"), "19/10/2026");
+    assert.equal(formatDateBR(""), "");
+  });
 });
 
 describe("Ticket 06 — Recepção IA (Reception) & WhatsApp 2-Way Sync", () => {
@@ -414,6 +456,52 @@ describe("Ticket 06 — Recepção IA (Reception) & WhatsApp 2-Way Sync", () => 
     assert.equal(updatedEvent.status, "confirmed");
     assert.equal(updatedEvent.whatsappClientReply, "1_confirmed");
     assert.match(synced.reception.logs[0].messageText, /1/);
+  });
+
+  it("allows studio owner to configure their own WhatsApp instance, number and templates", () => {
+    let state = createInitialStudioState();
+    assert.equal(state.reception.userConfig?.connected, true);
+
+    // Atualiza configurações personalizadas do WhatsApp do usuário
+    state = updateUserWhatsAppConfig(state, {
+      provider: "evolution_api",
+      phoneNumber: "+55 (11) 98765-4321",
+      instanceName: "meuestudio-oficial",
+      apiUrl: "https://minha-api.com",
+      templates: {
+        reminder24h: "Olá {nome}, confirmamos seu horário no {estudio} para {data} às {horario}?",
+        reminder2h: "Oi {nome}, faltam 2h para seu horário às {horario}!",
+        pixDeposit: "Olá {nome}, seu sinal é {valor_sinal}.",
+        reactivation45d: "Oi {nome}, saudades do {estudio}!",
+      },
+      connected: true,
+    });
+
+    assert.equal(state.reception.whatsappNumber, "+55 (11) 98765-4321");
+    assert.equal(state.reception.userConfig?.instanceName, "meuestudio-oficial");
+    assert.equal(state.reception.userConfig?.apiUrl, "https://minha-api.com");
+
+    // Formata mensagem com variáveis dinâmicas
+    const formatted = formatWhatsAppMessage(
+      state.reception.userConfig!.templates.reminder24h,
+      {
+        nome: "Mariana",
+        estudio: "Aura Studio",
+        data: "21/10/2026",
+        horario: "15:00",
+      }
+    );
+    assert.equal(
+      formatted,
+      "Olá Mariana, confirmamos seu horário no Aura Studio para 21/10/2026 às 15:00?"
+    );
+
+    // Desconecta o WhatsApp
+    state = disconnectUserWhatsApp(state);
+    assert.equal(state.reception.whatsappConnected, false);
+    assert.equal(state.reception.userConfig?.connected, false);
+    // Preserva templates após desconectar
+    assert.match(state.reception.userConfig!.templates.reminder24h, /confirmamos/);
   });
 });
 
@@ -513,6 +601,34 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     assert.equal(json.ok, true);
     assert.equal(json.twoWayWebhookListening, true);
     assert.match(json.previewMessage, /Stefany Malossi/);
+  });
+
+  it("POST /api/whatsapp/send supports custom per-user whatsappConfig and manual wa.me link", async () => {
+    const { POST: sendWhatsAppPOST } = await import("../../app/api/whatsapp/send/route.ts");
+    const req = new Request("http://localhost:3000/api/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientName: "Bruna Silva",
+        clientPhone: "(11) 98888-9999",
+        customMessage: "Olá Bruna, seu atendimento está agendado!",
+        whatsappConfig: {
+          provider: "wa_web_manual",
+          phoneNumber: "+55 (11) 97777-8888",
+        },
+      }),
+    });
+    const res = await sendWhatsAppPOST(req);
+    assert.equal(res.status, 200);
+    const json = (await res.json()) as {
+      ok: boolean;
+      engine: string;
+      waMeUrl?: string;
+      recipient: string;
+    };
+    assert.equal(json.ok, true);
+    assert.equal(json.engine, "wa_web_manual");
+    assert.ok(json.waMeUrl?.includes("https://wa.me/5511988889999"));
   });
 
   it("enforces ADR-0002 Resource Lock on bookFromPublicSite when a shared resource is busy", () => {
@@ -625,6 +741,15 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     assert.equal(body.ok, true);
     assert.equal(body.topic, "order");
     assert.equal(body.resourceId, dataId);
+  });
+
+  it("GET /api/pix/status checks payment status or falls back gracefully", async () => {
+    const { GET: statusGET } = await import("../../app/api/pix/status/route.ts");
+    const req = new Request("http://localhost:3000/api/pix/status?paymentId=test-pay-123");
+    const res = await statusGET(req);
+    assert.equal(res.status, 200);
+    const json = (await res.json()) as { ok: boolean; status?: string };
+    assert.equal(json.ok, true);
   });
 });
 

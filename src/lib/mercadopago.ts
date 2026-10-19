@@ -75,6 +75,80 @@ export async function createMercadoPagoPixOrder(
   const idempotencyKey = crypto.randomUUID();
   const externalReference = input.appointmentId.slice(0, 64);
 
+  // 1. Tenta criar o Pix via API oficial e direta de Pagamentos (/v1/payments)
+  // Esta API é o padrão do Checkout Transparente Pix: retorna o QR Code e ticket_url imediatamente.
+  try {
+    const paymentPayload = {
+      transaction_amount: Number(amountBRL),
+      description: (
+        input.serviceDescription ||
+        input.serviceName ||
+        `Atendimento - ${input.clientName}`
+      ).slice(0, 250),
+      payment_method_id: "pix",
+      payer: {
+        email: payerEmail,
+        first_name: firstName,
+        last_name: lastName,
+      },
+      external_reference: externalReference,
+    };
+
+    const paymentRes = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "X-Idempotency-Key": idempotencyKey,
+      },
+      body: JSON.stringify(paymentPayload),
+    });
+
+    const paymentData = (await paymentRes.json()) as {
+      id?: string | number;
+      status?: string;
+      status_detail?: string;
+      message?: string;
+      point_of_interaction?: {
+        transaction_data?: {
+          qr_code?: string;
+          qr_code_base64?: string;
+          ticket_url?: string;
+        };
+      };
+      errors?: Array<{ message?: string; code?: string }>;
+    };
+
+    const qrCode = paymentData.point_of_interaction?.transaction_data?.qr_code;
+    const qrCodeBase64 =
+      paymentData.point_of_interaction?.transaction_data?.qr_code_base64;
+    const ticketUrl =
+      paymentData.point_of_interaction?.transaction_data?.ticket_url;
+
+    if (paymentRes.ok && qrCode) {
+      return {
+        orderId: String(paymentData.id || externalReference),
+        paymentId: String(paymentData.id || externalReference),
+        status: paymentData.status || "pending",
+        statusDetail: paymentData.status_detail || "waiting_transfer",
+        qrCode,
+        qrCodeBase64,
+        ticketUrl,
+      };
+    }
+
+    if (!paymentRes.ok) {
+      console.warn("[Mercado Pago Payments API]:", {
+        status: paymentRes.status,
+        data: paymentData,
+      });
+    }
+  } catch (paymentErr) {
+    console.warn("[Mercado Pago Payments API Exception]:", paymentErr);
+  }
+
+  // 2. Fallback / Alternativa: Orders API (/v1/orders)
   const orderPayload = {
     type: "online",
     total_amount: amountBRL,
@@ -85,18 +159,6 @@ export async function createMercadoPagoPixOrder(
         state_id: input.stateId || "BR-SP",
       },
     },
-    items: [
-      {
-        id: input.serviceId || "srv-agendaste",
-        title: input.serviceName || "Sinal de Reserva AgendaSte",
-        description:
-          input.serviceDescription ||
-          `Reserva de horário (${input.serviceName || "Procedimento"}) - ${input.clientName}`,
-        category_id: "services",
-        quantity: 1,
-        unit_price: amountBRL,
-      },
-    ],
     transactions: {
       payments: [
         {
@@ -105,14 +167,11 @@ export async function createMercadoPagoPixOrder(
             id: "pix",
             type: "bank_transfer",
           },
-          expiration_time: "PT30M",
         },
       ],
     },
     payer: {
       email: payerEmail,
-      first_name: firstName,
-      last_name: lastName,
     },
   };
 
@@ -122,7 +181,7 @@ export async function createMercadoPagoPixOrder(
       Accept: "application/json",
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
-      "X-Idempotency-Key": idempotencyKey,
+      "X-Idempotency-Key": crypto.randomUUID(),
     },
     body: JSON.stringify(orderPayload),
   });
@@ -133,11 +192,25 @@ export async function createMercadoPagoPixOrder(
     status_detail?: string;
     message?: string;
     errors?: Array<{ message?: string; code?: string }>;
+    point_of_interaction?: {
+      transaction_data?: {
+        qr_code?: string;
+        qr_code_base64?: string;
+        ticket_url?: string;
+      };
+    };
     transactions?: {
       payments?: Array<{
         id?: string;
         status?: string;
         status_detail?: string;
+        point_of_interaction?: {
+          transaction_data?: {
+            qr_code?: string;
+            qr_code_base64?: string;
+            ticket_url?: string;
+          };
+        };
         payment_method?: {
           qr_code?: string;
           qr_code_base64?: string;
@@ -148,13 +221,59 @@ export async function createMercadoPagoPixOrder(
   };
 
   const payment = data.transactions?.payments?.[0];
-  const qrCode = payment?.payment_method?.qr_code;
+  let qrCode =
+    payment?.point_of_interaction?.transaction_data?.qr_code ||
+    data.point_of_interaction?.transaction_data?.qr_code ||
+    payment?.payment_method?.qr_code;
+  let qrCodeBase64 =
+    payment?.point_of_interaction?.transaction_data?.qr_code_base64 ||
+    data.point_of_interaction?.transaction_data?.qr_code_base64 ||
+    payment?.payment_method?.qr_code_base64;
+  let ticketUrl =
+    payment?.point_of_interaction?.transaction_data?.ticket_url ||
+    data.point_of_interaction?.transaction_data?.ticket_url ||
+    payment?.payment_method?.ticket_url;
+
+  if (response.ok && !qrCode && payment?.id) {
+    try {
+      const getPayRes = await fetch(
+        `https://api.mercadopago.com/v1/payments/${encodeURIComponent(payment.id)}`,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      if (getPayRes.ok) {
+        const getPayData = (await getPayRes.json()) as {
+          point_of_interaction?: {
+            transaction_data?: {
+              qr_code?: string;
+              qr_code_base64?: string;
+              ticket_url?: string;
+            };
+          };
+        };
+        qrCode = getPayData.point_of_interaction?.transaction_data?.qr_code || qrCode;
+        qrCodeBase64 = getPayData.point_of_interaction?.transaction_data?.qr_code_base64 || qrCodeBase64;
+        ticketUrl = getPayData.point_of_interaction?.transaction_data?.ticket_url || ticketUrl;
+      }
+    } catch {
+      // Ignora erro secundário
+    }
+  }
 
   if (!response.ok || !qrCode) {
     const errorDetail =
       data.errors?.[0]?.message ||
       data.message ||
+      (typeof data === "object" ? JSON.stringify(data) : null) ||
       `HTTP ${response.status} ao criar Order Pix no Mercado Pago`;
+    console.error("[Mercado Pago Orders API Response Error]:", {
+      status: response.status,
+      data,
+    });
     throw new Error(errorDetail);
   }
 
@@ -165,8 +284,8 @@ export async function createMercadoPagoPixOrder(
     statusDetail:
       payment?.status_detail || data.status_detail || "waiting_transfer",
     qrCode,
-    qrCodeBase64: payment?.payment_method?.qr_code_base64,
-    ticketUrl: payment?.payment_method?.ticket_url,
+    qrCodeBase64,
+    ticketUrl,
   };
 }
 

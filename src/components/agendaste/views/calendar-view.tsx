@@ -28,6 +28,7 @@ import {
   CalendarEventItem,
   CalendarEventType,
   formatBRL,
+  formatDateBR,
   parseTimeMinutes,
   formatMinutesToHHMM,
   skipCalendarByWeeks,
@@ -37,6 +38,7 @@ import {
   processWhatsappInboundReply,
   executeQuickSaleCheckout,
   saveCatalogService,
+  getTodayDateISO,
 } from "@/lib/agendaste-store";
 
 interface CalendarViewProps {
@@ -149,11 +151,25 @@ export function CalendarView({
   const selectedDateISO = state.calendarView.selectedDateISO;
   const viewMode = state.calendarView.mode;
 
-  // Determine if viewing "today" (local date or active project demo date)
+  // Determine if viewing "today" (local date)
   const isViewingToday =
-    currentTime !== null &&
-    (selectedDateISO === currentTime.todayISO ||
-      selectedDateISO === "2026-10-17");
+    currentTime !== null
+      ? selectedDateISO === currentTime.todayISO
+      : selectedDateISO === getTodayDateISO();
+
+  // If calendar opens on the old demo date 2026-10-17, automatically sync to today
+  useEffect(() => {
+    if (state.calendarView.selectedDateISO === "2026-10-17") {
+      const today = getTodayDateISO();
+      onUpdateState((prev) => ({
+        ...prev,
+        calendarView: {
+          ...prev.calendarView,
+          selectedDateISO: today,
+        },
+      }));
+    }
+  }, [state.calendarView.selectedDateISO, onUpdateState]);
 
   // Auto-scroll to current time on mount if viewing today
   useEffect(() => {
@@ -173,7 +189,7 @@ export function CalendarView({
   }, [currentTime, isViewingToday]);
 
   const handleGoToToday = () => {
-    const targetISO = currentTime?.todayISO ?? "2026-10-17";
+    const targetISO = currentTime?.todayISO ?? getTodayDateISO();
     onUpdateState((prev) => ({
       ...prev,
       calendarView: {
@@ -374,7 +390,7 @@ export function CalendarView({
                   </div>
                   <p className="mt-2.5 text-[11px] text-[#6E6E73]">
                     Data selecionada:{" "}
-                    <strong className="text-[#1C1C1E]">{selectedDateISO}</strong>
+                    <strong className="text-[#1C1C1E]">{formatDateBR(selectedDateISO)}</strong>
                   </p>
                 </div>
               </div>

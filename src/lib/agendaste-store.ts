@@ -376,6 +376,73 @@ export interface ReceptionAiLog {
   outcomeBadge: string;
 }
 
+export type BookingSiteThemeId =
+  | "classic"
+  | "billboard"
+  | "canvas"
+  | "energy"
+  | "organic"
+  | "play";
+
+export interface DayBusinessHours {
+  dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Domingo .. 6 = Sábado
+  label: string;
+  isOpen: boolean;
+  startTime: string; // "08:00"
+  endTime: string;   // "17:00"
+}
+
+export interface WebsiteBookingSetupConfig {
+  theme: BookingSiteThemeId;
+  subdomainSlug: string;
+  websitePublished: boolean;
+  hasFixedAddress: boolean;
+  doesHouseCalls: boolean;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  zipCode: string;
+  state: string;
+  businessHours: DayBusinessHours[];
+  autoApproveAppointments: boolean;
+  onlineBookingGuarantee: "pix_deposit" | "card_on_file" | "none";
+  paymentsSetup: {
+    payoutMethod: "pix_key" | "bank_account" | "debit_card";
+    pixKeyType: "cpf_cnpj" | "email" | "phone" | "random";
+    pixKeyValue: string;
+    bankName: string;
+    routingOrAgency: string;
+    accountNumber: string;
+    debitCardLast4: string;
+    identityVerified: boolean;
+    setupCompleted: boolean;
+  };
+}
+
+export type WhatsAppProviderType = "evolution_api" | "meta_cloud" | "wa_web_manual";
+
+export interface UserWhatsAppTemplates {
+  reminder24h: string;
+  reminder2h: string;
+  pixDeposit: string;
+  reactivation45d: string;
+}
+
+export interface UserWhatsAppConfig {
+  provider: WhatsAppProviderType;
+  phoneNumber: string;
+  instanceName: string;
+  apiUrl?: string;
+  apiKey?: string;
+  metaPhoneNumberId?: string;
+  metaBusinessAccountId?: string;
+  metaAccessToken?: string;
+  connected: boolean;
+  connectedAt?: string;
+  pairingQrCode?: string;
+  templates: UserWhatsAppTemplates;
+}
+
 export interface StudioState {
   onboarding: {
     steps: Array<{
@@ -396,6 +463,7 @@ export interface StudioState {
     send24hReminder: boolean;
     send2hReminder: boolean;
     logs: ReceptionAiLog[];
+    userConfig?: UserWhatsAppConfig;
   };
   calendarView: {
     selectedDateISO: string;
@@ -469,6 +537,7 @@ export interface StudioState {
       cancellationWindowHours: number;
       noShowFeePercent: number;
     };
+    website: WebsiteBookingSetupConfig;
   };
   lastToastMessage: string | null;
 }
@@ -508,6 +577,43 @@ export function addDaysToDateISO(dateISO: string, daysToAdd: number): string {
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + daysToAdd);
   return dt.toISOString().slice(0, 10);
+}
+
+export function getTodayDateISO(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function formatDateBR(dateISO: string): string {
+  try {
+    if (!dateISO) return "";
+    const clean = dateISO.trim().slice(0, 10);
+    const parts = clean.split("-");
+    if (parts.length === 3) {
+      const [y, m, d] = parts;
+      if (y && m && d && y.length === 4) {
+        return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+      }
+    }
+    return dateISO;
+  } catch {
+    return dateISO;
+  }
+}
+
+export function formatAppointmentDateLabel(
+  dateISO: string,
+  timeHHMM?: string
+): string {
+  try {
+    const brDate = formatDateBR(dateISO);
+    return timeHHMM ? `${brDate}, ${timeHHMM}` : brDate;
+  } catch {
+    return timeHHMM ? `${dateISO}, ${timeHHMM}` : dateISO;
+  }
 }
 
 // =============================================================================
@@ -551,6 +657,25 @@ export function createInitialStudioState(): StudioState {
       autoReplyMissedCallsAndTexts: true,
       send24hReminder: true,
       send2hReminder: true,
+      userConfig: {
+        provider: "evolution_api",
+        phoneNumber: "+55 (11) 99752-5522",
+        instanceName: "aurastudio-whatsapp",
+        apiUrl: "https://api.agendaste.com/evolution",
+        apiKey: "",
+        connected: true,
+        connectedAt: "2026-10-17T08:00:00Z",
+        templates: {
+          reminder24h:
+            "Olá {nome}! Lembrete do seu horário amanhã às {horario} no {estudio}. Responda 1 para Confirmar ou 2 para Reagendar.",
+          reminder2h:
+            "Oi {nome}! Seu horário no {estudio} é daqui a 2 horas ({horario}). Estamos te esperando!",
+          pixDeposit:
+            "Olá {nome}! Para garantir seu horário no {estudio}, faça o pagamento do sinal de {valor_sinal} pelo Pix abaixo:\n{pix_copia_cola}",
+          reactivation45d:
+            "Oi {nome}! Faz tempo que não nos vemos no {estudio}. Que tal renovar seu visual com um mimo especial esta semana?",
+        },
+      },
       logs: [
         {
           id: "rec-log-1",
@@ -587,7 +712,7 @@ export function createInitialStudioState(): StudioState {
       ],
     },
     calendarView: {
-      selectedDateISO: "2026-10-17",
+      selectedDateISO: getTodayDateISO(),
       mode: "day",
       selectedProviderId: "staff-bruno",
     },
@@ -1190,6 +1315,7 @@ export function createInitialStudioState(): StudioState {
         cancellationWindowHours: 24,
         noShowFeePercent: 50,
       },
+      website: getDefaultWebsiteBookingConfig("Bruno Fernandes Malossi Silva"),
     },
     lastToastMessage: null,
   };
@@ -1198,6 +1324,122 @@ export function createInitialStudioState(): StudioState {
 // =============================================================================
 // TICKET 01 — FUNÇÕES DE DOMÍNIO: ONBOARDING & SITE DE AGENDAMENTO ONLINE
 // =============================================================================
+
+export function normalizeSubdomainSlug(raw: string): string {
+  if (!raw || typeof raw !== "string") return "meu-estudio";
+  const cleaned = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  // Se já contém hífens explícitos ou símbolos, preserva formato com hífen
+  if (cleaned.includes("-") || /[^a-z0-9\s]/.test(cleaned)) {
+    const slug = cleaned.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug || "meu-estudio";
+  }
+
+  // Caso seja nome alfanumérico com espaços (ex: "Bruno Fernandes Malossi Silva"), une sem espaço
+  const compact = cleaned.replace(/\s+/g, "");
+  return compact || "meu-estudio";
+}
+
+export function getDefaultWebsiteBookingConfig(
+  businessName = "Bruno Fernandes Malossi Silva"
+): WebsiteBookingSetupConfig {
+  return {
+    theme: "classic",
+    subdomainSlug: normalizeSubdomainSlug(businessName),
+    websitePublished: false,
+    hasFixedAddress: true,
+    doesHouseCalls: false,
+    addressLine1: "Rua Mateus Cipullo, 49 casa 7",
+    addressLine2: "",
+    city: "Praia Grande",
+    zipCode: "11724-000",
+    state: "SP",
+    businessHours: [
+      { dayOfWeek: 0, label: "Domingo", isOpen: false, startTime: "08:00", endTime: "14:00" },
+      { dayOfWeek: 1, label: "Segunda-feira", isOpen: true, startTime: "08:00", endTime: "18:00" },
+      { dayOfWeek: 2, label: "Terça-feira", isOpen: true, startTime: "08:00", endTime: "18:00" },
+      { dayOfWeek: 3, label: "Quarta-feira", isOpen: true, startTime: "08:00", endTime: "18:00" },
+      { dayOfWeek: 4, label: "Quinta-feira", isOpen: true, startTime: "08:00", endTime: "18:00" },
+      { dayOfWeek: 5, label: "Sexta-feira", isOpen: true, startTime: "08:00", endTime: "18:00" },
+      { dayOfWeek: 6, label: "Sábado", isOpen: true, startTime: "08:00", endTime: "17:00" },
+    ],
+    autoApproveAppointments: true,
+    onlineBookingGuarantee: "pix_deposit",
+    paymentsSetup: {
+      payoutMethod: "pix_key",
+      pixKeyType: "email",
+      pixKeyValue: "pix@aurastudio.com.br",
+      bankName: "Nu Pagamentos S.A. (Nubank)",
+      routingOrAgency: "0001",
+      accountNumber: "1234567-8",
+      debitCardLast4: "4678",
+      identityVerified: false,
+      setupCompleted: false,
+    },
+  };
+}
+
+export function claimBookingSiteSubdomain(
+  state: StudioState,
+  subdomainInput: string,
+  theme?: BookingSiteThemeId,
+  businessName?: string
+): StudioState {
+  const slug = normalizeSubdomainSlug(subdomainInput);
+  const currentWebsite =
+    state.settings.website ??
+    getDefaultWebsiteBookingConfig(state.settings.business.businessName);
+  const updatedWebsite: WebsiteBookingSetupConfig = {
+    ...currentWebsite,
+    subdomainSlug: slug,
+    websitePublished: true,
+    theme: theme ?? currentWebsite.theme,
+  };
+
+  return {
+    ...state,
+    onboarding: {
+      ...state.onboarding,
+      steps: state.onboarding.steps.map((s) =>
+        s.id === "booking_site" ? { ...s, completed: true } : s
+      ),
+    },
+    settings: {
+      ...state.settings,
+      business: {
+        ...state.settings.business,
+        businessName:
+          businessName?.trim() || state.settings.business.businessName,
+        bookingSlug: slug,
+      },
+      website: updatedWebsite,
+    },
+    lastToastMessage: "URL atualizada com sucesso",
+  };
+}
+
+export function updateWebsiteSetupConfig(
+  state: StudioState,
+  patch: Partial<WebsiteBookingSetupConfig>
+): StudioState {
+  const currentWebsite =
+    state.settings.website ??
+    getDefaultWebsiteBookingConfig(state.settings.business.businessName);
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      website: {
+        ...currentWebsite,
+        ...patch,
+      },
+    },
+  };
+}
 
 export function completeOnboardingStep(
   state: StudioState,
@@ -1338,7 +1580,11 @@ export function bookFromPublicSite(
     dateISO: string;
     startTime: string;
     selectedAddOnIds: string[];
-    depositPaidViaPix: boolean;
+    depositPaidViaPix?: boolean;
+    cardOnFile?: {
+      last4: string;
+      cardHolder: string;
+    };
   }
 ): { ok: true; state: StudioState } | { ok: false; error: string } {
   const service = state.services.find((s) => s.id === input.serviceId);
@@ -1365,6 +1611,34 @@ export function bookFromPublicSite(
   const totalCents = service.priceCents + addOnsPrice;
   const depositCents = service.requireDeposit ? service.depositCents : 0;
 
+  // Validação de horário de funcionamento e expediente do negócio
+  const websiteConfig = state.settings.website;
+  if (websiteConfig?.businessHours && websiteConfig.businessHours.length > 0) {
+    const [year, month, day] = input.dateISO.split("-").map(Number);
+    const dateObj = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    const dayOfWeek = dateObj.getUTCDay(); // 0 = Domingo, 1 = Segunda, etc.
+    const daySchedule = websiteConfig.businessHours.find(
+      (h) => h.dayOfWeek === dayOfWeek
+    );
+
+    if (daySchedule) {
+      if (!daySchedule.isOpen) {
+        return {
+          ok: false,
+          error: `O estúdio não realiza atendimentos em ${daySchedule.label.toLowerCase()}s.`,
+        };
+      }
+      const openMin = parseTimeMinutes(daySchedule.startTime);
+      const closeMin = parseTimeMinutes(daySchedule.endTime);
+      if (startMin < openMin || endMin > closeMin) {
+        return {
+          ok: false,
+          error: `Horário solicitado (${input.startTime} às ${endTime}) está fora do expediente de ${daySchedule.label} (${daySchedule.startTime} às ${daySchedule.endTime}).`,
+        };
+      }
+    }
+  }
+
   const conflictCheck = checkCalendarSlotConflict(state, {
     dateISO: input.dateISO,
     startMin,
@@ -1384,6 +1658,7 @@ export function bookFromPublicSite(
       c.fullName.toLowerCase() === input.clientName.toLowerCase()
   );
 
+  const isDepositPaid = Boolean(input.depositPaidViaPix);
   let updatedClients = state.clients;
   if (!existingClient) {
     existingClient = {
@@ -1395,12 +1670,12 @@ export function bookFromPublicSite(
       createdAtISO: input.dateISO,
       lastVisitISO: input.dateISO,
       daysSinceLastVisit: 0,
-      totalSpentCents: input.depositPaidViaPix ? depositCents : 0,
+      totalSpentCents: isDepositPaid ? depositCents : 0,
       visitsCount: 1,
       noShowCount: 0,
       sendAutomaticReminders: true,
       notesAndForms: {
-        anamnesis: "Cadastro automático via Site de Agendamento Online (Aura Studio).",
+        anamnesis: "Cadastro automático via Site de Agendamento Online.",
         allergies: "A preencher na visita.",
         formulasAndPreferences: "",
         birthday: "",
@@ -1410,6 +1685,23 @@ export function bookFromPublicSite(
       memberships: [],
     };
     updatedClients = [existingClient, ...state.clients];
+  }
+
+  const autoApprove =
+    websiteConfig !== undefined ? websiteConfig.autoApproveAppointments : true;
+  const guaranteeMode = websiteConfig?.onlineBookingGuarantee ?? "pix_deposit";
+
+  let initialStatus: "confirmed" | "pending" = "pending";
+  if (autoApprove) {
+    if (guaranteeMode === "pix_deposit") {
+      initialStatus = isDepositPaid ? "confirmed" : "pending";
+    } else {
+      // "card_on_file" ou "none"
+      initialStatus = "confirmed";
+    }
+  } else {
+    // Aprovação manual pelo profissional
+    initialStatus = "pending";
   }
 
   const newEvent: CalendarEventItem = {
@@ -1433,17 +1725,24 @@ export function bookFromPublicSite(
     serviceIds: [service.id],
     serviceNames: [service.name],
     resourceIds: service.requiredResourceIds,
-    addressOrNotes: "Agendado via Site Online Aura Studio",
+    addressOrNotes: input.cardOnFile
+      ? `Agendado via Site Online (Cartão final ${input.cardOnFile.last4} em arquivo)`
+      : "Agendado via Site Online",
     isRepeating: false,
-    collectDeposit: service.requireDeposit,
-    depositCents,
-    depositPaid: input.depositPaidViaPix,
+    collectDeposit: guaranteeMode === "pix_deposit" && service.requireDeposit,
+    depositCents: guaranteeMode === "pix_deposit" ? depositCents : 0,
+    depositPaid: isDepositPaid,
     totalCents,
-    status: input.depositPaidViaPix ? "confirmed" : "pending",
+    status: initialStatus,
     calendarColor: service.calendarColor,
     whatsappReminderSent: true,
-    whatsappClientReply: input.depositPaidViaPix ? "1_confirmed" : "none",
+    whatsappClientReply: initialStatus === "confirmed" ? "1_confirmed" : "none",
   };
+
+  const toastMsg =
+    initialStatus === "confirmed"
+      ? `Reserva online de ${existingClient.fullName} confirmada!`
+      : `Reserva online de ${existingClient.fullName} recebida para aprovação!`;
 
   return {
     ok: true,
@@ -1457,7 +1756,7 @@ export function bookFromPublicSite(
           s.id === "booking_site" ? { ...s, completed: true } : s
         ),
       },
-      lastToastMessage: `Reserva online de ${existingClient.fullName} confirmada com Sinal Pix!`,
+      lastToastMessage: toastMsg,
     },
   };
 }
@@ -1566,11 +1865,34 @@ export function generateServiceDescriptionAI(
 
 export function saveCatalogService(
   state: StudioState,
-  input: Omit<ServiceCatalogItem, "id"> & { id?: string }
+  input: Partial<Omit<ServiceCatalogItem, "id">> & {
+    id?: string;
+    name: string;
+    priceCents: number;
+    durationMinutes: number;
+  }
 ): StudioState {
   const newService: ServiceCatalogItem = {
-    ...input,
     id: input.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: input.name,
+    description: input.description ?? "",
+    category: input.category ?? "Geral",
+    calendarColor: input.calendarColor ?? "#E11D8F",
+    onlineBookingEnabled: input.onlineBookingEnabled ?? true,
+    priceType: input.priceType ?? "fixed",
+    priceCents: input.priceCents,
+    requireDeposit: input.requireDeposit ?? false,
+    depositCents: input.depositCents ?? 0,
+    durationMinutes: input.durationMinutes,
+    processingTimeEnabled: input.processingTimeEnabled ?? false,
+    processingStartOffsetMinutes: input.processingStartOffsetMinutes ?? 0,
+    processingDurationMinutes: input.processingDurationMinutes ?? 0,
+    blockTimeEnabled: input.blockTimeEnabled ?? false,
+    blockAfterMinutes: input.blockAfterMinutes ?? 0,
+    requiredResourceIds: input.requiredResourceIds ?? [],
+    options: input.options ?? [],
+    addOns: input.addOns ?? [],
+    imageUrl: input.imageUrl,
   };
 
   const exists = state.services.some((s) => s.id === newService.id);
@@ -1960,6 +2282,7 @@ export function rebookAppointmentOneTap(
 export function createClientProfile(
   state: StudioState,
   input: {
+    id?: string;
     fullName: string;
     email: string;
     phone: string;
@@ -1969,7 +2292,7 @@ export function createClientProfile(
 ): StudioState {
   const palette = ["#FBCFE8", "#DDD6FE", "#BBF7D0", "#FDE68A", "#BAE6FD"];
   const newClient: ClientProfile = {
-    id: `cli-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+    id: input.id ?? `cli-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
     fullName: input.fullName,
     email: input.email || "cliente@aurastudio.com.br",
     phone: input.phone || "(11) 99999-0000",
@@ -2206,8 +2529,12 @@ export function executeQuickSaleCheckout(
     providerId: string;
     itemsSummary: string;
     amountCents: number;
-    tipCents: number;
+    tipCents?: number;
     paymentMethod: SaleHistoryRecord["paymentMethod"];
+    status?: SaleHistoryRecord["status"];
+    dateISO?: string;
+    appointmentTime?: string;
+    appointmentTimeLabel?: string;
     redeemPackageId?: string;
     redeemGiftCardId?: string;
   }
@@ -2217,19 +2544,28 @@ export function executeQuickSaleCheckout(
   const provider =
     state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
 
+  const saleDateISO = input.dateISO || getTodayDateISO();
+  const timeLabel =
+    input.appointmentTimeLabel ||
+    (input.appointmentTime
+      ? formatAppointmentDateLabel(saleDateISO, input.appointmentTime)
+      : formatAppointmentDateLabel(saleDateISO, "Agora"));
+
+  const tip = input.tipCents ?? 0;
+  const saleStatus = input.status ?? "Pago";
   const newSale: SaleHistoryRecord = {
     id: `sale-${Date.now()}`,
-    appointmentTimeLabel: "17 Out 2026, Agora",
-    dateISO: "2026-10-17",
+    appointmentTimeLabel: timeLabel,
+    dateISO: saleDateISO,
     clientId: client.id,
     clientName: client.fullName,
     providerId: provider.id,
     providerName: provider.fullName,
     itemsSummary: input.itemsSummary,
-    status: "Pago",
+    status: saleStatus,
     paymentMethod: input.paymentMethod,
     amountCents: input.amountCents,
-    tipCents: input.tipCents,
+    tipCents: tip,
   };
 
   const updatedClients = state.clients.map((c) => {
@@ -2241,9 +2577,9 @@ export function executeQuickSaleCheckout(
     );
     return {
       ...c,
-      totalSpentCents: c.totalSpentCents + input.amountCents,
+      totalSpentCents: c.totalSpentCents + input.amountCents + tip,
       visitsCount: c.visitsCount + 1,
-      lastVisitISO: "2026-10-17",
+      lastVisitISO: saleDateISO,
       daysSinceLastVisit: 0,
       packages: updatedPackages,
     };
@@ -2259,13 +2595,70 @@ export function executeQuickSaleCheckout(
     };
   });
 
-  const updatedEvents = input.appointmentId
-    ? state.calendarEvents.map((ev) =>
-        ev.id === input.appointmentId
-          ? { ...ev, status: "completed" as const, depositPaid: true }
-          : ev
-      )
-    : state.calendarEvents;
+  let updatedEvents: CalendarEventItem[] = state.calendarEvents;
+  if (input.appointmentId) {
+    updatedEvents = state.calendarEvents.map((ev) =>
+      ev.id === input.appointmentId
+        ? {
+            ...ev,
+            dateISO: input.dateISO || ev.dateISO,
+            startTime: input.appointmentTime || ev.startTime,
+            status:
+              saleStatus === "Sinal Pago"
+                ? ("confirmed" as const)
+                : ("completed" as const),
+            depositPaid: true,
+          }
+        : ev
+    );
+  } else {
+    const serviceMatch = state.services.find(
+      (s) =>
+        s.name.toLowerCase() === input.itemsSummary.toLowerCase() ||
+        input.itemsSummary.toLowerCase().includes(s.name.toLowerCase())
+    );
+    const serviceNames = serviceMatch
+      ? [serviceMatch.name]
+      : [input.itemsSummary || "Atendimento Venda Rápida"];
+    const serviceIds = serviceMatch ? [serviceMatch.id] : [];
+    const duration = serviceMatch?.durationMinutes ?? 60;
+    const startMin = parseTimeMinutes(input.appointmentTime || "10:00");
+    const endMin = startMin + duration;
+    const computedEndTime = formatMinutesToHHMM(endMin);
+
+    const newEvent: CalendarEventItem = {
+      id: `evt-qs-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      eventType: "appointment",
+      dateISO: saleDateISO,
+      startTime: input.appointmentTime || "10:00",
+      endTime: computedEndTime,
+      activeDurationMinutes: duration,
+      processingStartOffsetMinutes: 0,
+      processingDurationMinutes: 0,
+      blockAfterMinutes: 0,
+      providerId: provider.id,
+      providerName: provider.fullName,
+      clientId: client?.id,
+      clientName: client?.fullName ?? "Cliente s/ Cadastro",
+      serviceIds,
+      serviceNames,
+      resourceIds: serviceMatch?.requiredResourceIds ?? [],
+      addressOrNotes: `Venda Rápida · ${input.paymentMethod} (${saleStatus})`,
+      isRepeating: false,
+      collectDeposit: saleStatus === "Sinal Pago",
+      depositCents: saleStatus === "Sinal Pago" ? input.amountCents : 0,
+      depositPaid: true,
+      totalCents: input.amountCents,
+      status:
+        saleStatus === "Sinal Pago"
+          ? ("confirmed" as const)
+          : ("completed" as const),
+      calendarColor: serviceMatch?.calendarColor ?? "#1C1C1E",
+      whatsappReminderSent: false,
+      whatsappClientReply: "none",
+    };
+    updatedEvents = [newEvent, ...state.calendarEvents];
+  }
 
   const updatedStaff = state.staff.map((s) =>
     s.id === provider.id
@@ -2275,6 +2668,10 @@ export function executeQuickSaleCheckout(
 
   return {
     ...state,
+    calendarView: {
+      ...state.calendarView,
+      selectedDateISO: saleDateISO,
+    },
     clients: updatedClients,
     giftCards: updatedGiftCards,
     calendarEvents: updatedEvents,
@@ -2286,7 +2683,11 @@ export function executeQuickSaleCheckout(
         s.id === "start_getting_paid" ? { ...s, completed: true } : s
       ),
     },
-    lastToastMessage: `Venda de ${formatBRL(input.amountCents + input.tipCents)} via ${input.paymentMethod} concluída!`,
+    lastToastMessage: `${
+      saleStatus === "Sinal Pago" ? "Sinal" : "Venda"
+    } de ${formatBRL(input.amountCents + tip)} via ${
+      input.paymentMethod
+    } ${saleStatus === "Sinal Pago" ? "registrado" : "concluída"}!`,
   };
 }
 
@@ -2370,6 +2771,100 @@ export function processWhatsappInboundReply(
       reply === "1_confirmed"
         ? `WhatsApp 2-Way: ${targetEvent.clientName} respondeu "1" e confirmou presença!`
         : `WhatsApp 2-Way: ${targetEvent.clientName} respondeu "2" solicitando reagendamento.`,
+  };
+}
+
+export function formatWhatsAppMessage(
+  template: string,
+  variables: Record<string, string>
+): string {
+  let result = template;
+  for (const [key, val] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, "g"), val);
+  }
+  return result;
+}
+
+export function updateUserWhatsAppConfig(
+  state: StudioState,
+  config: Partial<UserWhatsAppConfig>
+): StudioState {
+  const currentConfig: UserWhatsAppConfig = state.reception.userConfig ?? {
+    provider: "evolution_api",
+    phoneNumber: state.reception.whatsappNumber || "+55 (11) 99752-5522",
+    instanceName: "aurastudio-whatsapp",
+    apiUrl: "https://api.agendaste.com/evolution",
+    apiKey: "",
+    connected: false,
+    templates: {
+      reminder24h:
+        "Olá {nome}! Lembrete do seu horário amanhã às {horario} no {estudio}. Responda 1 para Confirmar ou 2 para Reagendar.",
+      reminder2h:
+        "Oi {nome}! Seu horário no {estudio} é daqui a 2 horas ({horario}). Estamos te esperando!",
+      pixDeposit:
+        "Olá {nome}! Para garantir seu horário no {estudio}, faça o pagamento do sinal de {valor_sinal} pelo Pix abaixo:\n{pix_copia_cola}",
+      reactivation45d:
+        "Oi {nome}! Faz tempo que não nos vemos no {estudio}. Que tal renovar seu visual com um mimo especial esta semana?",
+    },
+  };
+
+  const updatedConfig: UserWhatsAppConfig = {
+    ...currentConfig,
+    ...config,
+    templates: {
+      ...currentConfig.templates,
+      ...(config.templates ?? {}),
+    },
+  };
+
+  const isConnected = updatedConfig.connected;
+  const phoneNumber = updatedConfig.phoneNumber || state.reception.whatsappNumber;
+
+  return {
+    ...state,
+    reception: {
+      ...state.reception,
+      whatsappConnected: isConnected,
+      whatsappNumber: phoneNumber,
+      userConfig: updatedConfig,
+    },
+    lastToastMessage: isConnected
+      ? "WhatsApp conectado e sincronizado com sucesso!"
+      : "Configurações de WhatsApp salvas!",
+  };
+}
+
+export function disconnectUserWhatsApp(state: StudioState): StudioState {
+  const currentConfig = state.reception.userConfig;
+  const updatedConfig: UserWhatsAppConfig = {
+    provider: currentConfig?.provider ?? "evolution_api",
+    phoneNumber: currentConfig?.phoneNumber ?? state.reception.whatsappNumber,
+    instanceName: currentConfig?.instanceName ?? "",
+    apiUrl: currentConfig?.apiUrl,
+    apiKey: "",
+    connected: false,
+    connectedAt: undefined,
+    pairingQrCode: undefined,
+    templates: currentConfig?.templates ?? {
+      reminder24h:
+        "Olá {nome}! Lembrete do seu horário amanhã às {horario} no {estudio}. Responda 1 para Confirmar ou 2 para Reagendar.",
+      reminder2h:
+        "Oi {nome}! Seu horário no {estudio} é daqui a 2 horas ({horario}). Estamos te esperando!",
+      pixDeposit:
+        "Olá {nome}! Para garantir seu horário no {estudio}, faça o pagamento do sinal de {valor_sinal} pelo Pix abaixo:\n{pix_copia_cola}",
+      reactivation45d:
+        "Oi {nome}! Faz tempo que não nos vemos no {estudio}. Que tal renovar seu visual com um mimo especial esta semana?",
+    },
+  };
+
+  return {
+    ...state,
+    reception: {
+      ...state.reception,
+      whatsappConnected: false,
+      userConfig: updatedConfig,
+    },
+    lastToastMessage: "WhatsApp desconectado do estúdio.",
   };
 }
 

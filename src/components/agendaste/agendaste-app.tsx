@@ -27,6 +27,7 @@ import {
   NavigationSectionId,
   CalendarEventItem,
   createInitialStudioState,
+  getTodayDateISO,
 } from "@/lib/agendaste-store";
 import { AgendaSteSidebar } from "@/components/agendaste/sidebar";
 import {
@@ -47,6 +48,7 @@ import {
   SettingsView,
   ComplementarySectionView,
 } from "@/components/agendaste/views/marketing-and-settings-view";
+import { WebsiteSetupWizard } from "@/components/agendaste/website-setup-wizard";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   loadStudioStateFromSupabase,
@@ -55,17 +57,34 @@ import {
   syncNewClientToSupabase,
 } from "@/lib/supabase/agendaste-sync";
 
-export function AgendaSteApp() {
+export function AgendaSteApp({
+  initialSection = "get_started",
+}: {
+  initialSection?: NavigationSectionId;
+}) {
   const [state, setState] = useState<StudioState>(() =>
     createInitialStudioState()
   );
   const [activeSection, setActiveSection] =
-    useState<NavigationSectionId>("get_started");
+    useState<NavigationSectionId>(initialSection);
   const [bookingSiteOpen, setBookingSiteOpen] = useState(false);
+  const [websiteWizardOpen, setWebsiteWizardOpen] = useState(false);
+  const [websiteWizardInitialStep, setWebsiteWizardInitialStep] = useState(1);
   const [quickSaleOpen, setQuickSaleOpen] = useState(false);
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Sincroniza seção com ?view= na URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get("view") as NavigationSectionId | null;
+      if (v) {
+        setActiveSection(v);
+      }
+    }
+  }, []);
 
   // Manipulador universal de estado com persistência dupla (localStorage + Supabase)
   const handleUpdateStudioState = (
@@ -122,6 +141,9 @@ export function AgendaSteApp() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && Array.isArray(parsed.calendarEvents)) {
+          if (parsed.calendarView?.selectedDateISO === "2026-10-17") {
+            parsed.calendarView.selectedDateISO = getTodayDateISO();
+          }
           localState = parsed;
           setState(parsed);
         }
@@ -170,6 +192,15 @@ export function AgendaSteApp() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Auto-dismiss do toast flutuante após 5 segundos
+  useEffect(() => {
+    if (!state.lastToastMessage) return;
+    const timer = setTimeout(() => {
+      setState((prev) => ({ ...prev, lastToastMessage: null }));
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [state.lastToastMessage]);
 
   const completedOnboardingCount = state.onboarding.steps.filter(
     (s) => s.completed
@@ -678,6 +709,10 @@ export function AgendaSteApp() {
             setState={handleUpdateStudioState}
             onNavigate={(sec) => setActiveSection(sec)}
             onOpenBookingSite={() => setBookingSiteOpen(true)}
+            onOpenWebsiteWizard={(step = 1) => {
+              setWebsiteWizardInitialStep(step);
+              setWebsiteWizardOpen(true);
+            }}
           />
         )}
 
@@ -865,6 +900,24 @@ export function AgendaSteApp() {
           state={state}
           setState={handleUpdateStudioState}
           onClose={() => setBookingSiteOpen(false)}
+        />
+      )}
+
+      {/* Website & Booking Setup Wizard (3 Phases) */}
+      {websiteWizardOpen && (
+        <WebsiteSetupWizard
+          state={state}
+          setState={handleUpdateStudioState}
+          initialStep={websiteWizardInitialStep}
+          onClose={() => setWebsiteWizardOpen(false)}
+          onOpenPublicSite={() => {
+            setWebsiteWizardOpen(false);
+            setBookingSiteOpen(true);
+          }}
+          onNavigateToCatalog={() => {
+            setWebsiteWizardOpen(false);
+            setActiveSection("catalog_services");
+          }}
         />
       )}
 

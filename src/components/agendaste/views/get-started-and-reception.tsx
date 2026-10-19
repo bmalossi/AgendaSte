@@ -27,11 +27,15 @@ import {
   formatBRL,
 } from "@/lib/agendaste-store";
 
+import { PublicBookingWebsite } from "@/components/agendaste/public-booking-website";
+import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
+
 interface GetStartedProps {
   state: StudioState;
   setState: React.Dispatch<React.SetStateAction<StudioState>>;
   onNavigate: (section: NavigationSectionId) => void;
   onOpenBookingSite: () => void;
+  onOpenWebsiteWizard?: (step?: number) => void;
 }
 
 export function GetStartedView({
@@ -39,6 +43,7 @@ export function GetStartedView({
   setState,
   onNavigate,
   onOpenBookingSite,
+  onOpenWebsiteWizard,
 }: GetStartedProps) {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importSource, setImportSource] = useState(
@@ -50,6 +55,17 @@ export function GetStartedView({
   const handleStartStep = (
     stepId: "booking_site" | "add_services" | "start_getting_paid"
   ) => {
+    if (onOpenWebsiteWizard) {
+      if (stepId === "booking_site") {
+        onOpenWebsiteWizard(1);
+      } else if (stepId === "add_services") {
+        onOpenWebsiteWizard(5);
+      } else {
+        onOpenWebsiteWizard(9);
+      }
+      return;
+    }
+
     setState((prev) => completeOnboardingStep(prev, stepId));
     if (stepId === "booking_site") {
       onOpenBookingSite();
@@ -57,6 +73,16 @@ export function GetStartedView({
       onNavigate("catalog_services");
     } else {
       onNavigate("payments_invoices");
+    }
+  };
+
+  const handleOpenMyBookingSite = () => {
+    if (state.settings.website?.websitePublished) {
+      onOpenBookingSite();
+    } else if (onOpenWebsiteWizard) {
+      onOpenWebsiteWizard(1);
+    } else {
+      onOpenBookingSite();
     }
   };
 
@@ -69,7 +95,7 @@ export function GetStartedView({
         </h1>
         <button
           type="button"
-          onClick={onOpenBookingSite}
+          onClick={handleOpenMyBookingSite}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-300 bg-white text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50 transition-colors"
         >
           <span>Meu site de agendamento</span>
@@ -133,7 +159,7 @@ export function GetStartedView({
                   onClick={() => handleStartStep("booking_site")}
                   className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
                 >
-                  {state.onboarding.steps[0].completed ? "Concluído ✓" : "Começar"}
+                  {state.onboarding.steps[0].completed ? "Tudo pronto! ✓" : "Começar"}
                 </button>
               </div>
             </div>
@@ -164,7 +190,7 @@ export function GetStartedView({
                   onClick={() => handleStartStep("add_services")}
                   className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
                 >
-                  {state.onboarding.steps[1].completed ? "Concluído ✓" : "Começar"}
+                  {state.onboarding.steps[1].completed ? "Tudo pronto! ✓" : "Começar"}
                 </button>
               </div>
             </div>
@@ -195,7 +221,12 @@ export function GetStartedView({
                   onClick={() => handleStartStep("start_getting_paid")}
                   className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
                 >
-                  {state.onboarding.steps[2].completed ? "Concluído ✓" : "Começar"}
+                  {state.onboarding.steps[2].completed
+                    ? "Tudo pronto! ✓"
+                    : state.settings.website?.paymentsSetup.setupCompleted &&
+                      !state.settings.website?.paymentsSetup.identityVerified
+                    ? "Pendente verificação"
+                    : "Começar"}
                 </button>
               </div>
             </div>
@@ -1065,55 +1096,38 @@ export function ReceptionView({
         </>
       )}
 
-      {/* STEP 2: QUICK SET UP (Pareamento QR Code WhatsApp + Regras 24h/2h) */}
+      {/* STEP 2: QUICK SET UP (Configuração do WhatsApp do Usuário + Regras 24h/2h) */}
       {activeStep === "setup" && (
-        <div className="max-w-[900px] w-full mx-auto px-6 py-10 space-y-6 flex-1">
+        <div className="max-w-[960px] w-full mx-auto px-6 py-10 space-y-8 flex-1">
           <div className="space-y-1">
             <h2 className="font-serif text-[36px] text-[#18181B]">
-              Configuração Rápida · WhatsApp & Voz IA
+              Configuração Rápida · WhatsApp do Estúdio
             </h2>
             <p className="text-[14px] text-zinc-600">
-              Conecte o WhatsApp do estúdio via QR Code (Baileys / Evolution API)
-              e personalize os lembretes automáticos 2-Way Sync.
+              Conecte o WhatsApp do seu estúdio (QR Code, Meta Cloud API ou Web Direto)
+              e personalize seus lembretes e mensagens automáticas.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl border border-zinc-200 bg-[#F5F5F7] space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[14px] font-bold text-[#18181B]">
-                  Pareamento WhatsApp QR Code
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#86EFAC] text-[#14532D] text-[11px] font-bold">
-                  ✓ Conectado
-                </span>
-              </div>
-              <div className="bg-white p-5 rounded-xl border border-zinc-200 flex items-center gap-4">
-                <div className="w-24 h-24 rounded-lg bg-[#18181B] text-white flex flex-col items-center justify-center shrink-0">
-                  <QrCode className="w-14 h-14" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[13px] font-semibold text-[#18181B]">
-                    Linha Ativa: {state.reception.whatsappNumber}
-                  </p>
-                  <p className="text-[12px] text-zinc-500 leading-relaxed">
-                    Sincronização bidirecional ativa. Respostas &quot;1&quot;
-                    confirmam o agendamento e &quot;2&quot; abrem reagendamento.
-                  </p>
-                </div>
-              </div>
-            </div>
+          <WhatsAppConfigCard
+            state={state}
+            setState={setState}
+            onAfterSave={() => setStep("ready")}
+            showSaveAndContinue={false}
+          />
 
-            <div className="p-6 rounded-2xl border border-zinc-200 bg-white space-y-4">
-              <h3 className="text-[14px] font-bold text-[#18181B]">
-                Regras de Automação 2-Way Sync
-              </h3>
-              <label className="flex items-center justify-between py-2 border-b border-zinc-100 cursor-pointer">
-                <div>
+          {/* Regras de Automação 2-Way Sync */}
+          <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4 shadow-sm">
+            <h3 className="text-[15px] font-bold text-[#18181B]">
+              5. Regras de Disparo Automático (2-Way Sync)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex items-start justify-between p-4 rounded-xl border border-zinc-200 bg-[#FAF9F6] cursor-pointer">
+                <div className="pr-3">
                   <p className="text-[13px] font-semibold text-[#18181B]">
                     Disparo automático 24h antes
                   </p>
-                  <p className="text-[12px] text-zinc-500">
+                  <p className="text-[12px] text-zinc-500 mt-0.5">
                     Envia confirmação interativa (1 = Confirmar, 2 = Reagendar)
                   </p>
                 </div>
@@ -1129,17 +1143,17 @@ export function ReceptionView({
                       },
                     }))
                   }
-                  className="w-4 h-4 accent-[#6E56CF]"
+                  className="w-4 h-4 mt-0.5 accent-[#6E56CF]"
                 />
               </label>
 
-              <label className="flex items-center justify-between py-2 border-b border-zinc-100 cursor-pointer">
-                <div>
+              <label className="flex items-start justify-between p-4 rounded-xl border border-zinc-200 bg-[#FAF9F6] cursor-pointer">
+                <div className="pr-3">
                   <p className="text-[13px] font-semibold text-[#18181B]">
                     Aviso de proximidade 2h antes
                   </p>
-                  <p className="text-[12px] text-zinc-500">
-                    Envia endereço do estúdio e link rápido de check-in
+                  <p className="text-[12px] text-zinc-500 mt-0.5">
+                    Envia endereço do estúdio e orientações de chegada
                   </p>
                 </div>
                 <input
@@ -1154,19 +1168,19 @@ export function ReceptionView({
                       },
                     }))
                   }
-                  className="w-4 h-4 accent-[#6E56CF]"
+                  className="w-4 h-4 mt-0.5 accent-[#6E56CF]"
                 />
               </label>
+            </div>
 
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setStep("ready")}
-                  className="px-6 py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold"
-                >
-                  Salvar e abrir Painel ao Vivo →
-                </button>
-              </div>
+            <div className="pt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setStep("ready")}
+                className="px-8 py-3 rounded-full bg-[#1C1C1E] text-white text-[13.5px] font-semibold hover:bg-black transition-colors shadow-sm"
+              >
+                Salvar e abrir Painel ao Vivo →
+              </button>
             </div>
           </div>
         </div>
