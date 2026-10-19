@@ -1,26 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   QrCode,
   CheckCircle2,
   Send,
   RefreshCw,
-  Key,
-  Globe,
-  Radio,
-  ExternalLink,
   Smartphone,
-  ShieldCheck,
   AlertCircle,
-  Copy,
-  Check,
+  ExternalLink,
   MessageSquare,
   Sparkles,
+  Check,
+  X,
 } from "lucide-react";
 import {
   StudioState,
-  WhatsAppProviderType,
   UserWhatsAppConfig,
   UserWhatsAppTemplates,
   updateUserWhatsAppConfig,
@@ -43,12 +38,11 @@ export function WhatsAppConfigCard({
 }: WhatsAppConfigCardProps) {
   const currentConfig: UserWhatsAppConfig = state.reception.userConfig ?? {
     provider: "evolution_api",
-    phoneNumber: state.reception.whatsappNumber || "+55 (11) 99752-5522",
-    instanceName: "aurastudio-whatsapp",
-    apiUrl: "https://api.agendaste.com/evolution",
+    phoneNumber: state.reception.whatsappNumber || "+55 (11) 94447-7528",
+    instanceName: "pessoal",
+    apiUrl: "https://api.automab.dev",
     apiKey: "",
-    connected: state.reception.whatsappConnected ?? true,
-    connectedAt: "2026-10-17T08:00:00Z",
+    connected: state.reception.whatsappConnected ?? false,
     templates: {
       reminder24h:
         "Olá {nome}! Lembrete do seu horário amanhã às {horario} no {estudio}. Responda 1 para Confirmar ou 2 para Reagendar.",
@@ -61,32 +55,16 @@ export function WhatsAppConfigCard({
     },
   };
 
-  const [provider, setProvider] = useState<WhatsAppProviderType>(
-    currentConfig.provider || "evolution_api"
-  );
   const [phoneNumber, setPhoneNumber] = useState(
-    currentConfig.phoneNumber || state.reception.whatsappNumber || "+55 (11) 99752-5522"
+    currentConfig.phoneNumber || state.reception.whatsappNumber || "+55 (11) 94447-7528"
   );
-  const [instanceName, setInstanceName] = useState(
-    currentConfig.instanceName || "aurastudio-whatsapp"
-  );
-  const [apiUrl, setApiUrl] = useState(
-    currentConfig.apiUrl || "https://api.agendaste.com/evolution"
-  );
-  const [apiKey, setApiKey] = useState(currentConfig.apiKey || "");
+  const [isConnected, setIsConnected] = useState(currentConfig.connected);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
+  const [qrCodeText, setQrCodeText] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Meta Cloud API
-  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState(
-    currentConfig.metaPhoneNumberId || ""
-  );
-  const [metaBusinessAccountId, setMetaBusinessAccountId] = useState(
-    currentConfig.metaBusinessAccountId || ""
-  );
-  const [metaAccessToken, setMetaAccessToken] = useState(
-    currentConfig.metaAccessToken || ""
-  );
-
-  // Templates
+  // Template settings
   const [templates, setTemplates] = useState<UserWhatsAppTemplates>(
     currentConfig.templates
   );
@@ -94,17 +72,8 @@ export function WhatsAppConfigCard({
     keyof UserWhatsAppTemplates
   >("reminder24h");
 
-  // Pair / Status
-  const [isConnected, setIsConnected] = useState(currentConfig.connected);
-  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
-  const [qrCodeData, setQrCodeData] = useState<string | null>(
-    currentConfig.pairingQrCode || null
-  );
-
-  // Test send state
-  const [testRecipient, setTestRecipient] = useState(
-    currentConfig.phoneNumber || "+55 (11) 99752-5522"
-  );
+  // Test dispatch
+  const [testRecipient, setTestRecipient] = useState(phoneNumber);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<{
     ok: boolean;
@@ -112,17 +81,167 @@ export function WhatsAppConfigCard({
     waMeUrl?: string;
   } | null>(null);
 
-  // Save changes
-  const handleSave = () => {
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Stop polling helper
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  // Check connection status periodically if waiting for scan
+  const startPollingStatus = (phone: string) => {
+    stopPolling();
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch("/api/whatsapp/instance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "status",
+            phoneNumber: phone,
+          }),
+        });
+        const data = await res.json();
+        if (data.ok && (data.connected || data.state === "open")) {
+          stopPolling();
+          setIsConnected(true);
+          setQrCodeBase64(null);
+          setQrCodeText(null);
+          setIsGeneratingQr(false);
+
+          setState((prev) =>
+            updateUserWhatsAppConfig(prev, {
+              phoneNumber: data.phoneNumber || phone,
+              instanceName: data.instanceName || "pessoal",
+              connected: true,
+              templates,
+            })
+          );
+        }
+      } catch (err) {
+        console.warn("Polling status error:", err);
+      }
+    }, 3000);
+  };
+
+  // Check initial status on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function checkCurrentStatus() {
+      try {
+        const res = await fetch("/api/whatsapp/instance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "status",
+            phoneNumber,
+          }),
+        });
+        const data = await res.json();
+        if (isMounted && data.ok) {
+          if (data.connected || data.state === "open") {
+            setIsConnected(true);
+            setState((prev) =>
+              updateUserWhatsAppConfig(prev, {
+                phoneNumber: data.phoneNumber || phoneNumber,
+                instanceName: data.instanceName || "pessoal",
+                connected: true,
+              })
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("Initial status check error:", e);
+      }
+    }
+    checkCurrentStatus();
+
+    return () => {
+      isMounted = false;
+      stopPolling();
+    };
+  }, []);
+
+  // Request new QR Code (Automatic instance creation and pairing)
+  const handleGenerateQr = async () => {
+    setIsGeneratingQr(true);
+    setErrorMessage(null);
+    setTestResult(null);
+
+    try {
+      const res = await fetch("/api/whatsapp/instance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_or_connect",
+          phoneNumber,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        if (data.connected || data.state === "open") {
+          setIsConnected(true);
+          setQrCodeBase64(null);
+          setQrCodeText(null);
+          setState((prev) =>
+            updateUserWhatsAppConfig(prev, {
+              phoneNumber,
+              instanceName: data.instanceName || "pessoal",
+              connected: true,
+              templates,
+            })
+          );
+        } else {
+          setIsConnected(false);
+          setQrCodeBase64(data.qrCodeBase64 || null);
+          setQrCodeText(data.qrCodeText || null);
+          startPollingStatus(phoneNumber);
+        }
+      } else {
+        setErrorMessage(data.error || "Não foi possível gerar o QR Code.");
+      }
+    } catch (err: any) {
+      setErrorMessage(
+        err?.message || "Erro de rede ao conectar com a API do WhatsApp."
+      );
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  // Disconnect
+  const handleDisconnect = async () => {
+    stopPolling();
+    setIsConnected(false);
+    setQrCodeBase64(null);
+    setQrCodeText(null);
+
+    try {
+      await fetch("/api/whatsapp/instance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "disconnect",
+          phoneNumber,
+        }),
+      });
+    } catch (e) {
+      console.warn("Disconnect error:", e);
+    }
+
+    const updatedState = disconnectUserWhatsApp(state);
+    setState(updatedState);
+  };
+
+  // Save templates
+  const handleSaveTemplates = () => {
     const updatedState = updateUserWhatsAppConfig(state, {
-      provider,
       phoneNumber,
-      instanceName,
-      apiUrl,
-      apiKey,
-      metaPhoneNumberId,
-      metaBusinessAccountId,
-      metaAccessToken,
       connected: isConnected,
       templates,
     });
@@ -130,44 +249,7 @@ export function WhatsAppConfigCard({
     if (onAfterSave) onAfterSave();
   };
 
-  // Disconnect
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    setQrCodeData(null);
-    const updatedState = disconnectUserWhatsApp(state);
-    setState(updatedState);
-  };
-
-  // Generate / Pair QR Code (Evolution / Baileys)
-  const handleGeneratePairing = () => {
-    setIsGeneratingQr(true);
-    setTestResult(null);
-
-    setTimeout(() => {
-      // Gera payload simulado com formato autêntico de pairing string
-      const simulatedQr = `2@AgendasteEvolution${Date.now()},${Math.random()
-        .toString(36)
-        .slice(2, 10)}`;
-      setQrCodeData(simulatedQr);
-      setIsConnected(true);
-      setIsGeneratingQr(false);
-
-      const updatedState = updateUserWhatsAppConfig(state, {
-        provider,
-        phoneNumber,
-        instanceName,
-        apiUrl,
-        apiKey,
-        connected: true,
-        connectedAt: new Date().toISOString(),
-        pairingQrCode: simulatedQr,
-        templates,
-      });
-      setState(updatedState);
-    }, 1200);
-  };
-
-  // Send Live Test Message
+  // Live Test Message Dispatcher
   const handleSendTestMessage = async () => {
     setIsSendingTest(true);
     setTestResult(null);
@@ -187,18 +269,12 @@ export function WhatsAppConfigCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientName: "Bruna Silva (Teste)",
-          clientPhone: testRecipient,
+          clientPhone: testRecipient || phoneNumber,
           customMessage: previewText,
           templateType: "custom",
           whatsappConfig: {
-            provider,
             phoneNumber,
-            instanceName,
-            apiUrl,
-            apiKey,
-            metaPhoneNumberId,
-            metaBusinessAccountId,
-            metaAccessToken,
+            instanceName: currentConfig.instanceName || "pessoal",
           },
         }),
       });
@@ -207,7 +283,7 @@ export function WhatsAppConfigCard({
       if (res.ok && data.ok) {
         setTestResult({
           ok: true,
-          message: `Mensagem enviada com sucesso via ${data.engine}! Recipiente: ${data.recipient}`,
+          message: `Mensagem enviada com sucesso para ${data.recipient}!`,
           waMeUrl: data.waMeUrl,
         });
         setState((prev) => ({
@@ -223,7 +299,7 @@ export function WhatsAppConfigCard({
     } catch (err: any) {
       setTestResult({
         ok: false,
-        message: err?.message || "Erro de rede ao conectar com o serviço de envio.",
+        message: err?.message || "Erro de conexão ao enviar mensagem de teste.",
       });
     } finally {
       setIsSendingTest(false);
@@ -232,116 +308,22 @@ export function WhatsAppConfigCard({
 
   return (
     <div className="space-y-6">
-      {/* Provider Selector Cards */}
-      <div className="space-y-3">
-        <label className="block text-[13px] font-bold text-[#18181B]">
-          1. Escolha como conectar seu WhatsApp
-        </label>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Option 1: Evolution API / Baileys */}
-          <button
-            type="button"
-            onClick={() => {
-              setProvider("evolution_api");
-              setTestResult(null);
-            }}
-            className={`p-4 rounded-xl border text-left transition-all ${
-              provider === "evolution_api"
-                ? "border-[#1C1C1E] bg-[#F5F5F7] ring-1 ring-[#1C1C1E]"
-                : "border-zinc-200 bg-white hover:border-zinc-300"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="w-8 h-8 rounded-lg bg-[#1C1C1E] text-white flex items-center justify-center">
-                <QrCode className="w-4 h-4" />
-              </span>
-              {provider === "evolution_api" && (
-                <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
-              )}
+      {/* 1. SEÇÃO DE CONEXÃO DO WHATSAPP (SIMPLES, DIRETA E AUTOMATIZADA) */}
+      <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-6 shadow-sm">
+        <div className="border-b border-zinc-100 pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-[18px] font-bold text-[#18181B]">
+                WhatsApp do Estúdio
+              </h3>
+              <p className="text-[13px] text-zinc-500 mt-0.5">
+                Insira o seu número e aponte a câmera no QR Code para conectar.
+                Todas as confirmações e lembretes serão enviados automaticamente por ele.
+              </p>
             </div>
-            <p className="text-[13.5px] font-bold text-[#18181B]">
-              Conectar via QR Code
-            </p>
-            <p className="text-[12px] text-zinc-500 mt-1 leading-snug">
-              Evolution API / Baileys. Pareie seu número atual como &quot;Aparelho Conectado&quot; em 15 segundos.
-            </p>
-          </button>
 
-          {/* Option 2: Meta Cloud API */}
-          <button
-            type="button"
-            onClick={() => {
-              setProvider("meta_cloud");
-              setTestResult(null);
-            }}
-            className={`p-4 rounded-xl border text-left transition-all ${
-              provider === "meta_cloud"
-                ? "border-[#1C1C1E] bg-[#F5F5F7] ring-1 ring-[#1C1C1E]"
-                : "border-zinc-200 bg-white hover:border-zinc-300"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="w-8 h-8 rounded-lg bg-[#25D366] text-white flex items-center justify-center">
-                <Globe className="w-4 h-4" />
-              </span>
-              {provider === "meta_cloud" && (
-                <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
-              )}
-            </div>
-            <p className="text-[13.5px] font-bold text-[#18181B]">
-              Meta Cloud API Oficial
-            </p>
-            <p className="text-[12px] text-zinc-500 mt-1 leading-snug">
-              WhatsApp Business API oficial com token permanente e número empresarial verificado.
-            </p>
-          </button>
-
-          {/* Option 3: wa.me Manual Web */}
-          <button
-            type="button"
-            onClick={() => {
-              setProvider("wa_web_manual");
-              setTestResult(null);
-            }}
-            className={`p-4 rounded-xl border text-left transition-all ${
-              provider === "wa_web_manual"
-                ? "border-[#1C1C1E] bg-[#F5F5F7] ring-1 ring-[#1C1C1E]"
-                : "border-zinc-200 bg-white hover:border-zinc-300"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="w-8 h-8 rounded-lg bg-[#6E56CF] text-white flex items-center justify-center">
-                <Smartphone className="w-4 h-4" />
-              </span>
-              {provider === "wa_web_manual" && (
-                <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
-              )}
-            </div>
-            <p className="text-[13.5px] font-bold text-[#18181B]">
-              Link Web Direto (wa.me)
-            </p>
-            <p className="text-[12px] text-zinc-500 mt-1 leading-snug">
-              Zero configuração de servidor. Abre conversas diretamente no seu celular ou computador.
-            </p>
-          </button>
-        </div>
-      </div>
-
-      {/* Provider Details & Credentials Card */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
-          <div>
-            <h3 className="text-[15px] font-bold text-[#18181B]">
-              2. Dados do seu WhatsApp &amp; Conexão
-            </h3>
-            <p className="text-[12.5px] text-zinc-500 mt-0.5">
-              Informe o número do estúdio que receberá e enviará as confirmações aos clientes.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
             <span
-              className={`px-3 py-1 rounded-full text-[11px] font-bold ${
+              className={`px-3 py-1 rounded-full text-[11.5px] font-bold ${
                 isConnected
                   ? "bg-[#DCFCE7] text-[#166534]"
                   : "bg-zinc-100 text-zinc-600"
@@ -349,188 +331,165 @@ export function WhatsAppConfigCard({
             >
               {isConnected ? "✓ WhatsApp Conectado" : "○ Não Conectado"}
             </span>
-
-            {isConnected && (
-              <button
-                type="button"
-                onClick={handleDisconnect}
-                className="text-[11.5px] font-medium text-red-600 hover:underline px-2"
-              >
-                Desconectar
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Input Phone Number */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
-              Número de WhatsApp do Estúdio
-            </label>
+        {/* Input do Número de WhatsApp */}
+        <div className="max-w-md space-y-2">
+          <label className="block text-[13px] font-bold text-zinc-800">
+            Número do WhatsApp
+          </label>
+          <div className="flex items-center gap-2">
             <input
               type="text"
               value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+55 (11) 99752-5522"
-              className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 text-[13.5px] focus:outline-none focus:border-[#1C1C1E]"
+              onChange={(e) => {
+                setPhoneNumber(e.target.value);
+                setTestRecipient(e.target.value);
+              }}
+              placeholder="+55 (11) 94447-7528"
+              className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-300 text-[14px] font-medium text-[#18181B] focus:outline-none focus:border-[#1C1C1E]"
             />
-            <p className="text-[11px] text-zinc-500 mt-1">
-              Formato nacional ou internacional com DDD: +55 (XX) 9XXXX-XXXX
-            </p>
-          </div>
-
-          {provider === "evolution_api" && (
-            <div>
-              <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
-                Nome da Instância (Instance Name)
-              </label>
-              <input
-                type="text"
-                value={instanceName}
-                onChange={(e) => setInstanceName(e.target.value)}
-                placeholder="aurastudio-whatsapp"
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 text-[13.5px] focus:outline-none focus:border-[#1C1C1E]"
-              />
-              <p className="text-[11px] text-zinc-500 mt-1">
-                Identificador exclusivo da sua sessão no gateway
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Evolution API Custom Server Options */}
-        {provider === "evolution_api" && (
-          <div className="pt-2 border-t border-zinc-100 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
-                  URL da API (Evolution API Gateway)
-                </label>
-                <input
-                  type="text"
-                  value={apiUrl}
-                  onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="https://api.agendaste.com/evolution"
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
-                  Chave de API (API Key / Token Secreto)
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Deixe em branco para usar chave padrão"
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
-                />
-              </div>
-            </div>
-
-            {/* QR Code Action Box */}
-            <div className="p-4 rounded-xl bg-[#FAF9F6] border border-zinc-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-16 h-16 rounded-xl bg-[#1C1C1E] text-white flex items-center justify-center shrink-0">
-                  <QrCode className="w-9 h-9" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-bold text-[#18181B]">
-                    {isConnected
-                      ? "Aparelho Conectado ao WhatsApp"
-                      : "Pareamento via QR Code"}
-                  </p>
-                  <p className="text-[12px] text-zinc-500 mt-0.5">
-                    Abra o WhatsApp no celular &gt; Aparelhos Conectados &gt; Conectar um Aparelho.
-                  </p>
-                </div>
-              </div>
-
+            {!isConnected && (
               <button
                 type="button"
                 disabled={isGeneratingQr}
-                onClick={handleGeneratePairing}
-                className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[12.5px] font-semibold disabled:opacity-60 flex items-center gap-2 shrink-0 shadow-sm"
+                onClick={handleGenerateQr}
+                className="px-5 py-2.5 rounded-xl bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center gap-2 disabled:opacity-60 shadow-sm transition shrink-0"
               >
                 <RefreshCw
                   className={`w-3.5 h-3.5 ${isGeneratingQr ? "animate-spin" : ""}`}
                 />
-                <span>
-                  {isGeneratingQr
-                    ? "Gerando sessão..."
-                    : isConnected
-                    ? "Reconectar / Novo QR Code"
-                    : "Gerar QR Code de Pareamento"}
-                </span>
+                <span>{isGeneratingQr ? "Gerando..." : "Gerar QR Code"}</span>
               </button>
-            </div>
+            )}
           </div>
-        )}
+          <p className="text-[11.5px] text-zinc-500">
+            Informe o número com DDD. Exemplo: (11) 99752-5522
+          </p>
+        </div>
 
-        {/* Meta Cloud API Form */}
-        {provider === "meta_cloud" && (
-          <div className="pt-2 border-t border-zinc-100 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
-                  Phone Number ID (Meta Graph API)
-                </label>
-                <input
-                  type="text"
-                  value={metaPhoneNumberId}
-                  onChange={(e) => setMetaPhoneNumberId(e.target.value)}
-                  placeholder="Ex: 104592837482910"
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
-                />
+        {/* ESTADO CONECTADO: Card Elegante */}
+        {isConnected ? (
+          <div className="p-6 rounded-2xl bg-[#FAF9F6] border border-zinc-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-[#DCFCE7] text-[#166534] flex items-center justify-center shrink-0 shadow-sm">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
-                  WhatsApp Business Account ID (WABA)
-                </label>
-                <input
-                  type="text"
-                  value={metaBusinessAccountId}
-                  onChange={(e) => setMetaBusinessAccountId(e.target.value)}
-                  placeholder="Ex: 293847582910293"
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
-                />
+              <div className="space-y-0.5">
+                <p className="text-[14px] font-bold text-[#18181B]">
+                  Linha Conectada: {phoneNumber}
+                </p>
+                <p className="text-[12.5px] text-zinc-600">
+                  Sincronização bidirecional ativa. O sistema já está respondendo e confirmando agendamentos.
+                </p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
-                Token de Acesso Permanente (Permanent System User Token)
-              </label>
-              <input
-                type="password"
-                value={metaAccessToken}
-                onChange={(e) => setMetaAccessToken(e.target.value)}
-                placeholder="EAABw..."
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
-              />
-              <p className="text-[11px] text-zinc-500 mt-1">
-                Gerado no Meta Business Suite em Usuários do Sistema &gt; Tokens
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              className="px-4 py-2 rounded-full border border-red-200 bg-white text-red-600 hover:bg-red-50 text-[12.5px] font-semibold transition shrink-0"
+            >
+              Desconectar WhatsApp
+            </button>
+          </div>
+        ) : (
+          /* ESTADO NÃO CONECTADO: Área do QR Code com Instruções Claras */
+          <div className="p-6 rounded-2xl bg-[#FAF9F6] border border-zinc-200/80 flex flex-col items-center text-center space-y-4">
+            {isGeneratingQr ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                <RefreshCw className="w-8 h-8 text-[#1C1C1E] animate-spin" />
+                <p className="text-[13.5px] font-medium text-zinc-700">
+                  Criando conexão e gerando QR Code no WhatsApp...
+                </p>
+              </div>
+            ) : qrCodeBase64 ? (
+              <div className="space-y-4 flex flex-col items-center">
+                <div className="p-3 bg-white rounded-2xl border border-zinc-300 shadow-md">
+                  <img
+                    src={
+                      qrCodeBase64.startsWith("data:")
+                        ? qrCodeBase64
+                        : `data:image/png;base64,${qrCodeBase64}`
+                    }
+                    alt="QR Code WhatsApp"
+                    className="w-56 h-56 object-contain"
+                  />
+                </div>
+
+                <div className="max-w-md text-left space-y-2 bg-white p-4 rounded-xl border border-zinc-200 text-[12.5px]">
+                  <p className="font-bold text-[#18181B] text-center mb-1">
+                    Como conectar seu WhatsApp:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1 text-zinc-600">
+                    <li>Abra o <strong>WhatsApp</strong> no seu celular</li>
+                    <li>
+                      Toque em <strong>Configurações</strong> (iPhone) ou <strong>Mais opções ⋮</strong> (Android)
+                    </li>
+                    <li>
+                      Selecione <strong>Aparelhos Conectados</strong> &gt; <strong>Conectar um aparelho</strong>
+                    </li>
+                    <li>Aponte a câmera para o QR Code acima</li>
+                  </ol>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateQr}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-zinc-300 bg-white text-[12.5px] font-semibold text-zinc-800 hover:bg-zinc-50"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Atualizar QR Code</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 flex flex-col items-center justify-center space-y-3">
+                <div className="w-16 h-16 rounded-2xl bg-zinc-200/80 text-zinc-600 flex items-center justify-center">
+                  <QrCode className="w-9 h-9" />
+                </div>
+                <div className="space-y-1 max-w-sm">
+                  <p className="text-[14px] font-bold text-[#18181B]">
+                    Nenhum WhatsApp conectado
+                  </p>
+                  <p className="text-[12.5px] text-zinc-500">
+                    Clique no botão abaixo para gerar o QR Code de pareamento do seu número.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateQr}
+                  className="px-6 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold shadow-sm transition"
+                >
+                  Gerar QR Code para Conectar
+                </button>
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-[12.5px] text-red-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* 3. Template Customization Section */}
+      {/* 2. PERSONALIZAÇÃO DOS TEXTOS DAS MENSAGENS */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4 shadow-sm">
-        <div>
-          <h3 className="text-[15px] font-bold text-[#18181B]">
-            3. Personalização das Mensagens Automáticas
+        <div className="border-b border-zinc-100 pb-3">
+          <h3 className="text-[16px] font-bold text-[#18181B]">
+            Modelos de Mensagens do Sistema
           </h3>
           <p className="text-[12.5px] text-zinc-500 mt-0.5">
-            Defina o texto exato que seus clientes receberão com variáveis dinâmicas.
+            Personalize o texto que seus clientes receberão com dados dinâmicos do agendamento.
           </p>
         </div>
 
-        {/* Template Tabs */}
+        {/* Abas das mensagens */}
         <div className="flex items-center gap-2 border-b border-zinc-200 pb-2 overflow-x-auto">
           {[
             { id: "reminder24h" as const, label: "Lembrete 24h Antes" },
@@ -553,10 +512,10 @@ export function WhatsAppConfigCard({
           ))}
         </div>
 
-        {/* Template Input & Variable Chips */}
+        {/* Input & Chips de Variáveis */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 flex-wrap text-[11.5px]">
-            <span className="text-zinc-500 font-medium">Variáveis disponíveis:</span>
+            <span className="text-zinc-500 font-medium">Inserir variável:</span>
             {[
               "{nome}",
               "{estudio}",
@@ -595,7 +554,7 @@ export function WhatsAppConfigCard({
           />
 
           <div className="p-3 bg-[#FAF9F6] rounded-xl border border-zinc-200 text-[12px] space-y-1">
-            <span className="font-bold text-zinc-700">Prévia como o cliente verá:</span>
+            <span className="font-bold text-zinc-700">Prévia de como o cliente recebe:</span>
             <p className="text-zinc-600 italic">
               &quot;
               {formatWhatsAppMessage(templates[activeTemplateTab], {
@@ -612,14 +571,14 @@ export function WhatsAppConfigCard({
         </div>
       </div>
 
-      {/* 4. Live Test Dispatcher */}
+      {/* 3. TESTE DE DISPARO AO VIVO */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4 shadow-sm">
         <div>
-          <h3 className="text-[15px] font-bold text-[#18181B]">
-            4. Teste de Disparo ao Vivo
+          <h3 className="text-[16px] font-bold text-[#18181B]">
+            Testar Envio no WhatsApp
           </h3>
           <p className="text-[12.5px] text-zinc-500 mt-0.5">
-            Envie uma mensagem de teste imediata para o seu celular e valide a integração.
+            Envie uma mensagem de teste para o seu próprio celular para verificar o recebimento.
           </p>
         </div>
 
@@ -628,7 +587,7 @@ export function WhatsAppConfigCard({
             type="text"
             value={testRecipient}
             onChange={(e) => setTestRecipient(e.target.value)}
-            placeholder="+55 (11) 99752-5522"
+            placeholder="+55 (11) 94447-7528"
             className="w-full sm:w-72 px-4 py-2.5 rounded-xl border border-zinc-300 text-[13px] focus:outline-none focus:border-[#1C1C1E]"
           />
 
@@ -676,15 +635,15 @@ export function WhatsAppConfigCard({
         )}
       </div>
 
-      {/* Save & Continue Bar */}
+      {/* Salvar Configurações */}
       {showSaveAndContinue && (
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
             type="button"
-            onClick={handleSave}
+            onClick={handleSaveTemplates}
             className="px-8 py-3 rounded-full bg-[#1C1C1E] text-white text-[13.5px] font-semibold hover:bg-black transition-colors shadow-sm"
           >
-            Salvar Configurações de WhatsApp
+            Salvar Mensagens do WhatsApp
           </button>
         </div>
       )}

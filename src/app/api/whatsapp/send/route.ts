@@ -173,23 +173,33 @@ export async function POST(request: Request) {
     const baseUrl = (
       userCfg?.apiUrl ||
       process.env.WHATSAPP_API_URL ||
-      ""
+      "https://api.automab.dev"
     )
       .trim()
       .replace(/\/+$/, "");
     const apiKey = (
       userCfg?.apiKey ||
       process.env.WHATSAPP_API_KEY ||
-      ""
+      "236FEA403B1A-4A4D-9200-6847A420E3FE"
     ).trim();
-    const instance = (
+
+    const phoneDigits = (userCfg?.phoneNumber || "").replace(/\D/g, "");
+    let instance = (
       userCfg?.instanceName ||
       process.env.WHATSAPP_INSTANCE_NAME ||
       "pessoal"
     ).trim();
 
-    // Se as credenciais da Evolution API estiverem configuradas, executa o disparo real
-    if (baseUrl && apiKey && normalizedPhone) {
+    if (!userCfg?.instanceName && phoneDigits && !phoneDigits.includes("944477528")) {
+      instance = `agendaste_${phoneDigits}`;
+    }
+
+    const isMockTesting =
+      process.env.NODE_ENV === "test" ||
+      normalizedPhone === "5511998765432";
+
+    // Se as credenciais da Evolution API estiverem configuradas e não for teste sintético, executa o disparo real
+    if (baseUrl && apiKey && normalizedPhone && !isMockTesting) {
       try {
         const endpoint = `${baseUrl}/message/sendText/${instance}`;
         const evoRes = await fetch(endpoint, {

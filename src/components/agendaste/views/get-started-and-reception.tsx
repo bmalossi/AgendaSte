@@ -1104,8 +1104,7 @@ export function ReceptionView({
               Configuração Rápida · WhatsApp do Estúdio
             </h2>
             <p className="text-[14px] text-zinc-600">
-              Conecte o WhatsApp do seu estúdio (QR Code, Meta Cloud API ou Web Direto)
-              e personalize seus lembretes e mensagens automáticas.
+              Conecte o WhatsApp do seu estúdio escaneando o QR Code e personalize seus lembretes e mensagens automáticas.
             </p>
           </div>
 
@@ -1119,7 +1118,7 @@ export function ReceptionView({
           {/* Regras de Automação 2-Way Sync */}
           <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4 shadow-sm">
             <h3 className="text-[15px] font-bold text-[#18181B]">
-              5. Regras de Disparo Automático (2-Way Sync)
+              Regras de Disparo Automático (2-Way Sync)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="flex items-start justify-between p-4 rounded-xl border border-zinc-200 bg-[#FAF9F6] cursor-pointer">

@@ -653,15 +653,15 @@ export function createInitialStudioState(): StudioState {
     reception: {
       activeStep: "meet",
       whatsappConnected: true,
-      whatsappNumber: "+55 (11) 99752-5522",
+      whatsappNumber: "+55 (11) 94447-7528",
       autoReplyMissedCallsAndTexts: true,
       send24hReminder: true,
       send2hReminder: true,
       userConfig: {
         provider: "evolution_api",
-        phoneNumber: "+55 (11) 99752-5522",
-        instanceName: "aurastudio-whatsapp",
-        apiUrl: "https://api.agendaste.com/evolution",
+        phoneNumber: "+55 (11) 94447-7528",
+        instanceName: "pessoal",
+        apiUrl: "https://api.automab.dev",
         apiKey: "",
         connected: true,
         connectedAt: "2026-10-17T08:00:00Z",
@@ -2791,9 +2791,9 @@ export function updateUserWhatsAppConfig(
 ): StudioState {
   const currentConfig: UserWhatsAppConfig = state.reception.userConfig ?? {
     provider: "evolution_api",
-    phoneNumber: state.reception.whatsappNumber || "+55 (11) 99752-5522",
-    instanceName: "aurastudio-whatsapp",
-    apiUrl: "https://api.agendaste.com/evolution",
+    phoneNumber: state.reception.whatsappNumber || "+55 (11) 94447-7528",
+    instanceName: "pessoal",
+    apiUrl: "https://api.automab.dev",
     apiKey: "",
     connected: false,
     templates: {

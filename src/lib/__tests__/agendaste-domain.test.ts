@@ -751,6 +751,69 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     const json = (await res.json()) as { ok: boolean; status?: string };
     assert.equal(json.ok, true);
   });
+
+  it("POST /api/whatsapp/instance manages automated instance creation, status and disconnect", async () => {
+    const { POST: instancePOST } = await import("../../app/api/whatsapp/instance/route.ts");
+
+    // 1. Status check
+    const statusReq = new Request("http://localhost:3000/api/whatsapp/instance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "status",
+        phoneNumber: "+55 (11) 94447-7528",
+      }),
+    });
+    const statusRes = await instancePOST(statusReq);
+    assert.equal(statusRes.status, 200);
+    const statusJson = (await statusRes.json()) as {
+      ok: boolean;
+      connected: boolean;
+      instanceName: string;
+      state: string;
+    };
+    assert.equal(statusJson.ok, true);
+    assert.ok(statusJson.instanceName);
+
+    // 2. Create or connect (generates QR code or returns open state)
+    const connectReq = new Request("http://localhost:3000/api/whatsapp/instance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "create_or_connect",
+        phoneNumber: "+55 (11) 98765-4321",
+      }),
+    });
+    const connectRes = await instancePOST(connectReq);
+    assert.equal(connectRes.status, 200);
+    const connectJson = (await connectRes.json()) as {
+      ok: boolean;
+      instanceName: string;
+      qrCodeBase64?: string;
+      connected?: boolean;
+    };
+    assert.equal(connectJson.ok, true);
+    assert.ok(connectJson.instanceName.includes("agendaste_5511987654321"));
+
+    // 3. Disconnect action
+    const disconnectReq = new Request("http://localhost:3000/api/whatsapp/instance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "disconnect",
+        phoneNumber: "+55 (11) 98765-4321",
+      }),
+    });
+    const disconnectRes = await instancePOST(disconnectReq);
+    assert.equal(disconnectRes.status, 200);
+    const disconnectJson = (await disconnectRes.json()) as {
+      ok: boolean;
+      disconnected: boolean;
+      instanceName: string;
+    };
+    assert.equal(disconnectJson.ok, true);
+    assert.equal(disconnectJson.disconnected, true);
+  });
 });
 
 
