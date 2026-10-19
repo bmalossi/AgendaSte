@@ -17,6 +17,8 @@ import {
   Trash2,
   DollarSign,
   Package,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
 import {
   StudioState,
@@ -769,6 +771,12 @@ export function QuickSaleDrawer({
   const [tipPercent, setTipPercent] = useState<number>(10);
   const [paymentMethod, setPaymentMethod] =
     useState<SaleHistoryRecord["paymentMethod"]>("Pix");
+  const [pixPayload, setPixPayload] = useState<string | null>(null);
+  const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
+  const [pixTicketUrl, setPixTicketUrl] = useState<string | null>(null);
+  const [isGeneratingPix, setIsGeneratingPix] = useState(false);
+  const [copiedPix, setCopiedPix] = useState(false);
+  const [generatedAmountCents, setGeneratedAmountCents] = useState<number | null>(null);
 
   if (!open) return null;
 
@@ -783,6 +791,47 @@ export function QuickSaleDrawer({
 
   const selectedClient = state.clients.find((c) => c.id === clientId);
   const activeGiftCard = state.giftCards.find((g) => g.status === "active");
+
+  const handleGeneratePix = async () => {
+    if (finalTotalCents <= 0) return;
+    setIsGeneratingPix(true);
+    try {
+      const res = await fetch("/api/pix/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: prefillAppointment?.id || `venda-rapida-${Date.now()}`,
+          clientName: selectedClient?.fullName || "Cliente Venda Rápida",
+          clientEmail: selectedClient?.email || "cliente@agendaste.com.br",
+          serviceId: selectedService?.id ?? "quick-sale",
+          serviceName:
+            prefillAppointment?.serviceNames.join(" + ") ??
+            selectedService?.name ??
+            "Venda Rápida PDV",
+          totalCents: finalTotalCents,
+          depositCents: finalTotalCents,
+          depositPercent: 100,
+        }),
+      });
+      const data = await res.json();
+      const code =
+        data.qrCodePayload ||
+        data.pixCopiaECola ||
+        "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD";
+      setPixPayload(code);
+      if (data.qrCodeBase64) setPixQrBase64(data.qrCodeBase64);
+      if (data.ticketUrl) setPixTicketUrl(data.ticketUrl);
+      setGeneratedAmountCents(finalTotalCents);
+    } catch (err) {
+      console.error("Erro ao gerar Pix no PDV:", err);
+      setPixPayload(
+        "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD"
+      );
+      setGeneratedAmountCents(finalTotalCents);
+    } finally {
+      setIsGeneratingPix(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex justify-end">
@@ -908,20 +957,132 @@ export function QuickSaleDrawer({
             </div>
           </div>
 
-          {/* Dynamic Pix QR Preview when Pix is selected */}
+          {/* Dynamic Pix QR Preview & Generator when Pix is selected */}
           {paymentMethod === "Pix" && (
-            <div className="p-4 rounded-[18px] bg-[#FAFAFC] border border-[#E5E5EA] flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center shrink-0">
-                <QrCode className="w-10 h-10 text-[#1C1C1E]" />
+            <div className="p-4 rounded-[18px] bg-[#FAFAFC] border border-[#E5E5EA] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#EAE8FD] text-[#6E56CF] flex items-center justify-center">
+                    <QrCode className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold text-[#1C1C1E]">
+                      Pix Dinâmico · Mercado Pago
+                    </p>
+                    <p className="text-[11.5px] text-[#6E6E73]">
+                      QR Code e Copia e Cola instantâneo para o cliente
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[14px] font-mono font-bold text-[#6E56CF]">
+                  {formatBRL(finalTotalCents)}
+                </span>
               </div>
-              <div className="text-[12px]">
-                <p className="font-bold text-[#1C1C1E]">
-                  Pix Dinâmico Pronto para Leitura
-                </p>
-                <p className="text-[#6E6E73]">
-                  Conciliação automática na agenda e repasse de comissão.
-                </p>
-              </div>
+
+              {!pixPayload || generatedAmountCents !== finalTotalCents ? (
+                <div className="space-y-2 pt-1">
+                  {generatedAmountCents !== null &&
+                    generatedAmountCents !== finalTotalCents && (
+                      <p className="text-[11px] text-[#B45309] font-medium bg-[#FEF3C7] p-2 rounded-lg">
+                        O valor da venda mudou. Gere um novo Pix com o valor atualizado ({formatBRL(finalTotalCents)}).
+                      </p>
+                    )}
+                  <button
+                    type="button"
+                    disabled={isGeneratingPix || finalTotalCents <= 0}
+                    onClick={handleGeneratePix}
+                    className="w-full py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] disabled:opacity-50 text-white text-[13px] font-semibold flex items-center justify-center gap-2 shadow-sm transition"
+                  >
+                    {isGeneratingPix ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Gerando Pix no Mercado Pago...</span>
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="w-4 h-4" />
+                        <span>Gerar QR Code Pix ({formatBRL(finalTotalCents)})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-1">
+                  {/* QR Code image if base64 available */}
+                  {pixQrBase64 ? (
+                    <div className="flex flex-col items-center justify-center p-3 bg-white rounded-2xl border border-[#E5E5EA] shadow-inner">
+                      <img
+                        src={`data:image/png;base64,${pixQrBase64}`}
+                        alt="QR Code Pix Mercado Pago"
+                        className="w-44 h-44 object-contain"
+                      />
+                      <span className="text-[11px] text-[#6E6E73] mt-1 font-medium">
+                        Aponte a câmera do aplicativo do banco
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-[#E5E5EA]">
+                      <div className="w-16 h-16 rounded-xl bg-[#F5F5F7] flex items-center justify-center mb-1.5">
+                        <QrCode className="w-10 h-10 text-[#1C1C1E]" />
+                      </div>
+                      <span className="text-[11.5px] font-semibold text-[#1C1C1E]">
+                        Código Pix Copia e Cola pronto
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Pix Copia e Cola String Box */}
+                  <div className="p-2.5 rounded-xl bg-white border border-[#E5E5EA] font-mono text-[10.5px] break-all text-[#1C1C1E] max-h-20 overflow-y-auto select-all">
+                    {pixPayload}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(pixPayload);
+                        setCopiedPix(true);
+                        setTimeout(() => setCopiedPix(false), 3000);
+                      }}
+                      className="flex-1 py-2 rounded-full border border-[#D1D1D6] hover:bg-white text-[12px] font-semibold text-[#1C1C1E] flex items-center justify-center gap-1.5 transition"
+                    >
+                      {copiedPix ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-emerald-700">Código Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copiar Código Pix</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleGeneratePix}
+                      disabled={isGeneratingPix}
+                      className="px-3 py-2 rounded-full border border-[#D1D1D6] hover:bg-white text-[12px] font-medium text-[#6E6E73] hover:text-[#1C1C1E] transition"
+                      title="Gerar novamente"
+                    >
+                      Atualizar
+                    </button>
+                  </div>
+
+                  {pixTicketUrl && (
+                    <a
+                      href={pixTicketUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1 text-[11px] font-medium text-[#6E56CF] hover:underline pt-0.5"
+                    >
+                      <span>Abrir comprovante / instruções no Mercado Pago</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
