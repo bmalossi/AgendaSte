@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { TurnstileWidget, type TurnstileWidgetRef } from "@/components/turnstile-widget";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -20,6 +21,8 @@ function LoginFormContent() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +36,26 @@ function LoginFormContent() {
     setLoading(true);
 
     try {
+      if (turnstileToken) {
+        try {
+          const verifyRes = await fetch("/api/turnstile/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: turnstileToken, action: "login" }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.success) {
+            setErrorMessage("Falha na verificação de segurança contra robôs.");
+            setLoading(false);
+            turnstileRef.current?.reset();
+            setTurnstileToken("");
+            return;
+          }
+        } catch (verErr) {
+          console.warn("[Turnstile login verify check]", verErr);
+        }
+      }
+
       if (authMode === "password") {
         if (!password) {
           setErrorMessage("Por favor, digite sua senha.");
@@ -320,6 +343,14 @@ function LoginFormContent() {
               <span>{errorMessage}</span>
             </div>
           )}
+
+          {/* Cloudflare Turnstile CAPTCHA */}
+          <TurnstileWidget
+            ref={turnstileRef}
+            action="login"
+            onVerify={(tok) => setTurnstileToken(tok)}
+            onExpire={() => setTurnstileToken("")}
+          />
 
           {/* Submit Button */}
           <button

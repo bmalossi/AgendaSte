@@ -22,6 +22,14 @@ import {
   CreditCard as SubscriptionIcon,
   MessageSquare,
   Sparkles,
+  FileText,
+  Smartphone,
+  ExternalLink,
+  Percent,
+  CheckCircle2,
+  Info,
+  ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import type {
   StudioState,
@@ -32,6 +40,8 @@ import type {
   BookingControlsConfig,
   ClientNotificationItem,
   DayBusinessHours,
+  CheckoutSettingsConfig,
+  ChartingSettingsConfig,
 } from "@/lib/agendaste-store";
 import {
   updateWebsiteSetupConfig,
@@ -39,6 +49,8 @@ import {
   getDefaultWebsiteBookingConfig,
   getDefaultBookingControls,
   getDefaultClientNotifications,
+  getDefaultCheckoutSettings,
+  getDefaultChartingSettings,
 } from "@/lib/agendaste-store";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
 
@@ -59,6 +71,7 @@ type BusinessSubTabId =
   | "card_reader"
   | "payout_account"
   | "hipaa"
+  | "charting"
   | "gift_cards";
 
 export function SettingsView({
@@ -88,6 +101,7 @@ export function SettingsView({
         "card_reader",
         "payout_account",
         "hipaa",
+        "charting",
         "gift_cards",
       ].includes(initialSubTab)
     ) {
@@ -146,6 +160,46 @@ export function SettingsView({
     initialWebsite.clientNotifications ?? getDefaultClientNotifications()
   );
 
+  // Estados - Cobrança & Checkout (Card Reader, BNPL, Taxas & Impostos)
+  const [checkoutSettings, setCheckoutSettings] = useState<CheckoutSettingsConfig>(
+    initialWebsite.checkoutSettings ?? getDefaultCheckoutSettings()
+  );
+
+  // Estados - Prontuários (Charting & Assinaturas)
+  const [chartingSettings, setChartingSettings] = useState<ChartingSettingsConfig>(
+    initialWebsite.chartingSettings ?? getDefaultChartingSettings()
+  );
+
+  // Estados - Conta de Repasse & Verificação (Payout & Identity Verification)
+  const [paymentsSetup, setPaymentsSetup] = useState(
+    initialWebsite.paymentsSetup ?? {
+      payoutMethod: "pix_key" as const,
+      pixKeyType: "email" as const,
+      pixKeyValue: "pix@luveastudio.app",
+      bankName: "Nu Pagamentos S.A. (Nubank)",
+      routingOrAgency: "0001",
+      accountNumber: "1234567-8",
+      debitCardLast4: "4678",
+      identityVerified: false,
+      setupCompleted: false,
+    }
+  );
+
+  // Modais de Edição para Checkout e Payout
+  const [activeTaxModal, setActiveTaxModal] = useState<"platform_fee" | "service_tax" | "retail_tax" | null>(null);
+  const [activePayoutModal, setActivePayoutModal] = useState<"payout_account" | "identity_verification" | "processing_info" | null>(null);
+
+  // Valores temporários dos modais de taxas
+  const [tempFeePayer, setTempFeePayer] = useState<"studio" | "client">(
+    initialWebsite.checkoutSettings?.technologyFeePayer ?? "studio"
+  );
+  const [tempServiceTax, setTempServiceTax] = useState<string>(
+    String(initialWebsite.checkoutSettings?.serviceSalesTaxPercent ?? 0)
+  );
+  const [tempRetailTax, setTempRetailTax] = useState<string>(
+    String(initialWebsite.checkoutSettings?.retailSalesTaxPercent ?? 0)
+  );
+
   // Estados - Negócio & Localização
   const [businessName, setBusinessName] = useState(state.settings.business.businessName || "Luvea Studio");
   const [legalEntityType, setLegalEntityType] = useState(
@@ -155,6 +209,23 @@ export function SettingsView({
   const [pixKey, setPixKey] = useState(state.settings.business.pixKey || "pix@luveastudio.app");
   const [defaultDepositPercent, setDefaultDepositPercent] = useState(
     String(state.settings.business.defaultDepositPercent ?? 30)
+  );
+
+  // Campos temporários para Verificação de Identidade (KYC)
+  const [idLegalName, setIdLegalName] = useState(state.settings.business.businessName || "Luvea Studio");
+  const [idCnpjCpf, setIdCnpjCpf] = useState(state.settings.business.taxIdCnpjCpf || "48.192.301/0001-82");
+  const [idRepName, setIdRepName] = useState(
+    `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() || "Bruno Fernandes Malossi"
+  );
+  const [idRepCpf, setIdRepCpf] = useState("389.201.948-12");
+
+  // Campos temporários para Conta de Repasse
+  const [bankNameInput, setBankNameInput] = useState(paymentsSetup.bankName || "Nu Pagamentos S.A. (Nubank)");
+  const [bankAgencyInput, setBankAgencyInput] = useState(paymentsSetup.routingOrAgency || "0001");
+  const [bankAccountInput, setBankAccountInput] = useState(paymentsSetup.accountNumber || "1234567-8");
+  const [pixKeyValueInput, setPixKeyValueInput] = useState(paymentsSetup.pixKeyValue || state.settings.business.pixKey || "pix@luveastudio.app");
+  const [payoutMethodInput, setPayoutMethodInput] = useState<"pix_key" | "bank_account">(
+    paymentsSetup.payoutMethod === "bank_account" ? "bank_account" : "pix_key"
   );
 
   const [hasFixedAddress, setHasFixedAddress] = useState(initialWebsite.hasFixedAddress ?? true);
@@ -201,6 +272,9 @@ export function SettingsView({
         tracking,
         bookingControls,
         clientNotifications: notificationsConfig,
+        checkoutSettings,
+        chartingSettings,
+        paymentsSetup,
         hasFixedAddress,
         doesHouseCalls,
         addressLine1,
@@ -226,7 +300,7 @@ export function SettingsView({
         businessName,
         legalEntityType,
         taxIdCnpjCpf,
-        pixKey,
+        pixKey: paymentsSetup.pixKeyValue || pixKey,
         defaultDepositPercent: Math.min(100, Math.max(0, parseInt(defaultDepositPercent || "30", 10))),
       });
 
@@ -315,8 +389,9 @@ export function SettingsView({
               { id: "booking_controls" as const, label: "Regras de Agendamento", icon: Sliders },
               { id: "client_notifications" as const, label: "Notificações de Clientes", icon: Bell },
               { id: "card_reader" as const, label: "Cobrança & Checkout", icon: CreditCard },
-              { id: "payout_account" as const, label: "Conta de Repasse & Pix", icon: Wallet },
-              { id: "hipaa" as const, label: "Conformidade & Prontuários", icon: ShieldCheck, tag: "LGPD" },
+              { id: "payout_account" as const, label: "Conta de Repasse & Verificação", icon: Wallet },
+              { id: "hipaa" as const, label: "Conformidade LGPD", icon: ShieldCheck, tag: "LGPD" },
+              { id: "charting" as const, label: "Prontuários & Fichas", icon: FileText, tag: "Avançado" },
               { id: "gift_cards" as const, label: "Vales-Presente", icon: Gift },
             ].map((item) => {
               const Icon = item.icon;
@@ -1537,93 +1612,451 @@ export function SettingsView({
             )}
 
             {/* ========================================================================= */}
-            {/* 6. DEMAIS SUB-ABAS (Cobrança, Repasse, Conformidade, Vales)                 */}
+            {/* 6. COBRANÇA & CHECKOUT (Card Reader, BNPL, Taxas & Impostos)               */}
             {/* ========================================================================= */}
             {subTab === "card_reader" && (
-              <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="space-y-8 animate-in fade-in duration-200">
                 <div className="border-b border-[#E5E5EA] pb-5">
                   <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Cobrança &amp; Checkout</h2>
                   <p className="text-[13px] text-[#6E6E73] mt-1">
-                    Geração de Pix dinâmico no PDV e opções de recebimento presencial.
+                    Configurações de recebimento presencial, pagamentos por aproximação, parcelamento e tributação.
                   </p>
                 </div>
-                <div className="py-4 flex items-center justify-between">
+
+                {/* Hero Editorial de Luxo - Maquininha Luvea Pro & Tap to Pay */}
+                <div className="bg-[#F8F8FA] border border-[#E5E5EA] rounded-2xl p-6 sm:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div className="space-y-2.5 max-w-xl">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#E5E5EA] text-[11.5px] font-medium text-[#1C1C1E]">
+                      <Smartphone className="w-3.5 h-3.5 text-[#1C1C1E]" />
+                      <span>Tap to Pay no iPhone &amp; Maquininha Pro</span>
+                    </div>
+                    <h3 className="text-[18px] sm:text-[20px] font-semibold text-[#1C1C1E] tracking-tight">
+                      Pagamentos por aproximação sem aluguel
+                    </h3>
+                    <p className="text-[13px] text-[#6E6E73] leading-relaxed">
+                      Nossa solução integrada permite aceitar pagamentos por aproximação (contactless) diretamente no seu smartphone ou pela Maquininha Luvea Pro. Receba pagamentos no débito, crédito à vista ou parcelado com liquidação rápida.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[#8E8E93]">
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Visa</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Mastercard</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Elo</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Apple Pay</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Google Pay</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Pix Instantâneo</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0 w-full md:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setActivePayoutModal("processing_info")}
+                      className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors text-center"
+                    >
+                      Ver taxas e prazos
+                    </button>
+                  </div>
+                </div>
+
+                {/* Seção 1: Parcelamento sem Juros & BNPL */}
+                <div className="space-y-4">
                   <div>
-                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Pix Dinâmico Instantâneo</h4>
+                    <h3 className="text-[14px] font-semibold text-[#1C1C1E]">Parcelamento sem Juros &amp; BNPL</h3>
                     <p className="text-[12px] text-[#6E6E73]">
-                      Gera QR Code e código Copia e Cola diretamente no checkout da comanda.
+                      Permita que seus clientes parcelem atendimentos e pacotes no cartão de crédito ou Pix parcelado.
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5F5F7] text-[12px] font-medium text-emerald-700">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                    <span>Ativo</span>
+
+                  {!paymentsSetup.identityVerified && (
+                    <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+                        <p className="text-[12.5px] text-[#92400E]">
+                          Verifique sua identidade para configurar pagamentos e aceitar recebimentos parcelados (BNPL).
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubTab("payout_account");
+                          setActivePayoutModal("identity_verification");
+                        }}
+                        className="px-3.5 py-1.5 rounded-full bg-white border border-[#FCD34D] text-[12px] font-medium text-[#78350F] hover:bg-[#FEF3C7] shrink-0 transition"
+                      >
+                        Verificar identidade
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                    <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="space-y-0.5 max-w-xl">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Aceitar Parcelamento sem Juros (BNPL &amp; Pix Parcelado)</h4>
+                        <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                          Permita que clientes parcelem em até 12x. Taxa do intermediador de {checkoutSettings.bnplFeePercent}% + R$ {(checkoutSettings.bnplFixedFeeCents / 100).toFixed(2).replace(".", ",")} por transação parcelada.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={checkoutSettings.acceptBnpl}
+                          onChange={(e) => {
+                            const updated = { ...checkoutSettings, acceptBnpl: e.target.checked };
+                            setCheckoutSettings(updated);
+                            onUpdateState((prev) =>
+                              updateWebsiteSetupConfig(prev, { checkoutSettings: updated })
+                            );
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-[#E5E5EA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1C1C1E]"></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seção 2: Taxa de Tecnologia da Plataforma & Tributos */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-[14px] font-semibold text-[#1C1C1E]">Taxa de Tecnologia da Plataforma &amp; Tributos</h3>
+                    <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                      Reduza seus custos operacionais escolhendo quem assume a taxa de tecnologia da plataforma. Mantenha as alíquotas fiscais de serviços e varejo configuradas de acordo com seu regime tributário e município.
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                    {/* Taxa de Tecnologia */}
+                    <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="space-y-0.5 max-w-xl">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Taxa de tecnologia da plataforma</h4>
+                        <p className="text-[12.5px] font-medium text-[#1C1C1E] pt-0.5">
+                          {checkoutSettings.technologyFeePayer === "studio" ? "Você paga" : "Cliente paga no checkout"}
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73]">
+                          {checkoutSettings.technologyFeePayer === "studio"
+                            ? "O estúdio absorve integralmente os custos operacionais da plataforma."
+                            : "O encargo de processamento é repassado ao cliente e exibido de forma transparente no checkout."}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempFeePayer(checkoutSettings.technologyFeePayer);
+                          setActiveTaxModal("platform_fee");
+                        }}
+                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                      >
+                        Editar
+                      </button>
+                    </div>
+
+                    {/* Imposto sobre Serviços */}
+                    <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="space-y-0.5 max-w-xl">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Imposto sobre Serviços (ISS / Simples Nacional)</h4>
+                        <p className="text-[12.5px] font-medium text-[#1C1C1E] pt-0.5">
+                          {checkoutSettings.serviceSalesTaxPercent}%
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73]">
+                          Alíquota estimada de imposto incidente sobre serviços de corte, coloração, estética e tratamentos para detalhamento em comandas e notas.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempServiceTax(String(checkoutSettings.serviceSalesTaxPercent));
+                          setActiveTaxModal("service_tax");
+                        }}
+                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                      >
+                        Editar
+                      </button>
+                    </div>
+
+                    {/* Imposto sobre Venda de Produtos */}
+                    <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="space-y-0.5 max-w-xl">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Imposto sobre Venda de Produtos (ICMS / Varejo)</h4>
+                        <p className="text-[12.5px] font-medium text-[#1C1C1E] pt-0.5">
+                          {checkoutSettings.retailSalesTaxPercent}%
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73]">
+                          Alíquota estimada de tributos incidentes sobre a venda de cosméticos, produtos capilares e home care no salão.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempRetailTax(String(checkoutSettings.retailSalesTaxPercent));
+                          setActiveTaxModal("retail_tax");
+                        }}
+                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* ========================================================================= */}
+            {/* 7. CONTA DE REPASSE & VERIFICAÇÃO                                          */}
+            {/* ========================================================================= */}
             {subTab === "payout_account" && (
-              <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="space-y-8 animate-in fade-in duration-200">
                 <div className="border-b border-[#E5E5EA] pb-5">
-                  <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Conta de Repasse &amp; Pix</h2>
-                  <p className="text-[13px] text-[#6E6E73] mt-1">
-                    Destino para recebimento de sinais, reservas online e faturas liquidadas.
+                  <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Conta de Repasse &amp; Verificação</h2>
+                  <p className="text-[13px] text-[#6E6E73] mt-1 leading-relaxed max-w-2xl">
+                    Para receber repasses automáticos de clientes pela LUVEA, é necessário verificar sua identidade e os dados cadastrais da sua empresa conforme as normas regulatórias do Banco Central do Brasil. Dúvidas? Fale com nosso suporte.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Instituição de Destino</label>
-                    <input
-                      type="text"
-                      value="Nu Pagamentos S.A. (Nubank)"
-                      disabled
-                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] bg-[#F5F5F7] text-[13px] text-[#1C1C1E]"
-                    />
+
+                {/* Banner de Ação Necessária */}
+                {!paymentsSetup.identityVerified ? (
+                  <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+                      <p className="text-[12.5px] font-medium text-[#92400E]">
+                        Ação necessária! Atualize suas informações cadastrais para continuar recebendo pagamentos e repasses.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActivePayoutModal("identity_verification")}
+                      className="px-3.5 py-1.5 rounded-full bg-white border border-[#FCD34D] text-[12px] font-medium text-[#78350F] hover:bg-[#FEF3C7] shrink-0 transition"
+                    >
+                      Completar dados
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Chave Pix de Repasse</label>
-                    <input
-                      type="text"
-                      value={pixKey}
-                      onChange={(e) => setPixKey(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
-                    />
+                ) : (
+                  <div className="bg-[#F6FDF9] border border-[#D1F2DF] rounded-2xl p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+                      <p className="text-[12.5px] font-medium text-emerald-900">
+                        Identidade verificada com sucesso. Os repasses de vendas e sinais Pix são efetuados diariamente na sua conta.
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">
+                      Em dia
+                    </span>
+                  </div>
+                )}
+
+                <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                  {/* Item 1: Processamento de Pagamentos */}
+                  <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2.5">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Processamento de Pagamentos</h4>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
+                          paymentsSetup.identityVerified ? "bg-[#F5F5F7] text-emerald-700" : "bg-[#F5F5F7] text-[#71717A]"
+                        }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${paymentsSetup.identityVerified ? "bg-emerald-500 ring-2 ring-emerald-500/20" : "bg-[#A1A1AA]"}`} />
+                          <span>{paymentsSetup.identityVerified ? "Ativo" : "Inativo"}</span>
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#6E6E73]">
+                        Liquidação de vendas, taxas de no-show via Pix e cobranças presenciais na comanda.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActivePayoutModal("processing_info")}
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                    >
+                      Saiba mais
+                    </button>
+                  </div>
+
+                  {/* Item 2: Verificação de Identidade */}
+                  <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2.5">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Verificação de Identidade</h4>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
+                          paymentsSetup.identityVerified ? "bg-[#F5F5F7] text-emerald-700" : "bg-[#FFFBEB] text-amber-800 border border-[#FDE68A]"
+                        }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${paymentsSetup.identityVerified ? "bg-emerald-500 ring-2 ring-emerald-500/20" : "bg-amber-500 ring-2 ring-amber-500/20"}`} />
+                          <span>{paymentsSetup.identityVerified ? "Verificado" : "Informações pendentes"}</span>
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#6E6E73]">
+                        Validação de conformidade legal perante o Banco Central do Brasil para liberação de repasses.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActivePayoutModal("identity_verification")}
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                    >
+                      {paymentsSetup.identityVerified ? "Editar ↗" : "Completar ↗"}
+                    </button>
+                  </div>
+
+                  {/* Item 3: Conta de Repasse */}
+                  <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Conta de Repasse</h4>
+                      <p className="text-[12px] text-[#1C1C1E] font-medium pt-0.5">
+                        {paymentsSetup.payoutMethod === "pix_key"
+                          ? `Chave Pix: ${paymentsSetup.pixKeyValue || pixKey}`
+                          : `${paymentsSetup.bankName || "Nu Pagamentos S.A."} · Agência ${paymentsSetup.routingOrAgency || "0001"} · C/C ${paymentsSetup.accountNumber || "1234567-8"}`}
+                      </p>
+                      <p className="text-[12px] text-[#6E6E73]">
+                        Conta bancária ou chave Pix de titularidade da empresa para onde os valores são transferidos.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActivePayoutModal("payout_account")}
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                    >
+                      {paymentsSetup.setupCompleted ? "Editar" : "Adicionar"}
+                    </button>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* ========================================================================= */}
+            {/* 8. CONFORMIDADE & LGPD                                                     */}
+            {/* ========================================================================= */}
             {subTab === "hipaa" && (
-              <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="border-b border-[#E5E5EA] pb-5">
-                  <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Conformidade &amp; Prontuários (LGPD)</h2>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Conformidade LGPD &amp; Privacidade</h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide uppercase bg-[#F5F5F7] border border-[#E5E5EA] text-[#52525B]">
+                      LGPD
+                    </span>
+                  </div>
                   <p className="text-[13px] text-[#6E6E73] mt-1">
                     Políticas de privacidade de dados sensíveis, prontuários estéticos e fichas de anamnese.
                   </p>
                 </div>
-                <div className="py-2 space-y-1">
-                  <p className="text-[13px] font-medium text-[#1C1C1E]">Criptografia e Sigilo Profissional</p>
-                  <p className="text-[12px] text-[#6E6E73]">
-                    Fórmulas cosméticas, fotos antes/depois e notas SOAP dos clientes são encriptadas e restritas aos
-                    profissionais autorizados do estúdio.
-                  </p>
+                <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                  <div className="py-4 space-y-1">
+                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Criptografia e Sigilo Profissional</h4>
+                    <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                      Fórmulas cosméticas, fotos antes/depois e notas SOAP dos clientes são encriptadas de ponta a ponta e restritas exclusivamente aos profissionais autorizados do estúdio.
+                    </p>
+                  </div>
+                  <div className="py-4 space-y-1">
+                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Termo de Consentimento Livre e Esclarecido (TCLE)</h4>
+                    <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                      Assinatura digital dos termos de consentimento para tratamentos invasivos e químicos integrada diretamente na ficha de atendimento.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
 
+            {/* ========================================================================= */}
+            {/* 9. PRONTUÁRIOS & FICHAS CLÍNICAS (CHARTING)                                */}
+            {/* ========================================================================= */}
+            {subTab === "charting" && (
+              <div className="space-y-8 animate-in fade-in duration-200">
+                <div className="border-b border-[#E5E5EA] pb-5">
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Prontuários &amp; Fichas Clínicas</h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide uppercase bg-[#F5F5F7] border border-[#E5E5EA] text-[#52525B]">
+                      Avançado
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-[#6E6E73] mt-1">
+                    Governança clínica, assinaturas eletrônicas obrigatórias e validação técnica de prontuários.
+                  </p>
+                </div>
+
+                <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                  {/* Exigir assinatura do profissional */}
+                  <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-0.5 max-w-xl">
+                      <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Exigir assinatura do profissional</h4>
+                      <p className="text-[12px] text-[#6E6E73]">
+                        Quando ativado, os profissionais devem assinar digitalmente seus próprios prontuários e notas de evolução antes do envio final.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={chartingSettings.requireProviderSignature}
+                        onChange={(e) => {
+                          const updated = { ...chartingSettings, requireProviderSignature: e.target.checked };
+                          setChartingSettings(updated);
+                          onUpdateState((prev) =>
+                            updateWebsiteSetupConfig(prev, { chartingSettings: updated })
+                          );
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-[#E5E5EA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1C1C1E]"></div>
+                    </label>
+                  </div>
+
+                  {/* Exigir aprovação do Responsável Técnico */}
+                  <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-0.5 max-w-xl">
+                      <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Exigir aprovação do Responsável Técnico</h4>
+                      <p className="text-[12px] text-[#6E6E73]">
+                        Quando ativado, os prontuários e procedimentos com substâncias químicas exigem visto e liberação de um Responsável Técnico (RT) ou Diretor Clínico antes de serem finalizados.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={chartingSettings.requireMedicalDirectorSignOff}
+                        onChange={(e) => {
+                          const updated = { ...chartingSettings, requireMedicalDirectorSignOff: e.target.checked };
+                          setChartingSettings(updated);
+                          onUpdateState((prev) =>
+                            updateWebsiteSetupConfig(prev, { chartingSettings: updated })
+                          );
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-[#E5E5EA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1C1C1E]"></div>
+                    </label>
+                  </div>
+
+                  {/* Editar permissões e papéis da equipe */}
+                  <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-0.5 max-w-xl">
+                      <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Editar funções e permissões da equipe</h4>
+                      <p className="text-[12px] text-[#6E6E73]">
+                        Defina permissões para que membros específicos da equipe possam visualizar, preencher, emitir e assinar prontuários e fichas de clientes.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTopTab("staff")}
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                    >
+                      Página da Equipe ↗
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* 10. VALES-PRESENTE                                                        */}
+            {/* ========================================================================= */}
             {subTab === "gift_cards" && (
-              <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="border-b border-[#E5E5EA] pb-5">
                   <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Vales-Presente</h2>
                   <p className="text-[13px] text-[#6E6E73] mt-1">
                     Permita a compra de vales-presente com resgate automático de saldo no atendimento.
                   </p>
                 </div>
-                <div className="py-2 space-y-1">
-                  <p className="text-[13px] font-medium text-[#1C1C1E]">Venda de Vouchers Ativa</p>
-                  <p className="text-[12px] text-[#6E6E73]">
-                    Os clientes podem adquirir créditos de presente diretamente pelo site público de agendamento.
-                  </p>
+                <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                  <div className="py-4 space-y-1">
+                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Venda de Vouchers Ativa</h4>
+                    <p className="text-[12px] text-[#6E6E73]">
+                      Os clientes podem adquirir créditos de presente diretamente pelo site público de agendamento e aplicar o código na comanda.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1964,6 +2397,548 @@ export function SettingsView({
                 className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
               >
                 Salvar modelo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: TAXA DE TECNOLOGIA DA PLATAFORMA                                 */}
+      {/* ========================================================================= */}
+      {activeTaxModal === "platform_fee" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Taxa de Tecnologia da Plataforma</h3>
+                <p className="text-[12px] text-[#6E6E73]">Escolha quem assume a taxa operacional</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTaxModal(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label
+                onClick={() => setTempFeePayer("studio")}
+                className={`p-4 rounded-2xl border cursor-pointer block transition-all ${
+                  tempFeePayer === "studio"
+                    ? "border-[#1C1C1E] bg-[#FAFAFA]"
+                    : "border-[#E5E5EA] hover:border-[#D4D4D8] bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[13.5px] font-semibold text-[#1C1C1E]">Você paga (Estúdio absorve)</span>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                      tempFeePayer === "studio" ? "border-[#1C1C1E] bg-[#1C1C1E]" : "border-[#D4D4D8]"
+                    }`}
+                  >
+                    {tempFeePayer === "studio" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </div>
+                </div>
+                <p className="text-[12px] text-[#6E6E73] mt-1 leading-relaxed">
+                  O estúdio assume integralmente os custos operacionais da plataforma. O cliente visualiza e paga exatamente o valor anunciado do serviço.
+                </p>
+              </label>
+
+              <label
+                onClick={() => setTempFeePayer("client")}
+                className={`p-4 rounded-2xl border cursor-pointer block transition-all ${
+                  tempFeePayer === "client"
+                    ? "border-[#1C1C1E] bg-[#FAFAFA]"
+                    : "border-[#E5E5EA] hover:border-[#D4D4D8] bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[13.5px] font-semibold text-[#1C1C1E]">Cliente paga no checkout</span>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                      tempFeePayer === "client" ? "border-[#1C1C1E] bg-[#1C1C1E]" : "border-[#D4D4D8]"
+                    }`}
+                  >
+                    {tempFeePayer === "client" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </div>
+                </div>
+                <p className="text-[12px] text-[#6E6E73] mt-1 leading-relaxed">
+                  A taxa de tecnologia é discriminada no subtotal e cobrada do cliente no ato do checkout com transparência total.
+                </p>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+              <button
+                type="button"
+                onClick={() => setActiveTaxModal(null)}
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = { ...checkoutSettings, technologyFeePayer: tempFeePayer };
+                  setCheckoutSettings(updated);
+                  setActiveTaxModal(null);
+                  onUpdateState((prev) =>
+                    updateWebsiteSetupConfig(prev, { checkoutSettings: updated })
+                  );
+                }}
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+              >
+                Salvar Opção
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: ALÍQUOTA DE SERVIÇOS (ISS)                                       */}
+      {/* ========================================================================= */}
+      {activeTaxModal === "service_tax" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Imposto sobre Serviços</h3>
+                <p className="text-[12px] text-[#6E6E73]">ISS / Simples Nacional</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTaxModal(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[12px] font-medium text-[#71717A]">
+                Alíquota estimada de imposto (%)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={tempServiceTax}
+                  onChange={(e) => setTempServiceTax(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-[15px] font-medium font-mono text-[#1C1C1E] pr-8 focus:outline-none focus:border-[#1C1C1E]"
+                />
+                <span className="absolute right-3.5 top-2.5 text-[14px] text-[#71717A] pointer-events-none">%</span>
+              </div>
+              <p className="text-[11.5px] text-[#8E8E93] leading-relaxed">
+                Utilizada para discriminar encargos tributários nas comandas e faturas de serviços emitidas aos clientes.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+              <button
+                type="button"
+                onClick={() => setActiveTaxModal(null)}
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const val = Math.min(100, Math.max(0, parseFloat(tempServiceTax) || 0));
+                  const updated = { ...checkoutSettings, serviceSalesTaxPercent: val };
+                  setCheckoutSettings(updated);
+                  setActiveTaxModal(null);
+                  onUpdateState((prev) =>
+                    updateWebsiteSetupConfig(prev, { checkoutSettings: updated })
+                  );
+                }}
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+              >
+                Salvar Alíquota
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: ALÍQUOTA DE VAREJO / PRODUTOS (ICMS)                              */}
+      {/* ========================================================================= */}
+      {activeTaxModal === "retail_tax" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Imposto sobre Produtos</h3>
+                <p className="text-[12px] text-[#6E6E73]">ICMS / Varejo Home Care</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTaxModal(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[12px] font-medium text-[#71717A]">
+                Alíquota estimada sobre produtos (%)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={tempRetailTax}
+                  onChange={(e) => setTempRetailTax(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-[15px] font-medium font-mono text-[#1C1C1E] pr-8 focus:outline-none focus:border-[#1C1C1E]"
+                />
+                <span className="absolute right-3.5 top-2.5 text-[14px] text-[#71717A] pointer-events-none">%</span>
+              </div>
+              <p className="text-[11.5px] text-[#8E8E93] leading-relaxed">
+                Incidente sobre cosméticos, shampoos, óleos e tratamentos capilares vendidos presencialmente no salão.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+              <button
+                type="button"
+                onClick={() => setActiveTaxModal(null)}
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const val = Math.min(100, Math.max(0, parseFloat(tempRetailTax) || 0));
+                  const updated = { ...checkoutSettings, retailSalesTaxPercent: val };
+                  setCheckoutSettings(updated);
+                  setActiveTaxModal(null);
+                  onUpdateState((prev) =>
+                    updateWebsiteSetupConfig(prev, { checkoutSettings: updated })
+                  );
+                }}
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+              >
+                Salvar Alíquota
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 6: VERIFICAÇÃO DE IDENTIDADE & KYC                                  */}
+      {/* ========================================================================= */}
+      {activePayoutModal === "identity_verification" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Verificação de Identidade (KYC)</h3>
+                <p className="text-[12px] text-[#6E6E73]">Conformidade regulatória Banco Central do Brasil</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivePayoutModal(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Razão Social ou Nome Fantasia</label>
+                <input
+                  type="text"
+                  value={idLegalName}
+                  onChange={(e) => setIdLegalName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">CNPJ ou CPF do Negócio</label>
+                  <input
+                    type="text"
+                    value={idCnpjCpf}
+                    onChange={(e) => setIdCnpjCpf(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">CPF do Titular Administrador</label>
+                  <input
+                    type="text"
+                    value={idRepCpf}
+                    onChange={(e) => setIdRepCpf(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Nome Completo do Responsável</label>
+                <input
+                  type="text"
+                  value={idRepName}
+                  onChange={(e) => setIdRepName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                <p className="text-[11.5px] text-[#52525B] leading-relaxed">
+                  Seus dados e documentos são criptografados com certificado TLS 1.3 de nível bancário e validados com as bases oficiais da Receita Federal.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+              <button
+                type="button"
+                onClick={() => setActivePayoutModal(null)}
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const updatedPayments = {
+                    ...paymentsSetup,
+                    identityVerified: true,
+                  };
+                  setPaymentsSetup(updatedPayments);
+                  setActivePayoutModal(null);
+                  onUpdateState((prev) =>
+                    updateWebsiteSetupConfig(prev, { paymentsSetup: updatedPayments })
+                  );
+                }}
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+              >
+                Confirmar e Validar Identidade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 7: CONTA DE REPASSE (PIX OU BANCÁRIA)                               */}
+      {/* ========================================================================= */}
+      {activePayoutModal === "payout_account" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Conta de Repasse</h3>
+                <p className="text-[12px] text-[#6E6E73]">Destino dos repasses e liquidações financeiras</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivePayoutModal(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Alternador de Método */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-[#F5F5F7] rounded-xl">
+              <button
+                type="button"
+                onClick={() => setPayoutMethodInput("pix_key")}
+                className={`py-1.5 text-[12.5px] font-medium rounded-lg transition-all ${
+                  payoutMethodInput === "pix_key"
+                    ? "bg-white text-[#1C1C1E] shadow-xs"
+                    : "text-[#71717A] hover:text-[#1C1C1E]"
+                }`}
+              >
+                Chave Pix
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayoutMethodInput("bank_account")}
+                className={`py-1.5 text-[12.5px] font-medium rounded-lg transition-all ${
+                  payoutMethodInput === "bank_account"
+                    ? "bg-white text-[#1C1C1E] shadow-xs"
+                    : "text-[#71717A] hover:text-[#1C1C1E]"
+                }`}
+              >
+                Conta Bancária
+              </button>
+            </div>
+
+            {payoutMethodInput === "pix_key" ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">
+                    Chave Pix (E-mail, CPF/CNPJ, Telefone ou Aleatória)
+                  </label>
+                  <input
+                    type="text"
+                    value={pixKeyValueInput}
+                    onChange={(e) => setPixKeyValueInput(e.target.value)}
+                    placeholder="ex: contato@luveastudio.app"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                  />
+                </div>
+                <p className="text-[11.5px] text-[#8E8E93]">
+                  Repasses automáticos via Pix são efetuados sem tarifa bancária para o titular da conta.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Banco / Instituição</label>
+                  <input
+                    type="text"
+                    value={bankNameInput}
+                    onChange={(e) => setBankNameInput(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Agência</label>
+                    <input
+                      type="text"
+                      value={bankAgencyInput}
+                      onChange={(e) => setBankAgencyInput(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Conta Corrente</label>
+                    <input
+                      type="text"
+                      value={bankAccountInput}
+                      onChange={(e) => setBankAccountInput(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+              <button
+                type="button"
+                onClick={() => setActivePayoutModal(null)}
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const updatedPayments = {
+                    ...paymentsSetup,
+                    payoutMethod: payoutMethodInput,
+                    pixKeyValue: pixKeyValueInput,
+                    bankName: bankNameInput,
+                    routingOrAgency: bankAgencyInput,
+                    accountNumber: bankAccountInput,
+                    setupCompleted: true,
+                  };
+                  setPaymentsSetup(updatedPayments);
+                  setPixKey(pixKeyValueInput);
+                  setActivePayoutModal(null);
+                  onUpdateState((prev) =>
+                    updateWebsiteSetupConfig(prev, { paymentsSetup: updatedPayments })
+                  );
+                }}
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+              >
+                Salvar Conta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 8: INFORMAÇÕES DE PROCESSAMENTO E TAXAS                             */}
+      {/* ========================================================================= */}
+      {activePayoutModal === "processing_info" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Taxas &amp; Prazos de Liquidação</h3>
+                <p className="text-[12px] text-[#6E6E73]">Condições transparentes integradas à LUVEA</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivePayoutModal(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-[13px]">
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
+                  <span>Pix Instantâneo &amp; Sinais</span>
+                  <span className="text-emerald-700 font-semibold">0% · Imediato (D+0)</span>
+                </div>
+                <p className="text-[11.5px] text-[#6E6E73]">
+                  Sem taxas de intermediação bancária. O valor cai direto na sua conta cadastrada.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
+                  <span>Cartão Débito &amp; Crédito à Vista</span>
+                  <span className="text-[#1C1C1E] font-semibold">1,99% a 3,19% · 1 dia útil (D+1)</span>
+                </div>
+                <p className="text-[11.5px] text-[#6E6E73]">
+                  Liquidação automática na sua conta sem necessidade de solicitar resgate manual.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
+                  <span>Parcelamento sem Juros (BNPL)</span>
+                  <span className="text-[#1C1C1E] font-semibold">6% + R$ 0,30 · D+1 integral</span>
+                </div>
+                <p className="text-[11.5px] text-[#6E6E73]">
+                  O estúdio recebe o valor total antecipado em 1 dia útil, enquanto o cliente parcela em até 12x.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
+                  <span>Maquininha Luvea Pro</span>
+                  <span className="text-emerald-700 font-semibold">R$ 0 aluguel / mês</span>
+                </div>
+                <p className="text-[11.5px] text-[#6E6E73]">
+                  Sem metas mínimas de faturamento ou aluguel mensal de equipamento.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-[#E5E5EA]">
+              <button
+                type="button"
+                onClick={() => setActivePayoutModal(null)}
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+              >
+                Entendi
               </button>
             </div>
           </div>

@@ -455,6 +455,21 @@ export interface ClientNotificationsConfig {
   items: ClientNotificationItem[];
 }
 
+export interface CheckoutSettingsConfig {
+  acceptBnpl: boolean;
+  bnplFeePercent: number;
+  bnplFixedFeeCents: number;
+  technologyFeePayer: "studio" | "client";
+  serviceSalesTaxPercent: number;
+  retailSalesTaxPercent: number;
+  allowTapToPay: boolean;
+}
+
+export interface ChartingSettingsConfig {
+  requireProviderSignature: boolean;
+  requireMedicalDirectorSignOff: boolean;
+}
+
 export interface WebsiteBookingSetupConfig {
   theme: BookingSiteThemeId;
   subdomainSlug: string;
@@ -487,6 +502,8 @@ export interface WebsiteBookingSetupConfig {
   tracking?: WebsiteTrackingConfig;
   bookingControls?: BookingControlsConfig;
   clientNotifications?: ClientNotificationsConfig;
+  checkoutSettings?: CheckoutSettingsConfig;
+  chartingSettings?: ChartingSettingsConfig;
 }
 
 export type WhatsAppProviderType = "evolution_api" | "meta_cloud" | "wa_web_manual";
@@ -1617,6 +1634,25 @@ export function getDefaultClientNotifications(): ClientNotificationsConfig {
   };
 }
 
+export function getDefaultCheckoutSettings(): CheckoutSettingsConfig {
+  return {
+    acceptBnpl: false,
+    bnplFeePercent: 6,
+    bnplFixedFeeCents: 30,
+    technologyFeePayer: "studio",
+    serviceSalesTaxPercent: 0,
+    retailSalesTaxPercent: 0,
+    allowTapToPay: true,
+  };
+}
+
+export function getDefaultChartingSettings(): ChartingSettingsConfig {
+  return {
+    requireProviderSignature: false,
+    requireMedicalDirectorSignOff: false,
+  };
+}
+
 export function getDefaultWebsiteBookingConfig(
   businessName = "Bruno Fernandes Malossi Silva"
 ): WebsiteBookingSetupConfig {
@@ -1678,6 +1714,8 @@ export function getDefaultWebsiteBookingConfig(
     },
     bookingControls: getDefaultBookingControls(),
     clientNotifications: getDefaultClientNotifications(),
+    checkoutSettings: getDefaultCheckoutSettings(),
+    chartingSettings: getDefaultChartingSettings(),
   };
 }
 

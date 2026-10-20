@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -21,6 +21,7 @@ import {
   type CheckoutFormData,
 } from "@/lib/auth-schemas";
 import { PLANS_CATALOG } from "@/lib/marketing-content";
+import { TurnstileWidget, type TurnstileWidgetRef } from "@/components/turnstile-widget";
 
 function CheckoutContent() {
   const router = useRouter();
@@ -59,6 +60,8 @@ function CheckoutContent() {
   // Validation & Loading
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
   const [pixPayload, setPixPayload] = useState<{
     qrCodeBase64?: string;
     copiaECola?: string;
@@ -171,6 +174,26 @@ function CheckoutContent() {
     setIsSubmitting(true);
 
     try {
+      if (turnstileToken) {
+        try {
+          const verifyRes = await fetch("/api/turnstile/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: turnstileToken, action: "checkout" }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.success) {
+            setErrors({ general: "Falha na verificação de segurança contra robôs." });
+            setIsSubmitting(false);
+            turnstileRef.current?.reset();
+            setTurnstileToken("");
+            return;
+          }
+        } catch (verErr) {
+          console.warn("[Turnstile checkout verify check]", verErr);
+        }
+      }
+
       const res = await fetch("/api/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -737,6 +760,14 @@ function CheckoutContent() {
                     </p>
                   </div>
                 )}
+
+                {/* Cloudflare Turnstile CAPTCHA */}
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  action="checkout"
+                  onVerify={(tok) => setTurnstileToken(tok)}
+                  onExpire={() => setTurnstileToken("")}
+                />
 
                 {/* Final Submit Button */}
                 <div className="pt-2">

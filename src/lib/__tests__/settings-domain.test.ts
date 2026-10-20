@@ -97,4 +97,56 @@ describe("Configurações Avançadas de Negócio (Settings) — LUVEA Editorial"
     const savedConfirm = savedNotifs.items.find((it) => it.id === "pre-confirm")!;
     assert.match(savedConfirm.templateBody, /Seu horário no {estudio}/);
   });
+
+  it("permite configurar Cobrança & Checkout (taxa de tecnologia, impostos de serviços e varejo, e BNPL)", () => {
+    const initial = createInitialStudioState();
+    const config = initial.settings.website ?? getDefaultWebsiteBookingConfig(initial.settings.business.businessName);
+
+    // Valores padrão
+    assert.ok(config.checkoutSettings);
+    assert.equal(config.checkoutSettings.technologyFeePayer, "studio");
+    assert.equal(config.checkoutSettings.serviceSalesTaxPercent, 0);
+    assert.equal(config.checkoutSettings.retailSalesTaxPercent, 0);
+    assert.equal(config.checkoutSettings.acceptBnpl, false);
+    assert.equal(config.checkoutSettings.allowTapToPay, true);
+
+    // Atualização
+    const updated = updateWebsiteSetupConfig(initial, {
+      checkoutSettings: {
+        acceptBnpl: true,
+        bnplFeePercent: 6,
+        bnplFixedFeeCents: 30,
+        technologyFeePayer: "client",
+        serviceSalesTaxPercent: 5,
+        retailSalesTaxPercent: 18,
+        allowTapToPay: true,
+      },
+    });
+
+    const saved = updated.settings.website.checkoutSettings!;
+    assert.equal(saved.technologyFeePayer, "client");
+    assert.equal(saved.serviceSalesTaxPercent, 5);
+    assert.equal(saved.retailSalesTaxPercent, 18);
+    assert.equal(saved.acceptBnpl, true);
+  });
+
+  it("permite configurar Prontuários (Charting) e Assinaturas Clínicas", () => {
+    const initial = createInitialStudioState();
+    const config = initial.settings.website ?? getDefaultWebsiteBookingConfig(initial.settings.business.businessName);
+
+    assert.ok(config.chartingSettings);
+    assert.equal(config.chartingSettings.requireProviderSignature, false);
+    assert.equal(config.chartingSettings.requireMedicalDirectorSignOff, false);
+
+    const updated = updateWebsiteSetupConfig(initial, {
+      chartingSettings: {
+        requireProviderSignature: true,
+        requireMedicalDirectorSignOff: true,
+      },
+    });
+
+    const saved = updated.settings.website.chartingSettings!;
+    assert.equal(saved.requireProviderSignature, true);
+    assert.equal(saved.requireMedicalDirectorSignOff, true);
+  });
 });

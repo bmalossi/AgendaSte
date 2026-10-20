@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -9,6 +9,7 @@ import {
   normalizeSubdomain,
   calculatePasswordStrength,
 } from "@/lib/auth-schemas";
+import { TurnstileWidget, type TurnstileWidgetRef } from "@/components/turnstile-widget";
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function CadastroPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const passwordStrength = calculatePasswordStrength(password);
 
@@ -60,6 +63,27 @@ export default function CadastroPage() {
     setLoading(true);
 
     try {
+      // Validação de segurança Cloudflare Turnstile
+      if (turnstileToken) {
+        try {
+          const verifyRes = await fetch("/api/turnstile/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: turnstileToken, action: "signup" }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.success) {
+            setErrorMessage("Falha na verificação de segurança contra robôs.");
+            setLoading(false);
+            turnstileRef.current?.reset();
+            setTurnstileToken("");
+            return;
+          }
+        } catch (verErr) {
+          console.warn("[Turnstile verification check]", verErr);
+        }
+      }
+
       if (isSupabaseConfigured()) {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -275,6 +299,14 @@ export default function CadastroPage() {
             <span>{errorMessage}</span>
           </div>
         )}
+
+        {/* Cloudflare Turnstile CAPTCHA */}
+        <TurnstileWidget
+          ref={turnstileRef}
+          action="signup"
+          onVerify={(tok) => setTurnstileToken(tok)}
+          onExpire={() => setTurnstileToken("")}
+        />
 
         {/* Submit Button */}
         <button

@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { TurnstileWidget, type TurnstileWidgetRef } from "@/components/turnstile-widget";
 
 export default function EsqueciSenhaPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +26,26 @@ export default function EsqueciSenhaPage() {
     setLoading(true);
 
     try {
+      if (turnstileToken) {
+        try {
+          const verifyRes = await fetch("/api/turnstile/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: turnstileToken, action: "forgot_password" }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.success) {
+            setErrorMessage("Falha na verificação de segurança contra robôs.");
+            setLoading(false);
+            turnstileRef.current?.reset();
+            setTurnstileToken("");
+            return;
+          }
+        } catch (verErr) {
+          console.warn("[Turnstile forgot password check]", verErr);
+        }
+      }
+
       if (isSupabaseConfigured()) {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
           redirectTo: `${window.location.origin}/redefinir-senha`,
@@ -102,6 +125,14 @@ export default function EsqueciSenhaPage() {
               <span>{errorMessage}</span>
             </div>
           )}
+
+          {/* Cloudflare Turnstile CAPTCHA */}
+          <TurnstileWidget
+            ref={turnstileRef}
+            action="forgot_password"
+            onVerify={(tok) => setTurnstileToken(tok)}
+            onExpire={() => setTurnstileToken("")}
+          />
 
           <button
             type="submit"
