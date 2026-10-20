@@ -2260,16 +2260,19 @@ export function QuickSaleDrawer({
                     <div className="space-y-3 pt-1">
                       {/* Banner de Pagamento Aprovado */}
                       {isPixPaid && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-[14px] flex items-center gap-3 animate-in zoom-in-95 duration-200 shadow-sm">
-                          <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                            <Check className="w-5 h-5 stroke-[2.5]" />
+                        <div className="p-3.5 bg-[#F5F5F7] border border-[#E5E5EA] rounded-[16px] flex items-center gap-3 animate-in zoom-in-95 duration-200">
+                          <div className="w-8 h-8 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] shrink-0 shadow-2xs">
+                            <Check className="w-4 h-4 stroke-[2]" />
                           </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-emerald-950">
-                              Pix Aprovado no Mercado Pago!
-                            </p>
-                            <p className="text-[11.5px] text-emerald-800">
-                              O pagamento foi identificado pelo sistema.
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <p className="text-[13px] font-semibold text-[#1C1C1E]">
+                                Pix aprovado
+                              </p>
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                            </div>
+                            <p className="text-[12px] text-[#6E6E73]">
+                              O pagamento foi identificado e confirmado com sucesso.
                             </p>
                           </div>
                         </div>
@@ -2399,15 +2402,16 @@ export function QuickSaleDrawer({
           {/* ================================================================= */}
           {step === 4 && (
             <div className="space-y-5 animate-in fade-in duration-150 py-2">
-              <div className="text-center space-y-2">
-                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />
+              <div className="text-center space-y-3">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E5E5EA] text-[12.5px] font-medium text-[#1C1C1E] shadow-2xs mx-auto">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                  <span>Venda finalizada</span>
                 </div>
-                <h3 className="text-[20px] font-bold text-[#1C1C1E]">
-                  Venda Concluída com Sucesso!
+                <h3 className="font-serif text-[24px] font-normal text-[#1C1C1E] tracking-tight">
+                  Pagamento confirmado
                 </h3>
-                <p className="text-[13px] text-[#6E6E73]">
-                  O atendimento foi registrado na Agenda e o recebimento foi contabilizado.
+                <p className="text-[13px] text-[#6E6E73] max-w-sm mx-auto">
+                  O atendimento foi registrado na Agenda e o recebimento foi contabilizado no fluxo de caixa.
                 </p>
               </div>
 
