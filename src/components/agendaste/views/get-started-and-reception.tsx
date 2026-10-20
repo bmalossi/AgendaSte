@@ -159,7 +159,7 @@ export function GetStartedView({
                   onClick={() => handleStartStep("booking_site")}
                   className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
                 >
-                  {state.onboarding.steps[0].completed ? "Tudo pronto! ✓" : "Começar"}
+                  {state.onboarding.steps[0].completed ? "Tudo pronto" : "Começar"}
                 </button>
               </div>
             </div>
@@ -190,7 +190,7 @@ export function GetStartedView({
                   onClick={() => handleStartStep("add_services")}
                   className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
                 >
-                  {state.onboarding.steps[1].completed ? "Tudo pronto! ✓" : "Começar"}
+                  {state.onboarding.steps[1].completed ? "Tudo pronto" : "Começar"}
                 </button>
               </div>
             </div>
@@ -222,7 +222,7 @@ export function GetStartedView({
                   className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
                 >
                   {state.onboarding.steps[2].completed
-                    ? "Tudo pronto! ✓"
+                    ? "Tudo pronto"
                     : state.settings.website?.paymentsSetup.setupCompleted &&
                       !state.settings.website?.paymentsSetup.identityVerified
                     ? "Pendente verificação"
@@ -842,9 +842,10 @@ export function PublicBookingSiteModal({
                           href={pixTicketUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block text-center text-[11px] font-medium text-[#6E56CF] hover:underline"
+                          className="inline-flex items-center justify-center gap-1 w-full text-center text-[11px] font-medium text-[#6E56CF] hover:underline"
                         >
-                          Abrir comprovante / instruções Pix no Mercado Pago ↗
+                          <span>Abrir comprovante / instruções Pix no Mercado Pago</span>
+                          <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
                     </div>
@@ -1010,7 +1011,7 @@ export function ReceptionView({
             </button>
             <p className="text-[12.5px] text-zinc-600 mt-3">
               {demoPlaying
-                ? "🔊 Reproduzindo simulação de atendimento da Recepção IA..."
+                ? "Reproduzindo demonstração de atendimento da Recepção IA..."
                 : "Toque para testar a Recepção"}
             </p>
 
@@ -1019,10 +1020,10 @@ export function ReceptionView({
               Apresentando a Recepção
             </h1>
 
-            {/* 3 Feature Bullets with 4-point star icon */}
+            {/* 3 Feature Bullets with Luxury Editorial Dot Indicator */}
             <div className="space-y-6 text-left w-full">
               <div className="flex items-start gap-3.5">
-                <span className="text-[#18181B] text-sm mt-0.5">✦</span>
+                <span className="w-2 h-2 rounded-full bg-[#18181B] mt-1.5 shrink-0" />
                 <div>
                   <h3 className="text-[14px] font-bold text-[#18181B]">
                     Pare de perder agendamentos por chamadas ou mensagens não
@@ -1036,7 +1037,7 @@ export function ReceptionView({
               </div>
 
               <div className="flex items-start gap-3.5">
-                <span className="text-[#18181B] text-sm mt-0.5">✦</span>
+                <span className="w-2 h-2 rounded-full bg-[#18181B] mt-1.5 shrink-0" />
                 <div>
                   <h3 className="text-[14px] font-bold text-[#18181B]">
                     Mantenha o controle, sem mensagens acumuladas no WhatsApp
@@ -1049,7 +1050,7 @@ export function ReceptionView({
               </div>
 
               <div className="flex items-start gap-3.5">
-                <span className="text-[#18181B] text-sm mt-0.5">✦</span>
+                <span className="w-2 h-2 rounded-full bg-[#18181B] mt-1.5 shrink-0" />
                 <div>
                   <h3 className="text-[14px] font-bold text-[#18181B]">
                     Teste grátis até 30/11

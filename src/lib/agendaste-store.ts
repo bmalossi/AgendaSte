@@ -696,7 +696,7 @@ export function createInitialStudioState(): StudioState {
           direction: "inbound",
           channel: "WhatsApp 2-Way",
           messageText: "1 — Confirmado! Estarei aí no horário.",
-          outcomeBadge: "Agenda Sincronizada ✓",
+          outcomeBadge: "Agenda Sincronizada",
         },
         {
           id: "rec-log-3",
@@ -2756,7 +2756,7 @@ export function processWhatsappInboundReply(
         : "2 — Preciso reagendar meu horário para mais tarde.",
     outcomeBadge:
       reply === "1_confirmed"
-        ? "Confirmado na Agenda ✓"
+        ? "Confirmado na Agenda"
         : "Solicitou Reagendamento",
   };
 

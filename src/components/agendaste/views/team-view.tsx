@@ -298,8 +298,8 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
               <p className="text-[28px] font-mono font-bold text-white">
                 R$ 8.250,00
               </p>
-              <p className="text-[12px] text-[#16A34A] font-semibold">
-                Agendado nesta semana · 132% da meta atingida ✓
+              <p className="text-[12px] text-emerald-400 font-medium">
+                Agendado nesta semana · 132% da meta atingida
               </p>
             </div>
             <div className="w-full h-2.5 rounded-full bg-white/15 overflow-hidden">
@@ -475,8 +475,8 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
             <p className="text-[32px] font-mono font-bold text-[#1C1C1E]">
               {formatBRL(totalPayrollCents)}
             </p>
-            <p className="text-[12px] text-[#16A34A] font-semibold">
-              Conciliado automaticamente com o Histórico de Vendas &amp; Ponto ✓
+            <p className="text-[12px] text-zinc-600 font-medium">
+              Conciliado automaticamente com o Histórico de Vendas &amp; Ponto
             </p>
           </div>
         </div>

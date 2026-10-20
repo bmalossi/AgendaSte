@@ -1364,7 +1364,7 @@ export function QuickSaleDrawer({
             }`}
           >
             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 1 ? "bg-emerald-600 text-white" : "border border-current"}`}>
-              {step > 1 ? "✓" : "1"}
+              {step > 1 ? <Check className="w-2.5 h-2.5 stroke-[2.5]" /> : "1"}
             </span>
             <span>Atendimento</span>
           </button>
@@ -1386,7 +1386,7 @@ export function QuickSaleDrawer({
             }`}
           >
             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 2 ? "bg-emerald-600 text-white" : "border border-current"}`}>
-              {step > 2 ? "✓" : "2"}
+              {step > 2 ? <Check className="w-2.5 h-2.5 stroke-[2.5]" /> : "2"}
             </span>
             <span>Itens ({selectedCartItems.length})</span>
           </button>
@@ -1408,7 +1408,7 @@ export function QuickSaleDrawer({
             }`}
           >
             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 3 ? "bg-emerald-600 text-white" : "border border-current"}`}>
-              {step > 3 ? "✓" : "3"}
+              {step > 3 ? <Check className="w-2.5 h-2.5 stroke-[2.5]" /> : "3"}
             </span>
             <span>Pagamento</span>
           </button>

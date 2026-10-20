@@ -262,7 +262,7 @@ export function ClientsView({
                   Isolde Quinn
                 </p>
                 <p className="text-[12px] text-[#6E6E73]">
-                  Cliente VIP · Ficha de Anamnese Capilar preenchida ✓
+                  Cliente VIP · Ficha de Anamnese Capilar preenchida
                 </p>
               </div>
             </div>

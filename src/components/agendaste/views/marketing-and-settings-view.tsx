@@ -559,8 +559,9 @@ export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
                     <label className="text-[12px] font-semibold text-[#6E6E73]">
                       Telefone
                     </label>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#16A34A] text-white text-[10px] font-bold shadow-sm">
-                      Verificado ✓
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                      Verificado
                     </span>
                   </div>
                   <input

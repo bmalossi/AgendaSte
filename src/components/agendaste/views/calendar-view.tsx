@@ -947,25 +947,29 @@ export function CalendarView({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                     {ev.depositPaid && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#16A34A] text-white text-[9px] sm:text-[10px] font-bold shadow-sm">
-                        Sinal Pix ✓
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Sinal Pix
                       </span>
                     )}
                     {ev.whatsappClientReply === "1_confirmed" && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#E11D8F] text-white text-[9px] sm:text-[10px] font-bold shadow-sm">
-                        WhatsApp 1 ✓
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#E11D8F]" />
+                        WhatsApp 1
                       </span>
                     )}
                     {ev.whatsappClientReply === "2_reschedule" && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#D97706] text-white text-[9px] sm:text-[10px] font-bold shadow-sm">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
                         Reagendar
                       </span>
                     )}
                     {ev.status === "completed" && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[9px] sm:text-[10px] font-bold shadow-sm">
-                        Pago ✓
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#1C1C1E]" />
+                        Pago
                       </span>
                     )}
                   </div>
@@ -1580,7 +1584,7 @@ export function CalendarView({
                   <span className="text-[12px] text-[#6E6E73]">
                     Sinal Pix ({formatBRL(selectedEvent.depositCents)}):{" "}
                     <strong>
-                      {selectedEvent.depositPaid ? "Pago ✓" : "Pendente"}
+                      {selectedEvent.depositPaid ? "Pago" : "Pendente"}
                     </strong>
                   </span>
                   <span className="text-[16px] font-mono font-bold text-[#1C1C1E]">
