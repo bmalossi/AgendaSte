@@ -33,6 +33,7 @@ import {
   Mail,
   Receipt,
   Banknote,
+  ChevronRight,
 } from "lucide-react";
 import {
   StudioState,
@@ -1363,13 +1364,13 @@ export function QuickSaleDrawer({
                 : "text-[#8E8E93]"
             }`}
           >
-            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 1 ? "bg-emerald-600 text-white" : "border border-current"}`}>
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 1 ? "bg-[#1C1C1E] text-white" : "border border-current"}`}>
               {step > 1 ? <Check className="w-2.5 h-2.5 stroke-[2.5]" /> : "1"}
             </span>
             <span>Atendimento</span>
           </button>
 
-          <span className="text-[#C7C7CC] text-[11px] shrink-0">›</span>
+          <ChevronRight className="w-3.5 h-3.5 text-[#C7C7CC] shrink-0" />
 
           <button
             type="button"
@@ -1385,13 +1386,13 @@ export function QuickSaleDrawer({
                 : "text-[#8E8E93] disabled:opacity-50"
             }`}
           >
-            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 2 ? "bg-emerald-600 text-white" : "border border-current"}`}>
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 2 ? "bg-[#1C1C1E] text-white" : "border border-current"}`}>
               {step > 2 ? <Check className="w-2.5 h-2.5 stroke-[2.5]" /> : "2"}
             </span>
             <span>Itens ({selectedCartItems.length})</span>
           </button>
 
-          <span className="text-[#C7C7CC] text-[11px] shrink-0">›</span>
+          <ChevronRight className="w-3.5 h-3.5 text-[#C7C7CC] shrink-0" />
 
           <button
             type="button"
@@ -1407,18 +1408,18 @@ export function QuickSaleDrawer({
                 : "text-[#8E8E93] disabled:opacity-50"
             }`}
           >
-            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 3 ? "bg-emerald-600 text-white" : "border border-current"}`}>
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 3 ? "bg-[#1C1C1E] text-white" : "border border-current"}`}>
               {step > 3 ? <Check className="w-2.5 h-2.5 stroke-[2.5]" /> : "3"}
             </span>
             <span>Pagamento</span>
           </button>
 
-          <span className="text-[#C7C7CC] text-[11px] shrink-0">›</span>
+          <ChevronRight className="w-3.5 h-3.5 text-[#C7C7CC] shrink-0" />
 
           <div
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0 ${
               step === 4
-                ? "bg-emerald-600 text-white font-semibold shadow-sm"
+                ? "bg-[#1C1C1E] text-white font-semibold shadow-sm"
                 : "text-[#8E8E93]"
             }`}
           >
@@ -2050,7 +2051,7 @@ export function QuickSaleDrawer({
                   {selectedCartItems.map((it) => (
                     <div key={it.id} className="flex items-center justify-between text-[#1C1C1E]">
                       <span className="font-medium truncate max-w-[280px]">
-                        • {it.name}
+                        {it.name}
                       </span>
                       <span className="font-mono font-semibold">
                         {formatBRL(it.priceCents)}
@@ -2060,7 +2061,7 @@ export function QuickSaleDrawer({
                   {customItemCents > 0 && (
                     <div className="flex items-center justify-between text-[#1C1C1E]">
                       <span className="font-medium truncate max-w-[280px]">
-                        • {customItemName.trim() || "Item Avulso"}
+                        {customItemName.trim() || "Item Avulso"}
                       </span>
                       <span className="font-mono font-semibold">
                         {formatBRL(customItemCents)}

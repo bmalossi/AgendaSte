@@ -14,11 +14,18 @@ import {
   Check,
   Copy,
   X,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
+  Globe,
+  ShieldCheck,
 } from "lucide-react";
 import {
   StudioState,
   UserWhatsAppConfig,
   UserWhatsAppTemplates,
+  EvolutionInstanceSettings,
+  DEFAULT_EVOLUTION_SETTINGS,
   updateUserWhatsAppConfig,
   disconnectUserWhatsApp,
   formatWhatsAppMessage,
@@ -29,6 +36,42 @@ interface WhatsAppConfigCardProps {
   setState: React.Dispatch<React.SetStateAction<StudioState>>;
   onAfterSave?: () => void;
   showSaveAndContinue?: boolean;
+}
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  disabled = false,
+  label,
+  id,
+}: {
+  checked: boolean;
+  onChange: (val: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+  id?: string;
+}) {
+  return (
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1C1C1E] focus:ring-offset-2 ${
+        checked ? "bg-[#1C1C1E]" : "bg-[#E5E5EA]"
+      } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
 }
 
 export function WhatsAppConfigCard({
@@ -54,6 +97,7 @@ export function WhatsAppConfigCard({
       reactivation45d:
         "Oi {nome}! Faz tempo que não nos vemos no {estudio}. Que tal renovar seu visual com um mimo especial esta semana?",
     },
+    evolutionSettings: DEFAULT_EVOLUTION_SETTINGS,
   };
 
   const [phoneNumber, setPhoneNumber] = useState(
@@ -71,6 +115,22 @@ export function WhatsAppConfigCard({
   const [copiedInstanceName, setCopiedInstanceName] = useState(false);
   const [globalApiKey, setGlobalApiKey] = useState("");
   const [showGlobalKeyInput, setShowGlobalKeyInput] = useState(false);
+
+  // Evolution API Instance Settings
+  const [evolutionSettings, setEvolutionSettings] = useState<EvolutionInstanceSettings>(
+    currentConfig.evolutionSettings ?? DEFAULT_EVOLUTION_SETTINGS
+  );
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSuccessMessage, setSettingsSuccessMessage] = useState<string | null>(null);
+  const [settingsErrorMessage, setSettingsErrorMessage] = useState<string | null>(null);
+  const [showAdvancedServerConfig, setShowAdvancedServerConfig] = useState(false);
+  const [customServerUrl, setCustomServerUrl] = useState(
+    currentConfig.apiUrl || "https://api.automab.dev"
+  );
+  const [customServerKey, setCustomServerKey] = useState(currentConfig.apiKey || "");
+  const [activeInstanceName, setActiveInstanceName] = useState(
+    currentConfig.instanceName || `agendaste_${phoneNumber.replace(/\D/g, "")}`
+  );
 
   // Template settings
   const [templates, setTemplates] = useState<UserWhatsAppTemplates>(
@@ -121,6 +181,10 @@ export function WhatsAppConfigCard({
           setIsGeneratingQr(false);
           setRequiresManualCreation(null);
 
+          if (data.instanceName) {
+            setActiveInstanceName(data.instanceName);
+          }
+
           setState((prev) =>
             updateUserWhatsAppConfig(prev, {
               phoneNumber: data.phoneNumber || phone,
@@ -128,6 +192,7 @@ export function WhatsAppConfigCard({
               apiKey: data.apiKey,
               connected: true,
               templates,
+              evolutionSettings,
             })
           );
         }
@@ -152,6 +217,10 @@ export function WhatsAppConfigCard({
         });
         const data = await res.json();
         if (isMounted && data.ok) {
+          if (data.instanceName) {
+            setActiveInstanceName(data.instanceName);
+          }
+
           if (data.connected && data.state === "open") {
             setIsConnected(true);
             setState((prev) =>
@@ -183,6 +252,37 @@ export function WhatsAppConfigCard({
     };
   }, []);
 
+  // Fetch current Evolution settings from server whenever phone/instance changes
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchSettings() {
+      try {
+        const res = await fetch(
+          `/api/whatsapp/settings?phoneNumber=${encodeURIComponent(phoneNumber)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.ok && data.settings) {
+            setEvolutionSettings(data.settings);
+            if (data.instanceName) {
+              setActiveInstanceName(data.instanceName);
+            }
+          }
+        }
+      } catch (err) {
+        // silent fallback to store
+      }
+    }
+
+    if (phoneNumber) {
+      fetchSettings();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [phoneNumber]);
+
   // Request new QR Code (Automatic instance creation or connect to existing)
   const handleGenerateQr = async (overrideApiKey?: string) => {
     setIsGeneratingQr(true);
@@ -205,6 +305,10 @@ export function WhatsAppConfigCard({
 
       const data = await res.json();
 
+      if (data.instanceName) {
+        setActiveInstanceName(data.instanceName);
+      }
+
       if (data.ok) {
         if (data.connected || data.state === "open") {
           setIsConnected(true);
@@ -217,6 +321,7 @@ export function WhatsAppConfigCard({
               apiKey: data.apiKey,
               connected: true,
               templates,
+              evolutionSettings,
             })
           );
         } else {
@@ -240,6 +345,52 @@ export function WhatsAppConfigCard({
       );
     } finally {
       setIsGeneratingQr(false);
+    }
+  };
+
+  // Save Evolution API Instance Settings
+  const handleSaveEvolutionSettings = async () => {
+    setIsSavingSettings(true);
+    setSettingsSuccessMessage(null);
+    setSettingsErrorMessage(null);
+
+    try {
+      const res = await fetch("/api/whatsapp/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber,
+          instanceName: activeInstanceName,
+          apiUrl: customServerUrl.trim() || undefined,
+          apiKey: customServerKey.trim() || undefined,
+          settings: evolutionSettings,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setSettingsSuccessMessage(
+          data.savedOnServer
+            ? "Configurações sincronizadas na Evolution API com sucesso."
+            : "Configurações salvas localmente para aplicação ao conectar."
+        );
+        setState((prev) =>
+          updateUserWhatsAppConfig(prev, {
+            phoneNumber,
+            apiUrl: customServerUrl.trim() || undefined,
+            apiKey: customServerKey.trim() || undefined,
+            instanceName: data.instanceName || activeInstanceName,
+            evolutionSettings,
+          })
+        );
+        setTimeout(() => setSettingsSuccessMessage(null), 4000);
+      } else {
+        setSettingsErrorMessage(data.error || "Erro ao salvar na Evolution API.");
+      }
+    } catch (err: any) {
+      setSettingsErrorMessage(err?.message || "Erro de rede ao salvar configurações.");
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -273,6 +424,10 @@ export function WhatsAppConfigCard({
       phoneNumber,
       connected: isConnected,
       templates,
+      evolutionSettings,
+      instanceName: activeInstanceName,
+      apiUrl: customServerUrl.trim() || undefined,
+      apiKey: customServerKey.trim() || undefined,
     });
     setState(updatedState);
     if (onAfterSave) onAfterSave();
@@ -298,37 +453,37 @@ export function WhatsAppConfigCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientName: "Bruna Silva (Teste)",
-          clientPhone: testRecipient || phoneNumber,
+          clientPhone: testRecipient,
+          templateType: activeTemplateTab === "reminder24h" ? "reminder_24h" : "custom",
           customMessage: previewText,
-          templateType: "custom",
-          whatsappConfig: {
+          userConfig: {
+            ...currentConfig,
             phoneNumber,
-            instanceName: currentConfig.instanceName || "pessoal",
+            instanceName: activeInstanceName,
+            apiUrl: customServerUrl.trim() || undefined,
+            apiKey: customServerKey.trim() || undefined,
           },
         }),
       });
 
       const data = await res.json();
-      if (res.ok && data.ok) {
+      if (data.ok) {
         setTestResult({
           ok: true,
-          message: `Mensagem enviada com sucesso para ${data.recipient}!`,
+          message: data.deliveryStatus || "Mensagem de teste enviada com sucesso!",
           waMeUrl: data.waMeUrl,
         });
-        setState((prev) => ({
-          ...prev,
-          lastToastMessage: `Teste de WhatsApp enviado com sucesso para ${testRecipient}!`,
-        }));
       } else {
         setTestResult({
           ok: false,
-          message: data.error || "Falha ao disparar mensagem no WhatsApp.",
+          message: data.error || "Falha no envio do teste.",
+          waMeUrl: data.waMeUrl,
         });
       }
-    } catch (err: any) {
+    } catch (e: any) {
       setTestResult({
         ok: false,
-        message: err?.message || "Erro de conexão ao enviar mensagem de teste.",
+        message: e?.message || "Erro de conexão ao enviar mensagem de teste.",
       });
     } finally {
       setIsSendingTest(false);
@@ -337,48 +492,44 @@ export function WhatsAppConfigCard({
 
   return (
     <div className="space-y-6">
-      {/* 1. SEÇÃO DE CONEXÃO DO WHATSAPP (PADRÃO EDITORIAL LUXURY) */}
-      <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-6 shadow-sm">
-        <div className="border-b border-[#E5E5EA] pb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-[17px] font-bold text-[#1C1C1E]">
-                WhatsApp do Estúdio
-              </h3>
-              <p className="text-[13px] text-[#6E6E73] mt-0.5">
-                Canal oficial para envio de confirmações e lembretes automáticos da agenda.
-              </p>
-            </div>
+      {/* 1. WHATSAPP DO ESTÚDIO */}
+      <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-5 shadow-sm">
+        {/* Header com Status Badge Fino */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E5EA] pb-4">
+          <div>
+            <h3 className="text-[17px] font-bold text-[#1C1C1E]">
+              WhatsApp do Estúdio
+            </h3>
+            <p className="text-[13px] text-[#6E6E73] mt-0.5">
+              Canal oficial para envio de confirmações e lembretes automáticos da agenda.
+            </p>
+          </div>
 
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[12px] font-medium text-[#1C1C1E]">
-              <span
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  isConnected
-                    ? "bg-emerald-500 ring-2 ring-emerald-500/20"
-                    : "bg-zinc-300"
-                }`}
-              />
-              <span>{isConnected ? "Conectado" : "Desconectado"}</span>
-            </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] font-medium text-[#1C1C1E] self-start sm:self-auto">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isConnected
+                  ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                  : "bg-zinc-400"
+              }`}
+            />
+            <span>{isConnected ? "Conectado" : "Desconectado"}</span>
           </div>
         </div>
 
-        {/* ESTADO CONECTADO: Card Editorial Fino */}
         {isConnected ? (
+          /* Estado Conectado */
           <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] shrink-0 shadow-xs">
                 <Smartphone className="w-5 h-5 stroke-[1.75]" />
               </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-bold text-[#1C1C1E] font-mono tracking-tight">
-                    {currentConfig.phoneNumber || phoneNumber}
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                </div>
-                <p className="text-[12.5px] text-[#6E6E73]">
-                  Disparos e confirmações ativos · Instância {currentConfig.instanceName || "pessoal"}
+              <div>
+                <p className="text-[14px] font-semibold text-[#1C1C1E] font-mono">
+                  {phoneNumber}
+                </p>
+                <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                  Disparos e confirmações ativos
                 </p>
               </div>
             </div>
@@ -386,12 +537,13 @@ export function WhatsAppConfigCard({
             <button
               type="button"
               onClick={handleDisconnect}
-              className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shadow-xs shrink-0"
+              className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition shadow-2xs"
             >
               Desconectar
             </button>
           </div>
         ) : (
+          /* Estado Desconectado */
           <div className="space-y-5">
             {/* Input do Número de WhatsApp */}
             <div className="max-w-md space-y-2">
@@ -410,13 +562,9 @@ export function WhatsAppConfigCard({
                   onChange={(e) => {
                     const newPhone = e.target.value;
                     setPhoneNumber(newPhone);
-                    setTestRecipient(newPhone);
-                    setErrorMessage(null);
-                    setRequiresManualCreation(null);
-                    const cleanNew = newPhone.replace(/\D/g, "");
-                    const cleanConn = (currentConfig.phoneNumber || "").replace(/\D/g, "");
-                    if (cleanNew !== cleanConn) {
+                    if (isConnected) {
                       setIsConnected(false);
+                      stopPolling();
                       setQrCodeBase64(null);
                       setQrCodeText(null);
                     }
@@ -441,7 +589,7 @@ export function WhatsAppConfigCard({
               </p>
             </div>
 
-            {/* Bloco de Orientação para Criação na Evolution API */}
+            {/* Bloco de Orientação para Criação Manual na Evolution API (se root for 401) */}
             {requiresManualCreation && (
               <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] space-y-4 max-w-xl">
                 <div className="flex items-start gap-3">
@@ -539,7 +687,7 @@ export function WhatsAppConfigCard({
               <div className="p-8 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex flex-col items-center justify-center space-y-3 text-center">
                 <RefreshCw className="w-5 h-5 text-[#1C1C1E] animate-spin" />
                 <p className="text-[13px] font-medium text-[#1C1C1E]">
-                  Gerando código de pareamento...
+                  Gerando código de pareamento autêntico...
                 </p>
               </div>
             ) : qrCodeBase64 ? (
@@ -616,7 +764,299 @@ export function WhatsAppConfigCard({
         )}
       </div>
 
-      {/* 2. PERSONALIZAÇÃO DOS TEXTOS DAS MENSAGENS */}
+      {/* 2. CONFIGURAÇÕES DA INSTÂNCIA (EVOLUTION API) */}
+      <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E5EA] pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-[17px] font-bold text-[#1C1C1E]">
+                Configurações da Instância (Evolution API)
+              </h3>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                <span>Instância: {activeInstanceName}</span>
+              </span>
+            </div>
+            <p className="text-[13px] text-[#6E6E73] mt-0.5">
+              Defina o comportamento da linha do WhatsApp para chamadas, mensagens de grupo, privacidade e sincronização.
+            </p>
+          </div>
+
+          <a
+            href="https://docs.evolutionfoundation.com.br/evolution-api"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#6E6E73] hover:text-[#1C1C1E] transition shrink-0"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Documentação Evolution</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+
+        {/* 6 Controles Oficiais da Evolution API */}
+        <div className="space-y-3">
+          {/* 1. Reject Calls */}
+          <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                  Rejeitar chamadas recebidas (Reject Calls)
+                </span>
+                <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                  Recusa chamadas de voz e vídeo automaticamente no WhatsApp para manter o foco no atendimento por mensagens e na agenda online.
+                </p>
+              </div>
+              <ToggleSwitch
+                id="reject-call-switch"
+                checked={evolutionSettings.rejectCall}
+                onChange={(val) =>
+                  setEvolutionSettings((prev) => ({ ...prev, rejectCall: val }))
+                }
+                label="Rejeitar chamadas recebidas"
+              />
+            </div>
+
+            {evolutionSettings.rejectCall && (
+              <div className="pt-2 border-t border-[#E5E5EA] space-y-1.5 animate-in fade-in-50 duration-200">
+                <label
+                  htmlFor="msg-call-input"
+                  className="block text-[11.5px] font-medium text-[#1C1C1E]"
+                >
+                  Mensagem enviada automaticamente ao autor da chamada recusada (msgCall)
+                </label>
+                <input
+                  id="msg-call-input"
+                  type="text"
+                  value={evolutionSettings.msgCall}
+                  onChange={(e) =>
+                    setEvolutionSettings((prev) => ({
+                      ...prev,
+                      msgCall: e.target.value,
+                    }))
+                  }
+                  placeholder="Ex: Não recebemos chamadas neste WhatsApp. Por favor, envie uma mensagem de texto ou utilize nosso agendamento online."
+                  className="w-full px-3 py-2 rounded-xl border border-[#D4D4D8] bg-white text-[12.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 2. Ignore Groups */}
+          <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <span className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                Ignorar mensagens de grupos (Ignore Groups)
+              </span>
+              <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                Ignora todas as mensagens e menções vindas de grupos para que apenas conversas individuais de clientes sejam processadas.
+              </p>
+            </div>
+            <ToggleSwitch
+              id="ignore-groups-switch"
+              checked={evolutionSettings.groupsIgnore}
+              onChange={(val) =>
+                setEvolutionSettings((prev) => ({ ...prev, groupsIgnore: val }))
+              }
+              label="Ignorar mensagens de grupos"
+            />
+          </div>
+
+          {/* 3. Always Online */}
+          <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <span className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                Sempre online (Always Online)
+              </span>
+              <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                Mantém o perfil do WhatsApp com indicador online contínuo para transmitir prontidão e atendimento ativo.
+              </p>
+            </div>
+            <ToggleSwitch
+              id="always-online-switch"
+              checked={evolutionSettings.alwaysOnline}
+              onChange={(val) =>
+                setEvolutionSettings((prev) => ({ ...prev, alwaysOnline: val }))
+              }
+              label="Manter status sempre online"
+            />
+          </div>
+
+          {/* 4. Read Messages */}
+          <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <span className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                Marcar mensagens como lidas (Read Messages)
+              </span>
+              <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                Confirma a leitura das mensagens recebidas assim que são processadas pelo sistema.
+              </p>
+            </div>
+            <ToggleSwitch
+              id="read-messages-switch"
+              checked={evolutionSettings.readMessages}
+              onChange={(val) =>
+                setEvolutionSettings((prev) => ({ ...prev, readMessages: val }))
+              }
+              label="Marcar mensagens como lidas"
+            />
+          </div>
+
+          {/* 5. Sync Full History */}
+          <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <span className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                Sincronizar histórico completo (Sync Full History)
+              </span>
+              <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                Sincroniza o histórico integral de conversas anteriores ao parear pelo QR Code no aparelho.
+              </p>
+            </div>
+            <ToggleSwitch
+              id="sync-full-history-switch"
+              checked={evolutionSettings.syncFullHistory}
+              onChange={(val) =>
+                setEvolutionSettings((prev) => ({ ...prev, syncFullHistory: val }))
+              }
+              label="Sincronizar histórico completo"
+            />
+          </div>
+
+          {/* 6. Read Status */}
+          <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <span className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                Visualizar status dos contatos (Read Status)
+              </span>
+              <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                Marca as publicações de status (stories) dos seus contatos como visualizadas automaticamente.
+              </p>
+            </div>
+            <ToggleSwitch
+              id="read-status-switch"
+              checked={evolutionSettings.readStatus}
+              onChange={(val) =>
+                setEvolutionSettings((prev) => ({ ...prev, readStatus: val }))
+              }
+              label="Visualizar status dos contatos automaticamente"
+            />
+          </div>
+        </div>
+
+        {/* Configurações Avançadas do Servidor Evolution API (Accordion) */}
+        <div className="border border-[#E5E5EA] rounded-xl overflow-hidden bg-[#FAFAFC]">
+          <button
+            type="button"
+            onClick={() => setShowAdvancedServerConfig(!showAdvancedServerConfig)}
+            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[#F5F5F7] transition"
+          >
+            <div className="flex items-center gap-2">
+              <Sliders className="w-4 h-4 text-[#6E6E73]" />
+              <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                Conexão do Servidor Evolution API (Avançado)
+              </span>
+            </div>
+            {showAdvancedServerConfig ? (
+              <ChevronUp className="w-4 h-4 text-[#6E6E73]" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-[#6E6E73]" />
+            )}
+          </button>
+
+          {showAdvancedServerConfig && (
+            <div className="p-4 border-t border-[#E5E5EA] space-y-4 bg-white text-[12.5px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="custom-server-url"
+                    className="block font-medium text-[#1C1C1E]"
+                  >
+                    URL do Servidor Evolution API
+                  </label>
+                  <input
+                    id="custom-server-url"
+                    type="text"
+                    value={customServerUrl}
+                    onChange={(e) => setCustomServerUrl(e.target.value)}
+                    placeholder="https://api.automab.dev"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D4D4D8] font-mono text-[12px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="active-instance-name"
+                    className="block font-medium text-[#1C1C1E]"
+                  >
+                    Nome da Instância
+                  </label>
+                  <input
+                    id="active-instance-name"
+                    type="text"
+                    value={activeInstanceName}
+                    onChange={(e) => setActiveInstanceName(e.target.value)}
+                    placeholder="agendaste_5513978276520"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D4D4D8] font-mono text-[12px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="custom-server-key"
+                  className="block font-medium text-[#1C1C1E]"
+                >
+                  Chave Global / Token (Opcional se já configurada no ambiente)
+                </label>
+                <input
+                  id="custom-server-key"
+                  type="password"
+                  value={customServerKey}
+                  onChange={(e) => setCustomServerKey(e.target.value)}
+                  placeholder="AUTHENTICATION_API_KEY do servidor..."
+                  className="w-full px-3 py-2 rounded-xl border border-[#D4D4D8] font-mono text-[12px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Feedback Messages */}
+        {settingsSuccessMessage && (
+          <div className="p-3 bg-[#F5F5F7] border border-[#E5E5EA] rounded-xl text-[12.5px] text-[#1C1C1E] flex items-center gap-2 animate-in fade-in duration-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+            <span>{settingsSuccessMessage}</span>
+          </div>
+        )}
+
+        {settingsErrorMessage && (
+          <div className="p-3 bg-[#FFF5F5] border border-[#FEE2E2] rounded-xl text-[12.5px] text-[#991B1B] flex items-center gap-2 animate-in fade-in duration-200">
+            <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
+            <span>{settingsErrorMessage}</span>
+          </div>
+        )}
+
+        {/* Botão de Salvar Configurações da Evolution API */}
+        <div className="flex items-center justify-end pt-1">
+          <button
+            type="button"
+            disabled={isSavingSettings}
+            onClick={handleSaveEvolutionSettings}
+            className="px-6 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center gap-2 disabled:opacity-60 shadow-xs transition"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isSavingSettings ? "animate-spin" : ""}`}
+            />
+            <span>
+              {isSavingSettings
+                ? "Aplicando na Evolution API..."
+                : "Salvar Configurações da Evolution API"}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. MODELOS DE MENSAGENS DO SISTEMA */}
       <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-5 shadow-sm">
         <div className="border-b border-[#E5E5EA] pb-3">
           <h3 className="text-[17px] font-bold text-[#1C1C1E]">
@@ -711,7 +1151,7 @@ export function WhatsAppConfigCard({
         </div>
       </div>
 
-      {/* 3. TESTE DE DISPARO AO VIVO */}
+      {/* 4. TESTAR ENVIO NO WHATSAPP */}
       <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-5 shadow-sm">
         <div>
           <h3 className="text-[17px] font-bold text-[#1C1C1E]">

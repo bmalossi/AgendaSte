@@ -950,25 +950,25 @@ export function CalendarView({
                   <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                     {ev.depositPaid && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                         Sinal Pix
                       </span>
                     )}
                     {ev.whatsappClientReply === "1_confirmed" && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#E11D8F]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6E56CF] ring-2 ring-[#6E56CF]/20" />
                         WhatsApp 1
                       </span>
                     )}
                     {ev.whatsappClientReply === "2_reschedule" && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] ring-2 ring-[#D97706]/20" />
                         Reagendar
                       </span>
                     )}
                     {ev.status === "completed" && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#1C1C1E]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#1C1C1E] ring-2 ring-[#1C1C1E]/20" />
                         Pago
                       </span>
                     )}
@@ -978,8 +978,9 @@ export function CalendarView({
                 {/* Processing Time Segmented Bar Indicator (ADR-0002) */}
                 {hasProcessingWindow && (
                   <div className="my-1 px-2 sm:px-2.5 py-1 rounded-lg bg-[#F5F3FF] border border-dashed border-[#6E56CF]/50 flex flex-wrap sm:flex-nowrap items-center justify-between gap-1 text-[10.5px] sm:text-[11px] text-[#6E56CF]">
-                    <span className="truncate">
-                      ⏳ Pausa ({ev.processingDurationMinutes} min livres p/ encaixe)
+                    <span className="inline-flex items-center gap-1.5 truncate">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      Pausa ({ev.processingDurationMinutes} min livres p/ encaixe)
                     </span>
                     <button
                       onClick={(e) => {
@@ -999,7 +1000,7 @@ export function CalendarView({
                 <div className="flex items-center justify-between gap-2 text-[10.5px] sm:text-[11px] text-[#6E6E73] pt-1 border-t border-[#F5F5F7]">
                   <span className="truncate flex-1 min-w-0">
                     {resourcesUsed.length > 0
-                      ? `🔒 Recursos: ${resourcesUsed.map((r) => r.name).join(", ")}`
+                      ? `Recursos: ${resourcesUsed.map((r) => r.name).join(", ")}`
                       : ev.addressOrNotes || "1-Toque para Retorno ou Baixa"}
                   </span>
                   <span className="font-mono font-bold text-[#1C1C1E] shrink-0">
@@ -1073,10 +1074,10 @@ export function CalendarView({
                   w.providerId === waitlistProviderFilter
               ).length === 0 ? (
                 <div className="text-center py-16">
-                  <div className="w-16 h-16 rounded-2xl bg-[#F5F5F7] text-[#1C1C1E] mx-auto flex items-center justify-center mb-4">
-                    <CalendarIcon className="w-8 h-8" />
+                  <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center mb-3 shadow-2xs">
+                    <CalendarIcon className="w-5 h-5 stroke-[1.75]" />
                   </div>
-                  <h3 className="text-[16px] font-bold text-[#1C1C1E] mb-1">
+                  <h3 className="text-[15px] font-bold text-[#1C1C1E] mb-1">
                     Nenhuma solicitação na lista de espera
                   </h3>
                   <p className="text-[13px] text-[#6E6E73] mb-6">
@@ -1425,7 +1426,7 @@ export function CalendarView({
                                   ? ` (inclui ${srv.processingDurationMinutes}m pausa)`
                                   : ""}
                                 {resNames.length > 0
-                                  ? ` · 🔒 ${resNames.join(", ")}`
+                                  ? ` · Recursos: ${resNames.join(", ")}`
                                   : ""}
                               </p>
                             </div>

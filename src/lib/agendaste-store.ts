@@ -428,6 +428,26 @@ export interface UserWhatsAppTemplates {
   reactivation45d: string;
 }
 
+export interface EvolutionInstanceSettings {
+  rejectCall: boolean;
+  msgCall: string;
+  groupsIgnore: boolean;
+  alwaysOnline: boolean;
+  readMessages: boolean;
+  readStatus: boolean;
+  syncFullHistory: boolean;
+}
+
+export const DEFAULT_EVOLUTION_SETTINGS: EvolutionInstanceSettings = {
+  rejectCall: false,
+  msgCall: "",
+  groupsIgnore: true,
+  alwaysOnline: false,
+  readMessages: false,
+  readStatus: false,
+  syncFullHistory: false,
+};
+
 export interface UserWhatsAppConfig {
   provider: WhatsAppProviderType;
   phoneNumber: string;
@@ -441,6 +461,7 @@ export interface UserWhatsAppConfig {
   connectedAt?: string;
   pairingQrCode?: string;
   templates: UserWhatsAppTemplates;
+  evolutionSettings?: EvolutionInstanceSettings;
 }
 
 export interface StudioState {
@@ -665,6 +686,9 @@ export function createInitialStudioState(): StudioState {
         apiKey: "",
         connected: true,
         connectedAt: "2026-10-17T08:00:00Z",
+        evolutionSettings: {
+          ...DEFAULT_EVOLUTION_SETTINGS,
+        },
         templates: {
           reminder24h:
             "Olá {nome}! Lembrete do seu horário amanhã às {horario} no {estudio}. Responda 1 para Confirmar ou 2 para Reagendar.",
@@ -2811,6 +2835,10 @@ export function updateUserWhatsAppConfig(
   const updatedConfig: UserWhatsAppConfig = {
     ...currentConfig,
     ...config,
+    evolutionSettings: {
+      ...(currentConfig.evolutionSettings ?? DEFAULT_EVOLUTION_SETTINGS),
+      ...(config.evolutionSettings ?? {}),
+    },
     templates: {
       ...currentConfig.templates,
       ...(config.templates ?? {}),

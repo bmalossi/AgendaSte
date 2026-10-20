@@ -59,8 +59,14 @@ import {
 
 export function AgendaSteApp({
   initialSection = "get_started",
+  initialTab,
+  initialWizard = false,
+  initialStep = 1,
 }: {
   initialSection?: NavigationSectionId;
+  initialTab?: string;
+  initialWizard?: boolean;
+  initialStep?: number;
 }) {
   const [state, setState] = useState<StudioState>(() =>
     createInitialStudioState()
@@ -68,20 +74,27 @@ export function AgendaSteApp({
   const [activeSection, setActiveSection] =
     useState<NavigationSectionId>(initialSection);
   const [bookingSiteOpen, setBookingSiteOpen] = useState(false);
-  const [websiteWizardOpen, setWebsiteWizardOpen] = useState(false);
-  const [websiteWizardInitialStep, setWebsiteWizardInitialStep] = useState(1);
+  const [websiteWizardOpen, setWebsiteWizardOpen] = useState(initialWizard);
+  const [websiteWizardInitialStep, setWebsiteWizardInitialStep] =
+    useState(initialStep || 1);
   const [quickSaleOpen, setQuickSaleOpen] = useState(false);
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Sincroniza seção com ?view= na URL
+  // Sincroniza seção e wizard com a URL
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const v = params.get("view") as NavigationSectionId | null;
       if (v) {
         setActiveSection(v);
+      }
+      const wiz = params.get("wizard");
+      if (wiz === "true" || wiz === "1") {
+        setWebsiteWizardOpen(true);
+        const st = parseInt(params.get("step") || "1", 10);
+        if (!isNaN(st)) setWebsiteWizardInitialStep(st);
       }
     }
   }, []);
@@ -775,7 +788,11 @@ export function AgendaSteApp({
         )}
 
         {activeSection === "settings" && (
-          <SettingsView state={state} onUpdateState={handleUpdateStudioState} />
+          <SettingsView
+            state={state}
+            onUpdateState={handleUpdateStudioState}
+            initialTab={initialTab}
+          />
         )}
 
         {(activeSection === "insights" ||

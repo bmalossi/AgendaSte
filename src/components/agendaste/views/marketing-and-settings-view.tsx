@@ -74,7 +74,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
   const [audienceSegment, setAudienceSegment] =
     useState<MarketingCampaignItem["audienceSegment"]>("absent_45d");
   const [subject, setSubject] = useState(
-    "Sentimos sua falta no Aura Studio ✨ Seu horário especial te espera"
+    "Sentimos sua falta no Aura Studio · Seu horário especial te espera"
   );
   const [message, setMessage] = useState(
     `Olá! Aqui é ${state.settings.personal.firstName} ${state.settings.personal.lastName}. Notamos que já faz mais de 45 dias desde a sua última visita ao estúdio! Preparamos uma condição especial de retorno. Toque abaixo para agendar em 30 segundos!`
@@ -424,12 +424,34 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
 interface SettingsViewProps {
   state: StudioState;
   onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
+  initialTab?: string;
 }
 
-export function SettingsView({ state, onUpdateState }: SettingsViewProps) {
+export function SettingsView({
+  state,
+  onUpdateState,
+  initialTab,
+}: SettingsViewProps) {
   const [topTab, setTopTab] = useState<
     "personal" | "team" | "business" | "whatsapp" | "membership"
-  >("personal");
+  >(() => {
+    if (initialTab && ["personal", "team", "business", "whatsapp", "membership"].includes(initialTab)) {
+      return initialTab as "personal" | "team" | "business" | "whatsapp" | "membership";
+    }
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search).get("tab");
+      if (
+        p === "whatsapp" ||
+        p === "personal" ||
+        p === "team" ||
+        p === "business" ||
+        p === "membership"
+      ) {
+        return p;
+      }
+    }
+    return "personal";
+  });
 
   const [firstName, setFirstName] = useState(
     state.settings.personal.firstName

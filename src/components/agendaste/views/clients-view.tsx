@@ -595,8 +595,10 @@ export function ClientsView({
                         ? ev.status === "completed"
                         : ev.status !== "canceled"
                   ).length === 0 ? (
-                    <div className="p-8 rounded-[18px] bg-[#FAFAFC] border border-[#EFEFF4] text-center space-y-3">
-                      <Calendar className="w-8 h-8 text-[#8E8E93] mx-auto" />
+                    <div className="p-8 rounded-[18px] bg-[#F5F5F7] border border-[#E5E5EA] text-center space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center shadow-2xs">
+                        <Calendar className="w-5 h-5 stroke-[1.75]" />
+                      </div>
                       <p className="text-[14px] font-bold text-[#1C1C1E]">
                         Nenhum agendamento nesta aba
                       </p>
@@ -817,8 +819,10 @@ export function ClientsView({
 
                   {/* Auto-sorted photo groups with Thumbnails, Lightbox & Actions */}
                   {selectedClient.autoSortedPhotos.length === 0 ? (
-                    <div className="p-8 rounded-[16px] border border-[#E5E5EA] bg-[#FAFAFC] text-center space-y-2">
-                      <Camera className="w-8 h-8 text-[#8E8E93] mx-auto" />
+                    <div className="p-8 rounded-[16px] border border-[#E5E5EA] bg-[#F5F5F7] text-center space-y-2">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center shadow-2xs">
+                        <Camera className="w-5 h-5 stroke-[1.75]" />
+                      </div>
                       <p className="text-[13px] font-bold text-[#1C1C1E]">
                         Nenhuma foto salva para esta cliente
                       </p>

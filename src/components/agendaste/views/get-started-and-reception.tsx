@@ -388,8 +388,8 @@ export function GetStartedView({
         {/* Right: AURA STUDIO Booking site card identical to 01-1-get-started.png */}
         <div className="lg:col-span-4 rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-sm">
           <div className="h-52 bg-gradient-to-br from-[#231F20] via-[#3A3542] to-[#C8B8FA] p-4 flex gap-3 relative overflow-hidden">
-            <div className="bg-white/95 text-[#18181B] px-2.5 py-1 rounded-full text-[10px] font-bold absolute top-3 left-3 shadow">
-              📅 Agendamentos
+            <div className="bg-white/95 text-[#18181B] px-2.5 py-1 rounded-full text-[10px] font-semibold absolute top-3 left-3 shadow-2xs">
+              Agendamento Online
             </div>
             <div className="mt-8 bg-[#111113] text-white p-4 rounded-xl flex-1 flex flex-col justify-between shadow-2xl border border-white/10">
               <div>
@@ -1179,7 +1179,7 @@ export function ReceptionView({
                 onClick={() => setStep("ready")}
                 className="px-8 py-3 rounded-full bg-[#1C1C1E] text-white text-[13.5px] font-semibold hover:bg-black transition-colors shadow-sm"
               >
-                Salvar e abrir Painel ao Vivo →
+                Salvar e abrir Painel ao Vivo
               </button>
             </div>
           </div>

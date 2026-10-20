@@ -503,6 +503,29 @@ describe("Ticket 06 — Recepção IA (Reception) & WhatsApp 2-Way Sync", () => 
     // Preserva templates após desconectar
     assert.match(state.reception.userConfig!.templates.reminder24h, /confirmamos/);
   });
+
+  it("persists Evolution API instance settings in userConfig", () => {
+    let state = createInitialStudioState();
+    assert.equal(state.reception.userConfig?.evolutionSettings?.rejectCall, false);
+    assert.equal(state.reception.userConfig?.evolutionSettings?.groupsIgnore, true);
+
+    state = updateUserWhatsAppConfig(state, {
+      evolutionSettings: {
+        rejectCall: true,
+        msgCall: "Atendimento exclusivo por texto.",
+        groupsIgnore: true,
+        alwaysOnline: true,
+        readMessages: true,
+        readStatus: false,
+        syncFullHistory: false,
+      },
+    });
+
+    assert.equal(state.reception.userConfig?.evolutionSettings?.rejectCall, true);
+    assert.equal(state.reception.userConfig?.evolutionSettings?.msgCall, "Atendimento exclusivo por texto.");
+    assert.equal(state.reception.userConfig?.evolutionSettings?.alwaysOnline, true);
+    assert.equal(state.reception.userConfig?.evolutionSettings?.readMessages, true);
+  });
 });
 
 describe("Ticket 07 — Equipe (Team): Comissões, Fechamento de Repasse (Payroll) e Timeclock", () => {
@@ -813,6 +836,55 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     };
     assert.equal(disconnectJson.ok, true);
     assert.equal(disconnectJson.disconnected, true);
+  });
+
+  it("GET and POST /api/whatsapp/settings retrieves and persists Evolution API settings", async () => {
+    const { GET: settingsGET, POST: settingsPOST } = await import(
+      "../../app/api/whatsapp/settings/route.ts"
+    );
+
+    // 1. GET settings
+    const getReq = new Request(
+      "http://localhost:3000/api/whatsapp/settings?phoneNumber=%2B5513978276520",
+      { method: "GET" }
+    );
+    const getRes = await settingsGET(getReq);
+    assert.equal(getRes.status, 200);
+    const getJson = (await getRes.json()) as { ok: boolean; settings: any };
+    assert.equal(getJson.ok, true);
+    assert.ok(typeof getJson.settings.groupsIgnore === "boolean");
+
+    // 2. POST settings
+    const postReq = new Request("http://localhost:3000/api/whatsapp/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phoneNumber: "+55 (13) 97827-6520",
+        settings: {
+          rejectCall: true,
+          msgCall: "Nosso estúdio atende apenas por mensagem de texto.",
+          groupsIgnore: true,
+          alwaysOnline: true,
+          readMessages: false,
+          readStatus: false,
+          syncFullHistory: false,
+        },
+      }),
+    });
+    const postRes = await settingsPOST(postReq);
+    assert.equal(postRes.status, 200);
+    const postJson = (await postRes.json()) as {
+      ok: boolean;
+      settings: any;
+      instanceName: string;
+    };
+    assert.equal(postJson.ok, true);
+    assert.equal(postJson.settings.rejectCall, true);
+    assert.equal(
+      postJson.settings.msgCall,
+      "Nosso estúdio atende apenas por mensagem de texto."
+    );
+    assert.equal(postJson.instanceName, "agendaste_5513978276520");
   });
 });
 

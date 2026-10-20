@@ -15,10 +15,25 @@ export const metadata: Metadata = {
 export default async function AppDashboardPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ view?: string }>;
+  searchParams?: Promise<{
+    view?: string;
+    tab?: string;
+    wizard?: string;
+    step?: string;
+  }>;
 }) {
   const resolved = searchParams ? await searchParams : undefined;
   const initialSection = (resolved?.view as NavigationSectionId) || "get_started";
+  const initialTab = resolved?.tab;
+  const initialWizard = resolved?.wizard === "true" || resolved?.wizard === "1";
+  const initialStep = resolved?.step ? parseInt(resolved.step, 10) : undefined;
 
-  return <AgendaSteApp initialSection={initialSection} />;
+  return (
+    <AgendaSteApp
+      initialSection={initialSection}
+      initialTab={initialTab}
+      initialWizard={initialWizard}
+      initialStep={initialStep}
+    />
+  );
 }

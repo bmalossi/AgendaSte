@@ -772,13 +772,15 @@ export function CatalogView({
                         {srv.category}
                       </span>
                       {srv.processingTimeEnabled && (
-                        <span className="px-3 py-1 rounded-full bg-[#E11D8F] text-white text-[11px] font-bold shadow-sm inline-flex items-center gap-1">
-                          ⏳ Pausa de {srv.processingDurationMinutes}m p/ encaixe
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#6E56CF] ring-2 ring-[#6E56CF]/20" />
+                          <span>Pausa de {srv.processingDurationMinutes}m p/ encaixe</span>
                         </span>
                       )}
                       {srv.blockTimeEnabled && (
-                        <span className="px-3 py-1 rounded-full bg-[#D97706] text-white text-[11px] font-bold shadow-sm inline-flex items-center gap-1">
-                          +{srv.blockAfterMinutes}m bloqueio limpeza
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#8E8E93] ring-2 ring-[#8E8E93]/20" />
+                          <span>+{srv.blockAfterMinutes}m bloqueio limpeza</span>
                         </span>
                       )}
                     </div>
