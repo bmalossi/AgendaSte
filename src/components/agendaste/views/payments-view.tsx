@@ -73,7 +73,7 @@ export function PaymentsView({
   // Invoices Builder Mode (04-2-invoices.png & 04-2-1-invoices.png)
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [invTitle, setInvTitle] = useState(
-    "Pacote Noiva & Produção Completa Aura Studio"
+    "Pacote Noiva & Produção Completa Luvea Studio"
   );
   const [invProviderId, setInvProviderId] = useState(
     state.staff[0]?.id ?? "staff-bruno"
@@ -659,13 +659,13 @@ export function PaymentsView({
         <div className="lg:col-span-5 bg-[#1C1C1E] text-white rounded-[22px] p-6 space-y-4 shadow-gg-card">
           <div className="flex items-center justify-between">
             <span className="text-[12px] uppercase tracking-widest text-[#A1A1AA]">
-              Aura Studio · Gift Card
+              Luvea Studio · Gift Card
             </span>
             <Sparkles className="w-5 h-5 text-[#E11D8F]" />
           </div>
           <p className="font-display text-[34px]">R$ 250,00</p>
           <p className="text-[12px] font-mono text-[#A1A1AA]">
-            CÓDIGO: AURA-GIFT-250
+            CÓDIGO: LUVEA-GIFT-250
           </p>
         </div>
       </div>
@@ -750,7 +750,7 @@ export function PaymentsView({
                   issueGiftCard(prev, {
                     recipientName: giftRecipientName || "Cliente Especial",
                     recipientEmail:
-                      giftRecipientEmail || "presente@aurastudio.com.br",
+                      giftRecipientEmail || "presente@luveastudio.app",
                     initialBalanceCents: cents,
                   })
                 );
@@ -1032,7 +1032,7 @@ export function QuickSaleDrawer({
         body: JSON.stringify({
           appointmentId: prefillAppointment?.id || `venda-rapida-${Date.now()}`,
           clientName: selectedClient?.fullName || "Cliente Venda Rápida",
-          clientEmail: selectedClient?.email || "cliente@luvea.com.br",
+          clientEmail: selectedClient?.email || "cliente@luvea.app",
           serviceId: selectedCartItems[0]?.id ?? "quick-sale",
           serviceName: `${serviceTitle} (${modeLabel})`,
           serviceDescription: `Pagamento ${modeLabel} - ${serviceTitle} - ${
@@ -1050,7 +1050,7 @@ export function QuickSaleDrawer({
       const code =
         data.qrCodePayload ||
         data.pixCopiaECola ||
-        "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD";
+        "00020126580014BR.GOV.BCB.PIX0136pix@luveastudio.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD";
       setPixPayload(code);
       if (data.qrCodeBase64) setPixQrBase64(data.qrCodeBase64);
       if (data.ticketUrl) setPixTicketUrl(data.ticketUrl);
@@ -1061,7 +1061,7 @@ export function QuickSaleDrawer({
     } catch (err) {
       console.error("Erro ao gerar Pix no PDV:", err);
       setPixPayload(
-        "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD"
+        "00020126580014BR.GOV.BCB.PIX0136pix@luveastudio.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD"
       );
       setGeneratedAmountCents(targetPixCents);
     } finally {
@@ -1084,7 +1084,7 @@ export function QuickSaleDrawer({
     const modeLabel = isPartial ? "Sinal / Entrada" : "Pagamento Integral";
 
     const msg = [
-      `*Cobrança Pix · Aura Studio*`,
+      `*Cobrança Pix · Luvea Studio*`,
       `Olá, *${clientName}*!`,
       ``,
       `Seu atendimento está registrado para *${attendanceTime} (${formattedAttendanceDate})*:`,

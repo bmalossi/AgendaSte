@@ -14,7 +14,7 @@ create table if not exists public.professionals (
   user_id uuid references auth.users(id) on delete cascade,
   first_name text not null,
   last_name text not null default '',
-  studio_name text not null default 'Aura Studio',
+  studio_name text not null default 'Luvea Studio',
   slug text unique not null,
   legal_entity_type text not null default 'Sociedade Limitada (LTDA) / Salão Parceiro',
   tax_id_cnpj_cpf text,
@@ -344,7 +344,7 @@ alter publication supabase_realtime add table public.sales_history;
 alter publication supabase_realtime add table public.reception_logs;
 
 -- =============================================================================
--- SEED DATA INICIAL (AURA STUDIO / LUVEA)
+-- SEED DATA INICIAL (LUVEA STUDIO / LUVEA)
 -- =============================================================================
 insert into public.professionals (
   id, first_name, last_name, studio_name, slug, legal_entity_type, tax_id_cnpj_cpf, role, email, phone_whatsapp, pix_key, default_deposit_percent, service_commission_percent, product_commission_percent, weekly_goal_cents
@@ -352,12 +352,12 @@ insert into public.professionals (
   '11111111-1111-1111-1111-111111111111',
   'Bruno',
   'Fernandes Malossi Silva',
-  'Aura Studio',
-  'aura-studio',
+  'Luvea Studio',
+  'luvea-studio',
   'Sociedade Limitada (LTDA) / Salão Parceiro',
   '45.892.103/0001-44',
   'Proprietário & Especialista',
-  'bruno@aurastudio.com.br',
+  'bruno@luveastudio.app',
   '(11) 99123-4567',
   '45.892.103/0001-44',
   30,
@@ -445,7 +445,7 @@ insert into public.clients (
     '44444444-4444-4444-4444-444444444441',
     '11111111-1111-1111-1111-111111111111',
     'Stefany Malossi',
-    'stefany@aurastudio.com.br',
+    'stefany@luveastudio.app',
     '(11) 99876-5432',
     'Prefere água com gás e temperatura fria no lavatório. Cabelo com mechas recentes.',
     'Nenhuma alergia conhecida a cosméticos.',

@@ -70,7 +70,7 @@ export async function createMercadoPagoPixOrder(
   const payerEmail =
     input.clientEmail && input.clientEmail.includes("@")
       ? input.clientEmail.trim()
-      : "cliente@luvea.com.br";
+      : "cliente@luvea.app";
 
   const idempotencyKey = crypto.randomUUID();
   const externalReference = input.appointmentId.slice(0, 64);

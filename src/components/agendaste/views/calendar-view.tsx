@@ -250,7 +250,7 @@ export function CalendarView({
           ? {
               fullName: inlineClientName.trim(),
               phone: inlineClientPhone.trim() || "(11) 99999-0000",
-              email: inlineClientEmail.trim() || "cliente@aurastudio.com.br",
+              email: inlineClientEmail.trim() || "cliente@luveastudio.app",
             }
           : undefined,
       serviceIds: selectedServiceIds,

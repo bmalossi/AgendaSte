@@ -205,20 +205,26 @@ export async function loadStudioStateFromSupabase(
         let metaDateISO = "";
         let metaStartTime = "";
 
-        if (a.notes && a.notes.includes("__AURA_META__:")) {
+        if (a.notes && (a.notes.includes("__LUVEA_META__:") || a.notes.includes("__AURA_META__:"))) {
           try {
             const parts = a.notes.split("\n");
             const metaLine = parts.find((p: string) =>
-              p.startsWith("__AURA_META__:")
+              p.startsWith("__LUVEA_META__:") || p.startsWith("__AURA_META__:")
             );
             if (metaLine) {
-              const meta = JSON.parse(metaLine.replace("__AURA_META__:", ""));
+              const meta = JSON.parse(
+                metaLine.replace("__LUVEA_META__:", "").replace("__AURA_META__:", "")
+              );
               metaClientName = meta.clientName || "";
               metaServiceNames = meta.serviceNames || [];
               metaDateISO = meta.dateISO || "";
               metaStartTime = meta.startTime || "";
               displayNotes = parts
-                .filter((p: string) => !p.startsWith("__AURA_META__:"))
+                .filter(
+                  (p: string) =>
+                    !p.startsWith("__LUVEA_META__:") &&
+                    !p.startsWith("__AURA_META__:")
+                )
                 .join("\n")
                 .trim();
             }
@@ -407,7 +413,7 @@ export async function syncNewAppointmentToSupabase(
       new Date(startsAt).getTime() + durationMs
     ).toISOString();
 
-    const metaLine = `__AURA_META__:${JSON.stringify({
+    const metaLine = `__LUVEA_META__:${JSON.stringify({
       clientName: event.clientName,
       serviceNames: event.serviceNames,
       dateISO: event.dateISO,

@@ -8,7 +8,7 @@ interface LuveaLogoProps {
 }
 
 /**
- * LUVEA Wordmark — Pure typographic luxury wordmark matching the GlossGenius aesthetic.
+ * LUVEA Wordmark — Pure typographic luxury wordmark with high editorial presence.
  * All-caps with wide tracking for haute-couture editorial presence.
  */
 export function LuveaWordmark({

@@ -52,7 +52,7 @@ const TESTIMONIALS: TestimonialCard[] = [
     id: "t4",
     quote: "Dobrei a meta do estúdio em 6 meses com o site próprio na bio",
     name: "Mariana Ramos",
-    role: "Aura Beauty Lounge",
+    role: "Luvea Beauty Lounge",
     avatarSrc: "/images/avatar-destiny.jpg",
   },
   {

@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: "Termos de Uso · LUVEA",
     description:
       "Termos de Uso e condições gerais de contratação da plataforma SaaS LUVEA para profissionais e estúdios de estética e beleza.",
-    url: "https://luvea.com.br/termos-de-uso",
+    url: "https://luvea.app/termos-de-uso",
     siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",

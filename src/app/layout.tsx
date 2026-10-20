@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://luvea.com.br"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://luvea.app"),
   title: {
     default: "LUVEA — Plataforma de Agendamento & Gestão para Estética",
     template: "%s · LUVEA",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     title: "LUVEA — Plataforma de Agendamento & Gestão para Estética",
     description:
       "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
-    url: "https://luvea.com.br",
+    url: "https://luvea.app",
     siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",

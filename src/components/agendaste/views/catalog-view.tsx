@@ -911,7 +911,7 @@ export function CatalogView({
                       name: pkgName.trim(),
                       description:
                         pkgDescription.trim() ||
-                        "Pacote de sessões Aura Studio.",
+                        "Pacote de sessões Luvea Studio.",
                       sellOnWebsite: pkgSellOnline,
                       includedServiceIds: pkgServiceIds,
                       sessionsCount: Math.max(
@@ -1027,7 +1027,7 @@ export function CatalogView({
               </div>
               <input
                 type="text"
-                placeholder="Nome do clube (Ex: Clube Aura Blowout)"
+                placeholder="Nome do clube (Ex: Clube Luvea Blowout)"
                 value={memName}
                 onChange={(e) => setMemName(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
@@ -1059,7 +1059,7 @@ export function CatalogView({
                 onClick={() => {
                   onUpdateState((prev) =>
                     saveCatalogMembership(prev, {
-                      name: memName || "Clube Aura VIP",
+                      name: memName || "Clube Luvea VIP",
                       description:
                         memDescription ||
                         "Assinatura mensal com sessões inclusas.",

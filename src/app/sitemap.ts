@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://luvea.com.br";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://luvea.app";
   const lastModified = new Date();
 
   return [

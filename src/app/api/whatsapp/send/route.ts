@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const templateType = body.templateType || "custom";
 
     const templates: Record<string, string> = {
-      reminder_24h: `Olá, ${body.clientName}! Seu horário no Aura Studio está reservado para amanhã. Responda [1] para Confirmar ou [2] para Reagendar.`,
+      reminder_24h: `Olá, ${body.clientName}! Seu horário no Luvea Studio está reservado para amanhã. Responda [1] para Confirmar ou [2] para Reagendar.`,
       reminder_2h: `Oi, ${body.clientName}! Estamos preparando a sala para o seu atendimento em 2 horas. Responda [1] para Confirmar presença.`,
       pix_deposit:
         body.customMessage ||
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       rebooking_confirmation:
         body.customMessage ||
         `Perfeito, ${body.clientName}! Seu retorno programado foi travado na agenda. Enviaremos um lembrete automático 24h antes.`,
-      custom: body.customMessage || `Olá, ${body.clientName}! Mensagem do Aura Studio.`,
+      custom: body.customMessage || `Olá, ${body.clientName}! Mensagem da Luvea Studio.`,
     };
 
     const messageToSend = body.customMessage || templates[templateType];

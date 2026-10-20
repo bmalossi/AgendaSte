@@ -188,7 +188,7 @@ export function WebsiteSetupWizard({
     currentConfig.paymentsSetup?.pixKeyType ?? "email"
   );
   const [pixKeyValue, setPixKeyValue] = useState(
-    currentConfig.paymentsSetup?.pixKeyValue ?? "pix@aurastudio.com.br"
+    currentConfig.paymentsSetup?.pixKeyValue ?? "pix@luveastudio.app"
   );
   const [bankName, setBankName] = useState(
     currentConfig.paymentsSetup?.bankName ?? "Nu Pagamentos S.A. (Nubank)"
@@ -399,7 +399,7 @@ export function WebsiteSetupWizard({
             {/* Right Column: Browser Mockup Preview */}
             <div className="w-full lg:w-7/12 flex justify-center">
               <BrowserMockup
-                url={`${normalizeSubdomainSlug(businessName)}.luvea.com.br`}
+                url={`${normalizeSubdomainSlug(businessName)}.luvea.app`}
                 device={previewDevice}
                 theme={selectedTheme}
                 businessName={businessName}
@@ -502,7 +502,7 @@ export function WebsiteSetupWizard({
               </div>
 
               <BrowserMockup
-                url={`${activeSlug}.luvea.com.br`}
+                url={`${activeSlug}.luvea.app`}
                 device={previewDevice}
                 theme={selectedTheme}
                 businessName={businessName}
@@ -512,7 +512,7 @@ export function WebsiteSetupWizard({
         )}
 
         {/* =====================================================================
-            ETAPA 3: ESCOLHER SUBDOMÍNIO (.luvea.com.br)
+            ETAPA 3: ESCOLHER SUBDOMÍNIO (.luvea.app)
         ===================================================================== */}
         {step === 3 && (
           <div className="max-w-6xl w-full mx-auto px-6 py-8 sm:py-12 flex-1 flex flex-col lg:flex-row items-center gap-10">
@@ -543,13 +543,13 @@ export function WebsiteSetupWizard({
                     placeholder="brunofernandesmalossi"
                   />
                   <span className="text-xs font-mono text-zinc-500 select-none pl-1">
-                    .luvea.com.br
+                    .luvea.app
                   </span>
                 </div>
                 <p className="text-[11px] font-mono text-zinc-500 pt-1">
                   Link que os clientes acessarão:{" "}
                   <strong className="text-zinc-900 font-semibold">
-                    https://{activeSlug}.luvea.com.br
+                    https://{activeSlug}.luvea.app
                   </strong>
                 </p>
               </div>
@@ -558,7 +558,7 @@ export function WebsiteSetupWizard({
             {/* Right Column: Live Mockup */}
             <div className="w-full lg:w-7/12 flex justify-center">
               <BrowserMockup
-                url={`${activeSlug}.luvea.com.br`}
+                url={`${activeSlug}.luvea.app`}
                 device={previewDevice}
                 theme={selectedTheme}
                 businessName={businessName}
@@ -589,7 +589,7 @@ export function WebsiteSetupWizard({
               {/* Centered Preview Mockup */}
               <div className="max-w-md mx-auto transform scale-95 sm:scale-100 shadow-sm rounded-2xl overflow-hidden border border-[#E5E5EA] bg-white">
                 <BrowserMockup
-                  url={`${activeSlug}.luvea.com.br`}
+                  url={`${activeSlug}.luvea.app`}
                   device="desktop"
                   theme={selectedTheme}
                   businessName={businessName}
@@ -1260,7 +1260,7 @@ export function WebsiteSetupWizard({
                     value={pixKeyValue}
                     onChange={(e) => setPixKeyValue(e.target.value)}
                     className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900"
-                    placeholder="pix@aurastudio.com.br"
+                    placeholder="pix@luveastudio.app"
                   />
                 </div>
 
@@ -1607,7 +1607,7 @@ function BrowserMockup({
       >
         {/* Navigation Mockup */}
         <div className="flex items-center justify-between text-[9px] uppercase tracking-wider font-mono opacity-80 border-b border-white/10 pb-2">
-          <span>{businessName || "AURA STUDIO"}</span>
+          <span>{businessName || "LUVEA STUDIO"}</span>
           <div className="hidden sm:flex items-center gap-2">
             <span>Serviços</span>
             <span>Sobre</span>
@@ -1618,7 +1618,7 @@ function BrowserMockup({
         {/* Hero Section Banner */}
         <div className="text-center space-y-2 py-4">
           <h2 className="font-serif text-2xl sm:text-3xl font-normal tracking-tight">
-            {businessName || "Aura Studio"}
+            {businessName || "Luvea Studio"}
           </h2>
           <p className="text-[10px] font-mono opacity-70 uppercase tracking-widest">
             {t.name} Edition · Agendamento Online

@@ -29,9 +29,9 @@ export const DEFAULT_LEGAL_CONFIG: LegalCompanyConfig = {
   cidadeEstadoForo:
     process.env.NEXT_PUBLIC_LEGAL_FORO || "São Paulo - SP",
   emailSuporte:
-    process.env.NEXT_PUBLIC_LEGAL_EMAIL_SUPORTE || "suporte@luvea.com.br",
+    process.env.NEXT_PUBLIC_LEGAL_EMAIL_SUPORTE || "suporte@luvea.app",
   emailEncarregadoDpo:
-    process.env.NEXT_PUBLIC_LEGAL_DPO_EMAIL || "privacidade@luvea.com.br",
+    process.env.NEXT_PUBLIC_LEGAL_DPO_EMAIL || "privacidade@luvea.app",
   dataVigencia: "19 de outubro de 2026",
   versaoDocumento: "1.0",
 };

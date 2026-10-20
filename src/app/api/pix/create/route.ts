@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         : 100;
 
     const amountBRL = (depositCents / 100).toFixed(2);
-    const txId = `AURA${body.appointmentId
+    const txId = `LUVEA${body.appointmentId
       .replace(/[^a-zA-Z0-9]/g, "")
       .toUpperCase()}99A`;
 
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const brCode = `00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br520400005303986540${amountBRL.length}${amountBRL}5802BR5920AURA STUDIO GLOSS6009SAO PAULO62190515${txId}6304D1F8`;
+    const brCode = `00020126580014BR.GOV.BCB.PIX0136pix@luveastudio.app520400005303986540${amountBRL.length}${amountBRL}5802BR5920LUVEA STUDIO6009SAO PAULO62190515${txId}6304D1F8`;
 
     return Response.json({
       ok: true,

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: "LUVEA — Plataforma de Agendamento & Gestão para Estética",
     description:
       "Agendamento online 24/7, confirmação automática via WhatsApp com sinal Pix, prontuários digitais e gestão financeira para profissionais da beleza.",
-    url: "https://luvea.com.br",
+    url: "https://luvea.app",
     siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",

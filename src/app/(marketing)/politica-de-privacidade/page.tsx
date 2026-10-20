@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: "Política de Privacidade (LGPD) · LUVEA",
     description:
       "Política de Privacidade e proteção de dados pessoais (LGPD) da plataforma LUVEA. Saiba como dados cadastrais, prontuários de saúde e fotos são tratados com segurança.",
-    url: "https://luvea.com.br/politica-de-privacidade",
+    url: "https://luvea.app/politica-de-privacidade",
     siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",

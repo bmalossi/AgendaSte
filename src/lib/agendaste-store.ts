@@ -709,7 +709,7 @@ export function createInitialStudioState(): StudioState {
           direction: "outbound",
           channel: "WhatsApp 2-Way",
           messageText:
-            "Olá Stefany! Lembrete do seu horário hoje às 10:00 no Aura Studio. Responda 1 para Confirmar ou 2 para Reagendar.",
+            "Olá Stefany! Lembrete do seu horário hoje às 10:00 no Luvea Studio. Responda 1 para Confirmar ou 2 para Reagendar.",
           outcomeBadge: "Entregue · Aguardando 1/2",
         },
         {
@@ -730,7 +730,7 @@ export function createInitialStudioState(): StudioState {
           direction: "inbound",
           channel: "Recepção Voz IA",
           messageText:
-            "Cliente ligou após o expediente perguntando valor de Mechas + Tratamento. Recepção IA enviou link do Aura Studio e reservou horário.",
+            "Cliente ligou após o expediente perguntando valor de Mechas + Tratamento. Recepção IA enviou link do Luvea Studio e reservou horário.",
           outcomeBadge: "Reserva Salva (+R$ 380)",
         },
       ],
@@ -921,7 +921,7 @@ export function createInitialStudioState(): StudioState {
     memberships: [
       {
         id: "mem-club-glow",
-        name: "Aura Glow Club Mensal",
+        name: "Luvea Glow Club Mensal",
         description:
           "2 sessões de Tratamento Capilar ou Hidratação por mês + 15% OFF em todo o catálogo.",
         monthlyPriceCents: 24900,
@@ -979,7 +979,7 @@ export function createInitialStudioState(): StudioState {
         memberships: [
           {
             membershipId: "mem-club-glow",
-            membershipName: "Aura Glow Club Mensal",
+            membershipName: "Luvea Glow Club Mensal",
             status: "active",
             remainingMonthlyCredits: 1,
             renewsAtISO: "2026-11-17",
@@ -989,7 +989,7 @@ export function createInitialStudioState(): StudioState {
       {
         id: "cli-isolde",
         fullName: "Isolde Quinn",
-        email: "isolde.quinn@aurastudio.com",
+        email: "isolde.quinn@luveastudio.app",
         phone: "(11) 99410-2219",
         avatarColor: "#DDD6FE",
         createdAtISO: "2026-06-10",
@@ -1116,8 +1116,8 @@ export function createInitialStudioState(): StudioState {
         providerName: "Bruno Fernandes Malossi Silva",
         clientId: "cli-isolde",
         clientName: "Isolde Quinn",
-        clientEmail: "isolde.quinn@aurastudio.com",
-        memo: "Fatura referente ao protocolo facial completo no Aura Studio.",
+        clientEmail: "isolde.quinn@luveastudio.app",
+        memo: "Fatura referente ao protocolo facial completo no Luvea Studio.",
         issuedAtISO: "2026-10-10",
         dueDateISO: "2026-10-25",
         lineItems: [
@@ -1134,7 +1134,7 @@ export function createInitialStudioState(): StudioState {
         taxCents: 0,
         totalCents: 23000,
         status: "sent",
-        paymentLinkUrl: "https://aurastudio.luvea.com.br/pay/1000948",
+        paymentLinkUrl: "https://luveastudio.luvea.app/pay/1000948",
       },
     ],
     salesHistory: [
@@ -1170,7 +1170,7 @@ export function createInitialStudioState(): StudioState {
     giftCards: [
       {
         id: "gc-1",
-        code: "AURA-GIFT-200",
+        code: "LUVEA-GIFT-200",
         recipientName: "Stefany",
         recipientEmail: "bfernandescorretor@gmail.com",
         initialBalanceCents: 20000,
@@ -1205,7 +1205,7 @@ export function createInitialStudioState(): StudioState {
         fullName: "Clara Mendes",
         initials: "CM",
         role: "Especialista em Estética & Laser",
-        email: "clara.mendes@aurastudio.com",
+        email: "clara.mendes@luveastudio.app",
         phone: "+55 (11) 99123-4567",
         avatarColor: "#DDD6FE",
         serviceCommissionPercent: 50,
@@ -1254,8 +1254,8 @@ export function createInitialStudioState(): StudioState {
       },
       {
         id: "inv-prod-2",
-        name: "Sérum Vitamina C 20% Aura Derm 30ml",
-        sku: "AURA-VITC",
+        name: "Sérum Vitamina C 20% Luvea Derm 30ml",
+        sku: "LUVEA-VITC",
         category: "Revenda (Retail)",
         stockQuantity: 4,
         minStockAlert: 6,
@@ -1319,7 +1319,7 @@ export function createInitialStudioState(): StudioState {
         notifyNewReviews: true,
         captureClientNotesFromMe: true,
         sendMeClientNotesBeforeAppointment: true,
-        calendarSyncUrl: "webcal://aurastudio.luvea.com.br/cal/bruno-sync.ics",
+        calendarSyncUrl: "webcal://luveastudio.luvea.app/cal/bruno-sync.ics",
         waitlistNotifications: {
           email: true,
           text: true,
@@ -1328,12 +1328,12 @@ export function createInitialStudioState(): StudioState {
       },
       business: {
         businessName: "Bruno Fernandes Malossi Silva",
-        bookingSlug: "aura-studio-bruno",
+        bookingSlug: "luvea-studio-bruno",
         legalEntityType: "Sociedade Limitada (LTDA) / Salão Parceiro",
         taxIdCnpjCpf: "48.192.301/0001-82",
         address: "Av. Brigadeiro Faria Lima, 2355 - Sala 804",
         cityState: "São Paulo, SP",
-        pixKey: "pix@aurastudio.com.br",
+        pixKey: "pix@luveastudio.app",
         defaultDepositPercent: 30,
         requireCardOrPixOnOnlineBooking: true,
         cancellationWindowHours: 24,
@@ -1396,7 +1396,7 @@ export function getDefaultWebsiteBookingConfig(
     paymentsSetup: {
       payoutMethod: "pix_key",
       pixKeyType: "email",
-      pixKeyValue: "pix@aurastudio.com.br",
+      pixKeyValue: "pix@luveastudio.app",
       bankName: "Nu Pagamentos S.A. (Nubank)",
       routingOrAgency: "0001",
       accountNumber: "1234567-8",
@@ -2040,7 +2040,7 @@ export function validateAndCreateCalendarEvent(
     client = {
       id: `cli-inline-${Date.now()}`,
       fullName: input.newClientInline.fullName,
-      email: input.newClientInline.email || "cliente@aurastudio.com.br",
+      email: input.newClientInline.email || "cliente@luveastudio.app",
       phone: input.newClientInline.phone || "(11) 99999-0000",
       avatarColor: "#FBCFE8",
       createdAtISO: input.dateISO,
@@ -2318,7 +2318,7 @@ export function createClientProfile(
   const newClient: ClientProfile = {
     id: input.id ?? `cli-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
     fullName: input.fullName,
-    email: input.email || "cliente@aurastudio.com.br",
+    email: input.email || "cliente@luveastudio.app",
     phone: input.phone || "(11) 99999-0000",
     avatarColor: palette[state.clients.length % palette.length],
     createdAtISO: "2026-10-17",
@@ -2412,7 +2412,7 @@ export function uploadAutoSortedClientPhoto(
   const serviceName =
     input.serviceName ??
     latestAppointment?.serviceNames[0] ??
-    "Atendimento Aura Studio";
+    "Atendimento Luvea Studio";
 
   const existingGroup = client.autoSortedPhotos.find(
     (g) => g.appointmentDateISO === dateISO
@@ -2514,7 +2514,7 @@ export function createAndSendInvoice(
   const newInvoice: InvoiceItem = {
     id: `inv-${Date.now()}`,
     invoiceNumber: nextNumber,
-    title: input.title || "Fatura de Serviços Aura Studio",
+    title: input.title || "Fatura de Serviços Luvea Studio",
     providerId: provider.id,
     providerName: provider.fullName,
     clientId: client.id,
@@ -2529,7 +2529,7 @@ export function createAndSendInvoice(
     taxCents: input.taxCents,
     totalCents,
     status: "sent",
-    paymentLinkUrl: `https://aurastudio.luvea.com.br/pay/${nextNumber.replace("#", "")}`,
+    paymentLinkUrl: `https://luveastudio.luvea.app/pay/${nextNumber.replace("#", "")}`,
   };
 
   return {
@@ -2723,7 +2723,7 @@ export function issueGiftCard(
     initialBalanceCents: number;
   }
 ): StudioState {
-  const code = `AURA-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.round(input.initialBalanceCents / 100)}`;
+  const code = `LUVEA-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.round(input.initialBalanceCents / 100)}`;
   const newGiftCard: GiftCardItem = {
     id: `gc-${Date.now()}`,
     code,
@@ -3035,18 +3035,18 @@ export function generateMarketingDraftAI(
 ): { subject: string; message: string } {
   if (templateKind === "installments_pix") {
     return {
-      subject: "Novidade no Aura Studio: Reserve agora com Sinal Pix ou Parcelamento!",
+      subject: "Novidade no Luvea Studio: Reserve agora com Sinal Pix ou Parcelamento!",
       message: `Olá! Aqui é ${providerFullName}. Boas notícias! Por tempo limitado, você já pode reservar seus procedimentos favoritos online em 30 segundos com confirmação imediata. Garanta seu horário desta semana clicando no botão abaixo!`,
     };
   }
   if (templateKind === "special_date") {
     return {
-      subject: "Presente Especial · Dia de Cuidado & Bem-Estar no Aura Studio",
-      message: `Olá! Aqui é ${providerFullName}. Quem você ama passa o ano inteiro cuidando de todo mundo — que tal reservar um momento exclusivo de autocuidado ou enviar um Vale-Presente do Aura Studio? Clique abaixo para agendar!`,
+      subject: "Presente Especial · Dia de Cuidado & Bem-Estar no Luvea Studio",
+      message: `Olá! Aqui é ${providerFullName}. Quem você ama passa o ano inteiro cuidando de todo mundo — que tal reservar um momento exclusivo de autocuidado ou enviar um Vale-Presente do Luvea Studio? Clique abaixo para agendar!`,
     };
   }
   return {
-    subject: "Sentimos sua falta no Aura Studio ✨ Seu horário especial te espera",
+    subject: "Sentimos sua falta no Luvea Studio ✨ Seu horário especial te espera",
     message: `Olá! Aqui é ${providerFullName}. Notamos que já faz mais de 45 dias desde a sua última visita ao estúdio! Preparamos uma condição especial de retorno com hidratação de cortesia para você renovar seu visual esta semana. Toque abaixo para escolher seu horário!`,
   };
 }

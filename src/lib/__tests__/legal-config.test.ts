@@ -13,8 +13,8 @@ describe("Ticket 08 — Configuração Legal e Bloqueio de Publicação", () => 
       cnpj: "   ",
       enderecoCompleto: "",
       cidadeEstadoForo: "São Paulo - SP",
-      emailSuporte: "suporte@luvea.com.br",
-      emailEncarregadoDpo: "privacidade@luvea.com.br",
+      emailSuporte: "suporte@luvea.app",
+      emailEncarregadoDpo: "privacidade@luvea.app",
       dataVigencia: "19 de outubro de 2026",
     };
 
@@ -42,8 +42,8 @@ describe("Ticket 08 — Configuração Legal e Bloqueio de Publicação", () => 
       cnpj: "12.345.678/0001-90",
       enderecoCompleto: "Av. Paulista, 1000, Bela Vista, São Paulo - SP",
       cidadeEstadoForo: "Comarca de São Paulo - SP",
-      emailSuporte: "suporte@luvea.com.br",
-      emailEncarregadoDpo: "dpo@luvea.com.br",
+      emailSuporte: "suporte@luvea.app",
+      emailEncarregadoDpo: "dpo@luvea.app",
       dataVigencia: "19 de outubro de 2026",
       versaoDocumento: "1.0",
     };

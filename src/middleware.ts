@@ -22,7 +22,12 @@ export function middleware(req: NextRequest) {
 
   let subdomain: string | null = null;
 
-  if (currentHost.endsWith(".luvea.com.br")) {
+  if (currentHost.endsWith(".luvea.app")) {
+    const candidate = currentHost.replace(".luvea.app", "");
+    if (candidate && candidate !== "www" && candidate !== "app") {
+      subdomain = candidate;
+    }
+  } else if (currentHost.endsWith(".luvea.com.br")) {
     const candidate = currentHost.replace(".luvea.com.br", "");
     if (candidate && candidate !== "www" && candidate !== "app") {
       subdomain = candidate;
@@ -39,7 +44,7 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // Se a requisição veio de um subdomínio de cliente (ex: bruno.luvea.com.br)
+  // Se a requisição veio de um subdomínio de cliente (ex: bruno.luvea.app)
   if (subdomain) {
     // Não reescreve se já estiver na rota /site
     if (url.pathname.startsWith("/site")) {
@@ -51,9 +56,11 @@ export function middleware(req: NextRequest) {
     );
   }
 
-  // Se acessar diretamente pelo subdomínio de app (ex: app.luvea.com.br ou app.agendaste.com.br)
+  // Se acessar diretamente pelo subdomínio de app (ex: app.luvea.app)
   if (
-    (currentHost === "app.luvea.com.br" || currentHost === "app.agendaste.com.br") &&
+    (currentHost === "app.luvea.app" ||
+      currentHost === "app.luvea.com.br" ||
+      currentHost === "app.agendaste.com.br") &&
     url.pathname === "/"
   ) {
     return NextResponse.redirect(new URL("/app", req.url));

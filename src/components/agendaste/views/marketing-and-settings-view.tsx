@@ -74,7 +74,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
   const [audienceSegment, setAudienceSegment] =
     useState<MarketingCampaignItem["audienceSegment"]>("absent_45d");
   const [subject, setSubject] = useState(
-    "Sentimos sua falta no Aura Studio · Seu horário especial te espera"
+    "Sentimos sua falta no Luvea Studio · Seu horário especial te espera"
   );
   const [message, setMessage] = useState(
     `Olá! Aqui é ${state.settings.personal.firstName} ${state.settings.personal.lastName}. Notamos que já faz mais de 45 dias desde a sua última visita ao estúdio! Preparamos uma condição especial de retorno. Toque abaixo para agendar em 30 segundos!`
@@ -387,7 +387,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
                 <div className="bg-white rounded-[26px] p-5 space-y-4">
                   <div className="text-center border-b border-[#EFEFF4] pb-3">
                     <p className="text-[11px] uppercase tracking-widest text-[#8E8E93] font-bold">
-                      AURA STUDIO
+                      LUVEA STUDIO
                     </p>
                     <p className="font-display text-[20px] text-[#1C1C1E] mt-1 leading-snug">
                       {subject}
@@ -1534,7 +1534,7 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
 
   const handleSendEmail = () => {
     if (!selectedReport) return;
-    const recipient = state.settings.personal.email || "contato@luvea.com.br";
+    const recipient = state.settings.personal.email || "contato@luvea.app";
     setFeedbackBanner(
       `Relatório "${selectedReport.title}" enviado por e-mail para ${recipient}.`
     );

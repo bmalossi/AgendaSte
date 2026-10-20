@@ -17,8 +17,8 @@ describe("Ticket 01 — Fase 1: Criação do Site de Agendamento Online & Subdom
       "brunofernandesmalossisilva"
     );
     assert.equal(
-      normalizeSubdomainSlug("Aura Studio & Estética SP!"),
-      "aura-studio-estetica-sp"
+      normalizeSubdomainSlug("Luvea Studio & Estética SP!"),
+      "luvea-studio-estetica-sp"
     );
     assert.equal(
       normalizeSubdomainSlug("espaco-de-beleza-2026"),

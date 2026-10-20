@@ -294,7 +294,7 @@ export function LuveaApp({
               {getSectionTitle(activeSection)}
             </h1>
             <p className="text-[11px] text-[#6E6E73] leading-tight truncate">
-              {state.settings.business.businessName || "Aura Studio"}
+              {state.settings.business.businessName || "Luvea Studio"}
             </p>
           </div>
         </div>
@@ -699,7 +699,7 @@ export function LuveaApp({
             {/* Drawer Bottom Bar */}
             <div className="p-3 border-t border-[#E5E5EA] bg-[#FAF9F6] text-center">
               <span className="text-[11px] font-semibold text-[#8E8E93]">
-                LUVEA PWA · Aura Studio
+                LUVEA PWA · Luvea Studio
               </span>
             </div>
           </div>
@@ -913,7 +913,7 @@ export function LuveaApp({
         </div>
       </nav>
 
-      {/* Global Public Booking Site Modal (Aura Studio — 01-1-get-started.png) */}
+      {/* Global Public Booking Site Modal (Luvea Studio — 01-1-get-started.png) */}
       {bookingSiteOpen && (
         <PublicBookingSiteModal
           state={state}

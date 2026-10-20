@@ -385,7 +385,7 @@ export function GetStartedView({
           </div>
         </div>
 
-        {/* Right: AURA STUDIO Booking site card identical to 01-1-get-started.png */}
+        {/* Right: LUVEA STUDIO Booking site card identical to 01-1-get-started.png */}
         <div className="lg:col-span-4 rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-sm">
           <div className="h-52 bg-gradient-to-br from-[#231F20] via-[#3A3542] to-[#C8B8FA] p-4 flex gap-3 relative overflow-hidden">
             <div className="bg-white/95 text-[#18181B] px-2.5 py-1 rounded-full text-[10px] font-semibold absolute top-3 left-3 shadow-2xs">
@@ -394,7 +394,7 @@ export function GetStartedView({
             <div className="mt-8 bg-[#111113] text-white p-4 rounded-xl flex-1 flex flex-col justify-between shadow-2xl border border-white/10">
               <div>
                 <p className="text-[18px] font-extrabold tracking-wider uppercase leading-none">
-                  AURA
+                  LUVEA
                   <br />
                   STUDIO
                 </p>
@@ -494,7 +494,7 @@ export function GetStartedView({
 }
 
 // =============================================================================
-// MODAL: SITE DE AGENDAMENTO ONLINE PÚBLICO (AURA STUDIO) COM SINAL PIX
+// MODAL: SITE DE AGENDAMENTO ONLINE PÚBLICO (LUVEA STUDIO) COM SINAL PIX
 // =============================================================================
 
 export function PublicBookingSiteModal({
@@ -535,9 +535,9 @@ export function PublicBookingSiteModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          appointmentId: `aura-${Date.now()}`,
-          clientName: clientName || "Cliente Aura Studio",
-          clientEmail: clientEmail || "cliente@aurastudio.com.br",
+          appointmentId: `luvea-${Date.now()}`,
+          clientName: clientName || "Cliente Luvea Studio",
+          clientEmail: clientEmail || "cliente@luvea.app",
           serviceId: selectedService?.id ?? "srv-luvea",
           serviceName: selectedService?.name ?? "Procedimento",
           depositCents: selectedService?.depositCents || 5000,
@@ -546,13 +546,13 @@ export function PublicBookingSiteModal({
       const data = await res.json();
       setPixPayload(
         data.qrCodePayload ??
-          "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD"
+          "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD"
       );
       if (data.qrCodeBase64) setPixQrBase64(data.qrCodeBase64);
       if (data.ticketUrl) setPixTicketUrl(data.ticketUrl);
     } catch {
       setPixPayload(
-        "00020126580014BR.GOV.BCB.PIX0136pix@aurastudio.com.br5204000053039865802BR5920AURA STUDIO6009SAO PAULO62070503***6304ABCD"
+        "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD"
       );
     } finally {
       setIsGeneratingPix(false);
@@ -562,8 +562,8 @@ export function PublicBookingSiteModal({
   const handleConfirmOnlineBooking = () => {
     if (!selectedService) return;
     const result = bookFromPublicSite(state, {
-      clientName: clientName.trim() || "Cliente Online Aura",
-      clientEmail: clientEmail.trim() || "cliente@aurastudio.com.br",
+      clientName: clientName.trim() || "Cliente Online Luvea",
+      clientEmail: clientEmail.trim() || "cliente@luvea.app",
       clientPhone: clientPhone.trim() || "(11) 99876-5432",
       serviceId: selectedService.id,
       providerId: selectedProviderId,
@@ -581,17 +581,17 @@ export function PublicBookingSiteModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl max-w-3xl w-full overflow-hidden shadow-gg-modal border border-zinc-200 my-8">
-        {/* Aura Studio Dark Header */}
+        {/* Luvea Studio Dark Header */}
         <div className="bg-[#141416] text-white p-6 flex items-center justify-between">
           <div>
             <span className="px-2.5 py-0.5 rounded-full bg-[#6E56CF] text-[11px] font-semibold uppercase tracking-wider">
               Site de Agendamento Online · Link da Bio
             </span>
             <h2 className="text-2xl font-extrabold tracking-wider uppercase mt-2">
-              AURA STUDIO · {state.settings.business.businessName}
+              LUVEA STUDIO · {state.settings.business.businessName}
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              aurastudio.luvea.com.br/{state.settings.business.bookingSlug} ·{" "}
+              luveastudio.luvea.app/{state.settings.business.bookingSlug} ·{" "}
               {state.settings.business.address}
             </p>
           </div>
@@ -1084,7 +1084,7 @@ export function ReceptionView({
                   setState((prev) => ({
                     ...prev,
                     lastToastMessage:
-                      "Demo da Recepção IA: 'Olá! Aqui é a Recepção do Aura Studio. Posso agendar seu horário hoje às 15h?'",
+                      "Demo da Recepção IA: 'Olá! Aqui é a Recepção da Luvea Studio. Posso agendar seu horário hoje às 15h?'",
                   }));
                 }}
                 className="px-10 py-3 rounded-full bg-[#1C1C1E] text-white text-[13.5px] font-semibold hover:bg-black transition-colors inline-flex items-center gap-2"

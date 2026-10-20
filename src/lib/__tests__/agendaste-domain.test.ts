@@ -38,7 +38,7 @@ import {
   formatWhatsAppMessage,
 } from "../agendaste-store.ts";
 
-describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Online (Aura Studio)", () => {
+describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Online (Luvea Studio)", () => {
   it("tracks 0/3 Primeiros Passos progress and increments as onboarding steps are completed", () => {
     const initial = createInitialStudioState();
     assert.equal(initial.onboarding.steps.length, 3);
@@ -72,7 +72,7 @@ describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Onl
     assert.match(updated.lastToastMessage ?? "", /importados com sucesso/i);
   });
 
-  it("books an appointment from the public Site de Agendamento Online (Aura Studio) with Sinal Pix", () => {
+  it("books an appointment from the public Site de Agendamento Online (Luvea Studio) with Sinal Pix", () => {
     const initial = createInitialStudioState();
     const service = initial.services[0];
     const provider = initial.staff[0];
@@ -403,7 +403,7 @@ describe("Ticket 05 — Pagamentos (Payments): Venda Rápida POS, Faturas (Invoi
 
     state = issueGiftCard(state, {
       recipientName: "Isolde Quinn",
-      recipientEmail: "isolde.quinn@aurastudio.com",
+      recipientEmail: "isolde.quinn@luveastudio.app",
       initialBalanceCents: 30000,
     });
     assert.equal(state.giftCards[0].initialBalanceCents, 30000);
@@ -486,14 +486,14 @@ describe("Ticket 06 — Recepção IA (Reception) & WhatsApp 2-Way Sync", () => 
       state.reception.userConfig!.templates.reminder24h,
       {
         nome: "Mariana",
-        estudio: "Aura Studio",
+        estudio: "Luvea Studio",
         data: "21/10/2026",
         horario: "15:00",
       }
     );
     assert.equal(
       formatted,
-      "Olá Mariana, confirmamos seu horário no Aura Studio para 21/10/2026 às 15:00?"
+      "Olá Mariana, confirmamos seu horário no Luvea Studio para 21/10/2026 às 15:00?"
     );
 
     // Desconecta o WhatsApp
@@ -568,10 +568,10 @@ describe("Ticket 08 — Marketing (Campanhas IA) & Configurações (Settings)", 
     assert.ok(state.marketing.smsCreditsRemaining < beforeCredits);
 
     state = updateStudioSettings(state, {
-      businessName: "Aura Studio Higienópolis",
+      businessName: "Luvea Studio Higienópolis",
       defaultDepositPercent: 40,
     });
-    assert.equal(state.settings.business.businessName, "Aura Studio Higienópolis");
+    assert.equal(state.settings.business.businessName, "Luvea Studio Higienópolis");
     assert.equal(state.settings.business.defaultDepositPercent, 40);
   });
 });

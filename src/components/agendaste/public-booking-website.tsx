@@ -142,7 +142,7 @@ export function PublicBookingWebsite({
   const theme = THEME_STYLES[themeId] ?? THEME_STYLES.classic;
 
   const businessName =
-    state.settings.business.businessName || "Aura Studio & Estética";
+    state.settings.business.businessName || "Luvea Studio & Estética";
 
   // Category filter for services
   const onlineServices = state.services.filter((s) => s.onlineBookingEnabled);
@@ -243,9 +243,9 @@ export function PublicBookingWebsite({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          appointmentId: `aura-online-${Date.now()}`,
+          appointmentId: `luvea-online-${Date.now()}`,
           clientName: clientName || "Cliente Online",
-          clientEmail: clientEmail || "cliente@luvea.com.br",
+          clientEmail: clientEmail || "cliente@luvea.app",
           serviceId: selectedService.id,
           serviceName: selectedService.name,
           depositCents,
@@ -254,11 +254,11 @@ export function PublicBookingWebsite({
       const data = await res.json();
       setPixPayload(
         data.qrCodePayload ||
-          "00020126580014BR.GOV.BCB.PIX0136pix@luvea.com.br5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
+          "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
       );
     } catch {
       setPixPayload(
-        "00020126580014BR.GOV.BCB.PIX0136pix@luvea.com.br5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
+        "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
       );
     } finally {
       setIsGeneratingPix(false);
@@ -280,7 +280,7 @@ export function PublicBookingWebsite({
 
     const result = bookFromPublicSite(state, {
       clientName: clientName.trim(),
-      clientEmail: clientEmail.trim() || "contato@luvea.com.br",
+      clientEmail: clientEmail.trim() || "contato@luvea.app",
       clientPhone: clientPhone.trim(),
       serviceId: selectedService.id,
       providerId: selectedProviderId,
@@ -325,7 +325,7 @@ export function PublicBookingWebsite({
               ● Site de Agendamento Online
             </span>
             <span className="text-xs text-zinc-400 font-mono hidden sm:inline">
-              {websiteConfig.subdomainSlug}.luvea.com.br
+              {websiteConfig.subdomainSlug}.luvea.app
             </span>
           </div>
           <button

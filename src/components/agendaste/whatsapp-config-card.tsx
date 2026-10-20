@@ -441,7 +441,7 @@ export function WhatsAppConfigCard({
       const templateText = templates[activeTemplateTab];
       const previewText = formatWhatsAppMessage(templateText, {
         nome: "Bruna Silva",
-        estudio: state.settings.business.businessName || "Aura Studio",
+        estudio: state.settings.business.businessName || "Luvea Studio",
         data: "20/10/2026",
         horario: "14:30",
         valor_sinal: "R$ 50,00",
@@ -1139,7 +1139,7 @@ export function WhatsAppConfigCard({
               &quot;
               {formatWhatsAppMessage(templates[activeTemplateTab], {
                 nome: "Bruna Silva",
-                estudio: state.settings.business.businessName || "Aura Studio",
+                estudio: state.settings.business.businessName || "Luvea Studio",
                 data: "20/10/2026",
                 horario: "14:30",
                 valor_sinal: "R$ 50,00",

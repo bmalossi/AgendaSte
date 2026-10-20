@@ -66,7 +66,7 @@ export function HeroSection() {
                   <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
                 </div>
                 <span className="text-[11px] font-mono text-zinc-400">
-                  app.luvea.com.br
+                  app.luvea.app
                 </span>
                 <span className="text-[11px] font-mono text-emerald-400">
                   Ao vivo

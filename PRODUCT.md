@@ -1,15 +1,15 @@
-# PRODUCT.md — Aura Studio / LUVEA (Edição Brasil)
+# PRODUCT.md — Luvea Studio / LUVEA (Edição Brasil)
 
 ## 1. Visão & Posicionamento de Produto
 Plataforma completa de agendamento, ponto de venda (POS), catálogo inteligente, relacionamento com clientes (CRM), gestão de equipe e automação de marketing e recepção por IA para profissionais autônomos e estúdios de beleza, estética, saúde e bem-estar no Brasil.
 
 Modelada sobre uma arquitetura visual e funcional de excelência internacional, a **LUVEA** combina a estética editorial de alto padrão (superfícies brancas e lilás suaves, tipografia serifada editorial para títulos de impacto, botões em formato pílula `#1C1C1E`, gavetas deslizantes laterais e editores limpos) com os motores reais de conversão e liquidação do mercado brasileiro:
 - **Recepção IA + WhatsApp 2-Way Sync (QR Code)**: Pareamento direto do WhatsApp do profissional com respostas automáticas 24/7 e confirmação interativa (`1 = Confirmar`, `2 = Reagendar`) refletida em tempo real na agenda.
-- **Sinal / Taxa de Reserva via Pix Dinâmico**: Proteção contra faltas (*no-show*) integrada ao **Site de Agendamento Online (`Aura Studio`)**, à **Venda Rápida (`Quick Sale`)** e às **Faturas (`Invoices`)**.
+- **Sinal / Taxa de Reserva via Pix Dinâmico**: Proteção contra faltas (*no-show*) integrada ao **Site de Agendamento Online (`Luvea Studio`)**, à **Venda Rápida (`Quick Sale`)** e às **Faturas (`Invoices`)**.
 - **Duração Segmentada & Recursos Físicos**: Suporte nativo a **Tempo de Processamento** (janela de pausa química/anestésica que libera o profissional para encaixes), **Tempo de Bloqueio** (higienização pós-atendimento) e trava de conflitos de **Salas** e **Equipamentos**.
 
 ## 2. Módulos Principais
-1. **`0/3 Primeiros Passos` (`Get Started`)**: Onboarding guiado em 3 cartões ilustrados (`Seja encontrado e agendado online`, `Adicione seus serviços`, `Comece a receber pagamentos`), importação gratuita de dados, status de avaliação Gold (`14 dias restantes`) e atalho para o **Site de Agendamento Online (`Aura Studio`)**.
+1. **`0/3 Primeiros Passos` (`Get Started`)**: Onboarding guiado em 3 cartões ilustrados (`Seja encontrado e agendado online`, `Adicione seus serviços`, `Comece a receber pagamentos`), importação gratuita de dados, status de avaliação Gold (`14 dias restantes`) e atalho para o **Site de Agendamento Online (`Luvea Studio`)**.
 2. **`Recepção IA` (`Reception` em `Colegas de IA`)**: Fluxo em 3 etapas (`Conheça a Recepção` → `Configuração rápida` → `Pronta`), demonstração de áudio/texto interativa, pareamento QR Code do WhatsApp e monitor em tempo real de confirmações 2-Way Sync.
 3. **`Agenda` (`Calendar`)**: Visões `Dia` e `Semana`, linha do tempo atual em magenta vivo, seletor de datas com salto rápido de semanas (`+2` a `+8`), filtro por **Profissional**, **Lista de Espera (`Waitlist`)**, **Venda Rápida (`Quick Sale`)**, criação de **Evento de Agenda** em 4 modalidades (`Agendamento`, `Bloqueio Pessoal`, `Horário de Trabalho`, `Entrada na Lista de Espera`) e checkout em 1 toque.
 4. **`Pagamentos` (`Payments`)**: Submódulos de **Vale-presentes (`Gift Cards`)**, **Faturas (`Invoices`)** (Hero Editorial + construtor completo de itens, descontos, impostos e cronograma) e **Histórico de vendas (`Sales history`)**.
