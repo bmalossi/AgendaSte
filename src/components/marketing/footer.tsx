@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { FOOTER_LINKS } from "@/lib/marketing-content";
+import { LuveaWordmark } from "@/components/luvea-logo";
 
 export function MarketingFooter() {
   return (
@@ -10,9 +11,7 @@ export function MarketingFooter() {
           {/* Brand Info Column */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="inline-flex items-center group" aria-label="LUVEA - Início">
-              <span className="font-sans text-[22px] font-semibold tracking-[0.28em] text-[#1C1C1E] uppercase select-none transition-opacity group-hover:opacity-80">
-                LUVEA
-              </span>
+              <LuveaWordmark className="text-[22px] group-hover:opacity-80 transition-opacity" />
             </Link>
             <p className="text-[13.5px] text-zinc-600 leading-relaxed max-w-sm">
               Plataforma de agendamento online, Recepção IA 24/7 no WhatsApp,

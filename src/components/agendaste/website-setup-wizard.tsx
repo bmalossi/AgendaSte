@@ -29,6 +29,7 @@ import {
   updateWebsiteSetupConfig,
   getDefaultWebsiteBookingConfig,
 } from "@/lib/agendaste-store";
+import { LuveaWordmark } from "@/components/luvea-logo";
 
 interface WebsiteSetupWizardProps {
   state: StudioState;
@@ -336,9 +337,7 @@ export function WebsiteSetupWizard({
       {/* Top Bar with Brand & Close Button */}
       <header className="w-full border-b border-zinc-200 px-6 sm:px-10 py-4 flex items-center justify-between bg-white shrink-0">
         <div className="flex items-center gap-3">
-          <span className="font-serif text-lg tracking-wider font-semibold text-[#18181B] uppercase">
-            LUVEA
-          </span>
+          <LuveaWordmark className="text-[17px]" />
           <span className="text-zinc-300">|</span>
           <span className="text-xs font-mono uppercase tracking-wider text-zinc-500">
             {step <= 4
@@ -351,7 +350,7 @@ export function WebsiteSetupWizard({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
           aria-label="Fechar"
         >
           <X className="w-5 h-5" />

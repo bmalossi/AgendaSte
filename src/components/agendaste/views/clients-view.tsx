@@ -915,9 +915,17 @@ export function ClientsView({
                     Assinaturas Recorrentes do Cliente
                   </h3>
                   {selectedClient.memberships.length === 0 ? (
-                    <p className="text-[12px] text-[#6E6E73]">
-                      Nenhuma assinatura ativa para este cliente.
-                    </p>
+                    <div className="p-8 rounded-[18px] bg-[#F5F5F7] border border-[#E5E5EA] text-center space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center shadow-2xs">
+                        <CreditCard className="w-5 h-5 stroke-[1.75]" />
+                      </div>
+                      <p className="text-[14px] font-bold text-[#1C1C1E]">
+                        Nenhuma assinatura ativa
+                      </p>
+                      <p className="text-[12px] text-[#6E6E73] max-w-xs mx-auto">
+                        Clubes e assinaturas recorrentes contratados pela cliente aparecerão aqui com renovação automática.
+                      </p>
+                    </div>
                   ) : (
                     selectedClient.memberships.map((m) => (
                       <div
@@ -943,9 +951,17 @@ export function ClientsView({
                     Pacotes de Sessões Ativos
                   </h3>
                   {selectedClient.packages.length === 0 ? (
-                    <p className="text-[12px] text-[#6E6E73]">
-                      Nenhum pacote adquirido por este cliente.
-                    </p>
+                    <div className="p-8 rounded-[18px] bg-[#F5F5F7] border border-[#E5E5EA] text-center space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center shadow-2xs">
+                        <Package className="w-5 h-5 stroke-[1.75]" />
+                      </div>
+                      <p className="text-[14px] font-bold text-[#1C1C1E]">
+                        Nenhum pacote adquirido
+                      </p>
+                      <p className="text-[12px] text-[#6E6E73] max-w-xs mx-auto">
+                        Sessões de tratamento adquiridas em pacotes ficam registradas aqui com saldo de créditos em tempo real.
+                      </p>
+                    </div>
                   ) : (
                     selectedClient.packages.map((pkg) => (
                       <div

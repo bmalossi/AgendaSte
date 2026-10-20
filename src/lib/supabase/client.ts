@@ -1,25 +1,20 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://demo-veloce.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://demo-luvea.supabase.co";
 const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "demo-anon-key-veloce-studio";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "demo-anon-key-luvea-studio";
 
 /**
- * Cliente Supabase isomórfico para leitura/escrita da agenda e assinatura
- * de canais Realtime (2-Way Sync WhatsApp & Webhook Pix Anti-No-Show).
+ * Cliente Supabase de navegador com suporte a SSR e cookies.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("seu-projeto")
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("seu-projeto") &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("demo-")
   );
 }

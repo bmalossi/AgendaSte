@@ -29,7 +29,7 @@ O sistema visual consolida a linguagem de design da **LUVEA**: **Editorial Clean
   - `--accent-purple`: `#6E56CF` (switches ativos em Catálogo/Preferências, ícones de destaque)
   - `--accent-magenta`: `#E11D8F` (pílula e linha de horário atual na Agenda `9:15`, switches de Controle de Ponto)
   - `--accent-gold`: `#C28E1E` (badges `Gold`)
-  - `--status-verified-bg`: `#86EFAC` / `--status-verified-fg`: `#14532D` (badge `✓ Verificado`)
+  - `--status-verified-bg`: `#86EFAC` / `--status-verified-fg`: `#14532D` (badge `Verificado` com micro-indicador circular)
 - **Avatares e Categorias**:
   - Rosa Quartzo: `#FBCFE8` (texto `#831843`) — ex.: avatar `S` de Stefany e categoria `Equipamentos`.
   - Verde Sálvia: `#BBF7D0` (texto `#14532D`) — ex.: categoria `Salas`.

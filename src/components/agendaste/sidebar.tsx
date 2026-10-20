@@ -224,7 +224,7 @@ export function LuveaSidebar({
           type="button"
           onClick={() => setCollapsed(true)}
           title="Recolher barra lateral"
-          className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100"
+          className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 transition-colors"
         >
           <PanelLeftClose className="w-4 h-4" />
         </button>

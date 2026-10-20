@@ -1,32 +1,67 @@
-import type { Metadata } from "next";
-import { LuveaApp } from "@/components/agendaste/agendaste-app";
+"use client";
+
+import React, { Suspense } from "react";
+import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { NavigationSectionId } from "@/lib/agendaste-store";
 
-export const metadata: Metadata = {
-  title: "LUVEA · Painel de Gestão e Agendamento",
-  description:
-    "Painel operacional da LUVEA para controle de agenda, clientes, vendas, recepção IA e equipe.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+// Carregamento dinâmico estritamente client-side para o painel operacional.
+// Evita ChunkLoadError de SSR no Webpack e permite hidratação suave com skeleton editorial.
+const LuveaApp = dynamic(
+  () =>
+    import("@/components/agendaste/agendaste-app").then((mod) => mod.LuveaApp),
+  {
+    ssr: false,
+    loading: () => <DashboardLoadingSkeleton />,
+  }
+);
 
-export default async function AppDashboardPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{
-    view?: string;
-    tab?: string;
-    wizard?: string;
-    step?: string;
-  }>;
-}) {
-  const resolved = searchParams ? await searchParams : undefined;
-  const initialSection = (resolved?.view as NavigationSectionId) || "get_started";
-  const initialTab = resolved?.tab;
-  const initialWizard = resolved?.wizard === "true" || resolved?.wizard === "1";
-  const initialStep = resolved?.step ? parseInt(resolved.step, 10) : undefined;
+function DashboardLoadingSkeleton() {
+  return (
+    <div className="flex h-screen bg-white">
+      {/* Sidebar Skeleton */}
+      <div className="w-60 border-r border-[#E5E5EA] bg-[#F9F9FB] p-4 flex flex-col justify-between hidden md:flex">
+        <div className="space-y-4">
+          <div className="h-7 w-28 bg-[#E5E5EA] rounded-lg animate-pulse" />
+          <div className="space-y-2 pt-4">
+            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
+            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
+            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
+            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
+          </div>
+        </div>
+        <div className="h-10 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
+      </div>
+
+      {/* Main Content Area Skeleton */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="h-14 border-b border-[#E5E5EA] px-6 flex items-center justify-between">
+          <div className="h-5 w-36 bg-[#E5E5EA] rounded animate-pulse" />
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-24 bg-[#E5E5EA] rounded-full animate-pulse" />
+            <div className="h-8 w-8 bg-[#E5E5EA] rounded-full animate-pulse" />
+          </div>
+        </div>
+        <div className="flex-1 p-6 sm:p-8 space-y-6">
+          <div className="h-28 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="h-36 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
+            <div className="h-36 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
+            <div className="h-36 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppDashboardContent() {
+  const searchParams = useSearchParams();
+  const initialSection = (searchParams.get("view") as NavigationSectionId) || "get_started";
+  const initialTab = searchParams.get("tab") || undefined;
+  const initialWizard = searchParams.get("wizard") === "true" || searchParams.get("wizard") === "1";
+  const stepParam = searchParams.get("step");
+  const initialStep = stepParam ? parseInt(stepParam, 10) : undefined;
 
   return (
     <LuveaApp
@@ -35,5 +70,13 @@ export default async function AppDashboardPage({
       initialWizard={initialWizard}
       initialStep={initialStep}
     />
+  );
+}
+
+export default function AppDashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoadingSkeleton />}>
+      <AppDashboardContent />
+    </Suspense>
   );
 }

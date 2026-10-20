@@ -8,8 +8,9 @@ interface LuveaLogoProps {
 }
 
 /**
- * LUVEA Wordmark — Pure typographic luxury wordmark with high editorial presence.
- * All-caps with wide tracking for haute-couture editorial presence.
+ * LUVEA Wordmark — Pure typographic luxury wordmark with haute-couture editorial presence.
+ * Features optically calibrated letter-spacing, negative right margin to eliminate tracking drift,
+ * and high-contrast rendering inspired by Céline, Saint Laurent and GlossGenius.
  */
 export function LuveaWordmark({
   className = "",
@@ -20,25 +21,29 @@ export function LuveaWordmark({
 }) {
   return (
     <span
-      className={`font-sans font-semibold tracking-[0.28em] uppercase select-none transition-colors ${
+      className={`inline-flex items-center font-sans font-semibold tracking-[0.24em] uppercase select-none transition-colors duration-150 ${
         dark ? "text-white" : "text-[#1C1C1E]"
       } ${className}`}
+      style={{ letterSpacing: "0.24em" }}
+      aria-label="LUVEA"
     >
-      LUVEA
+      <span className="-mr-[0.24em]">LUVEA</span>
     </span>
   );
 }
 
 /**
  * LUVEA Monogram Icon — Minimalist, chic squircle emblem for favicon, mobile app and social media.
- * Stylized geometric "L" line mark inside an architectural squircle.
+ * Stylized geometric architectural "L" mark inside an ultra-subtle squircle container.
  */
 export function LuveaIcon({
   size = 36,
   className = "",
+  dark = false,
 }: {
   size?: number | string;
   className?: string;
+  dark?: boolean;
 }) {
   return (
     <svg
@@ -47,37 +52,33 @@ export function LuveaIcon({
       viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`shrink-0 ${className}`}
+      className={`shrink-0 transition-transform duration-200 ${className}`}
       aria-label="LUVEA Monogram"
     >
       <defs>
-        <linearGradient id="luveaBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#1E1E22" />
-          <stop offset="100%" stopColor="#121214" />
-        </linearGradient>
-        <linearGradient id="luveaStrokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFFFFF" />
-          <stop offset="100%" stopColor="#ECECEF" />
+        <linearGradient id={dark ? "luveaBgDark" : "luveaBgLight"} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={dark ? "#27272A" : "#1C1C1E"} />
+          <stop offset="100%" stopColor={dark ? "#18181B" : "#141416"} />
         </linearGradient>
       </defs>
 
-      {/* Luxury Squircle Container */}
+      {/* Luxury Squircle Container with fine optical border */}
       <rect
-        x="4"
-        y="4"
-        width="92"
-        height="92"
-        rx="22"
-        fill="url(#luveaBgGrad)"
-        stroke="#27272A"
+        x="6"
+        y="6"
+        width="88"
+        height="88"
+        rx="24"
+        fill={`url(#${dark ? "luveaBgDark" : "luveaBgLight"})`}
+        stroke={dark ? "#3F3F46" : "#2E2E32"}
         strokeWidth="1.5"
       />
 
-      {/* Minimalist Architectural "L" Monogram */}
+      {/* Architectural "L" Monogram with balanced geometric proportions */}
       <path
-        d="M 38 28 L 38 64 C 38 69.5 42.5 73 48 73 L 68 73"
-        stroke="url(#luveaStrokeGrad)"
-        strokeWidth="6.5"
+        d="M 40 28 L 40 63 C 40 68 43.5 71 49 71 L 67 71"
+        stroke="#FFFFFF"
+        strokeWidth="6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -95,18 +96,17 @@ export function LuveaLogo({
   dark = false,
 }: LuveaLogoProps) {
   if (variant === "icon") {
-    return <LuveaIcon size={size} className={className} />;
+    return <LuveaIcon size={size} dark={dark} className={className} />;
   }
 
   if (variant === "full") {
     return (
       <div className={`inline-flex items-center gap-3 ${className}`}>
-        <LuveaIcon size={size} />
+        <LuveaIcon size={size} dark={dark} />
         <LuveaWordmark dark={dark} className="text-[20px]" />
       </div>
     );
   }
 
-  // Default: wordmark only (as requested for header)
   return <LuveaWordmark dark={dark} className={className} />;
 }

@@ -567,8 +567,8 @@ export function PublicBookingWebsite({
 
             {/* Error Message */}
             {bookingError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="p-3 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-xs flex items-center gap-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                 <span>{bookingError}</span>
               </div>
             )}

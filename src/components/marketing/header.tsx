@@ -24,6 +24,7 @@ import {
   getPrimaryCtaUrl,
   getLoginUrl,
 } from "@/lib/marketing-content";
+import { LuveaWordmark } from "@/components/luvea-logo";
 
 export function MarketingHeader() {
   const [activeDropdown, setActiveDropdown] = useState<"how" | "business" | null>(
@@ -92,16 +93,14 @@ export function MarketingHeader() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-zinc-200/80 transition-all">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18 sm:h-20">
-          {/* Brand Logo — Wordmark somente letras estilo alta-costura (LUVEA) */}
+          {/* Brand Logo — Wordmark de alta-costura (LUVEA) */}
           <div className="flex items-center gap-8">
             <Link
               href="/"
               className="flex items-center group focus:outline-none focus-visible:ring-2 focus-visible:ring-black rounded-lg py-1"
               aria-label="LUVEA - Início"
             >
-              <span className="font-sans text-[20px] sm:text-[22px] font-semibold tracking-[0.28em] text-[#1C1C1E] uppercase select-none transition-opacity group-hover:opacity-80">
-                LUVEA
-              </span>
+              <LuveaWordmark className="text-[20px] sm:text-[22px] group-hover:opacity-80 transition-opacity" />
             </Link>
 
             {/* Desktop Navigation */}

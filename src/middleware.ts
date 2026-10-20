@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 export const config = {
   matcher: [
@@ -13,13 +15,15 @@ export const config = {
   ],
 };
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
+  // 1. Atualiza e sincroniza a sessão do Supabase SSR (cookies de auth)
+  const { supabaseResponse, user } = await updateSession(req);
+
   const url = req.nextUrl;
   const hostname = req.headers.get("host") || "";
 
-  // Limpa porta de desenvolvimento (ex: localhost:3000 -> localhost)
+  // 2. Extrai subdomínio e limpa porta local (ex: bruno.localhost:3000 -> bruno)
   const currentHost = hostname.replace(/:\d+$/, "").toLowerCase();
-
   let subdomain: string | null = null;
 
   if (currentHost.endsWith(".luvea.app")) {
@@ -44,19 +48,27 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // Se a requisição veio de um subdomínio de cliente (ex: bruno.luvea.app)
+  // 3. Roteamento dinâmico Multi-Tenant por subdomínio de estúdio (ex: bruno.luvea.app)
   if (subdomain) {
-    // Não reescreve se já estiver na rota /site
     if (url.pathname.startsWith("/site")) {
-      return NextResponse.next();
+      return supabaseResponse;
     }
-    // Reescreve internamente para /site/[subdomain] mantendo a URL original no navegador
-    return NextResponse.rewrite(
-      new URL(`/site/${subdomain}${url.pathname === "/" ? "" : url.pathname}`, req.url)
+    // Reescreve internamente para /site/[subdomain] preservando cookies
+    const rewriteUrl = new URL(
+      `/site/${subdomain}${url.pathname === "/" ? "" : url.pathname}`,
+      req.url
     );
+    const rewriteResponse = NextResponse.rewrite(rewriteUrl, {
+      request: req,
+    });
+    // Copia os cookies atualizados do Supabase para a resposta de rewrite
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      rewriteResponse.cookies.set(cookie.name, cookie.value);
+    });
+    return rewriteResponse;
   }
 
-  // Se acessar diretamente pelo subdomínio de app (ex: app.luvea.app)
+  // 4. Subdomínio operacional dedicado (app.luvea.app -> /app)
   if (
     (currentHost === "app.luvea.app" ||
       currentHost === "app.luvea.com.br" ||
@@ -66,5 +78,25 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/app", req.url));
   }
 
-  return NextResponse.next();
+  // 5. Proteção de Rotas Privadas (/app/*)
+  const isAppRoute = url.pathname.startsWith("/app");
+  const isAuthRoute =
+    url.pathname === "/login" ||
+    url.pathname === "/cadastro" ||
+    url.pathname === "/esqueci-senha" ||
+    url.pathname === "/redefinir-senha";
+
+  // Se o Supabase estiver configurado em produção e o usuário não estiver autenticado
+  if (isAppRoute && !user && isSupabaseConfigured()) {
+    const redirectUrl = new URL("/login", req.url);
+    redirectUrl.searchParams.set("redirect", url.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Se o usuário já estiver autenticado e tentar acessar telas de login/cadastro
+  if (isAuthRoute && user) {
+    return NextResponse.redirect(new URL("/app", req.url));
+  }
+
+  return supabaseResponse;
 }

@@ -32,8 +32,8 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     id: "como-funciona-pagamentos_pdv",
     title: "Pagamentos sem atrito",
     subtitle: "Sinal Pix antecipado, comanda rápida e histórico conciliado.",
-    bgClass: "bg-[#D7FE03]",
-    textClass: "text-black",
+    bgClass: "bg-[#EFEFF4]",
+    textClass: "text-[#1C1C1E]",
     imageSrc: "/images/real-payments.png",
     imageAlt: "Gestão de pagamentos, sinal Pix e histórico de vendas na LUVEA",
   },
@@ -132,12 +132,9 @@ export function HowItWorksCarousel() {
       {/* Header: Edge-to-edge full width without max-w-7xl constraint */}
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between mb-8 sm:mb-12">
-          <div className="space-y-2">
-            <span className="text-[12px] font-sans font-medium text-zinc-500 uppercase tracking-wider">
-              Como Funciona
-            </span>
+          <div>
             <h2 className="text-3xl sm:text-5xl font-normal text-[#18181B] tracking-tight leading-tight">
-              Um sistema inteligente que faz você faturar mais
+              Tudo o que seu estúdio precisa para crescer
             </h2>
           </div>
 

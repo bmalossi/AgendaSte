@@ -40,6 +40,11 @@ export interface BusinessMenuCategory {
 export const ALLOWED_NAVIGATION_TARGETS = new Set([
   "/",
   "/app",
+  "/checkout",
+  "/login",
+  "/cadastro",
+  "/esqueci-senha",
+  "/redefinir-senha",
   "/precos",
   "/termos-de-uso",
   "/politica-de-privacidade",

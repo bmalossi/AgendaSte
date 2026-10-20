@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import {
   resolveDemoWhatsAppUrl,
   getPrimaryCtaUrl,
@@ -44,9 +44,8 @@ export function HeroSection() {
                   href={demoWhatsAppUrl}
                   target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
                   rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-[#D7FE03] hover:bg-[#cbf000] text-black text-[14.5px] font-semibold transition-all active:scale-[0.98]"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full border border-zinc-700 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-100 text-[14.5px] font-semibold transition-all active:scale-[0.98]"
                 >
-                  <Sparkles className="w-4 h-4 text-black" />
                   <span>Agendar demonstração</span>
                 </a>
                 <span className="text-[11px] text-zinc-400 pl-3 font-mono">

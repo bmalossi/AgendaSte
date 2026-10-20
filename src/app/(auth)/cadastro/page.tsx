@@ -1,0 +1,304 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  normalizeSubdomain,
+  calculatePasswordStrength,
+} from "@/lib/auth-schemas";
+
+export default function CadastroPage() {
+  const router = useRouter();
+
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [subdomain, setSubdomain] = useState("");
+  const [userEditedSubdomain, setUserEditedSubdomain] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const passwordStrength = calculatePasswordStrength(password);
+
+  const handleBusinessNameChange = (val: string) => {
+    setBusinessName(val);
+    if (!userEditedSubdomain) {
+      setSubdomain(normalizeSubdomain(val));
+    }
+  };
+
+  const handleSubdomainChange = (val: string) => {
+    setUserEditedSubdomain(true);
+    setSubdomain(normalizeSubdomain(val));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (password !== confirmPassword) {
+      setErrorMessage("As senhas digitadas não coincidem.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMessage("A senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+
+    if (!subdomain || subdomain.length < 3) {
+      setErrorMessage("Informe um subdomínio válido com pelo menos 3 caracteres.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (isSupabaseConfigured()) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+              business_name: businessName.trim(),
+              subdomain: subdomain.trim(),
+            },
+          },
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          setLoading(false);
+          return;
+        }
+
+        // Se a confirmação de e-mail estiver ativa, redireciona ou avisa
+        if (data?.user && !data.session) {
+          router.push(`/login?emailConfirmation=true&email=${encodeURIComponent(email)}`);
+          return;
+        }
+      }
+
+      // Redireciona para o painel operacional da Luvea
+      router.push("/app");
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Ocorreu um erro ao criar a conta.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E5EA] p-7 sm:p-9 shadow-xs space-y-6">
+      <div className="space-y-1.5 text-center">
+        <h1 className="text-2xl sm:text-[26px] font-semibold text-[#1C1C1E] tracking-tight">
+          Crie seu estúdio
+        </h1>
+        <p className="text-[13px] text-[#6E6E73]">
+          Comece agora com 14 dias de teste grátis da plataforma LUVEA
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Full Name */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="cadastro-name"
+            className="block text-[12.5px] font-medium text-[#1C1C1E]"
+          >
+            Nome completo
+          </label>
+          <input
+            id="cadastro-name"
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Ana Paula Ribeiro"
+            required
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] bg-white text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+          />
+        </div>
+
+        {/* Business Name */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="cadastro-business"
+            className="block text-[12.5px] font-medium text-[#1C1C1E]"
+          >
+            Nome do seu estúdio ou clínica
+          </label>
+          <input
+            id="cadastro-business"
+            type="text"
+            value={businessName}
+            onChange={(e) => handleBusinessNameChange(e.target.value)}
+            placeholder="Studio Ana Paula Visagismo"
+            required
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] bg-white text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+          />
+        </div>
+
+        {/* Dynamic Subdomain Slug Preview */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="cadastro-subdomain"
+            className="block text-[12.5px] font-medium text-[#1C1C1E]"
+          >
+            Seu link de agendamento online
+          </label>
+          <div className="flex items-center rounded-xl border border-[#D4D4D8] bg-white px-3.5 py-2.5 focus-within:border-[#1C1C1E] transition">
+            <input
+              id="cadastro-subdomain"
+              type="text"
+              value={subdomain}
+              onChange={(e) => handleSubdomainChange(e.target.value)}
+              placeholder="estudio-ana"
+              required
+              className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none font-mono"
+            />
+            <span className="text-[12.5px] font-mono text-[#8E8E93] shrink-0 pl-1">
+              .luvea.app
+            </span>
+          </div>
+          <p className="text-[11.5px] text-[#6E6E73]">
+            Este será o endereço público do seu site de agendamento.
+          </p>
+        </div>
+
+        {/* Email */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="cadastro-email"
+            className="block text-[12.5px] font-medium text-[#1C1C1E]"
+          >
+            E-mail
+          </label>
+          <input
+            id="cadastro-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="ana@estudio.com.br"
+            autoComplete="email"
+            required
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] bg-white text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+          />
+        </div>
+
+        {/* Password */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="cadastro-password"
+            className="block text-[12.5px] font-medium text-[#1C1C1E]"
+          >
+            Senha
+          </label>
+          <div className="relative">
+            <input
+              id="cadastro-password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mínimo de 8 caracteres"
+              autoComplete="new-password"
+              required
+              className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-[#D4D4D8] bg-white text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-[#1C1C1E] p-1"
+              aria-label={showPassword ? "Ocultar senha" : "Ver senha"}
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Minimalist Password Strength Meter */}
+          {password && (
+            <div className="space-y-1 pt-1">
+              <div className="grid grid-cols-4 gap-1.5 h-1">
+                {[1, 2, 3, 4].map((step) => (
+                  <div
+                    key={step}
+                    className={`rounded-full transition-all duration-200 ${
+                      passwordStrength.score >= step
+                        ? passwordStrength.colorClass
+                        : "bg-zinc-100"
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className="text-[11px] text-[#6E6E73] font-medium">
+                Força da senha:{" "}
+                <span className="text-[#1C1C1E]">{passwordStrength.label}</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Confirm Password */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="cadastro-confirm-password"
+            className="block text-[12.5px] font-medium text-[#1C1C1E]"
+          >
+            Confirmar senha
+          </label>
+          <input
+            id="cadastro-confirm-password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repita sua senha"
+            autoComplete="new-password"
+            required
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] bg-white text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+          />
+        </div>
+
+        {/* Error Banner */}
+        {errorMessage && (
+          <div className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13.5px] font-semibold transition-all shadow-xs active:scale-[0.99] disabled:opacity-50"
+        >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
+          ) : (
+            <>
+              <span>Iniciar teste grátis de 14 dias</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      </form>
+
+      <div className="pt-2 text-center text-[12.5px] text-[#6E6E73] border-t border-[#F5F5F7]">
+        Já tem uma conta?{" "}
+        <Link href="/login" className="font-semibold text-[#1C1C1E] hover:underline">
+          Fazer login
+        </Link>
+      </div>
+    </div>
+  );
+}

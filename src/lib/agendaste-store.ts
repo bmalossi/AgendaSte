@@ -392,6 +392,69 @@ export interface DayBusinessHours {
   endTime: string;   // "17:00"
 }
 
+export interface WebsiteTrackingConfig {
+  googleAnalyticsId: string;
+  metaPixelId: string;
+  enabled: boolean;
+}
+
+export interface SocialAccountsConfig {
+  instagram: string;
+  facebook: string;
+  twitter: string;
+  pinterest: string;
+  yelp: string;
+  website: string;
+}
+
+export interface WebsiteContentSettings {
+  showReviews: boolean;
+  showPortfolioGallery: boolean;
+  displayServicesVisually: boolean;
+  showTeam: boolean;
+}
+
+export interface BookingControlsConfig {
+  autoApproveMode: "always" | "manual";
+  bookingWindowHours: number;
+  bookingIncrementsMinutes: number;
+  minimizeSchedulingGaps: boolean;
+  maxGapMinutes: number;
+  gapProviderScope: "all" | "selected";
+  requireCardOnFile: "all" | "new_clients" | "none";
+  advanceBookingMonths: number;
+  allowProcessingTimeBooking: boolean;
+  askClientsForPronouns: boolean;
+  cancellations: {
+    allowOnlineCancellation: boolean;
+    policyRequired: boolean;
+    policyDetails: string;
+    feePercent: number;
+    windowHours: number;
+  };
+  waitlistOnlineEnabled: boolean;
+}
+
+export interface ClientNotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  category: "pre_appointment" | "post_appointment";
+  enabled: boolean;
+  channels: Array<"email" | "sms" | "whatsapp">;
+  timingLabel?: string;
+  templateSubject?: string;
+  templateBody: string;
+  badge?: "gold" | "novo";
+  requiresGoogleLink?: boolean;
+}
+
+export interface ClientNotificationsConfig {
+  hipaaNoticeDismissed?: boolean;
+  googleReviewLink: string;
+  items: ClientNotificationItem[];
+}
+
 export interface WebsiteBookingSetupConfig {
   theme: BookingSiteThemeId;
   subdomainSlug: string;
@@ -417,6 +480,13 @@ export interface WebsiteBookingSetupConfig {
     identityVerified: boolean;
     setupCompleted: boolean;
   };
+  aboutYourBusiness?: string;
+  heroImageUrl?: string;
+  socialAccounts?: SocialAccountsConfig;
+  contentSettings?: WebsiteContentSettings;
+  tracking?: WebsiteTrackingConfig;
+  bookingControls?: BookingControlsConfig;
+  clientNotifications?: ClientNotificationsConfig;
 }
 
 export type WhatsAppProviderType = "evolution_api" | "meta_cloud" | "wa_web_manual";
@@ -1368,6 +1438,185 @@ export function normalizeSubdomainSlug(raw: string): string {
   return compact || "meu-estudio";
 }
 
+export function getDefaultBookingControls(): BookingControlsConfig {
+  return {
+    autoApproveMode: "always",
+    bookingWindowHours: 2,
+    bookingIncrementsMinutes: 15,
+    minimizeSchedulingGaps: true,
+    maxGapMinutes: 15,
+    gapProviderScope: "all",
+    requireCardOnFile: "all",
+    advanceBookingMonths: 2,
+    allowProcessingTimeBooking: true,
+    askClientsForPronouns: true,
+    cancellations: {
+      allowOnlineCancellation: true,
+      policyRequired: true,
+      policyDetails:
+        "Cobramos 30% de taxa de cancelamento para no-shows ou cancelamentos com menos de 24 horas de antecedência do horário agendado.",
+      feePercent: 30,
+      windowHours: 24,
+    },
+    waitlistOnlineEnabled: true,
+  };
+}
+
+export function getDefaultClientNotifications(): ClientNotificationsConfig {
+  return {
+    hipaaNoticeDismissed: false,
+    googleReviewLink: "https://g.page/r/luvea-studio/review",
+    items: [
+      {
+        id: "pre-confirm",
+        title: "Confirmation notification",
+        description: "Prompt clients before their appointment to confirm.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "72 hours before",
+        templateSubject: "Confirmação de Agendamento · {estudio}",
+        templateBody:
+          "Olá {nome}! Confirmamos seu atendimento no {estudio} para {data} às {horario}? Responda 1 para confirmar ou 2 para reagendar.",
+      },
+      {
+        id: "pre-reminder",
+        title: "Reminder notification",
+        description: "Send clients a reminder before their appointment.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "24 hours before",
+        templateSubject: "Lembrete de Horário · {estudio}",
+        templateBody:
+          "Oi {nome}! Lembrando do seu horário amanhã às {horario} no {estudio} ({servicos}). Estamos ansiosos para te receber!",
+      },
+      {
+        id: "pre-new-booking",
+        title: "New booking alert",
+        description: "Alert clients if their appointment has been booked.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "Imediato",
+        templateSubject: "Agendamento Realizado com Sucesso · {estudio}",
+        templateBody:
+          "Seu horário foi agendado com sucesso no {estudio} para {data} às {horario}. Aguardamos você!",
+      },
+      {
+        id: "pre-cancellation",
+        title: "Cancellation alert",
+        description: "Alert clients if their appointment needs to be canceled.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "Imediato",
+        templateSubject: "Agendamento Cancelado · {estudio}",
+        templateBody:
+          "Seu agendamento para {data} no {estudio} foi cancelado. Para agendar um novo momento, acesse nosso site a qualquer hora.",
+      },
+      {
+        id: "pre-declined",
+        title: "Declined alert",
+        description: "Alert clients if their appointment has been declined.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "Imediato",
+        templateSubject: "Solicitação de Horário · {estudio}",
+        templateBody:
+          "Olá {nome}, não foi possível confirmar seu horário no {estudio} para este intervalo. Nossa equipe entrará em contato para encontrar a melhor opção para você.",
+      },
+      {
+        id: "pre-reschedule",
+        title: "Reschedule alert",
+        description: "Alert clients if their appointment has been rescheduled.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "Imediato",
+        templateSubject: "Horário Reagendado · {estudio}",
+        templateBody:
+          "Seu atendimento no {estudio} foi reagendado com sucesso para {data} às {horario}.",
+      },
+      {
+        id: "pre-waitlist-entry",
+        title: "Waitlist entry alert",
+        description: "Alert clients when they enter the waitlist.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["whatsapp"],
+        timingLabel: "Imediato",
+        templateSubject: "Lista de Espera Confirmada · {estudio}",
+        templateBody:
+          "Você está na lista de espera do {estudio}! Assim que um encaixe surgir para seu serviço, avisaremos você imediatamente aqui pelo WhatsApp.",
+      },
+      {
+        id: "pre-waitlist-cancel",
+        title: "Waitlist cancellation alert",
+        description: "Alert clients when they are removed from the waitlist.",
+        category: "pre_appointment",
+        enabled: true,
+        channels: ["whatsapp"],
+        timingLabel: "Imediato",
+        templateSubject: "Remoção da Lista de Espera · {estudio}",
+        templateBody:
+          "Você foi retirado da lista de espera do {estudio} conforme solicitado.",
+      },
+      {
+        id: "post-review",
+        title: "Review request",
+        description: "Adds a note for clients to review you inside their receipts & follow ups.",
+        category: "post_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "2 horas após",
+        templateSubject: "Como foi sua experiência no {estudio}?",
+        templateBody:
+          "Olá {nome}! Amamos cuidar de você hoje. Se puder dedicar 30 segundos para avaliar sua experiência no Google, significará muito para nós: {google_review_link}",
+        requiresGoogleLink: true,
+      },
+      {
+        id: "post-thank-you",
+        title: "Thank you note",
+        description: "Send a thank you note automatically after an appointment.",
+        category: "post_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "Imediato após checkout",
+        templateSubject: "Obrigado por nos visitar · {estudio}",
+        templateBody:
+          "Muito obrigado pela sua visita hoje, {nome}! Continue seus cuidados em casa e nos vemos em breve no {estudio}.",
+      },
+      {
+        id: "post-rebooking",
+        title: "Rebooking notification",
+        description: "Remind clients to book future appointments.",
+        category: "post_appointment",
+        enabled: true,
+        channels: ["whatsapp", "sms"],
+        timingLabel: "6 weeks after",
+        badge: "gold",
+        templateSubject: "Hora de renovar seu visual · {estudio}",
+        templateBody:
+          "Olá {nome}! Já se passaram 6 semanas desde seu último procedimento no {estudio}. Que tal reservar seu próximo horário para manter seus resultados impecáveis?",
+      },
+      {
+        id: "post-birthday",
+        title: "Birthday message",
+        description: "Send clients a thoughtful message on their birthday.",
+        category: "post_appointment",
+        enabled: true,
+        channels: ["email", "whatsapp"],
+        timingLabel: "No dia do aniversário (09:00)",
+        templateSubject: "Feliz Aniversário! Um presente especial do {estudio}",
+        templateBody:
+          "Parabéns, {nome}! Desejamos muitas alegrias e realizações. O {estudio} preparou uma cortesia especial para você comemorar seu dia conosco. Venha nos visitar!",
+      },
+    ],
+  };
+}
+
 export function getDefaultWebsiteBookingConfig(
   businessName = "Bruno Fernandes Malossi Silva"
 ): WebsiteBookingSetupConfig {
@@ -1404,6 +1653,31 @@ export function getDefaultWebsiteBookingConfig(
       identityVerified: false,
       setupCompleted: false,
     },
+    aboutYourBusiness:
+      "Espaço de beleza e bem-estar especializado em tratamentos personalizados, estética avançada e cuidados com a saúde capilar.",
+    heroImageUrl:
+      "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80",
+    socialAccounts: {
+      instagram: "@luveastudio",
+      facebook: "",
+      twitter: "",
+      pinterest: "",
+      yelp: "",
+      website: "https://luvea.app",
+    },
+    contentSettings: {
+      showReviews: true,
+      showPortfolioGallery: true,
+      displayServicesVisually: true,
+      showTeam: true,
+    },
+    tracking: {
+      googleAnalyticsId: "",
+      metaPixelId: "",
+      enabled: false,
+    },
+    bookingControls: getDefaultBookingControls(),
+    clientNotifications: getDefaultClientNotifications(),
   };
 }
 

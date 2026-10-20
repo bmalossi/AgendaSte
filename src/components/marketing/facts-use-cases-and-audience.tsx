@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   Scissors,
@@ -236,28 +235,17 @@ export function FactsUseCasesAndAudience() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="space-y-1.5">
-              <span className="text-[12px] font-sans font-medium text-[#6E6E73] uppercase tracking-wider">
-                Operação na prática
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-normal text-[#1C1C1E] tracking-tight">
-                Sob medida para o seu formato de atendimento
-              </h2>
-            </div>
+            <h2 className="text-3xl sm:text-4xl font-normal text-[#1C1C1E] tracking-tight">
+              Sob medida para o seu formato de atendimento
+            </h2>
           </div>
 
           {/* Real System Captures: Agenda & Prontuários */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">
-                  Agenda com pausas e trava de recursos
-                </h3>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Encaixes automáticos
-                </span>
-              </div>
+            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-3">
+              <h3 className="text-[15px] font-semibold text-[#1C1C1E]">
+                Agenda inteligente com pausas químicas e trava de recursos
+              </h3>
               <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
                 <Image
                   src="/images/real-calendar.png"
@@ -269,16 +257,10 @@ export function FactsUseCasesAndAudience() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">
-                  Prontuário clínico e mapeamento fotográfico
-                </h3>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Padrão SOAP &amp; LGPD
-                </span>
-              </div>
+            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-3">
+              <h3 className="text-[15px] font-semibold text-[#1C1C1E]">
+                Prontuário clínico digital e mapeamento fotográfico
+              </h3>
               <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
                 <Image
                   src="/images/real-charts.png"
@@ -342,9 +324,8 @@ export function FactsUseCasesAndAudience() {
               href={demoWhatsAppUrl}
               target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
               rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-[#D7FE03] hover:bg-[#cbf000] text-black text-[14px] font-semibold transition-all active:scale-[0.98]"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full border border-zinc-700 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-100 text-[14px] font-semibold transition-all active:scale-[0.98]"
             >
-              <Sparkles className="w-4 h-4 text-black" />
               <span>Agendar demonstração</span>
             </a>
           </div>
