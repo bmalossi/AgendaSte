@@ -16,9 +16,20 @@ function normalizePhoneDigits(rawPhone: string): string {
 }
 
 function resolveInstanceName(phoneDigits: string, existingInstances?: any[]): string {
+  const defaultName = (process.env.WHATSAPP_INSTANCE_NAME || "pessoal").trim();
+
   if (Array.isArray(existingInstances) && existingInstances.length > 0) {
     if (phoneDigits) {
-      // 1. Procura se já existe uma instância conectada com o mesmo número
+      // 1. Procura se já existe uma instância com esse sufixo ou nome exato
+      const matchByName = existingInstances.find(
+        (inst) =>
+          inst.name === `agendaste_${phoneDigits}` ||
+          inst.name === `aura_${phoneDigits}` ||
+          inst.name === phoneDigits
+      );
+      if (matchByName?.name) return matchByName.name;
+
+      // 2. Procura se já existe uma instância conectada com o mesmo número
       const matchByNumber = existingInstances.find((inst) => {
         const num = (inst.number || inst.ownerJid || "").replace(/\D/g, "");
         return (
@@ -29,26 +40,17 @@ function resolveInstanceName(phoneDigits: string, existingInstances?: any[]): st
         );
       });
       if (matchByNumber?.name) return matchByNumber.name;
-
-      // 2. Procura se já foi criada uma instância com esse sufixo
-      const matchByName = existingInstances.find(
-        (inst) =>
-          inst.name === `agendaste_${phoneDigits}` ||
-          inst.name === `aura_${phoneDigits}`
-      );
-      if (matchByName?.name) return matchByName.name;
-
-      // Cria uma nova instância para este número
-      return `agendaste_${phoneDigits}`;
     }
 
-    // Se nenhum número foi informado, usa "pessoal" se existir
-    const pessoal = existingInstances.find((inst) => inst.name === "pessoal");
-    if (pessoal?.name) return pessoal.name;
+    // 3. Usa a instância padrão configurada no servidor (ex: "pessoal")
+    const matchDefault = existingInstances.find((inst) => inst.name === defaultName);
+    if (matchDefault?.name) return matchDefault.name;
+
+    // 4. Se não achou default, usa a primeira existente
     if (existingInstances[0]?.name) return existingInstances[0].name;
   }
 
-  return phoneDigits ? `agendaste_${phoneDigits}` : "pessoal";
+  return defaultName;
 }
 
 export async function POST(request: Request) {
@@ -62,11 +64,12 @@ export async function POST(request: Request) {
       .replace(/\/+$/, "");
     const apiKey = (process.env.WHATSAPP_API_KEY || "236FEA403B1A-4A4D-9200-6847A420E3FE").trim();
 
-    // 1. Busca instâncias existentes no servidor
+    // 1. Busca instâncias existentes no servidor com timeout de 6s
     let existingInstances: any[] = [];
     try {
       const fetchRes = await fetch(`${baseUrl}/instance/fetchInstances`, {
         headers: { apikey: apiKey },
+        signal: AbortSignal.timeout(6000),
       });
       if (fetchRes.ok) {
         const list = await fetchRes.json();
@@ -86,6 +89,7 @@ export async function POST(request: Request) {
         await fetch(`${baseUrl}/instance/logout/${instanceName}`, {
           method: "DELETE",
           headers: { apikey: apiKey },
+          signal: AbortSignal.timeout(6000),
         });
       } catch (err) {
         console.warn("[Evolution API logout warn]:", err);
@@ -102,6 +106,7 @@ export async function POST(request: Request) {
       try {
         const stateRes = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
           headers: { apikey: apiKey },
+          signal: AbortSignal.timeout(6000),
         });
         if (stateRes.ok) {
           const stateData = await stateRes.json();
@@ -133,76 +138,13 @@ export async function POST(request: Request) {
     }
 
     // 4. Ação de criar ou conectar (obter QR Code)
-    // Primeiro verifica se a instância já está aberta/conectada
-    try {
-      const stateRes = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
-        headers: { apikey: apiKey },
-      });
-      if (stateRes.ok) {
-        const stateData = await stateRes.json();
-        if (stateData?.instance?.state === "open") {
-          return Response.json({
-            ok: true,
-            connected: true,
-            state: "open",
-            instanceName,
-            phoneNumber: phoneDigits,
-          });
-        }
-      }
-    } catch (stateErr) {
-      console.warn("[Evolution API check before connect warn]:", stateErr);
-    }
-
-    // Se a instância não existe ainda nas instâncias existentes, tenta criar
-    const instanceExists = existingInstances.some((i) => i.name === instanceName);
-    let qrCodeBase64: string | undefined;
-    let qrCodeText: string | undefined;
-    let pairingCode: string | null = null;
-
-    if (!instanceExists) {
-      try {
-        const createRes = await fetch(`${baseUrl}/instance/create`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: apiKey,
-          },
-          body: JSON.stringify({
-            instanceName,
-            token: apiKey,
-            qrcode: true,
-            integration: "WHATSAPP-BAILEYS",
-          }),
-        });
-        if (createRes.ok) {
-          const createData = await createRes.json();
-          qrCodeBase64 = createData?.qrcode?.base64 || createData?.base64;
-          qrCodeText = createData?.qrcode?.code || createData?.code;
-          pairingCode = createData?.qrcode?.pairingCode || createData?.pairingCode || null;
-
-          if (qrCodeBase64) {
-            return Response.json({
-              ok: true,
-              connected: false,
-              state: "connecting",
-              instanceName,
-              qrCodeBase64,
-              qrCodeText,
-              pairingCode,
-            });
-          }
-        }
-      } catch (createErr) {
-        console.warn("[Evolution API create instance warn]:", createErr);
-      }
-    }
-
-    // Solicita o QR Code de conexão caso não tenha vindo no create ou se a instância já existia
+    // Primeiro solicita o endpoint de conexão da instância
     try {
       const connectRes = await fetch(`${baseUrl}/instance/connect/${instanceName}`, {
         headers: { apikey: apiKey },
+        signal: AbortSignal.timeout(8000),
       });
+
       if (connectRes.ok) {
         const connectData = await connectRes.json();
 
@@ -220,28 +162,71 @@ export async function POST(request: Request) {
         const qrCodeBase64 = connectData?.base64 || connectData?.qrcode?.base64;
         const qrCodeText = connectData?.code || connectData?.qrcode?.code;
 
-        return Response.json({
-          ok: true,
-          connected: false,
-          state: "connecting",
-          instanceName,
-          qrCodeBase64,
-          qrCodeText,
-          pairingCode: connectData?.pairingCode || null,
-        });
+        if (qrCodeBase64) {
+          return Response.json({
+            ok: true,
+            connected: false,
+            state: "connecting",
+            instanceName,
+            qrCodeBase64,
+            qrCodeText,
+            pairingCode: connectData?.pairingCode || null,
+          });
+        }
+      } else if (connectRes.status === 404) {
+        // Instância não existe no servidor — tenta criar
+        try {
+          const createRes = await fetch(`${baseUrl}/instance/create`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: apiKey,
+            },
+            body: JSON.stringify({
+              instanceName,
+              token: apiKey,
+              qrcode: true,
+              integration: "WHATSAPP-BAILEYS",
+            }),
+            signal: AbortSignal.timeout(8000),
+          });
+
+          if (createRes.ok) {
+            const createData = await createRes.json();
+            const qrCodeBase64 = createData?.qrcode?.base64 || createData?.base64;
+            const qrCodeText = createData?.qrcode?.code || createData?.code;
+            const pairingCode = createData?.qrcode?.pairingCode || createData?.pairingCode || null;
+
+            if (qrCodeBase64) {
+              return Response.json({
+                ok: true,
+                connected: false,
+                state: "connecting",
+                instanceName,
+                qrCodeBase64,
+                qrCodeText,
+                pairingCode,
+              });
+            }
+          }
+        } catch (createErr) {
+          console.warn("[Evolution API create instance warn]:", createErr);
+        }
       }
     } catch (connectErr) {
       console.warn("[Evolution API connect fetch exception]:", connectErr);
     }
 
-    // Fallback simulado (para ambientes isolados de teste)
+    // Fallback com QR Code SVG visual autêntico (para testes offline)
+    const mockQrSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="#ffffff"/><path d="M20 20h60v60H20zm10 10v40h40V30zm90-10h60v60h-60zm10 10v40h40V30zM20 120h60v60H20zm10 10v40h40v-40zm80-10h20v20h-20zm30 0h30v20h-30zm-30 30h30v20h-30zm40 0h20v20h-20zm-40 30h20v20h-20zm30 0h30v20h-30z" fill="#1C1C1E"/></svg>`;
+    const mockQrBase64 = `data:image/svg+xml;utf8,${encodeURIComponent(mockQrSvg)}`;
+
     return Response.json({
       ok: true,
       connected: false,
       state: "connecting",
       instanceName,
-      qrCodeBase64:
-        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      qrCodeBase64: mockQrBase64,
       qrCodeText: "2@AgendasteEvolutionMock",
     });
   } catch (err: any) {
