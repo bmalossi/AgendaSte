@@ -74,7 +74,7 @@ export const THEME_DEFINITIONS: Record<
   energy: {
     name: "Energy",
     description: "Rosa e coral vibrantes com energia contemporânea.",
-    bgStyle: "bg-gradient-to-br from-[#FF3366] to-[#E0004D]",
+    bgStyle: "bg-[#9E2A2B]",
     textStyle: "text-white",
     accentStyle: "border-white/40 text-white",
   },
@@ -88,7 +88,7 @@ export const THEME_DEFINITIONS: Record<
   play: {
     name: "Play",
     description: "Design moderno, arrojado e criativo.",
-    bgStyle: "bg-gradient-to-tr from-[#1E293B] via-[#0F172A] to-[#334155]",
+    bgStyle: "bg-[#0F172A]",
     textStyle: "text-white",
     accentStyle: "border-white/30 text-white",
   },
@@ -568,22 +568,26 @@ export function WebsiteSetupWizard({
         )}
 
         {/* =====================================================================
-            ETAPA 4: CELEBRAÇÃO — SITE CRIADO! (Green Screen)
+            ETAPA 4: CELEBRAÇÃO — SITE CRIADO (Editorial Clean)
         ===================================================================== */}
         {step === 4 && (
-          <div className="w-full flex-1 bg-[#10B981] flex flex-col items-center justify-center p-6 sm:p-12 text-center text-white relative">
+          <div className="w-full flex-1 bg-[#F5F5F7] flex flex-col items-center justify-center p-6 sm:p-12 text-center relative">
             <div className="max-w-2xl space-y-6 animate-in zoom-in-95 duration-200">
-              <div className="space-y-2">
-                <h1 className="font-serif text-3xl sm:text-5xl font-normal tracking-tight text-white drop-shadow-xs">
-                  Pronto! Seu novo site está no ar!
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E5E5EA] text-[12.5px] font-medium text-[#1C1C1E] shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                  <span>Site publicado e ativo</span>
+                </div>
+                <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-[#1C1C1E]">
+                  Seu novo site está no ar
                 </h1>
-                <p className="text-xs sm:text-sm text-white/90 max-w-lg mx-auto leading-relaxed">
-                  Você pode personalizar todos os detalhes em Configurações &gt; Site. A seguir, vamos configurar os serviços e horários de agendamento.
+                <p className="text-[13px] sm:text-[14px] text-[#6E6E73] max-w-lg mx-auto leading-relaxed">
+                  A identidade visual pode ser ajustada a qualquer momento em Configurações. A seguir, vamos definir os serviços e horários da sua agenda.
                 </p>
               </div>
 
               {/* Centered Preview Mockup */}
-              <div className="max-w-md mx-auto transform scale-90 sm:scale-100 shadow-2xl rounded-2xl overflow-hidden border border-white/20">
+              <div className="max-w-md mx-auto transform scale-95 sm:scale-100 shadow-sm rounded-2xl overflow-hidden border border-[#E5E5EA] bg-white">
                 <BrowserMockup
                   url={`${activeSlug}.agendaste.com.br`}
                   device="desktop"
@@ -593,7 +597,7 @@ export function WebsiteSetupWizard({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -601,7 +605,7 @@ export function WebsiteSetupWizard({
                       onOpenPublicSite(activeSlug);
                     }
                   }}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-white text-zinc-900 text-xs sm:text-sm font-semibold hover:bg-zinc-100 transition-colors shadow-sm inline-flex items-center justify-center gap-1.5"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] text-[13px] font-medium hover:bg-[#F5F5F7] transition-colors shadow-2xs inline-flex items-center justify-center gap-1.5"
                 >
                   <span>Visualizar site</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -609,7 +613,7 @@ export function WebsiteSetupWizard({
                 <button
                   type="button"
                   onClick={() => setStep(5)} // Go to Phase 2
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#18181B] text-white text-xs sm:text-sm font-semibold hover:bg-black transition-colors shadow-md"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-black transition-colors shadow-xs"
                 >
                   Configurar serviços e agendamento
                 </button>
@@ -618,8 +622,8 @@ export function WebsiteSetupWizard({
 
             {/* Bottom Toast Notification */}
             {showCelebrationToast && (
-              <div className="absolute bottom-6 bg-[#18181B] text-white px-4 py-2 rounded-full text-xs font-medium flex items-center gap-2 shadow-lg animate-in slide-in-from-bottom duration-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div className="absolute bottom-6 bg-[#1C1C1E] text-white px-4 py-2 rounded-full text-[12.5px] font-medium flex items-center gap-2 shadow-lg animate-in slide-in-from-bottom duration-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                 <span>URL atualizada com sucesso</span>
                 <button
                   type="button"
@@ -909,8 +913,9 @@ export function WebsiteSetupWizard({
                       <p className="font-bold text-xs text-zinc-900">
                         Sinal Pix Obrigatório Anti-No-Show
                       </p>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-100 text-emerald-800">
-                        Recomendado (Brasil)
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                        <span>Recomendado</span>
                       </span>
                     </div>
                     <p className="text-[11px] text-zinc-600 mt-1">
@@ -1371,18 +1376,18 @@ export function WebsiteSetupWizard({
       {step !== 4 && (
         <footer className="w-full border-t border-zinc-200 px-6 sm:px-10 py-4 bg-white flex flex-col gap-3">
           {/* Progress Indicators */}
-          <div className="w-full flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
+          <div className="w-full flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 max-w-[200px] sm:max-w-[400px]">
               {[1, 2, 3, 5, 6, 7, 8, 9, 10, 11].map((st) => (
                 <div
                   key={st}
-                  className={`h-1 w-6 sm:w-10 rounded-full transition-colors ${
-                    step >= st ? "bg-[#18181B]" : "bg-zinc-200"
+                  className={`h-1 flex-1 min-w-[8px] rounded-full transition-colors ${
+                    step >= st ? "bg-[#1C1C1E]" : "bg-[#E5E5EA]"
                   }`}
                 />
               ))}
             </div>
-            <span className="text-xs font-mono text-zinc-500">
+            <span className="text-xs font-mono text-[#6E6E73] shrink-0">
               Etapa {step > 4 ? step - 1 : step} de 10
             </span>
           </div>

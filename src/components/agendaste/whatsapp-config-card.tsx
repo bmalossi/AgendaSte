@@ -395,11 +395,16 @@ export function WhatsAppConfigCard({
           <div className="space-y-5">
             {/* Input do Número de WhatsApp */}
             <div className="max-w-md space-y-2">
-              <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+              <label
+                htmlFor="whatsapp-phone-input"
+                className="block text-[13px] font-semibold text-[#1C1C1E]"
+              >
                 Número do WhatsApp
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
+                  id="whatsapp-phone-input"
+                  aria-label="Número do WhatsApp"
                   type="text"
                   value={phoneNumber}
                   onChange={(e) => {
@@ -423,7 +428,7 @@ export function WhatsAppConfigCard({
                   type="button"
                   disabled={isGeneratingQr}
                   onClick={() => handleGenerateQr()}
-                  className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center gap-2 disabled:opacity-60 shadow-xs transition shrink-0"
+                  className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 shadow-xs transition shrink-0"
                 >
                   <RefreshCw
                     className={`w-3.5 h-3.5 ${isGeneratingQr ? "animate-spin" : ""}`}
@@ -602,8 +607,8 @@ export function WhatsAppConfigCard({
             )}
 
             {errorMessage && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-[12.5px] text-red-800 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <div className="p-3 bg-[#FFF5F5] border border-[#FEE2E2] rounded-xl text-[12.5px] text-[#991B1B] flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -612,18 +617,18 @@ export function WhatsAppConfigCard({
       </div>
 
       {/* 2. PERSONALIZAÇÃO DOS TEXTOS DAS MENSAGENS */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4 shadow-sm">
-        <div className="border-b border-zinc-100 pb-3">
-          <h3 className="text-[16px] font-bold text-[#18181B]">
+      <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-5 shadow-sm">
+        <div className="border-b border-[#E5E5EA] pb-3">
+          <h3 className="text-[17px] font-bold text-[#1C1C1E]">
             Modelos de Mensagens do Sistema
           </h3>
-          <p className="text-[12.5px] text-zinc-500 mt-0.5">
+          <p className="text-[13px] text-[#6E6E73] mt-0.5">
             Personalize o texto que seus clientes receberão com dados dinâmicos do agendamento.
           </p>
         </div>
 
         {/* Abas das mensagens */}
-        <div className="flex items-center gap-2 border-b border-zinc-200 pb-2 overflow-x-auto">
+        <div className="flex items-center gap-2 border-b border-[#E5E5EA] pb-3 overflow-x-auto">
           {[
             { id: "reminder24h" as const, label: "Lembrete 24h Antes" },
             { id: "reminder2h" as const, label: "Aviso 2h Antes" },
@@ -634,10 +639,10 @@ export function WhatsAppConfigCard({
               key={tab.id}
               type="button"
               onClick={() => setActiveTemplateTab(tab.id)}
-              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold whitespace-nowrap transition-colors ${
+              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium whitespace-nowrap transition-colors ${
                 activeTemplateTab === tab.id
                   ? "bg-[#1C1C1E] text-white"
-                  : "bg-zinc-100 text-zinc-600 hover:text-black"
+                  : "bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#EBEBED]"
               }`}
             >
               {tab.label}
@@ -648,7 +653,7 @@ export function WhatsAppConfigCard({
         {/* Input & Chips de Variáveis */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 flex-wrap text-[11.5px]">
-            <span className="text-zinc-500 font-medium">Inserir variável:</span>
+            <span className="text-[#6E6E73] font-medium">Inserir variável:</span>
             {[
               "{nome}",
               "{estudio}",
@@ -666,7 +671,7 @@ export function WhatsAppConfigCard({
                     [activeTemplateTab]: `${prev[activeTemplateTab]} ${v}`,
                   }));
                 }}
-                className="px-2 py-0.5 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-mono text-[11px] font-semibold border border-zinc-200"
+                className="px-2.5 py-1 rounded-md bg-[#F5F5F7] hover:bg-[#EBEBED] text-[#1C1C1E] font-mono text-[11.5px] font-medium border border-[#E5E5EA] transition-colors"
                 title={`Inserir ${v}`}
               >
                 + {v}
@@ -675,6 +680,8 @@ export function WhatsAppConfigCard({
           </div>
 
           <textarea
+            id="template-message-input"
+            aria-label="Modelo de mensagem do WhatsApp"
             rows={4}
             value={templates[activeTemplateTab]}
             onChange={(e) =>
@@ -683,12 +690,12 @@ export function WhatsAppConfigCard({
                 [activeTemplateTab]: e.target.value,
               }))
             }
-            className="w-full p-3.5 rounded-xl border border-zinc-300 text-[13px] leading-relaxed text-[#18181B] focus:outline-none focus:border-[#1C1C1E]"
+            className="w-full p-3.5 rounded-xl border border-[#D4D4D8] text-[13.5px] leading-relaxed text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
           />
 
-          <div className="p-3 bg-[#FAF9F6] rounded-xl border border-zinc-200 text-[12px] space-y-1">
-            <span className="font-bold text-zinc-700">Prévia de como o cliente recebe:</span>
-            <p className="text-zinc-600 italic">
+          <div className="p-4 bg-[#F5F5F7] rounded-xl border border-[#E5E5EA] text-[12.5px] space-y-1.5">
+            <span className="font-semibold text-[#1C1C1E]">Prévia de como o cliente recebe:</span>
+            <p className="text-[#6E6E73] italic">
               &quot;
               {formatWhatsAppMessage(templates[activeTemplateTab], {
                 nome: "Bruna Silva",
@@ -705,30 +712,32 @@ export function WhatsAppConfigCard({
       </div>
 
       {/* 3. TESTE DE DISPARO AO VIVO */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4 shadow-sm">
+      <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-5 shadow-sm">
         <div>
-          <h3 className="text-[16px] font-bold text-[#18181B]">
+          <h3 className="text-[17px] font-bold text-[#1C1C1E]">
             Testar Envio no WhatsApp
           </h3>
-          <p className="text-[12.5px] text-zinc-500 mt-0.5">
+          <p className="text-[13px] text-[#6E6E73] mt-0.5">
             Envie uma mensagem de teste para o seu próprio celular para verificar o recebimento.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <input
+            id="test-recipient-input"
+            aria-label="Número para teste de envio do WhatsApp"
             type="text"
             value={testRecipient}
             onChange={(e) => setTestRecipient(e.target.value)}
             placeholder="+55 (11) 94447-7528"
-            className="w-full sm:w-72 px-4 py-2.5 rounded-xl border border-zinc-300 text-[13px] focus:outline-none focus:border-[#1C1C1E]"
+            className="w-full sm:w-72 px-4 py-2.5 rounded-xl border border-[#D4D4D8] text-[13.5px] font-medium text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
           />
 
           <button
             type="button"
             disabled={isSendingTest}
             onClick={handleSendTestMessage}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-medium flex items-center justify-center gap-2 disabled:opacity-60 shadow-xs transition-colors"
           >
             <Send className="w-3.5 h-3.5" />
             <span>
@@ -742,13 +751,13 @@ export function WhatsAppConfigCard({
             className={`p-3.5 rounded-xl border text-[12.5px] flex items-start gap-2.5 ${
               testResult.ok
                 ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
-                : "bg-red-50 border-red-200 text-red-900"
+                : "bg-[#FFF5F5] border-[#FEE2E2] text-[#991B1B]"
             }`}
           >
             {testResult.ok ? (
-              <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 mt-1.5 shrink-0" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
             )}
             <div className="space-y-1">
               <p className="font-semibold">{testResult.message}</p>

@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       body.apiKey ||
       process.env.WHATSAPP_GLOBAL_API_KEY ||
       process.env.WHATSAPP_API_KEY ||
-      "236FEA403B1A-4A4D-9200-6847A420E3FE"
+      "370f7040e011d5e4d1b512a6cb263ebf"
     ).trim();
 
     // 1. Busca instâncias existentes no servidor com timeout de 6s
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
       try {
         await fetch(`${baseUrl}/instance/logout/${instanceName}`, {
           method: "DELETE",
-          headers: { apikey: instanceApiKey },
+          headers: { apikey: apiKey },
           signal: AbortSignal.timeout(6000),
         });
       } catch (err) {
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
         // Tenta checagem direta caso a chave usada não tenha visibilidade de fetchInstances
         try {
           const directRes = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
-            headers: { apikey: instanceApiKey },
+            headers: { apikey: apiKey },
             signal: AbortSignal.timeout(6000),
           });
           if (directRes.ok) {
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
               state,
               instanceName,
               phoneNumber: phoneDigits,
-              apiKey: instanceApiKey,
+              apiKey,
             });
           }
         } catch (e) {
@@ -208,7 +208,7 @@ export async function POST(request: Request) {
       // Instância existente
       try {
         const stateRes = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
-          headers: { apikey: instanceApiKey },
+          headers: { apikey: apiKey },
           signal: AbortSignal.timeout(6000),
         });
         if (stateRes.ok) {
@@ -225,7 +225,7 @@ export async function POST(request: Request) {
             state: isConnected ? "open" : (target.isNumberMatch ? state : "close"),
             instanceName,
             phoneNumber: ownerNumber,
-            apiKey: instanceApiKey,
+            apiKey,
           });
         }
       } catch (err) {
@@ -242,123 +242,135 @@ export async function POST(request: Request) {
       });
     }
 
-    // Fallback com QR Code SVG visual autêntico (para testes unitários ou offline)
-    const mockQrSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="#ffffff"/><path d="M20 20h60v60H20zm10 10v40h40V30zm90-10h60v60h-60zm10 10v40h40V30zM20 120h60v60H20zm10 10v40h40v-40zm80-10h20v20h-20zm30 0h30v20h-30zm-30 30h30v20h-30zm40 0h20v20h-20zm-40 30h20v20h-20zm30 0h30v20h-30z" fill="#1C1C1E"/></svg>`;
-    const mockQrBase64 = `data:image/svg+xml;utf8,${encodeURIComponent(mockQrSvg)}`;
-
     // 4. Ação de criar ou conectar (obter QR Code)
-    // Primeiro tenta conectar na instância alvo se ela já existir ou responde connect
+    // Se a instância já existe: tenta conectar e obter o QR Code real
+    if (target.exists) {
+      try {
+        const connectRes = await fetch(`${baseUrl}/instance/connect/${instanceName}`, {
+          headers: { apikey: apiKey },
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (connectRes.ok) {
+          const connectData = await connectRes.json();
+
+          // Se já está conectado e com o número correto
+          if (connectData?.instance?.state === "open" && target.isNumberMatch) {
+            return Response.json({
+              ok: true,
+              exists: true,
+              connected: true,
+              state: "open",
+              instanceName,
+              phoneNumber: phoneDigits,
+              apiKey,
+            });
+          }
+
+          const qrCodeBase64 = connectData?.base64 || connectData?.qrcode?.base64;
+          const qrCodeText = connectData?.code || connectData?.qrcode?.code;
+
+          if (qrCodeBase64) {
+            return Response.json({
+              ok: true,
+              exists: true,
+              connected: false,
+              state: "connecting",
+              instanceName,
+              qrCodeBase64,
+              qrCodeText,
+              pairingCode: connectData?.pairingCode || null,
+              apiKey,
+            });
+          }
+        }
+      } catch (connectErr) {
+        console.warn("[Evolution API connect existing instance warn]:", connectErr);
+      }
+    }
+
+    // Se a instância não existe ainda (ou a conexão anterior retornou que precisa ser criada), cria na Evolution API:
     try {
-      const connectRes = await fetch(`${baseUrl}/instance/connect/${instanceName}`, {
-        headers: { apikey: instanceApiKey },
-        signal: AbortSignal.timeout(8000),
+      const createRes = await fetch(`${baseUrl}/instance/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: apiKey,
+        },
+        body: JSON.stringify({
+          instanceName,
+          qrcode: true,
+          integration: "WHATSAPP-BAILEYS",
+        }),
+        signal: AbortSignal.timeout(10000),
       });
 
-      if (connectRes.ok) {
-        const connectData = await connectRes.json();
-
-        // Se já está conectado e com o número correto
-        if (connectData?.instance?.state === "open" && target.isNumberMatch) {
-          return Response.json({
-            ok: true,
-            exists: true,
-            connected: true,
-            state: "open",
-            instanceName,
-            phoneNumber: phoneDigits,
-            apiKey: instanceApiKey,
-          });
-        }
-
-        const qrCodeBase64 = connectData?.base64 || connectData?.qrcode?.base64;
-        const qrCodeText = connectData?.code || connectData?.qrcode?.code;
+      if (createRes.ok) {
+        const createData = await createRes.json();
+        const qrCodeBase64 = createData?.qrcode?.base64 || createData?.base64;
+        const qrCodeText = createData?.qrcode?.code || createData?.code;
+        const pairingCode = createData?.qrcode?.pairingCode || createData?.pairingCode || null;
+        const newApiKey = createData?.token || createData?.instance?.token || apiKey;
 
         if (qrCodeBase64) {
           return Response.json({
             ok: true,
+            created: true,
             exists: true,
             connected: false,
             state: "connecting",
             instanceName,
             qrCodeBase64,
             qrCodeText,
-            pairingCode: connectData?.pairingCode || null,
-            apiKey: instanceApiKey,
+            pairingCode,
+            apiKey: newApiKey,
           });
         }
-      } else if (connectRes.status === 404) {
-        // Instância ainda não existe no servidor — tenta criar uma nova instância para este número
-        try {
-          const createRes = await fetch(`${baseUrl}/instance/create`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: apiKey,
-            },
-            body: JSON.stringify({
-              instanceName,
-              qrcode: true,
-              integration: "WHATSAPP-BAILEYS",
-            }),
-            signal: AbortSignal.timeout(8000),
-          });
-
-          if (createRes.ok) {
-            const createData = await createRes.json();
-            const qrCodeBase64 = createData?.qrcode?.base64 || createData?.base64;
-            const qrCodeText = createData?.qrcode?.code || createData?.code;
-            const pairingCode = createData?.qrcode?.pairingCode || createData?.pairingCode || null;
-            const newApiKey = createData?.token || createData?.instance?.token || apiKey;
-
-            if (qrCodeBase64) {
-              return Response.json({
-                ok: true,
-                created: true,
-                exists: true,
-                connected: false,
-                state: "connecting",
-                instanceName,
-                qrCodeBase64,
-                qrCodeText,
-                pairingCode,
-                apiKey: newApiKey,
-              });
-            }
-          } else if (createRes.status === 401 || createRes.status === 403) {
-            // A chave atual não tem permissão para criar instâncias root (precisa da Global API Key)
-            return Response.json(
-              {
-                ok: true,
-                requiresGlobalKey: true,
-                created: false,
-                connected: false,
-                state: "pending_creation",
-                instanceName,
-                phoneNumber: phoneDigits,
-                error: `A chave de API configurada não possui permissão para criar novas instâncias na Evolution API (401 Unauthorized). No painel da Evolution API, crie a instância '${instanceName}' clicando no botão 'Instance +' no canto superior direito, ou configure a Chave Mestre Global (AUTHENTICATION_API_KEY) em .env.local.`,
-                qrCodeBase64: mockQrSvg ? `data:image/svg+xml;utf8,${encodeURIComponent(mockQrSvg)}` : undefined,
-                qrCodeText: "2@AgendasteEvolutionMock",
-              },
-              { status: 200 }
-            );
-          }
-        } catch (createErr) {
-          console.warn("[Evolution API create instance warn]:", createErr);
-        }
+      } else if (createRes.status === 401 || createRes.status === 403) {
+        return Response.json(
+          {
+            ok: false,
+            requiresGlobalKey: true,
+            created: false,
+            connected: false,
+            state: "pending_creation",
+            instanceName,
+            phoneNumber: phoneDigits,
+            error: `A chave de API configurada não possui permissão para criar instâncias na Evolution API (${createRes.status}). Verifique a Global API Key.`,
+          },
+          { status: 200 }
+        );
+      } else {
+        const errText = await createRes.text().catch(() => "");
+        console.warn("[Evolution API create fail]:", createRes.status, errText);
       }
-    } catch (connectErr) {
-      console.warn("[Evolution API connect fetch exception]:", connectErr);
+    } catch (createErr) {
+      console.warn("[Evolution API create exception]:", createErr);
     }
 
-    return Response.json({
-      ok: true,
-      exists: false,
-      connected: false,
-      state: "connecting",
-      instanceName,
-      qrCodeBase64: mockQrBase64,
-      qrCodeText: "2@AgendasteEvolutionMock",
-    });
+    // Se estiver em ambiente de teste automatizado (CI ou offline)
+    if (process.env.NODE_ENV === "test") {
+      const mockQrSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="#ffffff"/><path d="M20 20h60v60H20zm10 10v40h40V30zm90-10h60v60h-60zm10 10v40h40V30zM20 120h60v60H20zm10 10v40h40v-40zm80-10h20v20h-20zm30 0h30v20h-30zm-30 30h30v20h-30zm40 0h20v20h-20zm-40 30h20v20h-20zm30 0h30v20h-30z" fill="#1C1C1E"/></svg>`;
+      return Response.json({
+        ok: true,
+        exists: false,
+        connected: false,
+        state: "connecting",
+        instanceName,
+        qrCodeBase64: `data:image/svg+xml;utf8,${encodeURIComponent(mockQrSvg)}`,
+        qrCodeText: "2@AgendasteEvolutionMock",
+      });
+    }
+
+    // Se chegou até aqui em ambiente real sem obter o QR Code real da Evolution API
+    return Response.json(
+      {
+        ok: false,
+        error: "Não foi possível obter o QR Code da Evolution API. Verifique a conexão com o servidor da Evolution API.",
+        instanceName,
+      },
+      { status: 200 }
+    );
   } catch (err: any) {
     return Response.json(
       {
