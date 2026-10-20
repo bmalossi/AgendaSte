@@ -68,22 +68,22 @@ const SEGMENTS = [
   {
     icon: Scissors,
     title: "Cabeleireiros & Barbeiros",
-    desc: "Agendamento rápido, tempo de pausa química e controle de comissões por serviço.",
+    desc: "Pausa química, encaixes e comissões.",
   },
   {
     icon: Sparkle,
-    title: "Estética, Cílios & Sobrancelhas",
-    desc: "Prontuário com fotos antes/depois, anamnese LGPD e sinal Pix anti-no-show.",
+    title: "Estética & Harmonização",
+    desc: "Prontuário SOAP, fotos e sinal Pix.",
   },
   {
     icon: Store,
     title: "Estúdios & Esmalterias",
-    desc: "Venda rápida no balcão, controle de produtos, pacotes e vale-presentes.",
+    desc: "PDV rápido, pacotes e assinaturas.",
   },
   {
     icon: Building2,
     title: "Clínicas com Equipe",
-    desc: "Trava inteligente de salas e aparelhos, ponto digital e fechamento de repasse.",
+    desc: "Trava de salas, ponto e repasses.",
   },
 ];
 
@@ -113,47 +113,41 @@ export function FactsUseCasesAndAudience() {
 
   return (
     <div className="space-y-0">
-      {/* 1. SEÇÃO DE RESULTADOS COMPROVADOS (GLOSSGENIUS BLOCK 03) */}
+      {/* 1. SEÇÃO DE RESULTADOS COMPROVADOS */}
       <section
         id="fatos"
         aria-label="Resultados comprovados do produto"
-        className="py-20 sm:py-32 bg-[#F3F7F5] border-b border-zinc-200/80"
+        className="py-16 sm:py-24 bg-[#F5F5F7] border-b border-[#E5E5EA]"
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-16">
-          <div className="space-y-3 max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-5xl font-normal text-[#18181B] tracking-tight">
-              Comprovado para aumentar seu faturamento
-            </h2>
-            <p className="text-sm sm:text-base text-zinc-600 font-normal">
-              Resultados reais medidos na rotina de estúdios e clínicas de estética.
-            </p>
-          </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
+          <h2 className="text-3xl sm:text-5xl font-normal text-[#1C1C1E] tracking-tight max-w-2xl mx-auto">
+            Comprovado para aumentar seu faturamento
+          </h2>
 
-          {/* Huge Typography Numbers (GlossGenius Authentic) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 sm:gap-8 items-start">
-            <div className="space-y-2">
-              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#18181B]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 sm:gap-8 items-start">
+            <div className="space-y-1.5">
+              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E]">
                 26%<span className="text-4xl sm:text-5xl align-top font-light">+</span>
               </p>
-              <p className="text-sm sm:text-base text-zinc-600 font-normal">
+              <p className="text-sm sm:text-base text-[#6E6E73] font-normal">
                 mais receita no primeiro ano
               </p>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#18181B]">
+            <div className="space-y-1.5">
+              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E]">
                 75%<span className="text-4xl sm:text-5xl align-top font-light">+</span>
               </p>
-              <p className="text-sm sm:text-base text-zinc-600 font-normal">
+              <p className="text-sm sm:text-base text-[#6E6E73] font-normal">
                 taxa média de retorno de clientes
               </p>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#18181B]">
+            <div className="space-y-1.5">
+              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E]">
                 40h<span className="text-4xl sm:text-5xl align-top font-light">+</span>
               </p>
-              <p className="text-sm sm:text-base text-zinc-600 font-normal">
+              <p className="text-sm sm:text-base text-[#6E6E73] font-normal">
                 economizadas por mês em gestão
               </p>
             </div>
@@ -161,17 +155,16 @@ export function FactsUseCasesAndAudience() {
         </div>
       </section>
 
-      {/* 2. DEPOIMENTOS DE EMPREENDEDORES (GLOSSGENIUS BLOCK 04) */}
+      {/* 2. DEPOIMENTOS DE EMPREENDEDORES */}
       <section
         id="casos-de-uso"
         aria-label="Casos reais de empreendedores"
-        className="py-20 sm:py-28 bg-white border-b border-zinc-200/80 overflow-hidden w-full"
+        className="py-16 sm:py-24 bg-white border-b border-[#E5E5EA] overflow-hidden w-full"
       >
-        {/* Header: Edge-to-edge */}
-        <div className="w-full px-4 sm:px-6 lg:px-8 mb-10 sm:mb-14">
+        <div className="w-full px-4 sm:px-6 lg:px-8 mb-8 sm:mb-12">
           <div className="flex items-end justify-between">
-            <h2 className="text-3xl sm:text-5xl font-normal text-[#18181B] tracking-tight leading-tight max-w-2xl">
-              Esteja à frente como outros empreendedores
+            <h2 className="text-3xl sm:text-5xl font-normal text-[#1C1C1E] tracking-tight leading-tight max-w-2xl">
+              Resultados reais em estúdios e clínicas
             </h2>
 
             <div className="flex items-center gap-2">
@@ -180,7 +173,7 @@ export function FactsUseCasesAndAudience() {
                 onClick={() => scrollTestimonials("prev")}
                 disabled={currentIndex === 0}
                 aria-label="Depoimento anterior"
-                className="p-3 rounded-full border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs active:scale-95"
+                className="p-3 rounded-full border border-[#E5E5EA] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -189,7 +182,7 @@ export function FactsUseCasesAndAudience() {
                 onClick={() => scrollTestimonials("next")}
                 disabled={currentIndex === TESTIMONIALS.length - 1}
                 aria-label="Próximo depoimento"
-                className="p-3 rounded-full border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs active:scale-95"
+                className="p-3 rounded-full border border-[#E5E5EA] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -197,103 +190,127 @@ export function FactsUseCasesAndAudience() {
           </div>
         </div>
 
-        {/* Dark Cards Carousel: Edge-to-edge bleed with NO right indentation */}
         <div
           ref={testimonialContainerRef}
-          className="w-full flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-8 pt-2 pl-4 sm:pl-6 lg:pl-8 pr-0 scrollbar-none"
+          className="w-full flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 pt-1 pl-4 sm:pl-6 lg:pl-8 pr-4 scrollbar-none"
         >
-            {TESTIMONIALS.map((item) => (
-              <div
-                key={item.id}
-                className="snap-start shrink-0 w-[280px] sm:w-[320px] h-[360px] rounded-3xl p-7 bg-[#181816] text-white border border-zinc-800 flex flex-col justify-between shadow-lg"
-              >
-                {/* Punchy statement without walls of text */}
-                <h3 className="text-xl sm:text-2xl font-normal leading-snug tracking-tight text-white">
-                  &ldquo;{item.quote}&rdquo;
-                </h3>
+          {TESTIMONIALS.map((item) => (
+            <div
+              key={item.id}
+              className="snap-start shrink-0 w-[280px] sm:w-[320px] h-[340px] rounded-3xl p-7 bg-[#181816] text-white border border-zinc-800 flex flex-col justify-between"
+            >
+              <h3 className="text-xl sm:text-2xl font-normal leading-snug tracking-tight text-white">
+                &ldquo;{item.quote}&rdquo;
+              </h3>
 
-                {/* Bottom Row: Name + Thumbnail Photo */}
-                <div className="flex items-center justify-between pt-4 border-t border-zinc-800/80">
-                  <div className="space-y-0.5">
-                    <p className="text-[13px] font-semibold text-zinc-200">
-                      {item.name}
-                    </p>
-                    <p className="text-[11px] text-zinc-400 font-mono">
-                      {item.role}
-                    </p>
-                  </div>
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-800/80">
+                <div className="space-y-0.5">
+                  <p className="text-[13px] font-semibold text-zinc-200">
+                    {item.name}
+                  </p>
+                  <p className="text-[11px] text-zinc-400 font-mono">
+                    {item.role}
+                  </p>
+                </div>
 
-                  <div className="relative w-12 h-14 rounded-xl overflow-hidden border border-zinc-700/80 bg-zinc-800 shrink-0">
-                    <Image
-                      src={item.avatarSrc}
-                      alt={item.name}
-                      fill
-                      className="object-cover"
-                      sizes="48px"
-                    />
-                  </div>
+                <div className="relative w-12 h-14 rounded-xl overflow-hidden border border-zinc-700/80 bg-zinc-800 shrink-0">
+                  <Image
+                    src={item.avatarSrc}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* 30-Day Difference Banner (GlossGenius Authentic CTA) */}
-          <div className="mt-16 text-center space-y-4 max-w-xl mx-auto">
-            <h3 className="text-2xl sm:text-3xl font-normal text-[#18181B] tracking-tight">
-              Veja a diferença que 30 dias fazem
-            </h3>
-            <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-              Descubra como acelerar agendamentos, aumentar a retenção e faturar mais.
-              Você começará a ver resultados no primeiro mês.
-            </p>
-            <div className="pt-2">
-              <a
-                href={demoWhatsAppUrl}
-                target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
-                rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-                className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full border border-zinc-300 hover:border-black bg-white text-[#18181B] text-sm font-semibold transition-all shadow-2xs active:scale-[0.98]"
-              >
-                <Sparkles className="w-4 h-4 text-[#8BA400]" />
-                <span>Agendar demonstração</span>
-              </a>
             </div>
-          </div>
+          ))}
+        </div>
       </section>
 
-      {/* 3. SEÇÃO PARA QUEM É (DESTINO DO MEGA MENU NEGÓCIOS - COMPACTO E ELEGANTE) */}
+      {/* 3. SEÇÃO PARA QUEM É (COM CAPTURAS REAIS DO SISTEMA + SEGMENTOS CONCISOS) */}
       <section
         id="para-quem-e"
         aria-label="Para quem é a AgendaSte"
-        className="py-16 sm:py-24 bg-[#FAF9F6] border-b border-zinc-200/80"
+        className="py-16 sm:py-24 bg-[#FAF9F6] border-b border-[#E5E5EA]"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
-            <span className="text-[12px] font-sans font-medium text-zinc-500 uppercase tracking-wider">
-              Segmentos &amp; Portes
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-normal text-[#18181B] tracking-tight">
-              Feito sob medida para o seu formato de trabalho
-            </h2>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="space-y-1.5">
+              <span className="text-[12px] font-sans font-medium text-[#6E6E73] uppercase tracking-wider">
+                Operação na prática
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-normal text-[#1C1C1E] tracking-tight">
+                Sob medida para o seu formato de atendimento
+              </h2>
+            </div>
           </div>
 
-          {/* Visual 4-Card Grid: Minimal, Icon-Driven, No Wordiness */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Real System Captures: Agenda & Prontuários */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">
+                  Agenda com pausas e trava de recursos
+                </h3>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Encaixes automáticos
+                </span>
+              </div>
+              <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
+                <Image
+                  src="/images/real-calendar.png"
+                  alt="Tela real da agenda AgendaSte com blocos de pausa e trava de salas"
+                  fill
+                  className="object-cover object-top"
+                  sizes="(max-width: 1024px) 100vw, 600px"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">
+                  Prontuário clínico e mapeamento fotográfico
+                </h3>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Padrão SOAP &amp; LGPD
+                </span>
+              </div>
+              <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
+                <Image
+                  src="/images/real-charts.png"
+                  alt="Tela real de prontuários clínicos e fotos antes e depois na AgendaSte"
+                  fill
+                  className="object-cover object-top"
+                  sizes="(max-width: 1024px) 100vw, 600px"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Compact 4-Segment Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {SEGMENTS.map((seg) => {
               const Icon = seg.icon;
               return (
                 <div
                   key={seg.title}
-                  className="p-6 rounded-3xl bg-white border border-zinc-200/80 shadow-2xs space-y-3 hover:border-zinc-300 transition-all"
+                  className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-start gap-3.5"
                 >
-                  <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-900">
-                    <Icon className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] shrink-0">
+                    <Icon className="w-4 h-4" />
                   </div>
-                  <h3 className="text-lg font-semibold text-[#18181B]">
-                    {seg.title}
-                  </h3>
-                  <p className="text-xs sm:text-[13px] text-zinc-600 leading-relaxed font-normal">
-                    {seg.desc}
-                  </p>
+                  <div className="space-y-1">
+                    <h3 className="text-[14.5px] font-semibold text-[#1C1C1E]">
+                      {seg.title}
+                    </h3>
+                    <p className="text-[12.5px] text-[#6E6E73] leading-snug">
+                      {seg.desc}
+                    </p>
+                  </div>
                 </div>
               );
             })}
@@ -305,22 +322,17 @@ export function FactsUseCasesAndAudience() {
       <section
         id="chamada-final"
         aria-label="Comece a usar a AgendaSte"
-        className="py-20 sm:py-28 bg-[#141416] text-white text-center"
+        className="py-16 sm:py-24 bg-[#141416] text-white text-center"
       >
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
           <h2 className="text-3xl sm:text-5xl font-normal text-white tracking-tight leading-tight">
-            Pronto para transformar seu negócio?
+            Comece agora em menos de 1 minuto
           </h2>
 
-          <p className="max-w-lg mx-auto text-base text-zinc-300 font-normal leading-relaxed">
-            Elimine faltas com o sinal Pix, deixe a Recepção IA agendar dia e noite
-            e tenha relatórios de comissão prontos em 1 clique.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-2">
             <Link
               href={primaryCtaUrl}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full bg-white text-black text-[14.5px] font-semibold hover:bg-zinc-100 transition-all shadow-md active:scale-[0.98]"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full bg-white text-black text-[14.5px] font-semibold hover:bg-zinc-100 transition-all active:scale-[0.98]"
             >
               <span>Começar teste grátis (14 dias)</span>
               <ArrowRight className="w-4 h-4" />
@@ -330,19 +342,26 @@ export function FactsUseCasesAndAudience() {
               href={demoWhatsAppUrl}
               target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
               rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-[#D7FE03] hover:bg-[#cbf000] text-black text-[14px] font-semibold transition-all shadow-2xs active:scale-[0.98]"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-[#D7FE03] hover:bg-[#cbf000] text-black text-[14px] font-semibold transition-all active:scale-[0.98]"
             >
               <Sparkles className="w-4 h-4 text-black" />
               <span>Agendar demonstração</span>
             </a>
           </div>
 
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-mono text-zinc-400">
-            <span>14 dias grátis</span>
-            <span>•</span>
-            <span>Sem cartão de crédito</span>
-            <span>•</span>
-            <span>Ativação em menos de 1 minuto</span>
+          <div className="pt-3 flex flex-wrap items-center justify-center gap-3 text-xs font-mono text-zinc-400">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              14 dias grátis
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Sem cartão de crédito
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Ativação imediata
+            </span>
           </div>
         </div>
       </section>

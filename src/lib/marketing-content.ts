@@ -317,24 +317,21 @@ export const BUSINESS_MENU: BusinessMenuCategory[] = [
   {
     id: "porte",
     label: "Por porte",
-    description: "Da profissional autônoma à clínica com múltiplos profissionais",
+    description: "De profissionais autônomos a clínicas com equipe",
     items: [
       {
         title: "Profissionais Autônomos",
-        description:
-          "Para quem atende sozinho e precisa de uma IA cuidando do WhatsApp enquanto trabalha",
+        description: "Agenda, Recepção IA no WhatsApp e pagamentos",
         href: "/#para-quem-e",
       },
       {
         title: "Estúdios & Espaços Compartilhados",
-        description:
-          "Para estúdios com salas compartilhadas, controle de agenda e múltiplos atendimentos",
+        description: "Trava de salas compartilhadas e múltiplas agendas",
         href: "/#para-quem-e",
       },
       {
         title: "Clínicas & Grandes Equipes",
-        description:
-          "Para operações com recepção, repasses semanais, controle de ponto e metas",
+        description: "Repasses automáticos, ponto digital e metas",
         href: "/#para-quem-e",
       },
     ],

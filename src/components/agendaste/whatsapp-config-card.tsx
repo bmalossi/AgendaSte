@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Sparkles,
   Check,
+  Copy,
   X,
 } from "lucide-react";
 import {
@@ -63,6 +64,13 @@ export function WhatsAppConfigCard({
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [qrCodeText, setQrCodeText] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [requiresManualCreation, setRequiresManualCreation] = useState<{
+    instanceName: string;
+    phone: string;
+  } | null>(null);
+  const [copiedInstanceName, setCopiedInstanceName] = useState(false);
+  const [globalApiKey, setGlobalApiKey] = useState("");
+  const [showGlobalKeyInput, setShowGlobalKeyInput] = useState(false);
 
   // Template settings
   const [templates, setTemplates] = useState<UserWhatsAppTemplates>(
@@ -111,11 +119,13 @@ export function WhatsAppConfigCard({
           setQrCodeBase64(null);
           setQrCodeText(null);
           setIsGeneratingQr(false);
+          setRequiresManualCreation(null);
 
           setState((prev) =>
             updateUserWhatsAppConfig(prev, {
               phoneNumber: data.phoneNumber || phone,
-              instanceName: data.instanceName || "pessoal",
+              instanceName: data.instanceName,
+              apiKey: data.apiKey,
               connected: true,
               templates,
             })
@@ -142,13 +152,21 @@ export function WhatsAppConfigCard({
         });
         const data = await res.json();
         if (isMounted && data.ok) {
-          if (data.connected || data.state === "open") {
+          if (data.connected && data.state === "open") {
             setIsConnected(true);
             setState((prev) =>
               updateUserWhatsAppConfig(prev, {
                 phoneNumber: data.phoneNumber || phoneNumber,
-                instanceName: data.instanceName || "pessoal",
+                instanceName: data.instanceName,
+                apiKey: data.apiKey,
                 connected: true,
+              })
+            );
+          } else {
+            setIsConnected(false);
+            setState((prev) =>
+              updateUserWhatsAppConfig(prev, {
+                connected: false,
               })
             );
           }
@@ -165,11 +183,14 @@ export function WhatsAppConfigCard({
     };
   }, []);
 
-  // Request new QR Code (Automatic instance creation and pairing)
-  const handleGenerateQr = async () => {
+  // Request new QR Code (Automatic instance creation or connect to existing)
+  const handleGenerateQr = async (overrideApiKey?: string) => {
     setIsGeneratingQr(true);
     setErrorMessage(null);
+    setRequiresManualCreation(null);
     setTestResult(null);
+
+    const keyToUse = overrideApiKey || globalApiKey.trim() || undefined;
 
     try {
       const res = await fetch("/api/whatsapp/instance", {
@@ -178,6 +199,7 @@ export function WhatsAppConfigCard({
         body: JSON.stringify({
           action: "create_or_connect",
           phoneNumber,
+          apiKey: keyToUse,
         }),
       });
 
@@ -190,8 +212,9 @@ export function WhatsAppConfigCard({
           setQrCodeText(null);
           setState((prev) =>
             updateUserWhatsAppConfig(prev, {
-              phoneNumber,
-              instanceName: data.instanceName || "pessoal",
+              phoneNumber: data.phoneNumber || phoneNumber,
+              instanceName: data.instanceName,
+              apiKey: data.apiKey,
               connected: true,
               templates,
             })
@@ -202,6 +225,12 @@ export function WhatsAppConfigCard({
           setQrCodeText(data.qrCodeText || null);
           startPollingStatus(phoneNumber);
         }
+      } else if (data.requiresGlobalKey) {
+        setRequiresManualCreation({
+          instanceName: data.instanceName || `agendaste_${phoneNumber.replace(/\D/g, "")}`,
+          phone: phoneNumber,
+        });
+        setErrorMessage(data.error);
       } else {
         setErrorMessage(data.error || "Não foi possível gerar o QR Code.");
       }
@@ -344,12 +373,12 @@ export function WhatsAppConfigCard({
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <span className="text-[14px] font-bold text-[#1C1C1E] font-mono tracking-tight">
-                    {phoneNumber}
+                    {currentConfig.phoneNumber || phoneNumber}
                   </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                 </div>
                 <p className="text-[12.5px] text-[#6E6E73]">
-                  Disparos e confirmações ativos
+                  Disparos e confirmações ativos · Instância {currentConfig.instanceName || "pessoal"}
                 </p>
               </div>
             </div>
@@ -374,16 +403,26 @@ export function WhatsAppConfigCard({
                   type="text"
                   value={phoneNumber}
                   onChange={(e) => {
-                    setPhoneNumber(e.target.value);
-                    setTestRecipient(e.target.value);
+                    const newPhone = e.target.value;
+                    setPhoneNumber(newPhone);
+                    setTestRecipient(newPhone);
+                    setErrorMessage(null);
+                    setRequiresManualCreation(null);
+                    const cleanNew = newPhone.replace(/\D/g, "");
+                    const cleanConn = (currentConfig.phoneNumber || "").replace(/\D/g, "");
+                    if (cleanNew !== cleanConn) {
+                      setIsConnected(false);
+                      setQrCodeBase64(null);
+                      setQrCodeText(null);
+                    }
                   }}
-                  placeholder="+55 (11) 94447-7528"
+                  placeholder="+55 (13) 97827-6520"
                   className="flex-1 px-4 py-2.5 rounded-xl border border-[#D4D4D8] text-[14px] font-medium text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
                 />
                 <button
                   type="button"
                   disabled={isGeneratingQr}
-                  onClick={handleGenerateQr}
+                  onClick={() => handleGenerateQr()}
                   className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center gap-2 disabled:opacity-60 shadow-xs transition shrink-0"
                 >
                   <RefreshCw
@@ -393,9 +432,102 @@ export function WhatsAppConfigCard({
                 </button>
               </div>
               <p className="text-[12px] text-[#6E6E73]">
-                Informe o número com DDD. Exemplo: (11) 99752-5522
+                Informe o número com DDD. Exemplo: (13) 97827-6520
               </p>
             </div>
+
+            {/* Bloco de Orientação para Criação na Evolution API */}
+            {requiresManualCreation && (
+              <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] space-y-4 max-w-xl">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] shrink-0 mt-0.5 shadow-2xs">
+                    <Smartphone className="w-4 h-4 stroke-[1.75]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-[13.5px] font-bold text-[#1C1C1E]">
+                      Instância para este número na Evolution API
+                    </h4>
+                    <p className="text-[12.5px] text-[#6E6E73] leading-relaxed">
+                      O servidor da Evolution API requer a criação da instância dedicada antes de gerar o QR Code.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-[#E5E5EA] p-4 space-y-3">
+                  <p className="text-[12px] font-semibold text-[#1C1C1E]">
+                    Como conectar pelo seu painel da Evolution:
+                  </p>
+                  <ol className="text-[12.5px] text-[#3A3A3C] space-y-2 list-decimal list-inside leading-relaxed">
+                    <li>
+                      No seu painel da Evolution API, clique no botão{" "}
+                      <strong className="text-[#1C1C1E]">Instance +</strong> (canto superior direito).
+                    </li>
+                    <li>
+                      Defina o nome da instância como:
+                      <div className="inline-flex items-center gap-2 ml-2 font-mono font-bold text-[#1C1C1E] bg-[#F5F5F7] px-2.5 py-1 rounded-lg border border-[#E5E5EA] text-[12px]">
+                        <span>{requiresManualCreation.instanceName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(requiresManualCreation.instanceName);
+                            setCopiedInstanceName(true);
+                            setTimeout(() => setCopiedInstanceName(false), 2000);
+                          }}
+                          className="text-[#6E6E73] hover:text-[#1C1C1E] inline-flex items-center gap-1"
+                          title="Copiar nome da instância"
+                        >
+                          {copiedInstanceName ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                          <span className="text-[10px] font-sans font-medium text-[#6E6E73]">
+                            {copiedInstanceName ? "Copiado" : "Copiar"}
+                          </span>
+                        </button>
+                      </div>
+                    </li>
+                    <li>
+                      Após salvar a nova instância, clique em{" "}
+                      <strong className="text-[#1C1C1E]">Gerar QR Code</strong> aqui para escanear com seu celular.
+                    </li>
+                  </ol>
+                </div>
+
+                {/* Opção alternativa: Chave Mestre Global */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowGlobalKeyInput(!showGlobalKeyInput)}
+                    className="text-[12px] text-[#6E6E73] hover:text-[#1C1C1E] underline font-medium transition"
+                  >
+                    {showGlobalKeyInput
+                      ? "Ocultar configuração de chave mestre"
+                      : "Possui a Chave Mestre Global (AUTHENTICATION_API_KEY) da Evolution API?"}
+                  </button>
+
+                  {showGlobalKeyInput && (
+                    <div className="mt-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <input
+                        type="password"
+                        value={globalApiKey}
+                        onChange={(e) => setGlobalApiKey(e.target.value)}
+                        placeholder="Cole a AUTHENTICATION_API_KEY global..."
+                        className="flex-1 px-3 py-2 rounded-xl border border-[#D4D4D8] bg-white text-[12px] font-mono placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                      />
+                      <button
+                        type="button"
+                        disabled={!globalApiKey.trim() || isGeneratingQr}
+                        onClick={() => handleGenerateQr(globalApiKey.trim())}
+                        className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[12px] font-semibold disabled:opacity-50 transition shadow-xs shrink-0"
+                      >
+                        Criar Automaticamente
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Área de Pareamento do QR Code */}
             {isGeneratingQr ? (
@@ -436,7 +568,7 @@ export function WhatsAppConfigCard({
 
                 <button
                   type="button"
-                  onClick={handleGenerateQr}
+                  onClick={() => handleGenerateQr()}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -461,7 +593,7 @@ export function WhatsAppConfigCard({
 
                 <button
                   type="button"
-                  onClick={handleGenerateQr}
+                  onClick={() => handleGenerateQr()}
                   className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold transition shrink-0"
                 >
                   Gerar QR Code
