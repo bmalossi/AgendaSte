@@ -308,80 +308,48 @@ export function WhatsAppConfigCard({
 
   return (
     <div className="space-y-6">
-      {/* 1. SEÇÃO DE CONEXÃO DO WHATSAPP (SIMPLES, DIRETA E AUTOMATIZADA) */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-6 shadow-sm">
-        <div className="border-b border-zinc-100 pb-4">
+      {/* 1. SEÇÃO DE CONEXÃO DO WHATSAPP (PADRÃO EDITORIAL LUXURY) */}
+      <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 space-y-6 shadow-sm">
+        <div className="border-b border-[#E5E5EA] pb-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-[18px] font-bold text-[#18181B]">
+              <h3 className="text-[17px] font-bold text-[#1C1C1E]">
                 WhatsApp do Estúdio
               </h3>
-              <p className="text-[13px] text-zinc-500 mt-0.5">
-                Insira o seu número e aponte a câmera no QR Code para conectar.
-                Todas as confirmações e lembretes serão enviados automaticamente por ele.
+              <p className="text-[13px] text-[#6E6E73] mt-0.5">
+                Canal oficial para envio de confirmações e lembretes automáticos da agenda.
               </p>
             </div>
 
-            <span
-              className={`px-3 py-1 rounded-full text-[11.5px] font-bold ${
-                isConnected
-                  ? "bg-[#DCFCE7] text-[#166534]"
-                  : "bg-zinc-100 text-zinc-600"
-              }`}
-            >
-              {isConnected ? "✓ WhatsApp Conectado" : "○ Não Conectado"}
-            </span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[12px] font-medium text-[#1C1C1E]">
+              <span
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  isConnected
+                    ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                    : "bg-zinc-300"
+                }`}
+              />
+              <span>{isConnected ? "Conectado" : "Desconectado"}</span>
+            </div>
           </div>
         </div>
 
-        {/* Input do Número de WhatsApp */}
-        <div className="max-w-md space-y-2">
-          <label className="block text-[13px] font-bold text-zinc-800">
-            Número do WhatsApp
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={phoneNumber}
-              onChange={(e) => {
-                setPhoneNumber(e.target.value);
-                setTestRecipient(e.target.value);
-              }}
-              placeholder="+55 (11) 94447-7528"
-              className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-300 text-[14px] font-medium text-[#18181B] focus:outline-none focus:border-[#1C1C1E]"
-            />
-            {!isConnected && (
-              <button
-                type="button"
-                disabled={isGeneratingQr}
-                onClick={handleGenerateQr}
-                className="px-5 py-2.5 rounded-xl bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center gap-2 disabled:opacity-60 shadow-sm transition shrink-0"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isGeneratingQr ? "animate-spin" : ""}`}
-                />
-                <span>{isGeneratingQr ? "Gerando..." : "Gerar QR Code"}</span>
-              </button>
-            )}
-          </div>
-          <p className="text-[11.5px] text-zinc-500">
-            Informe o número com DDD. Exemplo: (11) 99752-5522
-          </p>
-        </div>
-
-        {/* ESTADO CONECTADO: Card Elegante */}
+        {/* ESTADO CONECTADO: Card Editorial Fino */}
         {isConnected ? (
-          <div className="p-6 rounded-2xl bg-[#FAF9F6] border border-zinc-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#DCFCE7] text-[#166534] flex items-center justify-center shrink-0 shadow-sm">
-                <CheckCircle2 className="w-7 h-7" />
+          <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] shrink-0 shadow-xs">
+                <Smartphone className="w-5 h-5 stroke-[1.75]" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-[14px] font-bold text-[#18181B]">
-                  Linha Conectada: {phoneNumber}
-                </p>
-                <p className="text-[12.5px] text-zinc-600">
-                  Sincronização bidirecional ativa. O sistema já está respondendo e confirmando agendamentos.
+                <div className="flex items-center gap-2">
+                  <span className="text-[14px] font-bold text-[#1C1C1E] font-mono tracking-tight">
+                    {phoneNumber}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                </div>
+                <p className="text-[12.5px] text-[#6E6E73]">
+                  Disparos e confirmações ativos
                 </p>
               </div>
             </div>
@@ -389,24 +357,57 @@ export function WhatsAppConfigCard({
             <button
               type="button"
               onClick={handleDisconnect}
-              className="px-4 py-2 rounded-full border border-red-200 bg-white text-red-600 hover:bg-red-50 text-[12.5px] font-semibold transition shrink-0"
+              className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shadow-xs shrink-0"
             >
-              Desconectar WhatsApp
+              Desconectar
             </button>
           </div>
         ) : (
-          /* ESTADO NÃO CONECTADO: Área do QR Code com Instruções Claras */
-          <div className="p-6 rounded-2xl bg-[#FAF9F6] border border-zinc-200/80 flex flex-col items-center text-center space-y-4">
+          <div className="space-y-5">
+            {/* Input do Número de WhatsApp */}
+            <div className="max-w-md space-y-2">
+              <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                Número do WhatsApp
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value);
+                    setTestRecipient(e.target.value);
+                  }}
+                  placeholder="+55 (11) 94447-7528"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-[#D4D4D8] text-[14px] font-medium text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+                />
+                <button
+                  type="button"
+                  disabled={isGeneratingQr}
+                  onClick={handleGenerateQr}
+                  className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold flex items-center gap-2 disabled:opacity-60 shadow-xs transition shrink-0"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isGeneratingQr ? "animate-spin" : ""}`}
+                  />
+                  <span>{isGeneratingQr ? "Gerando..." : "Gerar QR Code"}</span>
+                </button>
+              </div>
+              <p className="text-[12px] text-[#6E6E73]">
+                Informe o número com DDD. Exemplo: (11) 99752-5522
+              </p>
+            </div>
+
+            {/* Área de Pareamento do QR Code */}
             {isGeneratingQr ? (
-              <div className="py-12 flex flex-col items-center justify-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-[#1C1C1E] animate-spin" />
-                <p className="text-[13.5px] font-medium text-zinc-700">
-                  Criando conexão e gerando QR Code no WhatsApp...
+              <div className="p-8 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex flex-col items-center justify-center space-y-3 text-center">
+                <RefreshCw className="w-5 h-5 text-[#1C1C1E] animate-spin" />
+                <p className="text-[13px] font-medium text-[#1C1C1E]">
+                  Gerando código de pareamento...
                 </p>
               </div>
             ) : qrCodeBase64 ? (
-              <div className="space-y-4 flex flex-col items-center">
-                <div className="p-3 bg-white rounded-2xl border border-zinc-300 shadow-md">
+              <div className="p-6 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex flex-col items-center text-center space-y-5">
+                <div className="p-4 bg-white rounded-2xl border border-[#E5E5EA] shadow-xs">
                   <img
                     src={
                       qrCodeBase64.startsWith("data:")
@@ -418,52 +419,52 @@ export function WhatsAppConfigCard({
                   />
                 </div>
 
-                <div className="max-w-md text-left space-y-2 bg-white p-4 rounded-xl border border-zinc-200 text-[12.5px]">
-                  <p className="font-bold text-[#18181B] text-center mb-1">
-                    Como conectar seu WhatsApp:
+                <div className="max-w-md text-left space-y-2 bg-white p-4 rounded-xl border border-[#E5E5EA] text-[12.5px]">
+                  <p className="font-semibold text-[#1C1C1E] mb-1">
+                    Como conectar:
                   </p>
-                  <ol className="list-decimal list-inside space-y-1 text-zinc-600">
+                  <ol className="list-decimal list-inside space-y-1 text-[#6E6E73]">
                     <li>Abra o <strong>WhatsApp</strong> no seu celular</li>
                     <li>
-                      Toque em <strong>Configurações</strong> (iPhone) ou <strong>Mais opções ⋮</strong> (Android)
+                      Acesse <strong>Aparelhos Conectados</strong>
                     </li>
                     <li>
-                      Selecione <strong>Aparelhos Conectados</strong> &gt; <strong>Conectar um aparelho</strong>
+                      Toque em <strong>Conectar um aparelho</strong> e aponte a câmera
                     </li>
-                    <li>Aponte a câmera para o QR Code acima</li>
                   </ol>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleGenerateQr}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-zinc-300 bg-white text-[12.5px] font-semibold text-zinc-800 hover:bg-zinc-50"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Atualizar QR Code</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="py-8 flex flex-col items-center justify-center space-y-3">
-                <div className="w-16 h-16 rounded-2xl bg-zinc-200/80 text-zinc-600 flex items-center justify-center">
-                  <QrCode className="w-9 h-9" />
-                </div>
-                <div className="space-y-1 max-w-sm">
-                  <p className="text-[14px] font-bold text-[#18181B]">
-                    Nenhum WhatsApp conectado
-                  </p>
-                  <p className="text-[12.5px] text-zinc-500">
-                    Clique no botão abaixo para gerar o QR Code de pareamento do seu número.
-                  </p>
-                </div>
                 <button
                   type="button"
                   onClick={handleGenerateQr}
-                  className="px-6 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold shadow-sm transition"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
                 >
-                  Gerar QR Code para Conectar
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Atualizar código</span>
+                </button>
+              </div>
+            ) : (
+              <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] shrink-0 shadow-xs">
+                    <QrCode className="w-5 h-5 stroke-[1.75]" />
+                  </div>
+                  <div>
+                    <p className="text-[13.5px] font-semibold text-[#1C1C1E]">
+                      Nenhuma linha conectada
+                    </p>
+                    <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                      Clique em Gerar QR Code para vincular seu WhatsApp ao estúdio.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateQr}
+                  className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold transition shrink-0"
+                >
+                  Gerar QR Code
                 </button>
               </div>
             )}
@@ -608,12 +609,12 @@ export function WhatsAppConfigCard({
           <div
             className={`p-3.5 rounded-xl border text-[12.5px] flex items-start gap-2.5 ${
               testResult.ok
-                ? "bg-green-50 border-green-200 text-green-900"
+                ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
                 : "bg-red-50 border-red-200 text-red-900"
             }`}
           >
             {testResult.ok ? (
-              <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             )}
@@ -624,9 +625,9 @@ export function WhatsAppConfigCard({
                   href={testResult.waMeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[12px] font-bold text-green-700 hover:underline"
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#1C1C1E] underline hover:text-black"
                 >
-                  <span>Abrir conversa no WhatsApp Web ↗</span>
+                  <span>Abrir conversa no WhatsApp Web</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               )}

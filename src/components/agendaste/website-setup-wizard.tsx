@@ -1034,7 +1034,14 @@ export function WebsiteSetupWizard({
                             : "bg-[#18181B] text-white hover:bg-black"
                         }`}
                       >
-                        {isAdded ? "Adicionado ✓" : "+ Adicionar"}
+                        {isAdded ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            Adicionado
+                          </span>
+                        ) : (
+                          "+ Adicionar"
+                        )}
                       </button>
                     </div>
                   );
@@ -1165,9 +1172,12 @@ export function WebsiteSetupWizard({
                     <span className="text-zinc-400">Cartão</span>
                     <span>•••• 4678</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-zinc-400">Sinal Pix</span>
-                    <span className="text-emerald-400 font-bold">Confirmado ✓</span>
+                    <span className="text-emerald-500 font-medium text-xs inline-flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Confirmado
+                    </span>
                   </div>
                 </div>
               </div>
