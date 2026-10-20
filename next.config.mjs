@@ -5,16 +5,8 @@ const nextConfig = {
     if (dev) {
       config.watchOptions = {
         ...(config.watchOptions || {}),
-        ignored: [
-          "**/node_modules/**",
-          "**/.git/**",
-          "**/.next/**",
-          /DumpStack\.log\.tmp/i,
-          /hiberfil\.sys/i,
-          /pagefile\.sys/i,
-          /swapfile\.sys/i,
-          /^[a-zA-Z]:[\\/](DumpStack\.log\.tmp|hiberfil\.sys|pagefile\.sys|swapfile\.sys)/i,
-        ],
+        ignored:
+          /[\\/](?:node_modules|\.git|\.next)|[a-zA-Z]:[\\/](?:DumpStack\.log\.tmp|hiberfil\.sys|pagefile\.sys|swapfile\.sys)|(?:DumpStack\.log\.tmp|hiberfil\.sys|pagefile\.sys|swapfile\.sys)/i,
       };
     }
     return config;
