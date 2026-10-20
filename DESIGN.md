@@ -1,7 +1,7 @@
-# DESIGN.md — AgendaSte Editorial Design System (Edição Brasil)
+# DESIGN.md — LUVEA Editorial Design System (Edição Brasil)
 
 ## 1. Direção Estética & Filosofia Visual
-O sistema visual replica fielmente a linguagem de design do **AgendaSte**: **Editorial Clean & Luxury Salon OS**.
+O sistema visual consolida a linguagem de design da **LUVEA**: **Editorial Clean & Luxury Salon OS**.
 - **Superfícies Claras e Respiráveis**: Área de trabalho principal em branco puro (`#FFFFFF`) com containers secundários em cinza quente sutil (`#F5F5F7`) e bordas finas (`1px solid #E5E7EB`).
 - **Heros Editoriais Ilustrados**: Telas de apresentação de módulos utilizam um card quadrado à esquerda com gradiente lavanda/periwinkle (`linear-gradient(180deg, #A599FF 0%, #DFDCFF 100%)`) contendo um mockup escuro de interface (`#141416`), pareado à direita com tipografia Serif Editorial ampla (`36px–44px`) e chamadas de ação em pílula preta.
 - **Contraste Tátil em Pílulas (`Pill Primitives`)**:
@@ -51,7 +51,7 @@ O sistema visual replica fielmente a linguagem de design do **AgendaSte**: **Edi
 
 ## 5. Diretrizes de Interface & Padrão Fino (Anti-AI Slop)
 
-O projeto segue rigorosamente a estética editorial de luxo (**Editorial Clean & Luxury Salon OS** inspirada em GlossGenius, Apple e Linear). NUNCA utilizar padrões genéricos conhecidos como "AI Slop":
+O projeto segue rigorosamente a estética editorial de luxo (**Editorial Clean & Luxury Salon OS** inspirada em Apple e Linear). NUNCA utilizar padrões genéricos conhecidos como "AI Slop":
 
 1. **Zero Emoticons e Símbolos Unicode em Badges/Status**:
    - **PROIBIDO** usar caracteres avulsos como `✓`, `○`, `✔`, `★`, `✦`, `↗` soltos em badges de status ou botões.

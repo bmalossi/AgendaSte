@@ -231,7 +231,7 @@ export function FactsUseCasesAndAudience() {
       {/* 3. SEÇÃO PARA QUEM É (COM CAPTURAS REAIS DO SISTEMA + SEGMENTOS CONCISOS) */}
       <section
         id="para-quem-e"
-        aria-label="Para quem é a AgendaSte"
+        aria-label="Para quem é a LUVEA"
         className="py-16 sm:py-24 bg-[#FAF9F6] border-b border-[#E5E5EA]"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
@@ -261,7 +261,7 @@ export function FactsUseCasesAndAudience() {
               <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
                 <Image
                   src="/images/real-calendar.png"
-                  alt="Tela real da agenda AgendaSte com blocos de pausa e trava de salas"
+                  alt="Tela real da agenda LUVEA com blocos de pausa e trava de salas"
                   fill
                   className="object-cover object-top"
                   sizes="(max-width: 1024px) 100vw, 600px"
@@ -282,7 +282,7 @@ export function FactsUseCasesAndAudience() {
               <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
                 <Image
                   src="/images/real-charts.png"
-                  alt="Tela real de prontuários clínicos e fotos antes e depois na AgendaSte"
+                  alt="Tela real de prontuários clínicos e fotos antes e depois na LUVEA"
                   fill
                   className="object-cover object-top"
                   sizes="(max-width: 1024px) 100vw, 600px"
@@ -321,7 +321,7 @@ export function FactsUseCasesAndAudience() {
       {/* 4. CHAMADA FINAL DE CONVERSÃO */}
       <section
         id="chamada-final"
-        aria-label="Comece a usar a AgendaSte"
+        aria-label="Comece a usar a LUVEA"
         className="py-16 sm:py-24 bg-[#141416] text-white text-center"
       >
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">

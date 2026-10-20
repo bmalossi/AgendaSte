@@ -25,28 +25,33 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://agendaste.com.br"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://luvea.com.br"),
   title: {
-    default: "AgendaSte — Plataforma de Agendamento & Gestão para Estética",
-    template: "%s · AgendaSte",
+    default: "LUVEA — Plataforma de Agendamento & Gestão para Estética",
+    template: "%s · LUVEA",
   },
   description:
     "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "AgendaSte",
+    title: "LUVEA",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    title: "AgendaSte — Plataforma de Agendamento & Gestão para Estética",
+    title: "LUVEA — Plataforma de Agendamento & Gestão para Estética",
     description:
       "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
-    url: "https://agendaste.com.br",
-    siteName: "AgendaSte",
+    url: "https://luvea.com.br",
+    siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",
   },

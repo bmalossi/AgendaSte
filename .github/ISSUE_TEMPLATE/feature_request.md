@@ -1,6 +1,6 @@
 ---
 name: Solicitação de Funcionalidade
-about: Sugira uma nova ideia ou melhoria para o AgendaSte.
+about: Sugira uma nova ideia ou melhoria para a LUVEA.
 title: "[FEATURE] "
 labels: ["enhancement"]
 assignees: ""

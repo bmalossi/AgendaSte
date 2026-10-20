@@ -1,6 +1,6 @@
-# Guia de Contribuição — AgendaSte
+# Guia de Contribuição — LUVEA
 
-Agradecemos o seu interesse em contribuir com o **AgendaSte**! Este documento fornece diretrizes e boas práticas para manter a qualidade, a estabilidade e a integridade da arquitetura do projeto.
+Agradecemos o seu interesse em contribuir com a **LUVEA**! Este documento fornece diretrizes e boas práticas para manter a qualidade, a estabilidade e a integridade da arquitetura do projeto.
 
 ---
 
@@ -8,8 +8,8 @@ Agradecemos o seu interesse em contribuir com o **AgendaSte**! Este documento fo
 
 1. **Clone o repositório**:
    ```bash
-   git clone https://github.com/bmalossi/AgendaSte.git
-   cd AgendaSte
+   git clone https://github.com/bmalossi/luvea.git
+   cd luvea
    ```
 
 2. **Instale as dependências**:
@@ -32,11 +32,11 @@ Agradecemos o seu interesse em contribuir com o **AgendaSte**! Este documento fo
 ## 📋 Padrões de Código e Diretrizes
 
 ### 1. Nomenclatura e Domínio
-- O nome oficial da plataforma é **AgendaSte**. Nunca utilize nomes de plataformas concorrentes ou referências obsoletas em comentários, textos de tela ou código.
+- O nome oficial da plataforma é **LUVEA**. Nunca utilize nomes de plataformas concorrentes ou referências obsoletas em comentários, textos de tela ou código.
 - Mantenha a terminologia alinhada ao vocabulário canônico do projeto (`CONTEXT.md` e ADRs em `docs/adr/`).
 
 ### 2. Design e UI/UX
-- Siga os tokens de design do AgendaSte documentados em `DESIGN.md`.
+- Siga os tokens de design da LUVEA documentados em `DESIGN.md`.
 - Evite "AI slop", como badges e cards excessivamente translúcidos ou com baixo contraste. Priorize fundos sólidos com excelente legibilidade e estados hover bem definidos.
 
 ### 3. Persistência e Sincronização

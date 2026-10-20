@@ -71,9 +71,10 @@ export function resolveTargetInstance(
       };
     }
 
-    // B. Procura por nome específico para este número (agendaste_{num} ou {num})
+    // B. Procura por nome específico para este número (luvea_{num}, agendaste_{num} ou {num})
     const matchByName = existingInstances.find(
       (inst) =>
+        inst.name === `luvea_${phoneDigits}` ||
         inst.name === `agendaste_${phoneDigits}` ||
         inst.name === `aura_${phoneDigits}` ||
         inst.name === phoneDigits
@@ -97,7 +98,7 @@ export function resolveTargetInstance(
   // 4. Se não existe nenhuma instância correspondente a este número:
   // Retorna o nome da nova instância dedicada (NUNCA assume "pessoal")
   return {
-    name: `agendaste_${phoneDigits}`,
+    name: `luvea_${phoneDigits}`,
     exists: false,
     isNumberMatch: false,
     instanceData: null,

@@ -1,5 +1,5 @@
 /**
- * Marketing Content Module & Seam for AgendaSte
+ * Marketing Content Module & Seam for LUVEA
  * Centralizes navigation, mega menus, conversion resolvers, plans catalog,
  * and legal configuration for the public marketing site.
  */
@@ -65,7 +65,7 @@ export function resolveDemoWhatsAppUrl(phoneNumber?: string | null): string {
   }
 
   const defaultMessage =
-    "Olá! Gostaria de agendar uma demonstração da plataforma AgendaSte para o meu negócio.";
+    "Olá! Gostaria de agendar uma demonstração da plataforma LUVEA para o meu negócio.";
   return `https://wa.me/${phone}?text=${encodeURIComponent(defaultMessage)}`;
 }
 
@@ -79,7 +79,7 @@ export function getLoginUrl(): string {
 
 /**
  * Mega Menu "Como funciona" (6 categories)
- * Reflects real existing modules of AgendaSte.
+ * Reflects real existing modules of LUVEA.
  */
 export const HOW_IT_WORKS_MENU: MegaMenuCategory[] = [
   {
@@ -525,12 +525,12 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Como funciona a cobrança do Pix Dinâmico e quais são as taxas?",
     answer:
-      "O sinal Pix e as cobranças de balcão são processados diretamente na sua conta integrada ao Mercado Pago. A AgendaSte não retém seu dinheiro e não cobra taxa de intermediação percentual sobre suas vendas; aplicam-se apenas as taxas padrão da sua conta de pagamentos.",
+      "O sinal Pix e as cobranças de balcão são processados diretamente na sua conta integrada ao Mercado Pago. A LUVEA não retém seu dinheiro e não cobra taxa de intermediação percentual sobre suas vendas; aplicam-se apenas as taxas padrão da sua conta de pagamentos.",
   },
   {
     question: "Posso migrar meus dados de clientes e serviços de outro sistema?",
     answer:
-      "Sim! O AgendaSte conta com um assistente de importação que permite carregar listas de clientes e serviços a partir de planilhas CSV ou do caderno tradicional em poucos cliques.",
+      "Sim! O LUVEA conta com um assistente de importação que permite carregar listas de clientes e serviços a partir de planilhas CSV ou do caderno tradicional em poucos cliques.",
   },
   {
     question: "O que acontece se minha equipe aumentar?",
@@ -854,7 +854,7 @@ export const EXCLUSIVE_BENEFITS: ExclusiveBenefit[] = [
   {
     title: "Sem cobrança de porcentagem sobre seu faturamento",
     description:
-      "Diferente de marketplaces que cobram até 20% das suas reservas, no AgendaSte o seu dinheiro cai direto na sua conta sem pedágio.",
+      "Diferente de marketplaces que cobram até 20% das suas reservas, no LUVEA o seu dinheiro cai direto na sua conta sem pedágio.",
   },
   {
     title: "Recepção IA nativa com WhatsApp e Pix no Brasil",

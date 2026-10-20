@@ -1,9 +1,9 @@
-# PRODUCT.md — Aura Studio / AgendaSte (Edição Brasil)
+# PRODUCT.md — Aura Studio / LUVEA (Edição Brasil)
 
 ## 1. Visão & Posicionamento de Produto
 Plataforma completa de agendamento, ponto de venda (POS), catálogo inteligente, relacionamento com clientes (CRM), gestão de equipe e automação de marketing e recepção por IA para profissionais autônomos e estúdios de beleza, estética, saúde e bem-estar no Brasil.
 
-Inspirada e modelada 1:1 sobre a arquitetura visual e funcional do **AgendaSte**, a plataforma combina a estética editorial de alto padrão (superfícies brancas e lilás suaves, tipografia serifada editorial para títulos de impacto, botões em formato pílula `#1C1C1E`, gavetas deslizantes laterais e editores limpos) com os motores reais de conversão e liquidação do mercado brasileiro:
+Modelada sobre uma arquitetura visual e funcional de excelência internacional, a **LUVEA** combina a estética editorial de alto padrão (superfícies brancas e lilás suaves, tipografia serifada editorial para títulos de impacto, botões em formato pílula `#1C1C1E`, gavetas deslizantes laterais e editores limpos) com os motores reais de conversão e liquidação do mercado brasileiro:
 - **Recepção IA + WhatsApp 2-Way Sync (QR Code)**: Pareamento direto do WhatsApp do profissional com respostas automáticas 24/7 e confirmação interativa (`1 = Confirmar`, `2 = Reagendar`) refletida em tempo real na agenda.
 - **Sinal / Taxa de Reserva via Pix Dinâmico**: Proteção contra faltas (*no-show*) integrada ao **Site de Agendamento Online (`Aura Studio`)**, à **Venda Rápida (`Quick Sale`)** e às **Faturas (`Invoices`)**.
 - **Duração Segmentada & Recursos Físicos**: Suporte nativo a **Tempo de Processamento** (janela de pausa química/anestésica que libera o profissional para encaixes), **Tempo de Bloqueio** (higienização pós-atendimento) e trava de conflitos de **Salas** e **Equipamentos**.

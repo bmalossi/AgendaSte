@@ -245,7 +245,7 @@ export function PublicBookingWebsite({
         body: JSON.stringify({
           appointmentId: `aura-online-${Date.now()}`,
           clientName: clientName || "Cliente Online",
-          clientEmail: clientEmail || "cliente@agendaste.com.br",
+          clientEmail: clientEmail || "cliente@luvea.com.br",
           serviceId: selectedService.id,
           serviceName: selectedService.name,
           depositCents,
@@ -254,11 +254,11 @@ export function PublicBookingWebsite({
       const data = await res.json();
       setPixPayload(
         data.qrCodePayload ||
-          "00020126580014BR.GOV.BCB.PIX0136pix@agendaste.com.br5204000053039865802BR5920AGENDASTE6009SAO PAULO62070503***6304ABCD"
+          "00020126580014BR.GOV.BCB.PIX0136pix@luvea.com.br5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
       );
     } catch {
       setPixPayload(
-        "00020126580014BR.GOV.BCB.PIX0136pix@agendaste.com.br5204000053039865802BR5920AGENDASTE6009SAO PAULO62070503***6304ABCD"
+        "00020126580014BR.GOV.BCB.PIX0136pix@luvea.com.br5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
       );
     } finally {
       setIsGeneratingPix(false);
@@ -280,7 +280,7 @@ export function PublicBookingWebsite({
 
     const result = bookFromPublicSite(state, {
       clientName: clientName.trim(),
-      clientEmail: clientEmail.trim() || "contato@agendaste.com.br",
+      clientEmail: clientEmail.trim() || "contato@luvea.com.br",
       clientPhone: clientPhone.trim(),
       serviceId: selectedService.id,
       providerId: selectedProviderId,
@@ -325,7 +325,7 @@ export function PublicBookingWebsite({
               ● Site de Agendamento Online
             </span>
             <span className="text-xs text-zinc-400 font-mono hidden sm:inline">
-              {websiteConfig.subdomainSlug}.agendaste.com.br
+              {websiteConfig.subdomainSlug}.luvea.com.br
             </span>
           </div>
           <button
@@ -532,7 +532,7 @@ export function PublicBookingWebsite({
         <footer className={`pt-8 border-t border-current/10 text-center text-xs ${theme.textMuted} space-y-2`}>
           <p>© {new Date().getFullYear()} {businessName}. Todos os direitos reservados.</p>
           <p className="text-[11px] opacity-75">
-            Desenvolvido sobre a plataforma AgendaSte • Edição Brasil
+            Desenvolvido sobre a plataforma LUVEA • Edição Brasil
           </p>
         </footer>
       </div>

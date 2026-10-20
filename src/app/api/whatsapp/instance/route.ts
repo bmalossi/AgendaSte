@@ -258,7 +258,7 @@ export async function POST(request: Request) {
         state: "connecting",
         instanceName,
         qrCodeBase64: `data:image/svg+xml;utf8,${encodeURIComponent(mockQrSvg)}`,
-        qrCodeText: "2@AgendasteEvolutionMock",
+        qrCodeText: "2@LuveaEvolutionMock",
       });
     }
 

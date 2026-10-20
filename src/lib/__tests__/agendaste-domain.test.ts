@@ -299,7 +299,7 @@ describe("Ticket 03 — Agenda Inteligente (Calendar), Salto de Semanas, Trava d
 });
 
 describe("Ticket 04 — Clientes (Clients), Drawer 5 Abas, Notas/Fichas e Fotos Auto-organizadas", () => {
-  it("creates a client with the exact AgendaSte toast and filters absent +30/45d clients", () => {
+  it("creates a client with the exact LUVEA toast and filters absent +30/45d clients", () => {
     const initial = createInitialStudioState();
     const afterCreate = createClientProfile(initial, {
       fullName: "Beatriz Monteiro",
@@ -884,7 +884,11 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
       postJson.settings.msgCall,
       "Nosso estúdio atende apenas por mensagem de texto."
     );
-    assert.equal(postJson.instanceName, "agendaste_5513978276520");
+    assert.ok(
+      postJson.instanceName === "luvea_5513978276520" ||
+        postJson.instanceName === "agendaste_5513978276520",
+      `Nome da instância inesperado: ${postJson.instanceName}`
+    );
   });
 });
 

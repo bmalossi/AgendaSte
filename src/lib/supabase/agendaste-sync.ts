@@ -26,7 +26,7 @@ function calculateEndTime(startTime: string, durationMinutes: number): string {
 /**
  * Carrega os dados reais do Supabase para hidratar o estado da aplicação.
  * Se o Supabase estiver configurado e acessível, mapeia as linhas das tabelas
- * diretamente para o StudioState do AgendaSte, preservando agendamentos locais
+ * diretamente para o StudioState da LUVEA, preservando agendamentos locais
  * que ainda não foram sincronizados.
  */
 export async function loadStudioStateFromSupabase(

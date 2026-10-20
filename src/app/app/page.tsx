@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { AgendaSteApp } from "@/components/agendaste/agendaste-app";
+import { LuveaApp } from "@/components/agendaste/agendaste-app";
 import { NavigationSectionId } from "@/lib/agendaste-store";
 
 export const metadata: Metadata = {
-  title: "AgendaSte · Painel de Gestão e Agendamento",
+  title: "LUVEA · Painel de Gestão e Agendamento",
   description:
-    "Painel operacional da AgendaSte para controle de agenda, clientes, vendas, recepção IA e equipe.",
+    "Painel operacional da LUVEA para controle de agenda, clientes, vendas, recepção IA e equipe.",
   robots: {
     index: false,
     follow: false,
@@ -29,7 +29,7 @@ export default async function AppDashboardPage({
   const initialStep = resolved?.step ? parseInt(resolved.step, 10) : undefined;
 
   return (
-    <AgendaSteApp
+    <LuveaApp
       initialSection={initialSection}
       initialTab={initialTab}
       initialWizard={initialWizard}

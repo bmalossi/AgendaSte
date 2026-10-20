@@ -216,16 +216,17 @@ export function PaymentsView({
                       {sale.itemsSummary}
                     </td>
                     <td className="py-4 px-5">
-                      <span
-                        className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-sm inline-block ${
-                          sale.status === "Pago"
-                            ? "bg-[#16A34A] text-white"
-                            : sale.status === "Sinal Pago"
-                            ? "bg-[#E11D8F] text-white"
-                            : "bg-[#D97706] text-white"
-                        }`}
-                      >
-                        {sale.status}
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium shadow-2xs">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            sale.status === "Pago"
+                              ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                              : sale.status === "Sinal Pago"
+                              ? "bg-[#6E56CF] ring-2 ring-[#6E56CF]/20"
+                              : "bg-[#D97706] ring-2 ring-[#D97706]/20"
+                          }`}
+                        />
+                        <span>{sale.status}</span>
                       </span>
                     </td>
                     <td className="py-4 px-5 font-medium text-[#6E6E73]">
@@ -552,8 +553,9 @@ export function PaymentsView({
               <span className="text-[12px] font-mono font-bold text-[#6E56CF]">
                 FATURA #1000948
               </span>
-              <span className="px-3 py-1 rounded-full bg-[#16A34A] text-white text-[11px] font-bold shadow-sm">
-                Pix &amp; Cartão Ativo
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                <span>Pix &amp; Cartão Ativo</span>
               </span>
             </div>
             <p className="text-[26px] font-mono font-bold text-[#1C1C1E]">
@@ -592,16 +594,23 @@ export function PaymentsView({
                     <span className="text-[15px] font-bold text-[#1C1C1E]">
                       {inv.title}
                     </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-white text-[11px] font-bold uppercase shadow-sm ${
-                        inv.status === "paid"
-                          ? "bg-[#16A34A]"
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium shadow-2xs">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          inv.status === "paid"
+                            ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                            : inv.status === "sent"
+                            ? "bg-[#6E56CF] ring-2 ring-[#6E56CF]/20"
+                            : "bg-[#D97706] ring-2 ring-[#D97706]/20"
+                        }`}
+                      />
+                      <span>
+                        {inv.status === "paid"
+                          ? "Paga"
                           : inv.status === "sent"
-                          ? "bg-[#E11D8F]"
-                          : "bg-[#D97706]"
-                      }`}
-                    >
-                      {inv.status}
+                          ? "Enviada"
+                          : "Pendente"}
+                      </span>
                     </span>
                   </div>
                   <p className="text-[12px] text-[#6E6E73]">
@@ -1023,7 +1032,7 @@ export function QuickSaleDrawer({
         body: JSON.stringify({
           appointmentId: prefillAppointment?.id || `venda-rapida-${Date.now()}`,
           clientName: selectedClient?.fullName || "Cliente Venda Rápida",
-          clientEmail: selectedClient?.email || "cliente@agendaste.com.br",
+          clientEmail: selectedClient?.email || "cliente@luvea.com.br",
           serviceId: selectedCartItems[0]?.id ?? "quick-sale",
           serviceName: `${serviceTitle} (${modeLabel})`,
           serviceDescription: `Pagamento ${modeLabel} - ${serviceTitle} - ${

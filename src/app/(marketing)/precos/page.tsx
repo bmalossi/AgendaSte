@@ -3,18 +3,18 @@ import React from "react";
 import { PricingCardsAndFaq } from "@/components/marketing/pricing-cards-and-faq";
 
 export const metadata: Metadata = {
-  title: "Planos & Preços · AgendaSte",
+  title: "Planos & Preços · LUVEA",
   description:
-    "Conheça os planos Essencial, Gold e Platinum da AgendaSte. Comece com 14 dias de teste grátis sem cartão de crédito.",
+    "Conheça os planos Essencial, Gold e Platinum da LUVEA. Comece com 14 dias de teste grátis sem cartão de crédito.",
   alternates: {
     canonical: "/precos",
   },
   openGraph: {
-    title: "Planos & Preços · AgendaSte",
+    title: "Planos & Preços · LUVEA",
     description:
-      "Conheça os planos Essencial, Gold e Platinum da AgendaSte. Comece com 14 dias de teste grátis sem cartão de crédito.",
-    url: "https://agendaste.com.br/precos",
-    siteName: "AgendaSte",
+      "Conheça os planos Essencial, Gold e Platinum da LUVEA. Comece com 14 dias de teste grátis sem cartão de crédito.",
+    url: "https://luvea.com.br/precos",
+    siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",
   },

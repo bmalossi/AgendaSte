@@ -44,7 +44,7 @@ export function splitFullName(fullName: string): {
 } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) {
-    return { firstName: "Cliente", lastName: "AgendaSte" };
+    return { firstName: "Cliente", lastName: "LUVEA" };
   }
   if (parts.length === 1) {
     return { firstName: parts[0], lastName: "Cliente" };
@@ -70,7 +70,7 @@ export async function createMercadoPagoPixOrder(
   const payerEmail =
     input.clientEmail && input.clientEmail.includes("@")
       ? input.clientEmail.trim()
-      : "cliente@agendaste.com.br";
+      : "cliente@luvea.com.br";
 
   const idempotencyKey = crypto.randomUUID();
   const externalReference = input.appointmentId.slice(0, 64);

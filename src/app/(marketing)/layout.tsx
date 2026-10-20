@@ -3,7 +3,7 @@ import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
 
 export const metadata: Metadata = {
-  title: "AgendaSte · Plataforma Completa de Agendamento & Gestão",
+  title: "LUVEA · Plataforma Completa de Agendamento & Gestão",
   description:
     "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
 };

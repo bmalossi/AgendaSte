@@ -66,7 +66,7 @@ export function HeroSection() {
                   <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
                 </div>
                 <span className="text-[11px] font-mono text-zinc-400">
-                  app.agendaste.com.br
+                  app.luvea.com.br
                 </span>
                 <span className="text-[11px] font-mono text-emerald-400">
                   Ao vivo
@@ -75,7 +75,7 @@ export function HeroSection() {
               <div className="relative aspect-[16/10] w-full bg-white">
                 <Image
                   src="/images/real-app-overview.png"
-                  alt="Painel real da AgendaSte com agenda, recepção IA e pagamentos"
+                  alt="Painel real da LUVEA com agenda, recepção IA e pagamentos"
                   fill
                   priority
                   className="object-cover object-top"

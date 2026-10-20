@@ -1,5 +1,5 @@
 /**
- * Legal Configuration Module for AgendaSte
+ * Legal Configuration Module for LUVEA
  * Centralizes corporate data, legal counsel placeholders, and DPO contacts
  * for Terms of Use and Privacy Policy (LGPD).
  */
@@ -23,15 +23,15 @@ export interface LegalCompanyConfig {
  */
 export const DEFAULT_LEGAL_CONFIG: LegalCompanyConfig = {
   razaoSocial: process.env.NEXT_PUBLIC_LEGAL_RAZAO_SOCIAL || "",
-  nomeFantasia: "AgendaSte",
+  nomeFantasia: "LUVEA",
   cnpj: process.env.NEXT_PUBLIC_LEGAL_CNPJ || "",
   enderecoCompleto: process.env.NEXT_PUBLIC_LEGAL_ENDERECO || "",
   cidadeEstadoForo:
     process.env.NEXT_PUBLIC_LEGAL_FORO || "São Paulo - SP",
   emailSuporte:
-    process.env.NEXT_PUBLIC_LEGAL_EMAIL_SUPORTE || "suporte@agendaste.com.br",
+    process.env.NEXT_PUBLIC_LEGAL_EMAIL_SUPORTE || "suporte@luvea.com.br",
   emailEncarregadoDpo:
-    process.env.NEXT_PUBLIC_LEGAL_DPO_EMAIL || "privacidade@agendaste.com.br",
+    process.env.NEXT_PUBLIC_LEGAL_DPO_EMAIL || "privacidade@luvea.com.br",
   dataVigencia: "19 de outubro de 2026",
   versaoDocumento: "1.0",
 };

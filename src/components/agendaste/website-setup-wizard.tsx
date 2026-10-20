@@ -337,7 +337,7 @@ export function WebsiteSetupWizard({
       <header className="w-full border-b border-zinc-200 px-6 sm:px-10 py-4 flex items-center justify-between bg-white shrink-0">
         <div className="flex items-center gap-3">
           <span className="font-serif text-lg tracking-wider font-semibold text-[#18181B] uppercase">
-            AGENDASTE
+            LUVEA
           </span>
           <span className="text-zinc-300">|</span>
           <span className="text-xs font-mono uppercase tracking-wider text-zinc-500">
@@ -399,7 +399,7 @@ export function WebsiteSetupWizard({
             {/* Right Column: Browser Mockup Preview */}
             <div className="w-full lg:w-7/12 flex justify-center">
               <BrowserMockup
-                url={`${normalizeSubdomainSlug(businessName)}.agendaste.com.br`}
+                url={`${normalizeSubdomainSlug(businessName)}.luvea.com.br`}
                 device={previewDevice}
                 theme={selectedTheme}
                 businessName={businessName}
@@ -502,7 +502,7 @@ export function WebsiteSetupWizard({
               </div>
 
               <BrowserMockup
-                url={`${activeSlug}.agendaste.com.br`}
+                url={`${activeSlug}.luvea.com.br`}
                 device={previewDevice}
                 theme={selectedTheme}
                 businessName={businessName}
@@ -512,7 +512,7 @@ export function WebsiteSetupWizard({
         )}
 
         {/* =====================================================================
-            ETAPA 3: ESCOLHER SUBDOMÍNIO (.agendaste.com.br)
+            ETAPA 3: ESCOLHER SUBDOMÍNIO (.luvea.com.br)
         ===================================================================== */}
         {step === 3 && (
           <div className="max-w-6xl w-full mx-auto px-6 py-8 sm:py-12 flex-1 flex flex-col lg:flex-row items-center gap-10">
@@ -543,13 +543,13 @@ export function WebsiteSetupWizard({
                     placeholder="brunofernandesmalossi"
                   />
                   <span className="text-xs font-mono text-zinc-500 select-none pl-1">
-                    .agendaste.com.br
+                    .luvea.com.br
                   </span>
                 </div>
                 <p className="text-[11px] font-mono text-zinc-500 pt-1">
                   Link que os clientes acessarão:{" "}
                   <strong className="text-zinc-900 font-semibold">
-                    https://{activeSlug}.agendaste.com.br
+                    https://{activeSlug}.luvea.com.br
                   </strong>
                 </p>
               </div>
@@ -558,7 +558,7 @@ export function WebsiteSetupWizard({
             {/* Right Column: Live Mockup */}
             <div className="w-full lg:w-7/12 flex justify-center">
               <BrowserMockup
-                url={`${activeSlug}.agendaste.com.br`}
+                url={`${activeSlug}.luvea.com.br`}
                 device={previewDevice}
                 theme={selectedTheme}
                 businessName={businessName}
@@ -589,7 +589,7 @@ export function WebsiteSetupWizard({
               {/* Centered Preview Mockup */}
               <div className="max-w-md mx-auto transform scale-95 sm:scale-100 shadow-sm rounded-2xl overflow-hidden border border-[#E5E5EA] bg-white">
                 <BrowserMockup
-                  url={`${activeSlug}.agendaste.com.br`}
+                  url={`${activeSlug}.luvea.com.br`}
                   device="desktop"
                   theme={selectedTheme}
                   businessName={businessName}
@@ -1164,7 +1164,7 @@ export function WebsiteSetupWizard({
             <div className="w-full lg:w-6/12 flex justify-center">
               <div className="w-64 h-[380px] rounded-3xl bg-zinc-900 p-4 text-white shadow-2xl flex flex-col justify-between border-4 border-zinc-800">
                 <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                  <span>AGENDASTE POS</span>
+                  <span>LUVEA POS</span>
                   <QrCode className="w-4 h-4 text-white" />
                 </div>
                 <div className="text-center space-y-1">
@@ -1336,7 +1336,7 @@ export function WebsiteSetupWizard({
                 Verifique sua identidade
               </h1>
               <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
-                Para receber pagamentos e transferências pela AgendaSte, você deve validar sua identidade para cumprir com as regulamentações financeiras do Banco Central e dos gateways parceiros (Mercado Pago / Stripe).
+                Para receber pagamentos e transferências pela LUVEA, você deve validar sua identidade para cumprir com as regulamentações financeiras do Banco Central e dos gateways parceiros (Mercado Pago / Stripe).
               </p>
             </div>
 
@@ -1635,7 +1635,7 @@ function BrowserMockup({
         {/* Footer Mockup */}
         <div className="flex items-center justify-between text-[8px] font-mono opacity-60 pt-2 border-t border-white/10">
           <span>{url}</span>
-          <span>Powered by AgendaSte</span>
+          <span>Powered by LUVEA</span>
         </div>
       </div>
     </div>

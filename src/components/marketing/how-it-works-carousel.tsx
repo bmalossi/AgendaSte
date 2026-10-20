@@ -26,7 +26,7 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     bgClass: "bg-[#F5F5F7]",
     textClass: "text-[#1C1C1E]",
     imageSrc: "/images/real-overview.png",
-    imageAlt: "Painel operacional e primeiros passos para faturamento na AgendaSte",
+    imageAlt: "Painel operacional e primeiros passos para faturamento na LUVEA",
   },
   {
     id: "como-funciona-pagamentos_pdv",
@@ -35,7 +35,7 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     bgClass: "bg-[#D7FE03]",
     textClass: "text-black",
     imageSrc: "/images/real-payments.png",
-    imageAlt: "Gestão de pagamentos, sinal Pix e histórico de vendas na AgendaSte",
+    imageAlt: "Gestão de pagamentos, sinal Pix e histórico de vendas na LUVEA",
   },
   {
     id: "como-funciona-agentes",
@@ -126,7 +126,7 @@ export function HowItWorksCarousel() {
   return (
     <section
       id="como-funciona"
-      aria-label="Como funciona a AgendaSte"
+      aria-label="Como funciona a LUVEA"
       className="py-16 sm:py-24 bg-white border-b border-zinc-200/80 overflow-hidden w-full"
     >
       {/* Header: Edge-to-edge full width without max-w-7xl constraint */}

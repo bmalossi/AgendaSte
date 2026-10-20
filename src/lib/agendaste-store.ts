@@ -1,5 +1,5 @@
 // =============================================================================
-// AGENDASTE (EDIÇÃO BRASIL) — MOTOR DE DOMÍNIO & ESTADO OPERACIONAL
+// LUVEA (EDIÇÃO BRASIL) — MOTOR DE DOMÍNIO & ESTADO OPERACIONAL
 // Vocabulário canônico alinhado a CONTEXT.md, ADR-0001 e ADR-0002
 // =============================================================================
 
@@ -638,7 +638,7 @@ export function formatAppointmentDateLabel(
 }
 
 // =============================================================================
-// ESTADO INICIAL REALISTA DO ESTÚDIO (AGENDASTE)
+// ESTADO INICIAL REALISTA DO ESTÚDIO (LUVEA)
 // =============================================================================
 
 export function createInitialStudioState(): StudioState {
@@ -1134,7 +1134,7 @@ export function createInitialStudioState(): StudioState {
         taxCents: 0,
         totalCents: 23000,
         status: "sent",
-        paymentLinkUrl: "https://aurastudio.agendaste.com.br/pay/1000948",
+        paymentLinkUrl: "https://aurastudio.luvea.com.br/pay/1000948",
       },
     ],
     salesHistory: [
@@ -1319,7 +1319,7 @@ export function createInitialStudioState(): StudioState {
         notifyNewReviews: true,
         captureClientNotesFromMe: true,
         sendMeClientNotesBeforeAppointment: true,
-        calendarSyncUrl: "webcal://aurastudio.agendaste.com.br/cal/bruno-sync.ics",
+        calendarSyncUrl: "webcal://aurastudio.luvea.com.br/cal/bruno-sync.ics",
         waitlistNotifications: {
           email: true,
           text: true,
@@ -2529,7 +2529,7 @@ export function createAndSendInvoice(
     taxCents: input.taxCents,
     totalCents,
     status: "sent",
-    paymentLinkUrl: `https://aurastudio.agendaste.com.br/pay/${nextNumber.replace("#", "")}`,
+    paymentLinkUrl: `https://aurastudio.luvea.com.br/pay/${nextNumber.replace("#", "")}`,
   };
 
   return {

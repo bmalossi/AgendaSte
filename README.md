@@ -1,11 +1,11 @@
 <div align="center">
 
-# 🗓️ AgendaSte
+# LUVEA
 
 **Plataforma Completa de Gestão & Agendamento para Estúdios de Beleza, Clínicas e Bem-Estar**  
 *Desenvolvida para o mercado brasileiro com foco em máxima eficiência, elegância visual e zero custos de infraestrutura base.*
 
-[![CI Pipeline](https://github.com/bmalossi/AgendaSte/actions/workflows/ci.yml/badge.svg)](https://github.com/bmalossi/AgendaSte/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/bmalossi/luvea/actions/workflows/ci.yml/badge.svg)](https://github.com/bmalossi/luvea/actions/workflows/ci.yml)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15.2.1-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19.0.0-61DAFB?style=flat&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
@@ -19,9 +19,9 @@
 
 ## 📖 Visão Geral
 
-O **AgendaSte** é um ecossistema operacional de alta performance para salões de beleza, estúdios de estética, clínicas e profissionais autônomos. Inspirado nas melhores experiências de software do mundo e adaptado à realidade operacional, fiscal e cultural do Brasil.
+A **LUVEA** é um ecossistema operacional de alta performance para salões de beleza, estúdios de estética, clínicas e profissionais autônomos. Inspirado nas melhores experiências de software do mundo e adaptado à realidade operacional, fiscal e cultural do Brasil.
 
-Diferente de sistemas legados ou engessados, o AgendaSte combina:
+Diferente de sistemas legados ou engessados, a LUVEA combina:
 - **Reserva Online com Sinal Pix Instantâneo** para proteção anti-no-show.
 - **Agenda Inteligente com Duração Segmentada**: tempo de aplicação, tempo de processamento/pausa livre para encaixes paralelos e tempo de higienização/bloqueio.
 - **Trava de Recursos Físicos Compartilhados**: previne conflitos de salas, cabines ou equipamentos de alto valor (ex.: laser).
@@ -98,8 +98,8 @@ Diferente de sistemas legados ou engessados, o AgendaSte combina:
 
 ### 1. Clonar o Repositório
 ```bash
-git clone https://github.com/bmalossi/AgendaSte.git
-cd AgendaSte
+git clone https://github.com/bmalossi/luvea.git
+cd luvea
 ```
 
 ### 2. Instalar as Dependências
@@ -123,7 +123,7 @@ SUPABASE_SERVICE_ROLE_KEY="sua-chave-service-role"
 # WhatsApp (Evolution API / Baileys)
 WHATSAPP_API_URL="http://localhost:8080"
 WHATSAPP_API_KEY="sua-chave-api"
-WHATSAPP_INSTANCE_NAME="agendaste-01"
+WHATSAPP_INSTANCE_NAME="luvea-01"
 
 # Gateway Pix (Mercado Pago / Asaas)
 PIX_PROVIDER="mercadopago"
@@ -169,7 +169,7 @@ npm run build
 ## 📂 Estrutura do Projeto
 
 ```text
-AgendaSte/
+luvea/
 ├── .github/
 │   ├── workflows/
 │   │   └── ci.yml               # Pipeline de integração contínua (CI)

@@ -22,6 +22,7 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import type { NavigationSectionId } from "@/lib/agendaste-store";
+import { LuveaIcon } from "@/components/luvea-logo";
 
 interface SidebarProps {
   activeSection: NavigationSectionId;
@@ -32,7 +33,7 @@ interface SidebarProps {
   providerShortName: string;
 }
 
-export function AgendaSteSidebar({
+export function LuveaSidebar({
   activeSection,
   onSelectSection,
   completedOnboardingCount,
@@ -67,6 +68,9 @@ export function AgendaSteSidebar({
   if (collapsed) {
     return (
       <aside className="hidden md:flex flex-col items-center w-16 shrink-0 border-r border-[#E5E7EB] bg-white py-3 select-none">
+        <div className="mb-3">
+          <LuveaIcon size={26} />
+        </div>
         <button
           type="button"
           onClick={() => setCollapsed(false)}
@@ -740,3 +744,5 @@ export function AgendaSteSidebar({
     </aside>
   );
 }
+
+export const AgendaSteSidebar = LuveaSidebar;

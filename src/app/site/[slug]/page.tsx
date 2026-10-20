@@ -29,7 +29,9 @@ export default function PublicSitePage({ params }: SitePageProps) {
   // Hydrate from localStorage if running in browser
   useEffect(() => {
     try {
-      const cached = localStorage.getItem("agendaste_studio_state_v1");
+      const cached =
+        localStorage.getItem("luvea_studio_state_v1") ||
+        localStorage.getItem("agendaste_studio_state_v1");
       if (cached) {
         const parsed: StudioState = JSON.parse(cached);
         if (parsed) {
@@ -57,7 +59,7 @@ export default function PublicSitePage({ params }: SitePageProps) {
     setState((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       try {
-        localStorage.setItem("agendaste_studio_state_v1", JSON.stringify(next));
+        localStorage.setItem("luvea_studio_state_v1", JSON.stringify(next));
       } catch (e) {
         console.warn("Erro ao salvar no localStorage:", e);
       }

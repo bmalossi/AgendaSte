@@ -129,7 +129,7 @@ export function WhatsAppConfigCard({
   );
   const [customServerKey, setCustomServerKey] = useState(currentConfig.apiKey || "");
   const [activeInstanceName, setActiveInstanceName] = useState(
-    currentConfig.instanceName || `agendaste_${phoneNumber.replace(/\D/g, "")}`
+    currentConfig.instanceName || (phoneNumber ? `luvea_${phoneNumber.replace(/\D/g, "")}` : "")
   );
 
   // Template settings
@@ -332,7 +332,7 @@ export function WhatsAppConfigCard({
         }
       } else if (data.requiresGlobalKey) {
         setRequiresManualCreation({
-          instanceName: data.instanceName || `agendaste_${phoneNumber.replace(/\D/g, "")}`,
+          instanceName: data.instanceName || `luvea_${phoneNumber.replace(/\D/g, "")}`,
           phone: phoneNumber,
         });
         setErrorMessage(data.error);
@@ -995,7 +995,7 @@ export function WhatsAppConfigCard({
                     type="text"
                     value={activeInstanceName}
                     onChange={(e) => setActiveInstanceName(e.target.value)}
-                    placeholder="agendaste_5513978276520"
+                    placeholder="luvea_5513978276520"
                     className="w-full px-3 py-2 rounded-xl border border-[#D4D4D8] font-mono text-[12px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
                   />
                 </div>

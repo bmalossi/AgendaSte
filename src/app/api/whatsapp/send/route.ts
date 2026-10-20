@@ -191,7 +191,7 @@ export async function POST(request: Request) {
     ).trim();
 
     if (!userCfg?.instanceName && phoneDigits && !phoneDigits.includes("944477528")) {
-      instance = `agendaste_${phoneDigits}`;
+      instance = `luvea_${phoneDigits}`;
     }
 
     const isMockTesting =

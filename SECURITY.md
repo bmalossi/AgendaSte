@@ -1,6 +1,6 @@
-# Política de Segurança — AgendaSte
+# Política de Segurança — LUVEA
 
-A segurança e a privacidade dos dados de nossos clientes e profissionais são prioridades fundamentais no **AgendaSte**.
+A segurança e a privacidade dos dados de nossos clientes e profissionais são prioridades fundamentais na **LUVEA**.
 
 ## 🛡️ Versões Suportadas
 
@@ -15,10 +15,10 @@ Atualmente, apenas a versão principal em desenvolvimento (`main`) recebe atuali
 
 ## 🔒 Relatando uma Vulnerabilidade
 
-Se você descobrir uma vulnerabilidade de segurança no AgendaSte, por favor **não abra uma issue pública**. Em vez disso, relate o problema diretamente aos mantenedores do projeto através de:
+Se você descobrir uma vulnerabilidade de segurança na LUVEA, por favor **não abra uma issue pública**. Em vez disso, relate o problema diretamente aos mantenedores do projeto através de:
 
 - **E-mail**: `bfernandescorretor@gmail.com`
-- **Assunto**: `[Segurança AgendaSte] Vulnerabilidade reportada`
+- **Assunto**: `[Segurança LUVEA] Vulnerabilidade reportada`
 
 Por favor, inclua as seguintes informações no relatório:
 1. Descrição clara da vulnerabilidade.

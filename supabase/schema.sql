@@ -1,5 +1,5 @@
 -- =============================================================================
--- AGENDASTE (EDIÇÃO BRASIL) — SUPABASE POSTGRESQL SCHEMA (RLS & REALTIME READY)
+-- LUVEA (EDIÇÃO BRASIL) — SUPABASE POSTGRESQL SCHEMA (RLS & REALTIME READY)
 -- Alinhado a CONTEXT.md, ADR-0001 e ADR-0002
 -- Execute este script no SQL Editor do Supabase (https://supabase.com/dashboard)
 -- =============================================================================
@@ -344,7 +344,7 @@ alter publication supabase_realtime add table public.sales_history;
 alter publication supabase_realtime add table public.reception_logs;
 
 -- =============================================================================
--- SEED DATA INICIAL (AURA STUDIO / AGENDASTE)
+-- SEED DATA INICIAL (AURA STUDIO / LUVEA)
 -- =============================================================================
 insert into public.professionals (
   id, first_name, last_name, studio_name, slug, legal_entity_type, tax_id_cnpj_cpf, role, email, phone_whatsapp, pix_key, default_deposit_percent, service_commission_percent, product_commission_percent, weekly_goal_cents

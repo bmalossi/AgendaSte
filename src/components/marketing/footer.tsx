@@ -9,12 +9,9 @@ export function MarketingFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
           {/* Brand Info Column */}
           <div className="lg:col-span-2 space-y-4">
-            <Link href="/" className="inline-flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#1C1C1E] flex items-center justify-center text-white font-serif text-lg font-bold shadow-sm">
-                A
-              </div>
-              <span className="font-serif text-2xl tracking-tight font-normal text-[#18181B]">
-                AgendaSte
+            <Link href="/" className="inline-flex items-center group" aria-label="LUVEA - Início">
+              <span className="font-sans text-[22px] font-semibold tracking-[0.28em] text-[#1C1C1E] uppercase select-none transition-opacity group-hover:opacity-80">
+                LUVEA
               </span>
             </Link>
             <p className="text-[13.5px] text-zinc-600 leading-relaxed max-w-sm">
@@ -87,7 +84,7 @@ export function MarketingFooter() {
 
         {/* Bottom copyright & attribution bar */}
         <div className="mt-12 pt-8 border-t border-zinc-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-zinc-500">
-          <p>© {new Date().getFullYear()} AgendaSte. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} LUVEA. Todos os direitos reservados.</p>
           <p className="font-mono text-[11px] text-zinc-500">
             Arquitetura em produção · Sem intermediários ou taxas abusivas
           </p>

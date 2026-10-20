@@ -16,7 +16,7 @@ Single-context layout (`CONTEXT.md` and `docs/adr/` at the repository root). See
 
 ## Diretrizes de Interface & Padrão Fino (Anti-AI Slop)
 
-O projeto segue rigorosamente a estética editorial de luxo (**Editorial Clean & Luxury Salon OS** inspirada em GlossGenius, Apple e Linear). NUNCA utilizar padrões genéricos conhecidos como "AI Slop":
+O projeto segue rigorosamente a estética editorial de luxo (**Editorial Clean & Luxury Salon OS** inspirada em Apple e Linear). NUNCA utilizar padrões genéricos conhecidos como "AI Slop":
 
 1. **Zero Emoticons e Símbolos Unicode em Badges/Status**:
    - **PROIBIDO** usar caracteres avulsos como `✓`, `○`, `✔`, `★`, `✦`, `↗` soltos em badges de status ou botões.

@@ -8,7 +8,7 @@ export default function NotFound() {
           404 · Página não encontrada
         </span>
         <h1 className="font-display text-[36px] text-[#1C1C1E]">
-          Ops! Esta página não existe no AgendaSte
+          Ops! Esta página não existe na LUVEA
         </h1>
         <p className="text-[14px] text-[#6E6E73]">
           O endereço que você tentou acessar não foi encontrado ou foi movido.

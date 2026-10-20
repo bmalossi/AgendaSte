@@ -124,7 +124,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
           <h2 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
-            Alcance mais clientes com o Marketing AgendaSte
+            Alcance mais clientes com o Marketing LUVEA
           </h2>
           <p className="text-[15px] text-[#6E6E73] max-w-xl">
             Lance campanhas de e-mail, SMS e WhatsApp redigidas por IA em segundos para preencher horários vagos e reativar clientes ausentes.
@@ -1199,7 +1199,7 @@ function InsightsAnalyticsSection({ state }: { state: StudioState }) {
             </div>
             <div>
               <p className="text-[12px] font-bold uppercase tracking-wider text-[#6E6E73]">
-                Analista de Crescimento AgendaSte
+                Analista de Crescimento LUVEA
               </p>
               <p className="text-[13.5px] text-[#1C1C1E] mt-1 leading-relaxed">
                 {aiResponse}
@@ -1519,7 +1519,7 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
       link.href = url;
       link.setAttribute(
         "download",
-        `agendaste-relatorio-${selectedReport.id}-${startDateISO}-a-${endDateISO}.csv`
+        `luvea-relatorio-${selectedReport.id}-${startDateISO}-a-${endDateISO}.csv`
       );
       document.body.appendChild(link);
       link.click();
@@ -1534,7 +1534,7 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
 
   const handleSendEmail = () => {
     if (!selectedReport) return;
-    const recipient = state.settings.personal.email || "contato@agendaste.com.br";
+    const recipient = state.settings.personal.email || "contato@luvea.com.br";
     setFeedbackBanner(
       `Relatório "${selectedReport.title}" enviado por e-mail para ${recipient}.`
     );
@@ -1966,7 +1966,7 @@ function ClinicalChartsSection({
   const scrollToChartSection = (anchor: ChartSectionAnchorId) => {
     setActiveAnchor(anchor);
     if (typeof document !== "undefined") {
-      const el = document.getElementById(`agendaste-chart-${anchor}`);
+      const el = document.getElementById(`luvea-chart-${anchor}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
@@ -2219,7 +2219,7 @@ function ClinicalChartsSection({
           <div className="flex-1 max-w-[660px] w-full space-y-10 pb-24">
             {/* 1. DETALHES DO PRONTUÁRIO */}
             <section
-              id="agendaste-chart-chart_details"
+              id="luvea-chart-chart_details"
               onMouseEnter={() => setActiveAnchor("chart_details")}
               className="space-y-6 scroll-mt-24"
             >
@@ -2384,7 +2384,7 @@ function ClinicalChartsSection({
 
             {/* 2. FOTOS E MARCAÇÕES */}
             <section
-              id="agendaste-chart-photos_markup"
+              id="luvea-chart-photos_markup"
               onMouseEnter={() => setActiveAnchor("photos_markup")}
               className="space-y-3 scroll-mt-24"
             >
@@ -2629,7 +2629,7 @@ function ClinicalChartsSection({
 
             {/* 3. DETALHES DE PRODUTOS */}
             <section
-              id="agendaste-chart-product_details"
+              id="luvea-chart-product_details"
               onMouseEnter={() => setActiveAnchor("product_details")}
               className="space-y-3 scroll-mt-24"
             >
@@ -2798,7 +2798,7 @@ function ClinicalChartsSection({
 
             {/* 4. NOTA DE EVOLUÇÃO (TREATMENT NOTE / SOAP NOTE) */}
             <section
-              id="agendaste-chart-treatment_note"
+              id="luvea-chart-treatment_note"
               onMouseEnter={() => setActiveAnchor("treatment_note")}
               className="space-y-5 scroll-mt-24"
             >
@@ -3372,7 +3372,7 @@ export function ComplementarySectionView({
           Convide outros profissionais de beleza e ganhem créditos na assinatura
         </h1>
         <p className="text-[15px] text-[#6E6E73] max-w-xl">
-          Compartilhe seu link exclusivo do AgendaSte com colegas de estética, salão e bem-estar.
+          Compartilhe seu link exclusivo da LUVEA com colegas de estética, salão e bem-estar.
         </p>
         <button
           onClick={() =>

@@ -14,18 +14,18 @@ import {
 } from "@/lib/legal-config";
 
 export const metadata: Metadata = {
-  title: "Termos de Uso · AgendaSte",
+  title: "Termos de Uso · LUVEA",
   description:
-    "Termos de Uso e condições gerais de contratação da plataforma SaaS AgendaSte para profissionais e estúdios de estética e beleza.",
+    "Termos de Uso e condições gerais de contratação da plataforma SaaS LUVEA para profissionais e estúdios de estética e beleza.",
   alternates: {
     canonical: "/termos-de-uso",
   },
   openGraph: {
-    title: "Termos de Uso · AgendaSte",
+    title: "Termos de Uso · LUVEA",
     description:
-      "Termos de Uso e condições gerais de contratação da plataforma SaaS AgendaSte para profissionais e estúdios de estética e beleza.",
-    url: "https://agendaste.com.br/termos-de-uso",
-    siteName: "AgendaSte",
+      "Termos de Uso e condições gerais de contratação da plataforma SaaS LUVEA para profissionais e estúdios de estética e beleza.",
+    url: "https://luvea.com.br/termos-de-uso",
+    siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",
   },
@@ -61,7 +61,7 @@ export default function TermosDeUsoPage() {
           </div>
 
           <h1 className="font-serif text-3xl sm:text-5xl font-normal text-[#18181B] tracking-tight">
-            Termos de Uso da Plataforma AgendaSte
+            Termos de Uso da Plataforma LUVEA
           </h1>
 
           <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-zinc-500">
@@ -91,7 +91,7 @@ export default function TermosDeUsoPage() {
               Minuta Operacional · Revisão Jurídica Prévia
             </p>
             <p className="leading-relaxed text-zinc-600 font-sans">
-              Esta página consolida os parâmetros contratuais da plataforma AgendaSte.
+              Esta página consolida os parâmetros contratuais da plataforma LUVEA.
               Campos marcados como{" "}
               <code className="px-1.5 py-0.5 rounded border border-zinc-200 bg-white font-mono text-[11px] text-zinc-800">
                 [a preencher]
@@ -142,7 +142,7 @@ export default function TermosDeUsoPage() {
               </h2>
               <p>
                 Estes Termos de Uso regem o acesso e a utilização da plataforma
-                SaaS <strong>AgendaSte</strong>, de titularidade de{" "}
+                SaaS <strong>LUVEA</strong>, de titularidade de{" "}
                 <strong className="font-mono">
                   {formatLegalValue(config.razaoSocial, "Razão Social a preencher")}
                 </strong>
@@ -157,7 +157,7 @@ export default function TermosDeUsoPage() {
                 .
               </p>
               <p>
-                A AgendaSte é um software como serviço (SaaS) especializado na
+                A LUVEA é um software como serviço (SaaS) especializado na
                 gestão operacional, agendamento online inteligente, ponto de
                 venda (PDV), controle de comissões e prontuários digitais para
                 estúdios, clínicas e profissionais autônomos de estética, beleza
@@ -206,7 +206,7 @@ export default function TermosDeUsoPage() {
                 Qualquer atividade realizada por meio da sua conta será
                 presumida como autorizada pelo titular. Havendo suspeita de
                 acesso indevido, o Contratante deve notificar imediatamente o
-                suporte da AgendaSte.
+                suporte da LUVEA.
               </p>
             </section>
 
@@ -251,14 +251,14 @@ export default function TermosDeUsoPage() {
                 4. Agendamento Online e Sinal Pix Anti-No-Show
               </h2>
               <p>
-                A AgendaSte disponibiliza tecnologia para agendamento online e
+                A LUVEA disponibiliza tecnologia para agendamento online e
                 cobrança de taxa de reserva (Sinal Pix Obrigatório), com o intuito
                 de mitigar o absenteísmo e as faltas de clientes (no-shows).
               </p>
               <p>
                 Os valores de Sinal Pix pagos pelos Clientes são creditados
                 diretamente na conta de pagamento do Contratante via gateway
-                integrado (Mercado Pago). A AgendaSte não realiza a intermediação
+                integrado (Mercado Pago). A LUVEA não realiza a intermediação
                 financeira dos valores dos serviços prestados, não retém saldos e
                 não é responsável por disputas comerciais ou estornos entre o
                 Contratante e seus Clientes finais.
@@ -283,7 +283,7 @@ export default function TermosDeUsoPage() {
                   consentimento quando aplicável.
                 </li>
                 <li>
-                  <strong>A AgendaSte</strong> atua como <strong>Operadora</strong>
+                  <strong>A LUVEA</strong> atua como <strong>Operadora</strong>
                   , tratando os dados exclusivamente segundo as instruções do
                   Contratante e para os fins necessários à execução do software.
                 </li>
@@ -304,7 +304,7 @@ export default function TermosDeUsoPage() {
                 O Contratante assume a responsabilidade exclusiva de obter a
                 autorização prévia, expressa e inequívoca do Cliente final tanto
                 para o tratamento de dados de saúde quanto para o registro e
-                armazenamento fotográfico de sua imagem, isentando a AgendaSte de
+                armazenamento fotográfico de sua imagem, isentando a LUVEA de
                 qualquer penalidade decorrente de coleta sem consentimento.
               </p>
             </section>
@@ -331,9 +331,9 @@ export default function TermosDeUsoPage() {
               </h2>
               <p>
                 Todos os direitos de propriedade intelectual sobre o software
-                AgendaSte, incluindo código-fonte, design de interfaces, marcas,
+                LUVEA, incluindo código-fonte, design de interfaces, marcas,
                 algoritmos e bancos de dados pertencem exclusivamente à
-                AgendaSte. É concedida ao Contratante uma licença de uso
+                LUVEA. É concedida ao Contratante uma licença de uso
                 temporária, não exclusiva e intransferível durante a vigência do
                 plano contratado.
               </p>
@@ -345,7 +345,7 @@ export default function TermosDeUsoPage() {
                 9. Disponibilidade, Manutenção e Limitação de Responsabilidade
               </h2>
               <p>
-                A AgendaSte envida seus melhores esforços técnicos para assegurar
+                A LUVEA envida seus melhores esforços técnicos para assegurar
                 disponibilidade contínua da aplicação (meta de 99,5% de uptime).
                 Paradas programadas para manutenções preventivas serão anunciadas
                 com antecedência razoável.
@@ -365,7 +365,7 @@ export default function TermosDeUsoPage() {
               </h2>
               <p>
                 Em caso de cancelamento da assinatura pelo Contratante, a conta
-                permanecerá ativa até o encerramento do ciclo pago. A AgendaSte
+                permanecerá ativa até o encerramento do ciclo pago. A LUVEA
                 garante ao Contratante o direito de exportar seus cadastros de
                 clientes, histórico de vendas e dados financeiros em formato
                 aberto (CSV / JSON) antes da desativação definitiva.

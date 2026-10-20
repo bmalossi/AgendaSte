@@ -29,7 +29,7 @@ import {
   createInitialStudioState,
   getTodayDateISO,
 } from "@/lib/agendaste-store";
-import { AgendaSteSidebar } from "@/components/agendaste/sidebar";
+import { LuveaSidebar } from "@/components/agendaste/sidebar";
 import {
   GetStartedView,
   PublicBookingSiteModal,
@@ -57,7 +57,7 @@ import {
   syncNewClientToSupabase,
 } from "@/lib/supabase/agendaste-sync";
 
-export function AgendaSteApp({
+export function LuveaApp({
   initialSection = "get_started",
   initialTab,
   initialWizard = false,
@@ -108,7 +108,7 @@ export function AgendaSteApp({
 
       // 1. Persistência Instantânea Local (Zero perda em refresh/reload)
       try {
-        localStorage.setItem("agendaste_studio_state_v1", JSON.stringify(next));
+        localStorage.setItem("luvea_studio_state_v1", JSON.stringify(next));
       } catch (err) {
         console.warn("Erro ao salvar no localStorage:", err);
       }
@@ -150,7 +150,9 @@ export function AgendaSteApp({
   useEffect(() => {
     let localState = state;
     try {
-      const cached = localStorage.getItem("agendaste_studio_state_v1");
+      const cached =
+        localStorage.getItem("luvea_studio_state_v1") ||
+        localStorage.getItem("agendaste_studio_state_v1");
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && Array.isArray(parsed.calendarEvents)) {
@@ -171,7 +173,7 @@ export function AgendaSteApp({
       setState(liveState);
       try {
         localStorage.setItem(
-          "agendaste_studio_state_v1",
+          "luvea_studio_state_v1",
           JSON.stringify(liveState)
         );
       } catch (e) {
@@ -180,7 +182,7 @@ export function AgendaSteApp({
     });
 
     const channel = supabase
-      .channel("agendaste-realtime-appointments")
+      .channel("luvea-realtime-appointments")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "appointments" },
@@ -190,7 +192,7 @@ export function AgendaSteApp({
               setState(liveState);
               try {
                 localStorage.setItem(
-                  "agendaste_studio_state_v1",
+                  "luvea_studio_state_v1",
                   JSON.stringify(liveState)
                 );
               } catch {}
@@ -697,15 +699,15 @@ export function AgendaSteApp({
             {/* Drawer Bottom Bar */}
             <div className="p-3 border-t border-[#E5E5EA] bg-[#FAF9F6] text-center">
               <span className="text-[11px] font-semibold text-[#8E8E93]">
-                AgendaSte PWA · Aura Studio
+                LUVEA PWA · Aura Studio
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Left Collapsible AgendaSte Sidebar (Desktop/Tablet >=768px) */}
-      <AgendaSteSidebar
+      {/* Left Collapsible LUVEA Sidebar (Desktop/Tablet >=768px) */}
+      <LuveaSidebar
         activeSection={activeSection}
         onSelectSection={(sec) => setActiveSection(sec)}
         completedOnboardingCount={completedOnboardingCount}
@@ -967,3 +969,5 @@ export function AgendaSteApp({
     </div>
   );
 }
+
+export const AgendaSteApp = LuveaApp;

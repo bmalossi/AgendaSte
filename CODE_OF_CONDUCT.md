@@ -1,8 +1,8 @@
-# Código de Conduta do Colaborador — AgendaSte
+# Código de Conduta do Colaborador — LUVEA
 
 ## Nosso Compromisso
 
-Com o objetivo de promover um ambiente acolhedor, inclusivo e livre de assédio, nós, como membros, colaboradores e líderes da comunidade do **AgendaSte**, comprometemo-nos a fazer com que a participação em nosso projeto seja uma experiência livre de intimidações para todos, independentemente de idade, deficiência, etnia, identidade de gênero, nível de experiência ou religião.
+Com o objetivo de promover um ambiente acolhedor, inclusivo e livre de assédio, nós, como membros, colaboradores e líderes da comunidade da **LUVEA**, comprometemo-nos a fazer com que a participação em nosso projeto seja uma experiência livre de intimidações para todos, independentemente de idade, deficiência, etnia, identidade de gênero, nível de experiência ou religião.
 
 ## Nossos Padrões
 

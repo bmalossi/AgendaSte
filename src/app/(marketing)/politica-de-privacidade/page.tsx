@@ -14,18 +14,18 @@ import {
 } from "@/lib/legal-config";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade (LGPD) · AgendaSte",
+  title: "Política de Privacidade (LGPD) · LUVEA",
   description:
-    "Política de Privacidade e proteção de dados pessoais (LGPD) da plataforma AgendaSte. Saiba como dados cadastrais, prontuários de saúde e fotos são tratados com segurança.",
+    "Política de Privacidade e proteção de dados pessoais (LGPD) da plataforma LUVEA. Saiba como dados cadastrais, prontuários de saúde e fotos são tratados com segurança.",
   alternates: {
     canonical: "/politica-de-privacidade",
   },
   openGraph: {
-    title: "Política de Privacidade (LGPD) · AgendaSte",
+    title: "Política de Privacidade (LGPD) · LUVEA",
     description:
-      "Política de Privacidade e proteção de dados pessoais (LGPD) da plataforma AgendaSte. Saiba como dados cadastrais, prontuários de saúde e fotos são tratados com segurança.",
-    url: "https://agendaste.com.br/politica-de-privacidade",
-    siteName: "AgendaSte",
+      "Política de Privacidade e proteção de dados pessoais (LGPD) da plataforma LUVEA. Saiba como dados cadastrais, prontuários de saúde e fotos são tratados com segurança.",
+    url: "https://luvea.com.br/politica-de-privacidade",
+    siteName: "LUVEA",
     locale: "pt_BR",
     type: "website",
   },
@@ -61,7 +61,7 @@ export default function PoliticaDePrivacidadePage() {
           </div>
 
           <h1 className="font-serif text-3xl sm:text-5xl font-normal text-[#18181B] tracking-tight">
-            Política de Privacidade da AgendaSte
+            Política de Privacidade da LUVEA
           </h1>
 
           <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-zinc-500">
@@ -142,7 +142,7 @@ export default function PoliticaDePrivacidadePage() {
               </h2>
               <p>
                 A privacidade e a inviolabilidade dos dados de quem atende e de
-                quem é atendido são princípios estruturais da AgendaSte. Esta
+                quem é atendido são princípios estruturais da LUVEA. Esta
                 Política de Privacidade descreve de forma transparente quais
                 dados são coletados, como são tratados e quais medidas de
                 segurança são empregadas.
@@ -164,7 +164,7 @@ export default function PoliticaDePrivacidadePage() {
                 </div>
                 <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
                   <dt className="font-mono text-zinc-900 font-semibold uppercase tracking-wider text-[11px]">
-                    Operadora (AgendaSte)
+                    Operadora (LUVEA)
                   </dt>
                   <dd className="sm:col-span-2 text-zinc-600 mt-1 sm:mt-0 leading-relaxed">
                     Realiza o tratamento de dados pessoais em nome do Controlador,
@@ -196,7 +196,7 @@ export default function PoliticaDePrivacidadePage() {
                 <li>
                   <strong>Dados de Transações Financeiras:</strong> Valores de
                   serviços, pagamentos de Sinal Pix, comprovantes e faturas. A
-                  AgendaSte <em>não coleta nem armazena números de cartão de crédito</em>;
+                  LUVEA <em>não coleta nem armazena números de cartão de crédito</em>;
                   todas as transações com cartão e Pix são processadas pelo
                   Mercado Pago.
                 </li>
@@ -253,7 +253,7 @@ export default function PoliticaDePrivacidadePage() {
                 4. Finalidades e Bases Legais do Tratamento
               </h2>
               <p>
-                Todo tratamento de dados realizado pela AgendaSte possui
+                Todo tratamento de dados realizado pela LUVEA possui
                 finalidade legítima e base legal prevista na LGPD:
               </p>
               <div className="overflow-x-auto my-3">
@@ -292,7 +292,7 @@ export default function PoliticaDePrivacidadePage() {
                 5. Compartilhamento com Subprocessadores Autorizados
               </h2>
               <p>
-                A AgendaSte não vende, aluga ou compartilha dados pessoais com
+                A LUVEA não vende, aluga ou compartilha dados pessoais com
                 terceiros para fins de marketing ou publicidade. O
                 compartilhamento restringe-se estritamente aos subprocessadores de
                 tecnologia indispensáveis à prestação dos serviços:
@@ -401,7 +401,7 @@ export default function PoliticaDePrivacidadePage() {
               <p>
                 Na improvável ocorrência de incidente de segurança que possa
                 acarretar risco ou dano relevante aos titulares de dados, a
-                AgendaSte comunicará imediatamente os Controladores afetados e a
+                LUVEA comunicará imediatamente os Controladores afetados e a
                 Autoridade Nacional de Proteção de Dados (ANPD), nos termos do
                 artigo 48 da LGPD, adotando as medidas cabíveis para conter e
                 mitigar seus efeitos.

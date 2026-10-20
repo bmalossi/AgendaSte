@@ -1,4 +1,4 @@
-# Gestão de Salão, Estética e Bem-Estar (Padrão AgendaSte BR)
+# Gestão de Salão, Estética e Bem-Estar (LUVEA Brasil)
 
 Plataforma integrada de agendamento, ponto de venda (POS), relacionamento com clientes (CRM), catálogo de serviços e gestão de equipe para profissionais autônomos e estúdios de beleza, estética e bem-estar no Brasil.
 
@@ -89,19 +89,19 @@ Vitrine digital pública do estúdio (link da bio) onde clientes visualizam o me
 _Avoid_: Landing page institucional, Formulário de contato
 
 **Site Institucional (Marketing Site)**:
-Páginas públicas da própria AgendaSte (homepage, preços, Termos de Uso, Política de Privacidade) que apresentam o produto a profissionais e estúdios interessados em contratá-lo. Distinto do Site de Agendamento Online, que pertence a cada estúdio e é voltado ao Cliente final.
+Páginas públicas da própria LUVEA (homepage, preços, Termos de Uso, Política de Privacidade) que apresentam o produto a profissionais e estúdios interessados em contratá-lo. Distinto do Site de Agendamento Online, que pertence a cada estúdio e é voltado ao Cliente final.
 _Avoid_: Landing page, Site de Agendamento (reservado ao Booking Site)
 
 **Plano (Plan)**:
-Nível de contratação da AgendaSte pelo estúdio, que define limites de Profissionais e quais módulos ficam disponíveis. Os níveis são Essencial, Gold e Platinum, com cobrança mensal ou anual.
+Nível de contratação da LUVEA pelo estúdio, que define limites de Profissionais e quais módulos ficam disponíveis. Os níveis são Essencial, Gold e Platinum, com cobrança mensal ou anual.
 _Avoid_: Pacote (reservado a Package), Assinatura (reservado a Membership), Licença
 
 **Teste Grátis (Free Trial)**:
-Período inicial de 14 dias em que o estúdio usa a AgendaSte sem cobrança e sem cartão, antes de escolher um Plano.
+Período inicial de 14 dias em que o estúdio usa a LUVEA sem cobrança e sem cartão, antes de escolher um Plano.
 _Avoid_: Plano gratuito, Freemium
 
 **Encarregado de Dados (DPO)**:
-Pessoa ou canal indicado pela AgendaSte como ponto de contato com titulares de dados e com a ANPD, nos termos da LGPD.
+Pessoa ou canal indicado pela LUVEA como ponto de contato com titulares de dados e com a ANPD, nos termos da LGPD.
 _Avoid_: Suporte de privacidade
 
 

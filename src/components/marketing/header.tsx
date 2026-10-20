@@ -92,23 +92,16 @@ export function MarketingHeader() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-zinc-200/80 transition-all">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18 sm:h-20">
-          {/* Brand Logo */}
+          {/* Brand Logo — Wordmark somente letras estilo alta-costura (LUVEA) */}
           <div className="flex items-center gap-8">
             <Link
               href="/"
-              className="flex items-center gap-2 group focus:outline-none focus-visible:ring-2 focus-visible:ring-black rounded-lg py-1"
+              className="flex items-center group focus:outline-none focus-visible:ring-2 focus-visible:ring-black rounded-lg py-1"
+              aria-label="LUVEA - Início"
             >
-              <div className="w-8 h-8 rounded-xl bg-[#1C1C1E] flex items-center justify-center text-white font-serif text-lg font-bold shadow-sm group-hover:scale-105 transition-transform">
-                A
-              </div>
-              <div className="flex flex-col">
-                <span className="font-serif text-2xl tracking-tight font-normal text-[#18181B] leading-none">
-                  AgendaSte
-                </span>
-                <span className="text-[10px] uppercase font-mono tracking-widest text-zinc-600 font-semibold mt-0.5">
-                  Estética &amp; Beleza
-                </span>
-              </div>
+              <span className="font-sans text-[20px] sm:text-[22px] font-semibold tracking-[0.28em] text-[#1C1C1E] uppercase select-none transition-opacity group-hover:opacity-80">
+                LUVEA
+              </span>
             </Link>
 
             {/* Desktop Navigation */}

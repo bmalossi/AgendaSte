@@ -1,7 +1,7 @@
 {
-  "name": "AgendaSte · Gestão e Agendamento",
-  "short_name": "AgendaSte",
-  "description": "Plataforma completa de agendamento online, prontuários, ponto de venda Pix e gestão de clientes para estética e beleza.",
+  "name": "LUVEA · Gestão & Agendamento para Estética",
+  "short_name": "LUVEA",
+  "description": "Plataforma de agendamento online, Recepção IA, ponto de venda Pix e gestão de clientes para estética e beleza.",
   "start_url": "/app",
   "display": "standalone",
   "orientation": "portrait",
@@ -10,14 +10,9 @@
   "categories": ["business", "productivity", "lifestyle"],
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }

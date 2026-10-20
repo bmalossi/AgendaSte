@@ -283,7 +283,7 @@ export function GetStartedView({
             </p>
             <p className="text-[13px] text-zinc-600 leading-relaxed">
               Selecione o plano e adicione seu cartão ou conta Pix para salvar
-              seu progresso e continuar usando o AgendaSte.
+              seu progresso e continuar usando a LUVEA.
             </p>
           </div>
           <div>
@@ -308,12 +308,12 @@ export function GetStartedView({
           <div className="border border-[#E5E7EB] rounded-2xl divide-y divide-[#E5E7EB] bg-white">
             <div className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-lg bg-[#1C1C1E] text-[#F5B041] flex items-center justify-center font-bold text-sm shrink-0">
-                  A
+                <div className="w-9 h-9 rounded-lg bg-[#1C1C1E] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                  L
                 </div>
                 <div>
                   <p className="text-[13.5px] font-semibold text-[#18181B]">
-                    Baixe o App AgendaSte Mobile (PWA)
+                    Baixe o App LUVEA Mobile (PWA)
                   </p>
                   <p className="text-[12.5px] text-zinc-500">
                     Gerencie seu estúdio de qualquer lugar usando seu celular.
@@ -538,7 +538,7 @@ export function PublicBookingSiteModal({
           appointmentId: `aura-${Date.now()}`,
           clientName: clientName || "Cliente Aura Studio",
           clientEmail: clientEmail || "cliente@aurastudio.com.br",
-          serviceId: selectedService?.id ?? "srv-agendaste",
+          serviceId: selectedService?.id ?? "srv-luvea",
           serviceName: selectedService?.name ?? "Procedimento",
           depositCents: selectedService?.depositCents || 5000,
         }),
@@ -591,7 +591,7 @@ export function PublicBookingSiteModal({
               AURA STUDIO · {state.settings.business.businessName}
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              aurastudio.agendaste.com.br/{state.settings.business.bookingSlug} ·{" "}
+              aurastudio.luvea.com.br/{state.settings.business.bookingSlug} ·{" "}
               {state.settings.business.address}
             </p>
           </div>

@@ -13,8 +13,8 @@ describe("Ticket 08 — Configuração Legal e Bloqueio de Publicação", () => 
       cnpj: "   ",
       enderecoCompleto: "",
       cidadeEstadoForo: "São Paulo - SP",
-      emailSuporte: "suporte@agendaste.com.br",
-      emailEncarregadoDpo: "privacidade@agendaste.com.br",
+      emailSuporte: "suporte@luvea.com.br",
+      emailEncarregadoDpo: "privacidade@luvea.com.br",
       dataVigencia: "19 de outubro de 2026",
     };
 
@@ -37,13 +37,13 @@ describe("Ticket 08 — Configuração Legal e Bloqueio de Publicação", () => 
 
   it("retorna lista vazia de pendências quando todos os campos obrigatórios estão preenchidos", () => {
     const completeConfig: LegalCompanyConfig = {
-      razaoSocial: "AgendaSte Tecnologia da Informação Ltda.",
-      nomeFantasia: "AgendaSte",
+      razaoSocial: "LUVEA Tecnologia da Informação Ltda.",
+      nomeFantasia: "LUVEA",
       cnpj: "12.345.678/0001-90",
       enderecoCompleto: "Av. Paulista, 1000, Bela Vista, São Paulo - SP",
       cidadeEstadoForo: "Comarca de São Paulo - SP",
-      emailSuporte: "suporte@agendaste.com.br",
-      emailEncarregadoDpo: "dpo@agendaste.com.br",
+      emailSuporte: "suporte@luvea.com.br",
+      emailEncarregadoDpo: "dpo@luvea.com.br",
       dataVigencia: "19 de outubro de 2026",
       versaoDocumento: "1.0",
     };
