@@ -10,9 +10,9 @@ const nextConfig = {
           "**/.git/**",
           "**/.next/**",
           "**/DumpStack.log.tmp",
+          "**/hiberfil.sys",
           "**/pagefile.sys",
           "**/swapfile.sys",
-          "**/hiberfil.sys",
         ],
       };
     }
