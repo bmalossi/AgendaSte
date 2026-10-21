@@ -280,33 +280,33 @@ export function CalendarView({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-53px-calc(4.5rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] bg-white overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-53px-calc(4.5rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] bg-white dark:bg-[#09090b] overflow-hidden">
       {/* Top Calendar Header (03-1-calendar.png) */}
-      <header className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-[#E5E5EA] bg-white z-20">
+      <header className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] z-20">
         {/* Desktop Header Layout (>= md) */}
         <div className="hidden md:flex items-center justify-between gap-4">
           {/* Left: Month/Year + Popover Date Picker (03-2-calendar.png) */}
           <div className="relative flex items-center gap-3">
             <button
               onClick={() => setDatePopoverOpen((v) => !v)}
-              className="flex items-center gap-2 text-[22px] font-semibold text-[#1C1C1E] hover:opacity-80 transition"
+              className="flex items-center gap-2 text-[22px] font-semibold text-[#1C1C1E] dark:text-white hover:opacity-80 transition"
             >
               <span>Outubro 2026</span>
-              <ChevronDown className="w-5 h-5 text-[#6E6E73]" />
+              <ChevronDown className="w-5 h-5 text-[#6E6E73] dark:text-[#a1a1aa]" />
             </button>
 
             <button
               onClick={handleGoToToday}
-              className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
+              className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
             >
               Hoje
             </button>
 
             {/* Popover Date Picker with +2 to +8 weeks jump (03-2-calendar.png) */}
             {datePopoverOpen && (
-              <div className="absolute left-0 top-12 w-[340px] bg-white rounded-[20px] border border-[#E5E5EA] shadow-gg-modal p-5 z-50">
+              <div className="absolute left-0 top-12 w-[340px] bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-modal p-5 z-50">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[15px] font-semibold text-[#1C1C1E]">
+                  <span className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
                     Outubro 2026
                   </span>
                   <div className="flex items-center gap-1">
@@ -314,7 +314,7 @@ export function CalendarView({
                       onClick={() =>
                         onUpdateState((prev) => skipCalendarByWeeks(prev, -1))
                       }
-                      className="p-1.5 rounded-full hover:bg-[#F5F5F7] text-[#6E6E73]"
+                      className="p-1.5 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -322,7 +322,7 @@ export function CalendarView({
                       onClick={() =>
                         onUpdateState((prev) => skipCalendarByWeeks(prev, 1))
                       }
-                      className="p-1.5 rounded-full hover:bg-[#F5F5F7] text-[#6E6E73]"
+                      className="p-1.5 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -330,7 +330,7 @@ export function CalendarView({
                 </div>
 
                 {/* Mini Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-[#8E8E93] mb-2">
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-[#8E8E93] dark:text-[#71717a] mb-2">
                   <span>D</span>
                   <span>S</span>
                   <span>T</span>
@@ -359,8 +359,8 @@ export function CalendarView({
                         }}
                         className={`h-8 w-8 mx-auto rounded-full flex items-center justify-center font-medium transition ${
                           isSelected
-                            ? "bg-[#1C1C1E] text-white"
-                            : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                            ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b]"
+                            : "text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                         }`}
                       >
                         {day}
@@ -370,8 +370,8 @@ export function CalendarView({
                 </div>
 
                 {/* Quick Week Skip Pills (+2 to +8 weeks — 03-2-calendar.png) */}
-                <div className="pt-3 border-t border-[#E5E5EA]">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] mb-2.5">
+                <div className="pt-3 border-t border-[#E5E5EA] dark:border-[#27272a]">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a] mb-2.5">
                     Avançar semanas (Retorno rápido)
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -382,15 +382,15 @@ export function CalendarView({
                           onUpdateState((prev) => skipCalendarByWeeks(prev, weeks));
                           setDatePopoverOpen(false);
                         }}
-                        className="px-3 py-1.5 rounded-full bg-[#F5F5F7] hover:bg-[#1C1C1E] hover:text-white text-[12px] font-semibold text-[#1C1C1E] transition"
+                        className="px-3 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] hover:bg-[#1C1C1E] dark:hover:bg-white hover:text-white dark:hover:text-[#09090b] text-[12px] font-semibold text-[#1C1C1E] dark:text-white transition"
                       >
                         +{weeks} sem.
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2.5 text-[11px] text-[#6E6E73]">
+                  <p className="mt-2.5 text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
                     Data selecionada:{" "}
-                    <strong className="text-[#1C1C1E]">{formatDateBR(selectedDateISO)}</strong>
+                    <strong className="text-[#1C1C1E] dark:text-white">{formatDateBR(selectedDateISO)}</strong>
                   </p>
                 </div>
               </div>
@@ -398,7 +398,7 @@ export function CalendarView({
           </div>
 
           {/* Center: Week Strip (Dom .. Sáb) */}
-          <div className="flex items-center gap-1.5 bg-[#F5F5F7] px-2 py-1.5 rounded-full">
+          <div className="flex items-center gap-1.5 bg-[#F5F5F7] dark:bg-[#18181b] border border-transparent dark:border-[#27272a] px-2 py-1.5 rounded-full">
             {getWeekDays(selectedDateISO).map((wd) => {
               const active = selectedDateISO === wd.dateISO;
               return (
@@ -415,8 +415,8 @@ export function CalendarView({
                   }
                   className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition flex items-center gap-1.5 ${
                     active
-                      ? "bg-[#1C1C1E] text-white shadow-sm"
-                      : "text-[#6E6E73] hover:text-[#1C1C1E]"
+                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] shadow-sm"
+                      : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
                   }`}
                 >
                   <span>{wd.label}</span>
@@ -441,7 +441,7 @@ export function CalendarView({
                   },
                 }))
               }
-              className="px-3.5 py-2 rounded-full border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] bg-white focus:outline-none"
+              className="px-3.5 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] focus:outline-none"
             >
               <option value="all">Toda a equipe ({state.staff.length})</option>
               {state.staff.map((st) => (
@@ -452,7 +452,7 @@ export function CalendarView({
             </select>
 
             {/* Day / Week Segmented Switch */}
-            <div className="flex items-center bg-[#F5F5F7] p-1 rounded-full">
+            <div className="flex items-center bg-[#F5F5F7] dark:bg-[#27272a] p-1 rounded-full border border-transparent dark:border-[#3f3f46]">
               <button
                 onClick={() =>
                   onUpdateState((prev) => ({
@@ -462,8 +462,8 @@ export function CalendarView({
                 }
                 className={`px-3 py-1 rounded-full text-[12px] font-semibold transition ${
                   viewMode === "day"
-                    ? "bg-white text-[#1C1C1E] shadow-sm"
-                    : "text-[#6E6E73]"
+                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
+                    : "text-[#6E6E73] dark:text-[#a1a1aa]"
                 }`}
               >
                 Dia
@@ -477,8 +477,8 @@ export function CalendarView({
                 }
                 className={`px-3 py-1 rounded-full text-[12px] font-semibold transition ${
                   viewMode === "week"
-                    ? "bg-white text-[#1C1C1E] shadow-sm"
-                    : "text-[#6E6E73]"
+                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
+                    : "text-[#6E6E73] dark:text-[#a1a1aa]"
                 }`}
               >
                 Semana
@@ -488,12 +488,12 @@ export function CalendarView({
             {/* Waitlist Drawer Trigger (03-3-calendar.png) */}
             <button
               onClick={() => setWaitlistDrawerOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition"
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-semibold text-[#1C1C1E] dark:text-white transition"
             >
-              <Clock className="w-4 h-4 text-[#6E56CF]" />
+              <Clock className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
               <span>Lista de espera</span>
               {state.waitlist.length > 0 && (
-                <span className="px-2 py-0.5 text-[11px] rounded-full bg-[#1C1C1E] text-white font-bold">
+                <span className="px-2 py-0.5 text-[11px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
                   {state.waitlist.length}
                 </span>
               )}
@@ -502,7 +502,7 @@ export function CalendarView({
             {/* Quick Sale POS Button */}
             <button
               onClick={() => onOpenQuickSale()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-semibold text-[#1C1C1E] dark:text-white transition"
             >
               <CreditCard className="w-4 h-4 text-[#E11D8F]" />
               <span>Venda rápida</span>
@@ -511,7 +511,7 @@ export function CalendarView({
             {/* + Novo Appointment Drawer Trigger (03-4-calendar.png) */}
             <button
               onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Adicionar</span>
@@ -802,12 +802,12 @@ export function CalendarView({
       )}
 
       {/* Provider Subheader Bar / Legend */}
-      <div className="px-3.5 sm:px-6 py-2 bg-[#FAFAFC] border-b border-[#E5E5EA] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar text-[11px] sm:text-[12px]">
+      <div className="px-3.5 sm:px-6 py-2 bg-[#FAFAFC] dark:bg-[#18181b] border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar text-[11px] sm:text-[12px]">
         <div className="flex items-center gap-2 shrink-0">
           {state.staff.map((member) => (
             <div
               key={member.id}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-[#E5E5EA] shrink-0"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] shrink-0"
             >
               <span
                 className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold text-[#1C1C1E]"
@@ -815,19 +815,19 @@ export function CalendarView({
               >
                 {member.initials}
               </span>
-              <span className="font-semibold text-[#1C1C1E]">
+              <span className="font-semibold text-[#1C1C1E] dark:text-white">
                 {member.fullName.split(" ")[0]}
               </span>
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-3 text-[#6E6E73] shrink-0">
+        <div className="flex items-center gap-3 text-[#6E6E73] dark:text-[#a1a1aa] shrink-0">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-[#E11D8F]" />
             <span>Tempo ativo</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full border border-dashed border-[#1C1C1E] bg-[#F5F5F7]" />
+            <span className="w-2 h-2 rounded-full border border-dashed border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]" />
             <span>Pausa/Encaixe</span>
           </span>
           <span className="hidden sm:flex items-center gap-1">
@@ -870,13 +870,13 @@ export function CalendarView({
               <div
                 key={hour}
                 onClick={() => openNewDrawerAtSlot(label, "appointment")}
-                className="h-[80px] border-b border-[#EFEFF4] flex group hover:bg-[#FAFAFC] cursor-pointer transition"
+                className="h-[80px] border-b border-[#EFEFF4] dark:border-[#27272a] flex group hover:bg-[#FAFAFC] dark:hover:bg-[#18181b] cursor-pointer transition"
               >
-                <div className="w-14 sm:w-20 pr-2 sm:pr-3 pt-2 text-right text-[11px] sm:text-[12px] font-mono text-[#8E8E93] select-none border-r border-[#EFEFF4]">
+                <div className="w-14 sm:w-20 pr-2 sm:pr-3 pt-2 text-right text-[11px] sm:text-[12px] font-mono text-[#8E8E93] dark:text-[#71717a] select-none border-r border-[#EFEFF4] dark:border-[#27272a]">
                   {label}
                 </div>
                 <div className="flex-1 relative px-3 sm:px-4 flex items-center">
-                  <span className="opacity-0 group-hover:opacity-100 text-[11px] sm:text-[12px] font-medium text-[#6E56CF] transition">
+                  <span className="opacity-0 group-hover:opacity-100 text-[11px] sm:text-[12px] font-medium text-[#6E56CF] dark:text-[#A494F7] transition">
                     + Clique para agendar às {label}
                   </span>
                 </div>
@@ -930,19 +930,19 @@ export function CalendarView({
                   hasSimultaneousEvent
                     ? ""
                     : "left-[3.75rem] sm:left-[5.5rem] right-2 sm:right-4"
-                } rounded-[14px] bg-white border border-[#E5E5EA] border-l-[5px] shadow-gg-card hover:shadow-md p-2.5 sm:p-3 cursor-pointer transition flex flex-col justify-between overflow-hidden`}
+                } rounded-[14px] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] border-l-[5px] shadow-gg-card hover:shadow-md p-2.5 sm:p-3 cursor-pointer transition flex flex-col justify-between overflow-hidden`}
               >
                 <div className="flex items-start justify-between gap-1.5">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                      <span className="text-[11.5px] sm:text-[12px] font-mono font-bold text-[#1C1C1E] shrink-0">
+                      <span className="text-[11.5px] sm:text-[12px] font-mono font-bold text-[#1C1C1E] dark:text-white shrink-0">
                         {ev.startTime} – {ev.endTime}
                       </span>
-                      <span className="text-[12px] sm:text-[13px] font-bold text-[#1C1C1E] truncate">
+                      <span className="text-[12px] sm:text-[13px] font-bold text-[#1C1C1E] dark:text-white truncate">
                         · {ev.clientName}
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-[12px] text-[#6E6E73] font-medium truncate mt-0.5">
+                    <p className="text-[11px] sm:text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium truncate mt-0.5">
                       {ev.serviceNames.join(" + ")} · {ev.providerName}
                     </p>
                   </div>

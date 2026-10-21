@@ -358,7 +358,7 @@ export function LuveaApp({
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-[#1C1C1E] dark:text-[#f4f4f5]">
+    <div className="luvea-dashboard min-h-screen flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-[#1C1C1E] dark:text-[#f4f4f5]">
       {/* Mobile Top Header (<768px): Studio & Section Identity + Quick Access */}
       <header className="md:hidden sticky top-0 inset-x-0 z-30 bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border-b border-[#E5E5EA] dark:border-[#27272a] px-3.5 py-2.5 flex items-center justify-between gap-2 select-none">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -454,7 +454,7 @@ export function LuveaApp({
             <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[13.5px] bg-white dark:bg-[#18181b]">
               {/* Grupo 1: Atendimento & Recepção */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
                   Atendimento &amp; Agenda
                 </p>
                 <div className="space-y-0.5">
@@ -466,15 +466,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "calendar"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Calendar className="w-4 h-4 text-[#6E56CF]" />
+                      <Calendar className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Agenda Inteligente</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -485,15 +485,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "clients"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Contact className="w-4 h-4 text-[#6E56CF]" />
+                      <Contact className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Clientes &amp; Fichas</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -504,15 +504,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "charts"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <ClipboardList className="w-4 h-4 text-[#6E56CF]" />
+                      <ClipboardList className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Prontuários (Anamnese)</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -523,22 +523,22 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "reception"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Sparkles className="w-4 h-4 text-[#6E56CF]" />
+                      <Sparkles className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Recepção IA &amp; WhatsApp</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
                 </div>
               </div>
 
               {/* Grupo 2: Financeiro */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
                   Financeiro &amp; PDV
                 </p>
                 <div className="space-y-0.5">
@@ -548,13 +548,13 @@ export function LuveaApp({
                       setMobileMenuOpen(false);
                       handleOpenQuickSale();
                     }}
-                    className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] active:scale-95 transition-transform"
+                    className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white active:scale-95 transition-transform"
                   >
                     <span className="flex items-center gap-3">
                       <CreditCard className="w-4 h-4 text-[#E11D8F]" />
                       <span>Venda Rápida POS</span>
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[10px] font-bold">
                       1-Toque
                     </span>
                   </button>
@@ -567,15 +567,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "payments_sales_history"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Banknote className="w-4 h-4 text-[#1C1C1E]" />
+                      <Banknote className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Histórico de Vendas</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -586,15 +586,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "payments_invoices"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <CreditCard className="w-4 h-4 text-[#1C1C1E]" />
+                      <CreditCard className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Faturas &amp; Cobranças</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -605,15 +605,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "insights_analytics" || activeSection === "insights"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <BarChart3 className="w-4 h-4 text-[#1C1C1E]" />
+                      <BarChart3 className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Análises &amp; Métricas</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -624,22 +624,22 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "insights_reports"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <BarChart3 className="w-4 h-4 text-[#1C1C1E]" />
+                      <BarChart3 className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Relatórios (12 Modelos)</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
                 </div>
               </div>
 
               {/* Grupo 3: Gestão & Catálogo */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
                   Gestão &amp; Catálogo
                 </p>
                 <div className="space-y-0.5">
@@ -651,15 +651,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection.startsWith("catalog_")
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Package className="w-4 h-4 text-[#1C1C1E]" />
+                      <Package className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Catálogo &amp; Serviços</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -670,15 +670,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection.startsWith("team_")
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Users className="w-4 h-4 text-[#1C1C1E]" />
+                      <Users className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Equipe &amp; Comissões</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -689,15 +689,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "inventory"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Package className="w-4 h-4 text-[#1C1C1E]" />
+                      <Package className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Estoque &amp; Backbar</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -708,22 +708,22 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "marketing"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Sparkles className="w-4 h-4 text-[#1C1C1E]" />
+                      <Sparkles className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Marketing IA</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
                 </div>
               </div>
 
               {/* Grupo 4: Sistema & Preferências */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
                   Sistema
                 </p>
                 <div className="space-y-0.5">
@@ -735,15 +735,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "settings"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Settings className="w-4 h-4 text-[#1C1C1E]" />
+                      <Settings className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Configurações</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -754,15 +754,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "get_started"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <ShieldCheck className="w-4 h-4 text-[#5B43D6]" />
+                      <ShieldCheck className="w-4 h-4 text-[#5B43D6] dark:text-[#A494F7]" />
                       <span>Primeiros Passos ({completedOnboardingCount}/{totalOnboardingCount})</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button
@@ -773,15 +773,15 @@ export function LuveaApp({
                     }}
                     className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
                       activeSection === "refer"
-                        ? "bg-[#ECE9FE] text-[#1C1C1E] font-semibold"
-                        : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Gift className="w-4 h-4 text-[#1C1C1E]" />
+                      <Gift className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Indique e Ganhe R$ 150</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
                   <button

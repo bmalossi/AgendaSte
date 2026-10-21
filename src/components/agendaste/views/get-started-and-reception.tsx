@@ -104,7 +104,7 @@ export function GetStartedView({
     <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
       {/* Top header identical to 01-get-started.png */}
       <div className="flex items-center justify-between">
-        <h1 className="text-[22px] font-bold tracking-tight text-[#18181B]">
+        <h1 className="text-[22px] font-bold tracking-tight text-[#18181B] dark:text-white">
           Bem-vindo, {state.settings.personal.firstName}
         </h1>
         {isWebsitePublished ? (
@@ -112,31 +112,31 @@ export function GetStartedView({
             href={bookingSiteUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors shadow-2xs"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors shadow-2xs"
           >
             <span>Meu site de agendamento</span>
-            <ExternalLink className="w-3.5 h-3.5 text-[#6E6E73]" />
+            <ExternalLink className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
           </a>
         ) : (
           <button
             type="button"
             onClick={handleOpenMyBookingSite}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors shadow-2xs"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors shadow-2xs"
           >
             <span>Meu site de agendamento</span>
-            <ExternalLink className="w-3.5 h-3.5 text-[#6E6E73]" />
+            <ExternalLink className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
           </button>
         )}
       </div>
 
       {/* Main Let's get started container (01-get-started.png) */}
-      <div className="bg-[#F5F5F7] rounded-2xl p-6 space-y-5">
+      <div className="bg-[#F5F5F7] dark:bg-[#18181b] rounded-2xl p-6 space-y-5 border border-transparent dark:border-[#27272a]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-[20px] font-semibold text-[#18181B]">
+            <h2 className="text-[20px] font-semibold text-[#18181B] dark:text-white">
               Vamos começar
             </h2>
-            <p className="text-[14px] text-zinc-600">
+            <p className="text-[14px] text-zinc-600 dark:text-[#a1a1aa]">
               Você está a apenas 3 passos de mais agendamentos, tickets maiores
               e clientes que sempre voltam.
             </p>
@@ -149,12 +149,12 @@ export function GetStartedView({
                 <div
                   key={idx}
                   className={`h-0.5 w-12 rounded-full transition-colors ${
-                    idx < completedCount ? "bg-[#18181B]" : "bg-zinc-300"
+                    idx < completedCount ? "bg-[#18181B] dark:bg-white" : "bg-zinc-300 dark:bg-[#27272a]"
                   }`}
                 />
               ))}
             </div>
-            <span className="text-[13px] font-medium text-zinc-600">
+            <span className="text-[13px] font-medium text-zinc-600 dark:text-[#a1a1aa]">
               {completedCount}/3 concluídos
             </span>
           </div>
@@ -163,7 +163,7 @@ export function GetStartedView({
         {/* 3 Visual Onboarding Cards identical to 01-get-started.png */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Card 1: Purple Tablet */}
-          <div className="bg-white rounded-xl overflow-hidden flex border border-zinc-200/70 shadow-sm min-h-[196px]">
+          <div className="bg-white dark:bg-[#18181b] rounded-xl overflow-hidden flex border border-zinc-200/70 dark:border-[#27272a] shadow-sm min-h-[196px]">
             <div className="w-[116px] shrink-0 bg-gradient-to-b from-[#7E69EB] to-[#A494F7] flex items-center justify-center p-3 relative overflow-hidden">
               <div className="w-20 h-14 rounded-lg bg-gradient-to-tr from-[#2A1F5D] via-[#8E7AE6] to-white shadow-xl transform -rotate-12 border border-white/40 flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white/90" />
@@ -171,10 +171,10 @@ export function GetStartedView({
             </div>
             <div className="p-4 flex flex-col justify-between flex-1">
               <div className="space-y-1.5">
-                <h3 className="text-[14px] font-bold text-[#18181B] leading-snug">
+                <h3 className="text-[14px] font-bold text-[#18181B] dark:text-white leading-snug">
                   Seja encontrado e agendado online
                 </h3>
-                <p className="text-[13px] text-zinc-600 leading-relaxed">
+                <p className="text-[13px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed">
                   Garanta sua URL e lance um site de agendamento onde clientes
                   reservam em 30 segundos.
                 </p>
@@ -185,16 +185,16 @@ export function GetStartedView({
                     href={bookingSiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-black transition-colors"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-medium hover:bg-black dark:hover:bg-zinc-200 transition-colors"
                   >
                     <span>Acessar meu site</span>
-                    <ExternalLink className="w-3 h-3 text-zinc-400" />
+                    <ExternalLink className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />
                   </a>
                 ) : (
                   <button
                     type="button"
                     onClick={() => handleStartStep("booking_site")}
-                    className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
+                    className="px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors"
                   >
                     {state.onboarding.steps[0].completed ? "Tudo pronto" : "Começar"}
                   </button>
@@ -204,7 +204,7 @@ export function GetStartedView({
           </div>
 
           {/* Card 2: Coral Notebook */}
-          <div className="bg-white rounded-xl overflow-hidden flex border border-zinc-200/70 shadow-sm min-h-[196px]">
+          <div className="bg-white dark:bg-[#18181b] rounded-xl overflow-hidden flex border border-zinc-200/70 dark:border-[#27272a] shadow-sm min-h-[196px]">
             <div className="w-[116px] shrink-0 bg-gradient-to-b from-[#F47B55] to-[#F7A389] flex items-center justify-center p-3 relative overflow-hidden">
               <div className="w-20 h-16 rounded-lg bg-gradient-to-tr from-[#B8336A] via-[#F2A6B8] to-[#D4F5E9] shadow-xl transform rotate-6 border border-white/50 flex items-center justify-center">
                 <span className="text-[11px] font-serif italic text-white drop-shadow">
@@ -214,10 +214,10 @@ export function GetStartedView({
             </div>
             <div className="p-4 flex flex-col justify-between flex-1">
               <div className="space-y-1.5">
-                <h3 className="text-[14px] font-bold text-[#18181B] leading-snug">
+                <h3 className="text-[14px] font-bold text-[#18181B] dark:text-white leading-snug">
                   Adicione seus serviços
                 </h3>
-                <p className="text-[13px] text-zinc-600 leading-relaxed">
+                <p className="text-[13px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed">
                   Defina seus preços, envie fotos e monte um catálogo de
                   serviços que se vende sozinho.
                 </p>
@@ -226,7 +226,7 @@ export function GetStartedView({
                 <button
                   type="button"
                   onClick={() => handleStartStep("add_services")}
-                  className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
+                  className="px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors"
                 >
                   {state.onboarding.steps[1].completed ? "Tudo pronto" : "Começar"}
                 </button>
@@ -235,7 +235,7 @@ export function GetStartedView({
           </div>
 
           {/* Card 3: Slate-Blue Cards */}
-          <div className="bg-white rounded-xl overflow-hidden flex border border-zinc-200/70 shadow-sm min-h-[196px]">
+          <div className="bg-white dark:bg-[#18181b] rounded-xl overflow-hidden flex border border-zinc-200/70 dark:border-[#27272a] shadow-sm min-h-[196px]">
             <div className="w-[116px] shrink-0 bg-gradient-to-b from-[#6B7F94] to-[#94A5B8] flex items-center justify-center p-3 relative overflow-hidden">
               <div className="w-20 h-12 rounded-lg bg-gradient-to-r from-[#8E9EF5] via-[#E8B8F7] to-white shadow-xl transform -rotate-12 border border-white/50 flex items-center justify-center">
                 <span className="text-[10px] font-mono font-bold text-[#1C1C1E]">
@@ -245,10 +245,10 @@ export function GetStartedView({
             </div>
             <div className="p-4 flex flex-col justify-between flex-1">
               <div className="space-y-1.5">
-                <h3 className="text-[14px] font-bold text-[#18181B] leading-snug">
+                <h3 className="text-[14px] font-bold text-[#18181B] dark:text-white leading-snug">
                   Comece a receber pagamentos
                 </h3>
-                <p className="text-[13px] text-zinc-600 leading-relaxed">
+                <p className="text-[13px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed">
                   Aceite Pix Dinâmico e cartões, aumentando sua receita em 65%
                   em média.
                 </p>
@@ -257,7 +257,7 @@ export function GetStartedView({
                 <button
                   type="button"
                   onClick={() => handleStartStep("start_getting_paid")}
-                  className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
+                  className="px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors"
                 >
                   {state.onboarding.steps[2].completed
                     ? "Tudo pronto"
@@ -274,12 +274,12 @@ export function GetStartedView({
 
       {/* Middle 2-column row: Import your data for free + Your free trial Gold */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <div className="lg:col-span-8 bg-white border border-[#E5E7EB] rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="lg:col-span-8 bg-white dark:bg-[#18181b] border border-[#E5E7EB] dark:border-[#27272a] rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="space-y-3 max-w-md">
-            <h3 className="text-[16px] font-bold text-[#18181B]">
+            <h3 className="text-[16px] font-bold text-[#18181B] dark:text-white">
               Importe seus dados gratuitamente
             </h3>
-            <p className="text-[13.5px] text-zinc-600 leading-relaxed">
+            <p className="text-[13.5px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed">
               Transferimos seus agendamentos, dados de clientes, serviços,
               fichas de anamnese e muito mais para você. Mesmo se você ainda usa
               papel e caneta!
@@ -288,7 +288,7 @@ export function GetStartedView({
               <button
                 type="button"
                 onClick={() => setShowImportModal(true)}
-                className="px-5 py-2.5 rounded-full border border-zinc-300 bg-white text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50 transition-colors"
+                className="px-5 py-2.5 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors"
               >
                 {state.onboarding.importedData
                   ? "Importar mais dados"
@@ -306,20 +306,20 @@ export function GetStartedView({
           </div>
         </div>
 
-        <div className="lg:col-span-4 bg-[#F5F5F7] rounded-2xl p-6 flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-4 bg-[#F5F5F7] dark:bg-[#18181b] rounded-2xl p-6 flex flex-col justify-between space-y-4 border border-transparent dark:border-[#27272a]">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-[#18181B]">
+              <span className="text-[14px] font-semibold text-[#18181B] dark:text-white">
                 Seu teste gratuito
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-[#C69214] text-white text-[11px] font-bold">
                 {state.onboarding.planTier}
               </span>
             </div>
-            <p className="text-[26px] font-bold text-[#18181B] tracking-tight">
+            <p className="text-[26px] font-bold text-[#18181B] dark:text-white tracking-tight">
               {state.onboarding.trialDaysLeft} dias restantes
             </p>
-            <p className="text-[13px] text-zinc-600 leading-relaxed">
+            <p className="text-[13px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed">
               Selecione o plano e adicione seu cartão ou conta Pix para salvar
               seu progresso e continuar usando a LUVEA.
             </p>
@@ -328,7 +328,7 @@ export function GetStartedView({
             <button
               type="button"
               onClick={() => onNavigate("settings")}
-              className="px-5 py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
+              className="px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors"
             >
               Adicionar cartão de pagamento
             </button>
@@ -339,21 +339,21 @@ export function GetStartedView({
       {/* Bottom 2-column row identical to 01-1-get-started.png */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         <div className="lg:col-span-8 space-y-3">
-          <h2 className="text-[18px] font-semibold text-[#18181B]">
+          <h2 className="text-[18px] font-semibold text-[#18181B] dark:text-white">
             Seus próximos passos para faturar mais
           </h2>
 
-          <div className="border border-[#E5E7EB] rounded-2xl divide-y divide-[#E5E7EB] bg-white">
+          <div className="border border-[#E5E7EB] dark:border-[#27272a] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#27272a] bg-white dark:bg-[#18181b]">
             <div className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-lg bg-[#1C1C1E] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] flex items-center justify-center font-bold text-sm shrink-0">
                   L
                 </div>
                 <div>
-                  <p className="text-[13.5px] font-semibold text-[#18181B]">
+                  <p className="text-[13.5px] font-semibold text-[#18181B] dark:text-white">
                     Baixe o App LUVEA Mobile (PWA)
                   </p>
-                  <p className="text-[12.5px] text-zinc-500">
+                  <p className="text-[12.5px] text-zinc-500 dark:text-[#a1a1aa]">
                     Gerencie seu estúdio de qualquer lugar usando seu celular.
                   </p>
                 </div>
@@ -367,7 +367,7 @@ export function GetStartedView({
                       "Link do Web App Mobile (PWA) copiado para instalação no celular!",
                   }))
                 }
-                className="px-4 py-2 rounded-full border border-zinc-300 text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50 shrink-0"
+                className="px-4 py-2 rounded-full border border-zinc-300 dark:border-[#27272a] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] shrink-0"
               >
                 Baixar App
               </button>
@@ -375,14 +375,14 @@ export function GetStartedView({
 
             <div className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-[#27272a] text-zinc-700 dark:text-[#a1a1aa] flex items-center justify-center shrink-0">
                   <Bell className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[13.5px] font-semibold text-[#18181B]">
+                  <p className="text-[13.5px] font-semibold text-[#18181B] dark:text-white">
                     Configure notificações e lembretes de clientes
                   </p>
-                  <p className="text-[12.5px] text-zinc-500">
+                  <p className="text-[12.5px] text-zinc-500 dark:text-[#a1a1aa]">
                     Mantenha clientes informados sobre seus agendamentos via
                     WhatsApp, SMS e e-mail.
                   </p>
@@ -391,7 +391,7 @@ export function GetStartedView({
               <button
                 type="button"
                 onClick={() => onNavigate("reception")}
-                className="px-4 py-2 rounded-full border border-zinc-300 text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50 shrink-0"
+                className="px-4 py-2 rounded-full border border-zinc-300 dark:border-[#27272a] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] shrink-0"
               >
                 Configurar lembretes
               </button>
@@ -399,14 +399,14 @@ export function GetStartedView({
 
             <div className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-[#27272a] text-zinc-700 dark:text-[#a1a1aa] flex items-center justify-center shrink-0">
                   <Shield className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[13.5px] font-semibold text-[#18181B]">
+                  <p className="text-[13.5px] font-semibold text-[#18181B] dark:text-white">
                     Ative a proteção contra faltas (Sinal Pix Anti-No-Show)
                   </p>
-                  <p className="text-[12.5px] text-zinc-500">
+                  <p className="text-[12.5px] text-zinc-500 dark:text-[#a1a1aa]">
                     Proteja sua agenda exigindo taxa de reserva antes de
                     confirmar o horário.
                   </p>
@@ -415,7 +415,7 @@ export function GetStartedView({
               <button
                 type="button"
                 onClick={() => onNavigate("settings")}
-                className="px-4 py-2 rounded-full border border-zinc-300 text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50 shrink-0"
+                className="px-4 py-2 rounded-full border border-zinc-300 dark:border-[#27272a] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] shrink-0"
               >
                 Definir proteção
               </button>
@@ -424,7 +424,7 @@ export function GetStartedView({
         </div>
 
         {/* Right: LUVEA STUDIO Booking site card identical to 01-1-get-started.png */}
-        <div className="lg:col-span-4 rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-sm">
+        <div className="lg:col-span-4 rounded-2xl overflow-hidden border border-[#E5E7EB] dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-sm">
           <div className="h-52 bg-gradient-to-br from-[#231F20] via-[#3A3542] to-[#C8B8FA] p-4 flex gap-3 relative overflow-hidden">
             <div className="bg-white/95 text-[#18181B] px-2.5 py-1 rounded-full text-[10px] font-semibold absolute top-3 left-3 shadow-2xs">
               Agendamento Online
@@ -448,18 +448,18 @@ export function GetStartedView({
               </div>
             </div>
           </div>
-          <div className="p-5 space-y-3 bg-[#F5F5F7]">
-            <h3 className="text-[15px] font-bold text-[#18181B]">
+          <div className="p-5 space-y-3 bg-[#F5F5F7] dark:bg-[#18181b]">
+            <h3 className="text-[15px] font-bold text-[#18181B] dark:text-white">
               Personalize seu site de agendamento
             </h3>
-            <p className="text-[13px] text-zinc-600">
+            <p className="text-[13px] text-zinc-600 dark:text-[#a1a1aa]">
               Adicione informações do estúdio, fotos de portfólio, políticas de
               Sinal Pix e muito mais.
             </p>
             <button
               type="button"
               onClick={onOpenBookingSite}
-              className="px-4 py-2 rounded-full border border-zinc-300 bg-white text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50"
+              className="px-4 py-2 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a]"
             >
               Editar site
             </button>
@@ -931,7 +931,7 @@ export function ReceptionView({
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-white">
+    <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#09090b]">
       {/* Top 3-step progress bar identical to 02-reception-ia.png */}
       <div className="w-full px-6 lg:px-8 xl:px-10 pt-6">
         <div className="flex items-start justify-between gap-6">
@@ -946,15 +946,15 @@ export function ReceptionView({
                   activeStep === "meet" ||
                   activeStep === "setup" ||
                   activeStep === "ready"
-                    ? "bg-[#18181B]"
-                    : "bg-zinc-200"
+                    ? "bg-[#18181B] dark:bg-white"
+                    : "bg-zinc-200 dark:bg-[#27272a]"
                 }`}
               />
               <span
                 className={`text-[12.5px] ${
                   activeStep === "meet"
-                    ? "font-semibold text-[#18181B]"
-                    : "font-medium text-zinc-600"
+                    ? "font-semibold text-[#18181B] dark:text-white"
+                    : "font-medium text-zinc-600 dark:text-[#a1a1aa]"
                 }`}
               >
                 Conheça a Recepção
@@ -969,15 +969,15 @@ export function ReceptionView({
               <div
                 className={`h-[2px] w-full mb-2 transition-colors ${
                   activeStep === "setup" || activeStep === "ready"
-                    ? "bg-[#18181B]"
-                    : "bg-zinc-200"
+                    ? "bg-[#18181B] dark:bg-white"
+                    : "bg-zinc-200 dark:bg-[#27272a]"
                 }`}
               />
               <span
                 className={`text-[12.5px] ${
                   activeStep === "setup"
-                    ? "font-semibold text-[#18181B]"
-                    : "font-medium text-zinc-600"
+                    ? "font-semibold text-[#18181B] dark:text-white"
+                    : "font-medium text-zinc-600 dark:text-[#a1a1aa]"
                 }`}
               >
                 Configuração rápida
@@ -991,14 +991,14 @@ export function ReceptionView({
             >
               <div
                 className={`h-[2px] w-full mb-2 transition-colors ${
-                  activeStep === "ready" ? "bg-[#18181B]" : "bg-zinc-200"
+                  activeStep === "ready" ? "bg-[#18181B] dark:bg-white" : "bg-zinc-200 dark:bg-[#27272a]"
                 }`}
               />
               <span
                 className={`text-[12.5px] ${
                   activeStep === "ready"
-                    ? "font-semibold text-[#18181B]"
-                    : "font-medium text-zinc-600"
+                    ? "font-semibold text-[#18181B] dark:text-white"
+                    : "font-medium text-zinc-600 dark:text-[#a1a1aa]"
                 }`}
               >
                 Pronta
@@ -1015,7 +1015,7 @@ export function ReceptionView({
                   "Central de Ajuda da Recepção IA: Suporte 24/7 para WhatsApp & Voz.",
               }))
             }
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-semibold"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12.5px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors"
           >
             <HelpCircle className="w-3.5 h-3.5" />
             <span>Precisa de ajuda?</span>
@@ -1047,27 +1047,27 @@ export function ReceptionView({
                 )
               )}
             </button>
-            <p className="text-[12.5px] text-zinc-600 mt-3">
+            <p className="text-[12.5px] text-zinc-600 dark:text-[#a1a1aa] mt-3">
               {demoPlaying
                 ? "Reproduzindo demonstração de atendimento da Recepção IA..."
                 : "Toque para testar a Recepção"}
             </p>
 
             {/* Editorial Serif Headline */}
-            <h1 className="font-serif text-[44px] leading-tight text-[#18181B] mt-6 mb-8 tracking-tight">
+            <h1 className="font-serif text-[44px] leading-tight text-[#18181B] dark:text-white mt-6 mb-8 tracking-tight">
               Apresentando a Recepção
             </h1>
 
             {/* 3 Feature Bullets with Luxury Editorial Dot Indicator */}
             <div className="space-y-6 text-left w-full">
               <div className="flex items-start gap-3.5">
-                <span className="w-2 h-2 rounded-full bg-[#18181B] mt-1.5 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-[#18181B] dark:bg-white mt-1.5 shrink-0" />
                 <div>
-                  <h3 className="text-[14px] font-bold text-[#18181B]">
+                  <h3 className="text-[14px] font-bold text-[#18181B] dark:text-white">
                     Pare de perder agendamentos por chamadas ou mensagens não
                     respondidas
                   </h3>
-                  <p className="text-[13.5px] text-zinc-600 leading-relaxed mt-0.5">
+                  <p className="text-[13.5px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed mt-0.5">
                     Atende WhatsApp, ligações, dúvidas de preços e faz
                     agendamentos 24/7 com base nas suas regras.
                   </p>
@@ -1075,12 +1075,12 @@ export function ReceptionView({
               </div>
 
               <div className="flex items-start gap-3.5">
-                <span className="w-2 h-2 rounded-full bg-[#18181B] mt-1.5 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-[#18181B] dark:bg-white mt-1.5 shrink-0" />
                 <div>
-                  <h3 className="text-[14px] font-bold text-[#18181B]">
+                  <h3 className="text-[14px] font-bold text-[#18181B] dark:text-white">
                     Mantenha o controle, sem mensagens acumuladas no WhatsApp
                   </h3>
-                  <p className="text-[13.5px] text-zinc-600 leading-relaxed mt-0.5">
+                  <p className="text-[13.5px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed mt-0.5">
                     Mantenha seu número via QR Code ou use como linha principal.
                     Responda na hora ou apenas quando estiver em atendimento.
                   </p>
@@ -1088,12 +1088,12 @@ export function ReceptionView({
               </div>
 
               <div className="flex items-start gap-3.5">
-                <span className="w-2 h-2 rounded-full bg-[#18181B] mt-1.5 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-[#18181B] dark:bg-white mt-1.5 shrink-0" />
                 <div>
-                  <h3 className="text-[14px] font-bold text-[#18181B]">
+                  <h3 className="text-[14px] font-bold text-[#18181B] dark:text-white">
                     Teste grátis até 30/11
                   </h3>
-                  <p className="text-[13.5px] text-zinc-600 leading-relaxed mt-0.5">
+                  <p className="text-[13.5px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed mt-0.5">
                     Paga-se sozinha cada vez que salva um agendamento ou evita
                     uma falta com confirmação 2-Way Sync. Desative quando quiser.
                   </p>
@@ -1103,15 +1103,15 @@ export function ReceptionView({
           </div>
 
           {/* Bottom cream footer bar identical to 02-reception-ia.png */}
-          <div className="w-full bg-[#FAF9F2] border-t border-zinc-200/70 py-6 px-6 flex flex-col items-center gap-3">
-            <span className="text-[12px] text-zinc-600">
+          <div className="w-full bg-[#FAF9F2] dark:bg-[#18181b] border-t border-zinc-200/70 dark:border-[#27272a] py-6 px-6 flex flex-col items-center gap-3">
+            <span className="text-[12px] text-zinc-600 dark:text-[#a1a1aa]">
               Experimente a Recepção em ação
             </span>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setStep("setup")}
-                className="px-6 py-3 rounded-full border border-zinc-300 bg-white text-[13.5px] font-semibold text-[#18181B] hover:bg-zinc-50 transition-colors"
+                className="px-6 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors"
               >
                 Pular para configuração
               </button>
@@ -1125,7 +1125,7 @@ export function ReceptionView({
                       "Demo da Recepção IA: 'Olá! Aqui é a Recepção da Luvea Studio. Posso agendar seu horário hoje às 15h?'",
                   }));
                 }}
-                className="px-10 py-3 rounded-full bg-[#1C1C1E] text-white text-[13.5px] font-semibold hover:bg-black transition-colors inline-flex items-center gap-2"
+                className="px-10 py-3 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13.5px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors inline-flex items-center gap-2"
               >
                 <Phone className="w-4 h-4" />
                 <span>Testar demo da Recepção</span>
@@ -1139,10 +1139,10 @@ export function ReceptionView({
       {activeStep === "setup" && (
         <div className="max-w-[960px] w-full mx-auto px-6 py-10 space-y-8 flex-1">
           <div className="space-y-1">
-            <h2 className="font-serif text-[36px] text-[#18181B]">
+            <h2 className="font-serif text-[36px] text-[#18181B] dark:text-white">
               Configuração Rápida · WhatsApp do Estúdio
             </h2>
-            <p className="text-[14px] text-zinc-600">
+            <p className="text-[14px] text-zinc-600 dark:text-[#a1a1aa]">
               Conecte o WhatsApp do seu estúdio escaneando o QR Code e personalize seus lembretes e mensagens automáticas.
             </p>
           </div>
@@ -1155,17 +1155,17 @@ export function ReceptionView({
           />
 
           {/* Regras de Automação 2-Way Sync */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4 shadow-sm">
-            <h3 className="text-[15px] font-bold text-[#18181B]">
+          <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-zinc-200 dark:border-[#27272a] p-6 space-y-4 shadow-sm">
+            <h3 className="text-[15px] font-bold text-[#18181B] dark:text-white">
               Regras de Disparo Automático (2-Way Sync)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex items-start justify-between p-4 rounded-xl border border-zinc-200 bg-[#FAF9F6] cursor-pointer">
+              <label className="flex items-start justify-between p-4 rounded-xl border border-zinc-200 dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#202023] cursor-pointer">
                 <div className="pr-3">
-                  <p className="text-[13px] font-semibold text-[#18181B]">
+                  <p className="text-[13px] font-semibold text-[#18181B] dark:text-white">
                     Disparo automático 24h antes
                   </p>
-                  <p className="text-[12px] text-zinc-500 mt-0.5">
+                  <p className="text-[12px] text-zinc-500 dark:text-[#a1a1aa] mt-0.5">
                     Envia confirmação interativa (1 = Confirmar, 2 = Reagendar)
                   </p>
                 </div>
@@ -1185,12 +1185,12 @@ export function ReceptionView({
                 />
               </label>
 
-              <label className="flex items-start justify-between p-4 rounded-xl border border-zinc-200 bg-[#FAF9F6] cursor-pointer">
+              <label className="flex items-start justify-between p-4 rounded-xl border border-zinc-200 dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#202023] cursor-pointer">
                 <div className="pr-3">
-                  <p className="text-[13px] font-semibold text-[#18181B]">
+                  <p className="text-[13px] font-semibold text-[#18181B] dark:text-white">
                     Aviso de proximidade 2h antes
                   </p>
-                  <p className="text-[12px] text-zinc-500 mt-0.5">
+                  <p className="text-[12px] text-zinc-500 dark:text-[#a1a1aa] mt-0.5">
                     Envia endereço do estúdio e orientações de chegada
                   </p>
                 </div>
@@ -1215,7 +1215,7 @@ export function ReceptionView({
               <button
                 type="button"
                 onClick={() => setStep("ready")}
-                className="px-8 py-3 rounded-full bg-[#1C1C1E] text-white text-[13.5px] font-semibold hover:bg-black transition-colors shadow-sm"
+                className="px-8 py-3 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13.5px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors shadow-sm"
               >
                 Salvar e abrir Painel ao Vivo
               </button>
@@ -1229,10 +1229,10 @@ export function ReceptionView({
         <div className="max-w-[980px] w-full mx-auto px-6 py-8 space-y-6 flex-1">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="font-serif text-[34px] text-[#18181B]">
+              <h2 className="font-serif text-[34px] text-[#18181B] dark:text-white">
                 Recepção IA · Operando em Tempo Real
               </h2>
-              <p className="text-[13.5px] text-zinc-600">
+              <p className="text-[13.5px] text-zinc-600 dark:text-[#a1a1aa]">
                 Simule abaixo a resposta de um cliente no WhatsApp (&quot;1&quot;
                 para Confirmar) e veja o status atualizar instantaneamente na
                 Agenda.
@@ -1246,7 +1246,7 @@ export function ReceptionView({
                     processWhatsappInboundReply(prev, "evt-1", "1_confirmed")
                   )
                 }
-                className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-semibold hover:bg-black"
+                className="px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12.5px] font-semibold hover:bg-black dark:hover:bg-zinc-200"
               >
                 Simular Resposta &quot;1&quot; (Stefany)
               </button>
@@ -1257,14 +1257,14 @@ export function ReceptionView({
                     processWhatsappInboundReply(prev, "evt-1", "2_reschedule")
                   )
                 }
-                className="px-4 py-2 rounded-full border border-zinc-300 bg-white text-[12.5px] font-semibold hover:bg-zinc-50"
+                className="px-4 py-2 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[12.5px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a]"
               >
                 Simular &quot;2&quot; (Reagendar)
               </button>
             </div>
           </div>
 
-          <div className="border border-zinc-200 rounded-2xl divide-y divide-zinc-200 bg-white">
+          <div className="border border-zinc-200 dark:border-[#27272a] rounded-2xl divide-y divide-zinc-200 dark:divide-[#27272a] bg-white dark:bg-[#18181b]">
             {state.reception.logs.map((log) => (
               <div
                 key={log.id}
@@ -1272,17 +1272,17 @@ export function ReceptionView({
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-bold text-[#18181B]">
+                    <span className="text-[13px] font-bold text-[#18181B] dark:text-white">
                       {log.clientName}
                     </span>
-                    <span className="text-[11.5px] text-zinc-500">
+                    <span className="text-[11.5px] text-zinc-500 dark:text-[#a1a1aa]">
                       {log.clientPhone} · {log.timestampLabel}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10.5px] font-semibold">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] dark:bg-[#27272a] text-white text-[10.5px] font-semibold">
                       {log.channel}
                     </span>
                   </div>
-                  <p className="text-[13px] text-zinc-700">{log.messageText}</p>
+                  <p className="text-[13px] text-zinc-700 dark:text-[#a1a1aa]">{log.messageText}</p>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-[#16A34A] text-white text-[11px] font-bold shadow-sm shrink-0">
                   {log.outcomeBadge}

@@ -107,3 +107,167 @@
 .gg-waveform-pill {
   background: radial-gradient(circle at 25% 40%, #3b6978 0%, #5c786c 45%, #c5c392 95%);
 }
+
+/* ==========================================================================
+   LUVEA STUDIO DASHBOARD — MODO ESCURO DE LUXO (Email Luxury Standard)
+   Canvas: #09090b
+   Cards / Superfícies / Gavetas / Modais: #18181b
+   Bordas / Linhas divisórias: #27272a
+   Títulos / Cabeçalhos / Textos primários: #ffffff
+   Subtítulos / Parágrafos / Textos secundários: #a1a1aa
+   Labels / Metadados: #71717a
+   Botões primários: #ffffff (texto #09090b)
+   Botões secundários: #18181b (borda #27272a, texto #ffffff)
+   ========================================================================== */
+
+.dark .luvea-dashboard,
+.dark .luvea-dashboard main {
+  background-color: #09090b !important;
+  color: #f4f4f5 !important;
+}
+
+/* 1. Superfícies / Cards / Containers */
+.dark .luvea-dashboard .bg-white:not([data-keep-white]):not(.keep-white),
+.dark .luvea-dashboard .bg-\[\#FAF9F6\],
+.dark .luvea-dashboard .bg-\[\#FAF9F2\],
+.dark .luvea-dashboard .bg-\[\#FAFAFC\],
+.dark .luvea-dashboard .bg-\[\#F9F9FB\],
+.dark .luvea-dashboard .bg-\[\#F5F5F7\],
+.dark .luvea-dashboard .bg-zinc-50,
+.dark .luvea-dashboard .bg-zinc-100 {
+  background-color: #18181b;
+}
+
+/* 2. Bordas e Divisores */
+.dark .luvea-dashboard .border-\[\#E5E5EA\],
+.dark .luvea-dashboard .border-\[\#E5E7EB\],
+.dark .luvea-dashboard .border-\[\#EFEFF4\],
+.dark .luvea-dashboard .border-\[\#F1F1F4\],
+.dark .luvea-dashboard .border-\[\#D4D4D8\],
+.dark .luvea-dashboard .border-\[\#D1D1D6\],
+.dark .luvea-dashboard .border-zinc-200,
+.dark .luvea-dashboard .border-zinc-200\/70,
+.dark .luvea-dashboard .border-zinc-300,
+.dark .luvea-dashboard .divide-\[\#E5E5EA\] > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-\[\#E5E7EB\] > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-zinc-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a;
+}
+
+/* 3. Textos Primários: Títulos, Nomes, Números em Destaque */
+.dark .luvea-dashboard .text-\[\#18181B\],
+.dark .luvea-dashboard .text-\[\#1C1C1E\],
+.dark .luvea-dashboard .text-zinc-900,
+.dark .luvea-dashboard .text-zinc-800,
+.dark .luvea-dashboard .text-black {
+  color: #ffffff;
+}
+
+/* 4. Textos Secundários: Parágrafos, Descrições, Instruções */
+.dark .luvea-dashboard .text-zinc-600,
+.dark .luvea-dashboard .text-\[\#52525b\],
+.dark .luvea-dashboard .text-\[\#6E6E73\] {
+  color: #a1a1aa;
+}
+
+/* 5. Textos Mudos / Legendas / Horários */
+.dark .luvea-dashboard .text-\[\#8E8E93\],
+.dark .luvea-dashboard .text-zinc-500,
+.dark .luvea-dashboard .text-zinc-400 {
+  color: #71717a;
+}
+
+/* 6. Estados de Hover */
+.dark .luvea-dashboard .hover\:bg-\[\#F5F5F7\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#FAFAFC\]:hover,
+.dark .luvea-dashboard .hover\:bg-zinc-50:hover,
+.dark .luvea-dashboard .hover\:bg-zinc-100:hover {
+  background-color: #27272a;
+}
+
+/* 7. Botões Primários (Pretos no Claro -> Brancos com Texto Escuro no Escuro) */
+.dark .luvea-dashboard button.bg-\[\#1C1C1E\],
+.dark .luvea-dashboard button.bg-\[\#18181B\],
+.dark .luvea-dashboard a.bg-\[\#1C1C1E\],
+.dark .luvea-dashboard a.bg-\[\#18181B\],
+.dark .luvea-dashboard button.bg-black,
+.dark .luvea-dashboard a.bg-black {
+  background-color: #ffffff;
+  color: #09090b;
+}
+
+.dark .luvea-dashboard button.bg-\[\#1C1C1E\]:hover,
+.dark .luvea-dashboard button.bg-\[\#18181B\]:hover,
+.dark .luvea-dashboard a.bg-\[\#1C1C1E\]:hover,
+.dark .luvea-dashboard a.bg-\[\#18181B\]:hover,
+.dark .luvea-dashboard button.bg-black:hover,
+.dark .luvea-dashboard a.bg-black:hover {
+  background-color: #e4e4e7;
+}
+
+.dark .luvea-dashboard button.bg-\[\#1C1C1E\] *,
+.dark .luvea-dashboard button.bg-\[\#18181B\] *,
+.dark .luvea-dashboard a.bg-\[\#1C1C1E\] *,
+.dark .luvea-dashboard a.bg-\[\#18181B\] *,
+.dark .luvea-dashboard button.bg-black *,
+.dark .luvea-dashboard a.bg-black * {
+  color: #09090b;
+}
+
+/* 8. Botões Secundários */
+.dark .luvea-dashboard button.bg-white:not([data-keep-white]):not(.keep-white),
+.dark .luvea-dashboard a.bg-white:not([data-keep-white]):not(.keep-white) {
+  background-color: #18181b;
+  border-color: #27272a;
+  color: #ffffff;
+}
+
+.dark .luvea-dashboard button.bg-white:not([data-keep-white]):not(.keep-white):hover,
+.dark .luvea-dashboard a.bg-white:not([data-keep-white]):not(.keep-white):hover {
+  background-color: #27272a;
+}
+
+/* 9. Elementos de Seleção / Abas Ativas */
+.dark .luvea-dashboard .bg-\[\#ECE9FE\] {
+  background-color: #27272a;
+  color: #ffffff;
+}
+
+.dark .luvea-dashboard .bg-\[\#F5F3FF\] {
+  background-color: #18181b;
+  border-color: #27272a;
+}
+
+/* 10. Pontos Indicadores e Linhas de Progresso */
+.dark .luvea-dashboard span.w-2.h-2.rounded-full.bg-\[\#18181B\],
+.dark .luvea-dashboard span.w-2.h-2.rounded-full.bg-\[\#1C1C1E\] {
+  background-color: #ffffff;
+}
+
+.dark .luvea-dashboard div.h-0\.5.bg-\[\#18181B\],
+.dark .luvea-dashboard div.h-\[2px\].bg-\[\#18181B\] {
+  background-color: #ffffff;
+}
+
+.dark .luvea-dashboard div.h-0\.5.bg-zinc-300,
+.dark .luvea-dashboard div.h-\[2px\].bg-zinc-200 {
+  background-color: #27272a;
+}
+
+/* 11. Badges Numéricos Discretos */
+.dark .luvea-dashboard span.rounded-full.bg-\[\#1C1C1E\],
+.dark .luvea-dashboard span.rounded-full.bg-\[\#18181B\] {
+  background-color: #27272a;
+  color: #ffffff;
+  border-color: #3f3f46;
+}
+
+/* 12. Imagens e QR Code (Preservar contraste limpo para câmeras) */
+.dark .luvea-dashboard [data-qr-code],
+.dark .luvea-dashboard .qr-code-canvas,
+.dark .luvea-dashboard img[alt*="QR Code"],
+.dark .luvea-dashboard img[alt*="QRCode"] {
+  background-color: #ffffff !important;
+  padding: 6px;
+  border-radius: 12px;
+}
