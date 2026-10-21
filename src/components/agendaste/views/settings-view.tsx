@@ -387,9 +387,9 @@ export function SettingsView({
 
       {/* TAB: NEGÓCIO (Painel colado à esquerda, sem recuo / sem gap, zero caixas aninhadas) */}
       {topTab === "business" && (
-        <div className="bg-white border border-[#E5E5EA] rounded-3xl overflow-hidden shadow-sm flex flex-col md:flex-row min-h-[700px]">
+        <div className="bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-3xl overflow-hidden shadow-sm flex flex-col md:flex-row min-h-[700px]">
           {/* Menu Lateral Esquerdo Colado (Sem recuo) */}
-          <aside className="w-full md:w-64 lg:w-72 border-b md:border-b-0 md:border-r border-[#E5E5EA] bg-[#FBFBFC] p-3 space-y-1 shrink-0">
+          <aside className="w-full md:w-64 lg:w-72 border-b md:border-b-0 md:border-r border-[#E5E5EA] dark:border-[#27272a] bg-[#FBFBFC] dark:bg-[#18181b] p-3 space-y-1 shrink-0">
             {[
               { id: "business_details" as const, label: "Dados do Negócio", icon: Building2 },
               { id: "locations" as const, label: "Unidades & Locais", icon: MapPin, count: 1 },
@@ -411,12 +411,12 @@ export function SettingsView({
                   onClick={() => setSubTab(item.id)}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-colors text-left ${
                     isActive
-                      ? "bg-[#1C1C1E] text-white shadow-sm"
-                      : "text-[#52525B] hover:text-[#18181B] hover:bg-white"
+                      ? "bg-[#1C1C1E] dark:bg-[#27272a] text-white shadow-sm"
+                      : "text-[#52525B] dark:text-[#a1a1aa] hover:text-[#18181B] dark:hover:text-white hover:bg-white dark:hover:bg-[#27272a]"
                   }`}
                 >
                   <span className="flex items-center gap-2.5 truncate">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-[#71717A]"}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-[#71717A] dark:text-[#a1a1aa]"}`} />
                     <span className="truncate">{item.label}</span>
                   </span>
 
@@ -424,7 +424,9 @@ export function SettingsView({
                     {item.count !== undefined && (
                       <span
                         className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-semibold ${
-                          isActive ? "bg-white/20 text-white" : "bg-[#E4E4E7] text-[#3F3F46]"
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-[#E4E4E7] dark:bg-[#27272a] text-[#3F3F46] dark:text-[#a1a1aa]"
                         }`}
                       >
                         {item.count}
@@ -433,7 +435,9 @@ export function SettingsView({
                     {item.tag && (
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide uppercase ${
-                          isActive ? "bg-white/20 text-white" : "bg-[#E4E4E7] text-[#52525B]"
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-[#E4E4E7] dark:bg-[#27272a] text-[#52525B] dark:text-[#a1a1aa]"
                         }`}
                       >
                         {item.tag}
@@ -446,7 +450,7 @@ export function SettingsView({
           </aside>
 
           {/* Painel de Conteúdo Principal (Diretamente adjacente, sem caixas aninhadas) */}
-          <main className="flex-1 p-6 lg:p-8 bg-white">
+          <main className="flex-1 p-6 lg:p-8 bg-white dark:bg-[#18181b]">
             {/* ========================================================================= */}
             {/* 1. NOTIFICAÇÕES DE CLIENTES (Sem caixas aninhadas, lista editorial)        */}
             {/* ========================================================================= */}
@@ -520,22 +524,22 @@ export function SettingsView({
                         return (
                           <div
                             key={notif.id}
-                            className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#FAFAFA] transition-colors px-2 rounded-xl"
+                            className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#FAFAFA] dark:hover:bg-[#27272a] transition-colors px-2 rounded-xl"
                           >
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-2">
-                                <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">{ptTitle}</h4>
+                                <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">{ptTitle}</h4>
                                 {notif.badge === "novo" && (
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#ECE9FE] text-[#6D28D9]">
                                     Novo
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[12px] text-[#6E6E73]">{ptDesc}</p>
-                              <div className="flex items-center gap-2 pt-1 text-[11px] text-[#8E8E93]">
+                              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">{ptDesc}</p>
+                              <div className="flex items-center gap-2 pt-1 text-[11px] text-[#8E8E93] dark:text-[#71717a]">
                                 <span>
                                   Envio via:{" "}
-                                  <strong className="font-medium text-[#1C1C1E]">
+                                  <strong className="font-medium text-[#1C1C1E] dark:text-white">
                                     {notif.channels
                                       .map((c) => (c === "whatsapp" ? "WhatsApp" : c === "email" ? "E-mail" : "SMS"))
                                       .join(" e ")}
@@ -549,7 +553,7 @@ export function SettingsView({
                               <button
                                 type="button"
                                 onClick={() => setEditNotification(notif)}
-                                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] text-[12px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
+                                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
                               >
                                 Personalizar
                               </button>
@@ -561,7 +565,7 @@ export function SettingsView({
                                     notif.channels.includes("whatsapp") ? "whatsapp" : "email"
                                   );
                                 }}
-                                className="px-3.5 py-1.5 rounded-full bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] hover:bg-[#E5E5EA] transition inline-flex items-center gap-1.5"
+                                className="px-3.5 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#E5E5EA] dark:hover:bg-[#3f3f46] transition inline-flex items-center gap-1.5"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>Prévia</span>
@@ -638,22 +642,22 @@ export function SettingsView({
                         return (
                           <div
                             key={notif.id}
-                            className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#FAFAFA] transition-colors px-2 rounded-xl"
+                            className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#FAFAFA] dark:hover:bg-[#27272a] transition-colors px-2 rounded-xl"
                           >
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-2">
-                                <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">{ptTitle}</h4>
+                                <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">{ptTitle}</h4>
                                 {notif.badge === "gold" && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#FBF8EF] border border-[#F3E8C4] text-[#8C6D1F]">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#FBF8EF] dark:bg-[#27272a] border border-[#F3E8C4] dark:border-[#3f3f46] text-[#8C6D1F] dark:text-[#f4f4f5]">
                                     Gold
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[12px] text-[#6E6E73]">{ptDesc}</p>
-                              <div className="flex items-center gap-2 pt-1 text-[11px] text-[#8E8E93]">
+                              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">{ptDesc}</p>
+                              <div className="flex items-center gap-2 pt-1 text-[11px] text-[#8E8E93] dark:text-[#71717a]">
                                 <span>
                                   Envio via:{" "}
-                                  <strong className="font-medium text-[#1C1C1E]">
+                                  <strong className="font-medium text-[#1C1C1E] dark:text-white">
                                     {notif.channels
                                       .map((c) => (c === "whatsapp" ? "WhatsApp" : c === "email" ? "E-mail" : "SMS"))
                                       .join(" e ")}
@@ -667,7 +671,7 @@ export function SettingsView({
                               <button
                                 type="button"
                                 onClick={() => setEditNotification(notif)}
-                                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] text-[12px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
+                                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
                               >
                                 Personalizar
                               </button>
@@ -679,7 +683,7 @@ export function SettingsView({
                                     notif.channels.includes("whatsapp") ? "whatsapp" : "email"
                                   );
                                 }}
-                                className="px-3.5 py-1.5 rounded-full bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] hover:bg-[#E5E5EA] transition inline-flex items-center gap-1.5"
+                                className="px-3.5 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#E5E5EA] dark:hover:bg-[#3f3f46] transition inline-flex items-center gap-1.5"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>Prévia</span>

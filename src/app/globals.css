@@ -131,11 +131,36 @@
 .dark .luvea-dashboard .bg-\[\#FAF9F6\],
 .dark .luvea-dashboard .bg-\[\#FAF9F2\],
 .dark .luvea-dashboard .bg-\[\#FAFAFC\],
+.dark .luvea-dashboard .bg-\[\#FAFAFA\],
+.dark .luvea-dashboard .bg-\[\#FBFBFC\],
+.dark .luvea-dashboard .bg-\[\#F8F8FA\],
 .dark .luvea-dashboard .bg-\[\#F9F9FB\],
 .dark .luvea-dashboard .bg-\[\#F5F5F7\],
+.dark .luvea-dashboard .bg-\[\#F2F2F7\],
+.dark .luvea-dashboard .bg-\[\#F2F4F2\],
 .dark .luvea-dashboard .bg-zinc-50,
 .dark .luvea-dashboard .bg-zinc-100 {
   background-color: #18181b;
+}
+
+/* 1.1 Hero Banners Editoriais */
+.dark .luvea-dashboard .bg-gg-hero-gradient,
+.dark .luvea-dashboard .bg-luvea-hero-gradient {
+  background-image: none !important;
+  background-color: #121214 !important;
+  border-color: #27272a !important;
+}
+
+.dark .luvea-dashboard .bg-gg-hero-gradient .bg-white\/80,
+.dark .luvea-dashboard .bg-luvea-hero-gradient .bg-white\/80,
+.dark .luvea-dashboard .bg-white\/80 {
+  background-color: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #ffffff !important;
+}
+
+.dark .luvea-dashboard .border-\[\#DDD6FE\] {
+  border-color: #3f3f46 !important;
 }
 
 /* 2. Bordas e Divisores */
@@ -143,13 +168,16 @@
 .dark .luvea-dashboard .border-\[\#E5E7EB\],
 .dark .luvea-dashboard .border-\[\#EFEFF4\],
 .dark .luvea-dashboard .border-\[\#F1F1F4\],
+.dark .luvea-dashboard .border-\[\#F2F2F7\],
 .dark .luvea-dashboard .border-\[\#D4D4D8\],
 .dark .luvea-dashboard .border-\[\#D1D1D6\],
+.dark .luvea-dashboard .border-\[\#F3E8C4\],
 .dark .luvea-dashboard .border-zinc-200,
 .dark .luvea-dashboard .border-zinc-200\/70,
 .dark .luvea-dashboard .border-zinc-300,
 .dark .luvea-dashboard .divide-\[\#E5E5EA\] > :not([hidden]) ~ :not([hidden]),
 .dark .luvea-dashboard .divide-\[\#E5E7EB\] > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-\[\#F2F2F7\] > :not([hidden]) ~ :not([hidden]),
 .dark .luvea-dashboard .divide-zinc-200 > :not([hidden]) ~ :not([hidden]) {
   border-color: #27272a;
 }
@@ -180,9 +208,45 @@
 /* 6. Estados de Hover */
 .dark .luvea-dashboard .hover\:bg-\[\#F5F5F7\]:hover,
 .dark .luvea-dashboard .hover\:bg-\[\#FAFAFC\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#FAFAFA\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#FBFBFC\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#F2F2F7\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#E5E5EA\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#E4E4E7\]:hover,
+.dark .luvea-dashboard .hover\:bg-white:hover,
 .dark .luvea-dashboard .hover\:bg-zinc-50:hover,
 .dark .luvea-dashboard .hover\:bg-zinc-100:hover {
-  background-color: #27272a;
+  background-color: #27272a !important;
+  color: #ffffff;
+}
+
+.dark .luvea-dashboard .hover\:border-\[\#C7C7CC\]:hover {
+  border-color: #3f3f46 !important;
+}
+
+/* 6.1 Campos de Formulário (Inputs, Selects, Textareas) */
+.dark .luvea-dashboard input:not([type="checkbox"]):not([type="radio"]),
+.dark .luvea-dashboard select,
+.dark .luvea-dashboard textarea {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+  border-color: #27272a !important;
+}
+
+.dark .luvea-dashboard input:focus,
+.dark .luvea-dashboard select:focus,
+.dark .luvea-dashboard textarea:focus {
+  border-color: #ffffff !important;
+}
+
+.dark .luvea-dashboard input::placeholder,
+.dark .luvea-dashboard textarea::placeholder {
+  color: #71717a !important;
+}
+
+.dark .luvea-dashboard select option {
+  background-color: #18181b;
+  color: #ffffff;
 }
 
 /* 7. Botões Primários (Pretos no Claro -> Brancos com Texto Escuro no Escuro) */
@@ -236,6 +300,47 @@
 .dark .luvea-dashboard .bg-\[\#F5F3FF\] {
   background-color: #18181b;
   border-color: #27272a;
+}
+
+/* 9.1 Elementos de Relatórios e Badges Especiais */
+.dark .luvea-dashboard .bg-\[\#EFF3F0\] {
+  background-color: #27272a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dark .luvea-dashboard .bg-\[\#F2F4F2\] {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+
+.dark .luvea-dashboard .bg-\[\#FBF8EF\] {
+  background-color: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+
+/* 9.2 Pílulas de Destaque e Acentos Suaves */
+.dark .luvea-dashboard .bg-\[\#FCE7F3\] {
+  background-color: rgba(225, 29, 143, 0.15) !important;
+  color: #f472b6 !important;
+}
+
+.dark .luvea-dashboard .bg-\[\#FEF3C7\],
+.dark .luvea-dashboard .bg-\[\#FFFBEB\],
+.dark .luvea-dashboard .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+.dark .luvea-dashboard .bg-\[\#DCFCE7\],
+.dark .luvea-dashboard .bg-emerald-50,
+.dark .luvea-dashboard .bg-green-50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+.dark .luvea-dashboard .bg-\[\#FEE2E2\],
+.dark .luvea-dashboard .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
 }
 
 /* 10. Pontos Indicadores e Linhas de Progresso */

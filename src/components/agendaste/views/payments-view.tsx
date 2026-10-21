@@ -526,21 +526,21 @@ export function PaymentsView({
     return (
       <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
         {/* Editorial Hero Card matching 04-2-invoices.png */}
-        <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
+        <div className="rounded-[24px] bg-gg-hero-gradient dark:bg-none dark:bg-[#121214] border border-[#E5E5EA] dark:border-[#27272a] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-[#DDD6FE] text-[12px] font-semibold text-[#1C1C1E]">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-[#27272a] border border-[#DDD6FE] dark:border-[#3f3f46] text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
               Apresentando Faturas
             </span>
-            <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+            <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E] dark:text-white">
               Simplifique solicitações de pagamento personalizadas com faturas
             </h1>
-            <p className="text-[15px] text-[#6E6E73] max-w-xl">
+            <p className="text-[15px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-xl">
               Envie faturas profissionais por e-mail ou WhatsApp com cobrança integrada via Pix Dinâmico e Cartão, rastreie vencimentos e receba mais rápido.
             </p>
             <div className="pt-2">
               <button
                 onClick={() => setIsCreatingInvoice(true)}
-                className="px-6 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[14px] font-semibold transition"
+                className="px-6 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[14px] font-semibold transition"
               >
                 Criar fatura
               </button>
@@ -548,7 +548,7 @@ export function PaymentsView({
           </div>
 
           {/* Right Mockup Card (#1000948 from 04-2-invoices.png) */}
-          <div className="lg:col-span-5 bg-white rounded-[20px] p-6 border border-[#E5E5EA] shadow-gg-card space-y-3">
+          <div className="lg:col-span-5 bg-white dark:bg-[#18181b] rounded-[20px] p-6 border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-card space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-mono font-bold text-[#6E56CF]">
                 FATURA #1000948
@@ -636,27 +636,27 @@ export function PaymentsView({
   // ===========================================================================
   return (
     <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-      <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
+      <div className="rounded-[24px] bg-gg-hero-gradient dark:bg-none dark:bg-[#121214] border border-[#E5E5EA] dark:border-[#27272a] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-[#DDD6FE] text-[12px] font-semibold text-[#1C1C1E]">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-[#27272a] border border-[#DDD6FE] dark:border-[#3f3f46] text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
             <Gift className="w-3.5 h-3.5 text-[#E11D8F]" />
             Vale-Presentes Digitais
           </span>
-          <h1 className="font-display text-[40px] leading-[1.08] text-[#1C1C1E]">
+          <h1 className="font-display text-[40px] leading-[1.08] text-[#1C1C1E] dark:text-white">
             Aumente seu faturamento antecipado com Vale-Presentes personalizados
           </h1>
-          <p className="text-[15px] text-[#6E6E73] max-w-xl">
+          <p className="text-[15px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-xl">
             Venda cartões de presente online ou no balcão e permita o abatimento automático de saldo no checkout em 1 toque.
           </p>
           <button
             onClick={() => setGiftModalOpen(true)}
-            className="px-6 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[14px] font-semibold transition"
+            className="px-6 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[14px] font-semibold transition"
           >
             Emitir Vale-Presente
           </button>
         </div>
 
-        <div className="lg:col-span-5 bg-[#1C1C1E] text-white rounded-[22px] p-6 space-y-4 shadow-gg-card">
+        <div className="lg:col-span-5 bg-[#1C1C1E] dark:bg-[#18181b] dark:border dark:border-[#27272a] text-white rounded-[22px] p-6 space-y-4 shadow-gg-card">
           <div className="flex items-center justify-between">
             <span className="text-[12px] uppercase tracking-widest text-[#A1A1AA]">
               Luvea Studio · Gift Card

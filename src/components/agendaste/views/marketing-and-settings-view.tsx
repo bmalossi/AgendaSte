@@ -1170,23 +1170,25 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
                 }}
                 className={`w-full text-left rounded-[14px] p-4 flex items-center justify-between gap-4 transition-all ${
                   isSelected
-                    ? "border-[1.5px] border-[#1C1C1E] bg-[#EFF3F0]"
-                    : "border border-[#E5E5EA] bg-white hover:border-[#C7C7CC]"
+                    ? "border-[1.5px] border-[#1C1C1E] bg-[#EFF3F0] dark:border-white dark:bg-[#27272a]"
+                    : "border border-[#E5E5EA] bg-white hover:border-[#C7C7CC] dark:border-[#27272a] dark:bg-[#18181b] dark:hover:border-[#3f3f46]"
                 }`}
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                      card.isCustomAi ? "bg-[#C5D82D]" : "bg-[#F2F4F2]"
+                      card.isCustomAi
+                        ? "bg-[#C5D82D] text-[#09090b]"
+                        : "bg-[#F2F4F2] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white"
                     }`}
                   >
                     {renderReportCardIcon(card.id)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[14px] font-semibold text-[#1C1C1E] leading-snug">
+                    <p className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white leading-snug">
                       {card.title}
                     </p>
-                    <p className="text-[12.5px] text-[#6E6E73] mt-0.5 leading-snug">
+                    <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5 leading-snug">
                       {card.description}
                     </p>
                   </div>
@@ -1205,18 +1207,18 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
 
       {/* Right Docked Report Configuration Drawer */}
       {selectedReport && (
-        <aside className="w-full lg:w-[350px] xl:w-[380px] bg-white border-t lg:border-t-0 lg:border-l border-[#E5E5EA] flex flex-col justify-between shrink-0">
+        <aside className="w-full lg:w-[350px] xl:w-[380px] bg-white dark:bg-[#18181b] border-t lg:border-t-0 lg:border-l border-[#E5E5EA] dark:border-[#27272a] flex flex-col justify-between shrink-0">
           <div className="p-6 space-y-6">
             {/* Drawer Header */}
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
+              <h2 className="text-[18px] font-semibold text-[#1C1C1E] dark:text-white">
                 {selectedReport.title}
               </h2>
               <button
                 type="button"
                 onClick={() => setSelectedReportId(null)}
                 aria-label="Fechar painel de relatório"
-                className="p-1 rounded-full text-[#1C1C1E] hover:bg-[#F2F2F7] transition-colors"
+                className="p-1 rounded-full text-[#1C1C1E] dark:text-white hover:bg-[#F2F2F7] dark:hover:bg-[#27272a] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1224,7 +1226,7 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
 
             {selectedReport.isCustomAi && (
               <div className="space-y-2">
-                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+                <label className="block text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                   O que você gostaria de incluir?
                 </label>
                 <textarea
@@ -1232,21 +1234,21 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="Ex.: Clientes que fizeram Mechas nos últimos 60 dias e ainda não agendaram retorno..."
-                  className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3.5 py-2.5 text-[13px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                  className="w-full rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 text-[13px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                 />
               </div>
             )}
 
             {/* Staff Selector */}
             <div className="space-y-2">
-              <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+              <label className="block text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                 Profissional
               </label>
               <div className="relative">
                 <select
                   value={selectedStaffId}
                   onChange={(e) => setSelectedStaffId(e.target.value)}
-                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] bg-white px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                 >
                   <option value="owner">{ownerFullName} (você)</option>
                   <option value="all">
@@ -1258,20 +1260,20 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                <ChevronDown className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
               </div>
             </div>
 
             {/* Dates Selector */}
             <div className="space-y-2.5">
-              <label className="block text-[13px] font-semibold text-[#1C1C1E]">
+              <label className="block text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                 Datas
               </label>
               <div className="relative">
                 <select
                   value={dateRangePreset}
                   onChange={(e) => handleDatePresetChange(e.target.value)}
-                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] bg-white px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                 >
                   <option value="month_to_date">Mês até a data</option>
                   <option value="last_month">Mês passado</option>
@@ -1279,12 +1281,12 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
                   <option value="this_year">Este ano</option>
                   <option value="custom">Personalizado</option>
                 </select>
-                <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                <ChevronDown className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-1.5">
-                  <span className="block text-[11px] text-[#8E8E93]">
+                <div className="rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3 py-1.5">
+                  <span className="block text-[11px] text-[#8E8E93] dark:text-[#71717a]">
                     Data inicial
                   </span>
                   <input
@@ -1294,12 +1296,12 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
                       setStartDateISO(e.target.value);
                       setDateRangePreset("custom");
                     }}
-                    className="w-full bg-transparent text-[13px] font-medium text-[#1C1C1E] focus:outline-none mt-0.5"
+                    className="w-full bg-transparent text-[13px] font-medium text-[#1C1C1E] dark:text-white focus:outline-none mt-0.5"
                   />
                 </div>
 
-                <div className="rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-1.5">
-                  <span className="block text-[11px] text-[#8E8E93]">
+                <div className="rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3 py-1.5">
+                  <span className="block text-[11px] text-[#8E8E93] dark:text-[#71717a]">
                     Data final
                   </span>
                   <input
@@ -1309,48 +1311,48 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
                       setEndDateISO(e.target.value);
                       setDateRangePreset("custom");
                     }}
-                    className="w-full bg-transparent text-[13px] font-medium text-[#1C1C1E] focus:outline-none mt-0.5"
+                    className="w-full bg-transparent text-[13px] font-medium text-[#1C1C1E] dark:text-white focus:outline-none mt-0.5"
                   />
                 </div>
               </div>
             </div>
 
             {/* Summary Preview Box */}
-            <div className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-3.5 space-y-1.5">
+            <div className="rounded-[12px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#121214] p-3.5 space-y-1.5">
               <div className="flex items-center justify-between text-[12px]">
-                <span className="font-semibold text-[#1C1C1E]">
+                <span className="font-semibold text-[#1C1C1E] dark:text-white">
                   Registros encontrados
                 </span>
-                <span className="font-mono font-bold text-[#1C1C1E]">
+                <span className="font-mono font-bold text-[#1C1C1E] dark:text-white">
                   {previewRecordCount}
                 </span>
               </div>
-              <p className="text-[11.5px] text-[#6E6E73]">
+              <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
                 Formato de exportação: planilha CSV compatível com Excel e Google Sheets.
               </p>
             </div>
 
             {feedbackBanner && (
-              <div className="rounded-[10px] border border-[#1C1C1E] bg-[#EFF3F0] px-3.5 py-2.5 text-[12px] font-medium text-[#1C1C1E]">
+              <div className="rounded-[10px] border border-[#1C1C1E] dark:border-[#3f3f46] bg-[#EFF3F0] dark:bg-[#27272a] px-3.5 py-2.5 text-[12px] font-medium text-[#1C1C1E] dark:text-white">
                 {feedbackBanner}
               </div>
             )}
           </div>
 
           {/* Bottom Action Buttons (Email / Download) */}
-          <div className="p-5 border-t border-[#E5E5EA] bg-white">
+          <div className="p-5 border-t border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]">
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={handleSendEmail}
-                className="w-full py-2.5 px-4 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13.5px] font-semibold transition-colors"
+                className="w-full py-2.5 px-4 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13.5px] font-semibold transition-colors"
               >
                 E-mail
               </button>
               <button
                 type="button"
                 onClick={handleDownloadCsv}
-                className="w-full py-2.5 px-4 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13.5px] font-semibold transition-colors"
+                className="w-full py-2.5 px-4 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[13.5px] font-semibold transition-colors"
               >
                 Baixar
               </button>
