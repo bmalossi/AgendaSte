@@ -15,6 +15,44 @@ export function isValidUuid(id?: string | null): boolean {
   );
 }
 
+/**
+ * Trava de Isolamento: identifica dados ou IDs de demonstração (mock).
+ * Impede que registros das telas demo poluam a base de dados real do cliente.
+ */
+export function isDemoOrMockId(id?: string | null): boolean {
+  if (!id || typeof id !== "string") return false;
+  // Permite IDs legítimos gerados durante o fluxo real de agendamento online
+  if (id.startsWith("evt-online-") || id.startsWith("cli-online-")) {
+    return false;
+  }
+  return (
+    id.startsWith("demo-") ||
+    id.startsWith("apt-") ||
+    id.startsWith("cli-stefany") ||
+    id.startsWith("cli-isolde") ||
+    id.startsWith("wait-") ||
+    id.startsWith("inv-") ||
+    id.startsWith("sale-") ||
+    id.startsWith("log-") ||
+    id.startsWith("camp-") ||
+    id.startsWith("msg-") ||
+    id.startsWith("busy-slot-") ||
+    id === "cli-1" ||
+    id === "cli-2" ||
+    id === "srv-1"
+  );
+}
+
+export function isDemoEntity(nameOrEmail?: string | null): boolean {
+  if (!nameOrEmail || typeof nameOrEmail !== "string") return false;
+  const lower = nameOrEmail.toLowerCase().trim();
+  return (
+    lower.includes("stefany cristina") ||
+    lower.includes("isolde ramos") ||
+    lower.includes("bfernandescorretor@gmail.com")
+  );
+}
+
 function calculateEndTime(startTime: string, durationMinutes: number): string {
   const [h, m] = startTime.split(":").map(Number);
   const total = h * 60 + m + durationMinutes;
@@ -386,9 +424,8 @@ export async function loadStudioStateFromSupabase(
     const unsyncedLocal = (currentState.calendarEvents || []).filter(
       (local) =>
         !cloudIds.has(local.id) &&
-        !local.id.startsWith("demo-") &&
-        !local.id.startsWith("apt-") &&
-        !local.id.startsWith("busy-slot-") &&
+        !isDemoOrMockId(local.id) &&
+        !isDemoEntity(local.clientName) &&
         !cloudKeys.has(`${local.dateISO}_${local.startTime}_${local.clientName}`)
     );
 
@@ -400,14 +437,14 @@ export async function loadStudioStateFromSupabase(
       updated.calendarEvents = [];
     }
 
-    // Sincroniza em background os eventos locais pendentes
+    // Sincroniza em background os eventos locais legítimos pendentes
     if (unsyncedLocal.length > 0 && profs && profs[0]?.id) {
       for (const evt of unsyncedLocal) {
         syncNewAppointmentToSupabase(evt, profs[0].id).catch(console.warn);
       }
     }
 
-    // 6. Lista de Espera
+    // 6. Lista de Espera (limpeza de entradas demo)
     if (waitlistData && waitlistData.length > 0) {
       updated.waitlist = waitlistData.map((w): WaitlistEntryItem => {
         const client = updated.clients.find((c) => c.id === w.client_id);
@@ -431,6 +468,48 @@ export async function loadStudioStateFromSupabase(
       updated.waitlist = [];
     }
 
+    // 7. Limpeza e Destilação de Dados Fictícios durante Reconciliação
+    // Remove faturas e histórico de vendas de demonstração para contas reais
+    updated.invoices = (currentState.invoices || []).filter(
+      (inv) => !isDemoOrMockId(inv.id) && !isDemoEntity(inv.clientName)
+    );
+    updated.salesHistory = (currentState.salesHistory || []).filter(
+      (sale) => !isDemoOrMockId(sale.id) && !isDemoEntity(sale.clientName)
+    );
+
+    // Reseta controle de ponto demo se tiver dados fictícios da interface inicial
+    if (
+      updated.timeTracking.activeClockInStaffId === "staff-bruno" ||
+      updated.timeTracking.activeElapsedSeconds === 15678
+    ) {
+      updated.timeTracking = {
+        ...updated.timeTracking,
+        activeClockInStaffId: "",
+        activeSessionStatus: "idle",
+        activeElapsedSeconds: 0,
+        logs: [],
+      };
+    } else {
+      updated.timeTracking = {
+        ...updated.timeTracking,
+        logs: (updated.timeTracking.logs || []).filter(
+          (l) => !isDemoOrMockId(l.id) && !isDemoEntity(l.staffName)
+        ),
+      };
+    }
+
+    if (updated.marketing?.campaigns) {
+      updated.marketing.campaigns = updated.marketing.campaigns.filter(
+        (c) => !isDemoOrMockId(c.id)
+      );
+    }
+
+    if (updated.reception?.logs) {
+      updated.reception.logs = updated.reception.logs.filter(
+        (l) => !isDemoOrMockId(l.id) && !isDemoEntity(l.clientName)
+      );
+    }
+
     return updated;
   } catch (error) {
     console.error("Erro ao sincronizar com Supabase:", error);
@@ -447,6 +526,16 @@ export async function syncNewAppointmentToSupabase(
   organizationId?: string
 ) {
   if (!isSupabaseConfigured()) return;
+
+  // Trava de Isolamento: rejeita categoricamente eventos demo ou com clientes fictícios
+  if (
+    isDemoOrMockId(event.id) ||
+    isDemoEntity(event.clientName) ||
+    !event.clientName ||
+    event.clientName === "Cliente"
+  ) {
+    return;
+  }
 
   try {
     let orgId = organizationId;
@@ -595,6 +684,9 @@ export async function syncAppointmentUpdateToSupabase(
   event: CalendarEventItem
 ) {
   if (!isSupabaseConfigured()) return;
+  // Trava de Isolamento: ignora atualizações em IDs de demonstração
+  if (isDemoOrMockId(event.id) || !isValidUuid(event.id)) return;
+
   try {
     if (isValidUuid(event.id)) {
       const allowedStatuses = [
@@ -630,6 +722,15 @@ export async function syncNewClientToSupabase(
   organizationId?: string
 ) {
   if (!isSupabaseConfigured()) return;
+
+  // Trava de Isolamento: rejeita categoricamente clientes demo/fictícios
+  if (
+    isDemoOrMockId(client.id) ||
+    isDemoEntity(client.fullName) ||
+    isDemoEntity(client.email)
+  ) {
+    return;
+  }
 
   try {
     let orgId = organizationId;
