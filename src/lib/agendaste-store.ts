@@ -1514,7 +1514,7 @@ export function createEmptyTenantStudioState(meta?: {
       website: {
         ...getDefaultWebsiteBookingConfig(businessName),
         subdomainSlug: slug,
-        websitePublished: true,
+        websitePublished: false,
       },
     },
     lastToastMessage: null,

@@ -82,6 +82,7 @@ export function GetStartedView({
     }
   };
 
+  const isStep1Done = Boolean(state.onboarding.steps[0]?.completed);
   const isWebsitePublished = Boolean(state.settings.website?.websitePublished);
   const activeSubdomain =
     state.settings.website?.subdomainSlug ||
@@ -89,7 +90,7 @@ export function GetStartedView({
   const bookingSiteUrl = getBookingSiteUrl(activeSubdomain);
 
   const handleOpenMyBookingSite = () => {
-    if (isWebsitePublished) {
+    if (isWebsitePublished && isStep1Done) {
       window.open(bookingSiteUrl, "_blank", "noopener,noreferrer");
     } else if (onOpenWebsiteWizard) {
       onOpenWebsiteWizard(1);
@@ -107,7 +108,7 @@ export function GetStartedView({
         <h1 className="text-[22px] font-bold tracking-tight text-[#18181B] dark:text-white">
           Bem-vindo, {state.settings.personal.firstName}
         </h1>
-        {isWebsitePublished ? (
+        {isWebsitePublished && isStep1Done ? (
           <a
             href={bookingSiteUrl}
             target="_blank"
@@ -180,23 +181,32 @@ export function GetStartedView({
                 </p>
               </div>
               <div className="pt-3 flex items-center justify-between">
-                {isWebsitePublished ? (
-                  <a
-                    href={bookingSiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-medium hover:bg-black dark:hover:bg-zinc-200 transition-colors"
-                  >
-                    <span>Acessar meu site</span>
-                    <ExternalLink className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />
-                  </a>
+                {isWebsitePublished && isStep1Done ? (
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={bookingSiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-medium hover:bg-black dark:hover:bg-zinc-200 transition-colors"
+                    >
+                      <span>Acessar meu site</span>
+                      <ExternalLink className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleStartStep("booking_site")}
+                      className="px-3 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors"
+                    >
+                      Editar
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => handleStartStep("booking_site")}
                     className="px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors"
                   >
-                    {state.onboarding.steps[0].completed ? "Tudo pronto" : "Começar"}
+                    Começar
                   </button>
                 )}
               </div>

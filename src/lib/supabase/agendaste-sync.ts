@@ -147,9 +147,18 @@ export async function loadStudioStateFromSupabase(
     if (orgData) {
       updated.settings.business.businessName = orgData.name || updated.settings.business.businessName;
       updated.settings.business.bookingSlug = orgData.slug || updated.settings.business.bookingSlug;
+      const orgSettings = (orgData.settings || {}) as any;
+      const isPublished = Boolean(
+        orgSettings?.website?.websitePublished ?? orgSettings?.websitePublished ?? false
+      );
       if (updated.settings.website) {
         updated.settings.website.subdomainSlug = orgData.slug || updated.settings.website.subdomainSlug;
-        updated.settings.website.websitePublished = true;
+        updated.settings.website.websitePublished = isPublished;
+      }
+      if (isPublished) {
+        updated.onboarding.steps = updated.onboarding.steps.map((s) =>
+          s.id === "booking_site" ? { ...s, completed: true } : s
+        );
       }
     }
 

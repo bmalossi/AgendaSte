@@ -165,6 +165,30 @@ export function LuveaApp({
         for (const cli of newClients) {
           syncNewClientToSupabase(cli, next.staff[0]?.id, tenantOrgId).catch(console.error);
         }
+
+        // Sincroniza dados da organização e site de agendamento quando alterados no wizard
+        if (
+          next.settings.business.bookingSlug !== prev.settings.business.bookingSlug ||
+          next.settings.business.businessName !== prev.settings.business.businessName ||
+          next.settings.website?.websitePublished !== prev.settings.website?.websitePublished ||
+          next.settings.website?.theme !== prev.settings.website?.theme
+        ) {
+          supabase
+            .from("organizations")
+            .update({
+              name: next.settings.business.businessName,
+              slug: next.settings.business.bookingSlug,
+              settings: {
+                website: next.settings.website,
+                websitePublished: next.settings.website?.websitePublished,
+                onboardingSteps: next.onboarding.steps,
+              },
+            })
+            .eq("id", tenantOrgId)
+            .then(({ error }) => {
+              if (error) console.warn("Erro ao sincronizar organização no Supabase:", error);
+            });
+        }
       }
 
       return next;
