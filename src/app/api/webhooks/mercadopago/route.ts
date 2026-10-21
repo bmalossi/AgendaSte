@@ -1,7 +1,7 @@
 import {
   isMercadoPagoConfigured,
   verifyMercadoPagoWebhookSignature,
-} from "../../../../lib/mercadopago.ts";
+} from "@/lib/mercadopago";
 
 interface MercadoPagoWebhookBody {
   id?: string | number;

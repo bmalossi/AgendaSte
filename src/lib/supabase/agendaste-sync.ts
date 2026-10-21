@@ -23,20 +23,98 @@ function calculateEndTime(startTime: string, durationMinutes: number): string {
   return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 }
 
+export interface TenantContext {
+  userId: string;
+  organizationId: string;
+  organizationSlug: string;
+  organizationName: string;
+  role: string;
+}
+
 /**
- * Carrega os dados reais do Supabase para hidratar o estado da aplicação.
- * Se o Supabase estiver configurado e acessível, mapeia as linhas das tabelas
- * diretamente para o StudioState da LUVEA, preservando agendamentos locais
- * que ainda não foram sincronizados.
+ * Obtém o contexto do tenant (organização) do usuário autenticado atual.
+ * Garante que qualquer consulta ou gravação seja restrita exclusivamente ao estúdio do usuário.
+ */
+export async function getCurrentTenantContext(): Promise<TenantContext | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) return null;
+
+    // 1. Tenta buscar pelo perfil vinculado (tabela profiles)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("organization_id, full_name, role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.organization_id) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("id, name, slug")
+        .eq("id", profile.organization_id)
+        .maybeSingle();
+
+      return {
+        userId: user.id,
+        organizationId: profile.organization_id,
+        organizationSlug: org?.slug || `studio-${user.id.slice(0, 8)}`,
+        organizationName: org?.name || profile.full_name || "Meu Estúdio",
+        role: profile.role || "owner",
+      };
+    }
+
+    // 2. Fallback caso a tabela profiles ainda não tenha a linha: busca por profissional com user_id
+    const { data: prof } = await supabase
+      .from("professionals")
+      .select("id, organization_id, studio_name, slug")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (prof?.organization_id) {
+      return {
+        userId: user.id,
+        organizationId: prof.organization_id,
+        organizationSlug: prof.slug || `studio-${user.id.slice(0, 8)}`,
+        organizationName: prof.studio_name || "Meu Estúdio",
+        role: "owner",
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.warn("[Luvea Multi-Tenant] Erro ao obter contexto do tenant:", err);
+    return null;
+  }
+}
+
+/**
+ * Carrega os dados reais do Supabase para hidratar o estado da aplicação
+ * de forma estritamente isolada por tenant (organização).
  */
 export async function loadStudioStateFromSupabase(
-  currentState: StudioState
+  currentState: StudioState,
+  explicitOrgId?: string
 ): Promise<StudioState> {
   if (!isSupabaseConfigured()) {
     return currentState;
   }
 
   try {
+    let orgId = explicitOrgId;
+    let tenantCtx: TenantContext | null = null;
+
+    if (!orgId) {
+      tenantCtx = await getCurrentTenantContext();
+      orgId = tenantCtx?.organizationId;
+    }
+
+    // Se não há organização identificada (usuário não autenticado), não carrega dados globais
+    if (!orgId) {
+      return currentState;
+    }
+
     const [
       { data: profs },
       { data: resourcesData },
@@ -44,22 +122,36 @@ export async function loadStudioStateFromSupabase(
       { data: clientsData },
       { data: appointmentsData },
       { data: waitlistData },
+      { data: orgData },
     ] = await Promise.all([
-      supabase.from("professionals").select("*").limit(1),
-      supabase.from("resources").select("*"),
-      supabase.from("services").select("*").eq("active", true),
+      supabase.from("professionals").select("*").eq("organization_id", orgId),
+      supabase.from("resources").select("*").eq("organization_id", orgId),
+      supabase.from("services").select("*").eq("organization_id", orgId).eq("active", true),
       supabase
         .from("clients")
         .select("*")
+        .eq("organization_id", orgId)
         .order("created_at", { ascending: false }),
       supabase
         .from("appointments")
         .select("*")
+        .eq("organization_id", orgId)
         .order("starts_at", { ascending: true }),
-      supabase.from("waitlist_entries").select("*"),
+      supabase.from("waitlist_entries").select("*").eq("organization_id", orgId),
+      supabase.from("organizations").select("*").eq("id", orgId).maybeSingle(),
     ]);
 
     const updated = { ...currentState };
+
+    // Sincroniza informações da Organização
+    if (orgData) {
+      updated.settings.business.businessName = orgData.name || updated.settings.business.businessName;
+      updated.settings.business.bookingSlug = orgData.slug || updated.settings.business.bookingSlug;
+      if (updated.settings.website) {
+        updated.settings.website.subdomainSlug = orgData.slug || updated.settings.website.subdomainSlug;
+        updated.settings.website.websitePublished = true;
+      }
+    }
 
     // 1. Perfil do Profissional & Negócio
     if (profs && profs[0]) {
@@ -329,21 +421,29 @@ export async function loadStudioStateFromSupabase(
 }
 
 /**
- * Insere um novo agendamento no Supabase (se configurado)
+ * Insere um novo agendamento no Supabase garantindo isolamento por organização
  */
 export async function syncNewAppointmentToSupabase(
   event: CalendarEventItem,
-  professionalId = "11111111-1111-1111-1111-111111111111"
+  professionalId = "11111111-1111-1111-1111-111111111111",
+  organizationId?: string
 ) {
   if (!isSupabaseConfigured()) return;
 
   try {
+    let orgId = organizationId;
+    if (!orgId) {
+      const ctx = await getCurrentTenantContext();
+      orgId = ctx?.organizationId;
+    }
+
     let profId = professionalId;
     if (!isValidUuid(profId)) {
-      const { data: profs } = await supabase
-        .from("professionals")
-        .select("id")
-        .limit(1);
+      let query = supabase.from("professionals").select("id").limit(1);
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
+      const { data: profs } = await query;
       if (profs && profs[0]?.id) {
         profId = profs[0].id;
       } else {
@@ -356,17 +456,22 @@ export async function syncNewAppointmentToSupabase(
     if (event.clientId && isValidUuid(event.clientId)) {
       validClientId = event.clientId;
     } else if (event.clientName && event.clientName !== "Cliente") {
-      const { data: matched } = await supabase
+      let clientQuery = supabase
         .from("clients")
         .select("id")
         .eq("full_name", event.clientName)
         .limit(1);
+      if (orgId) {
+        clientQuery = clientQuery.eq("organization_id", orgId);
+      }
+      const { data: matched } = await clientQuery;
       if (matched && matched[0]?.id) {
         validClientId = matched[0].id;
       } else {
         const { data: newCli } = await supabase
           .from("clients")
           .insert({
+            organization_id: orgId || undefined,
             professional_id: profId,
             full_name: event.clientName,
             phone_whatsapp: "(11) 99876-5432",
@@ -438,6 +543,7 @@ export async function syncNewAppointmentToSupabase(
 
     await supabase.from("appointments").insert({
       id: isValidUuid(event.id) ? event.id : undefined,
+      organization_id: orgId || undefined,
       professional_id: profId,
       client_id: validClientId,
       service_ids: validServiceIds,
@@ -498,21 +604,29 @@ export async function syncAppointmentUpdateToSupabase(
 }
 
 /**
- * Insere um novo cliente no Supabase (se configurado)
+ * Insere um novo cliente no Supabase garantindo isolamento por organização
  */
 export async function syncNewClientToSupabase(
   client: ClientProfile,
-  professionalId = "11111111-1111-1111-1111-111111111111"
+  professionalId = "11111111-1111-1111-1111-111111111111",
+  organizationId?: string
 ) {
   if (!isSupabaseConfigured()) return;
 
   try {
+    let orgId = organizationId;
+    if (!orgId) {
+      const ctx = await getCurrentTenantContext();
+      orgId = ctx?.organizationId;
+    }
+
     let profId = professionalId;
     if (!isValidUuid(profId)) {
-      const { data: profs } = await supabase
-        .from("professionals")
-        .select("id")
-        .limit(1);
+      let query = supabase.from("professionals").select("id").limit(1);
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
+      const { data: profs } = await query;
       if (profs && profs[0]?.id) {
         profId = profs[0].id;
       } else {
@@ -522,6 +636,7 @@ export async function syncNewClientToSupabase(
 
     await supabase.from("clients").insert({
       id: isValidUuid(client.id) ? client.id : undefined,
+      organization_id: orgId || undefined,
       professional_id: profId,
       full_name: client.fullName,
       email: client.email || null,

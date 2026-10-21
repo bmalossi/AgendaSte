@@ -18,36 +18,36 @@ const LuveaApp = dynamic(
 
 function DashboardLoadingSkeleton() {
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-white dark:bg-[#09090b]">
       {/* Sidebar Skeleton */}
-      <div className="w-60 border-r border-[#E5E5EA] bg-[#F9F9FB] p-4 flex flex-col justify-between hidden md:flex">
+      <div className="w-60 border-r border-[#E5E5EA] dark:border-[#27272a] bg-[#F9F9FB] dark:bg-[#18181b] p-4 flex flex-col justify-between hidden md:flex">
         <div className="space-y-4">
-          <div className="h-7 w-28 bg-[#E5E5EA] rounded-lg animate-pulse" />
+          <div className="h-7 w-28 bg-[#E5E5EA] dark:bg-[#27272a] rounded-lg animate-pulse" />
           <div className="space-y-2 pt-4">
-            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
-            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
-            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
-            <div className="h-9 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
+            <div className="h-9 w-full bg-[#E5E5EA] dark:bg-[#27272a] rounded-xl animate-pulse" />
+            <div className="h-9 w-full bg-[#E5E5EA] dark:bg-[#27272a] rounded-xl animate-pulse" />
+            <div className="h-9 w-full bg-[#E5E5EA] dark:bg-[#27272a] rounded-xl animate-pulse" />
+            <div className="h-9 w-full bg-[#E5E5EA] dark:bg-[#27272a] rounded-xl animate-pulse" />
           </div>
         </div>
-        <div className="h-10 w-full bg-[#E5E5EA] rounded-xl animate-pulse" />
+        <div className="h-10 w-full bg-[#E5E5EA] dark:bg-[#27272a] rounded-xl animate-pulse" />
       </div>
 
       {/* Main Content Area Skeleton */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="h-14 border-b border-[#E5E5EA] px-6 flex items-center justify-between">
-          <div className="h-5 w-36 bg-[#E5E5EA] rounded animate-pulse" />
+      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#09090b]">
+        <div className="h-14 border-b border-[#E5E5EA] dark:border-[#27272a] px-6 flex items-center justify-between">
+          <div className="h-5 w-36 bg-[#E5E5EA] dark:bg-[#27272a] rounded animate-pulse" />
           <div className="flex items-center gap-3">
-            <div className="h-8 w-24 bg-[#E5E5EA] rounded-full animate-pulse" />
-            <div className="h-8 w-8 bg-[#E5E5EA] rounded-full animate-pulse" />
+            <div className="h-8 w-24 bg-[#E5E5EA] dark:bg-[#27272a] rounded-full animate-pulse" />
+            <div className="h-8 w-8 bg-[#E5E5EA] dark:bg-[#27272a] rounded-full animate-pulse" />
           </div>
         </div>
         <div className="flex-1 p-6 sm:p-8 space-y-6">
-          <div className="h-28 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
+          <div className="h-28 bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="h-36 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
-            <div className="h-36 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
-            <div className="h-36 bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl animate-pulse" />
+            <div className="h-36 bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl animate-pulse" />
+            <div className="h-36 bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl animate-pulse" />
+            <div className="h-36 bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl animate-pulse" />
           </div>
         </div>
       </div>

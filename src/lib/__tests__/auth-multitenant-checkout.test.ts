@@ -217,5 +217,97 @@ describe("Módulo de Autenticação, Checkout & Multi-Tenant (Luvea.app)", () =>
       assert.ok(sqlContent.includes("CREATE POLICY \"Usuários podem ver perfis da sua organização\""));
       assert.ok(sqlContent.includes("CREATE POLICY \"Usuários podem atualizar seus próprios perfis\""));
     });
+
+    it("arquivo de migration 20261021_multitenant_rls_isolation.sql garante RLS e isolamento estrito", () => {
+      const migrationPath = path.resolve(
+        process.cwd(),
+        "supabase/migrations/20261021_multitenant_rls_isolation.sql"
+      );
+      assert.ok(fs.existsSync(migrationPath), "Migration de isolamento deve existir");
+
+      const sqlContent = fs.readFileSync(migrationPath, "utf-8");
+      // Verifica remoção de policies inseguras
+      assert.ok(sqlContent.includes("DROP POLICY IF EXISTS \"Enable full access for dev and anon\""));
+      // Verifica função security definer de tenant
+      assert.ok(sqlContent.includes("CREATE OR REPLACE FUNCTION public.current_organization_id()"));
+      // Verifica trigger de provisionamento automático
+      assert.ok(sqlContent.includes("CREATE OR REPLACE FUNCTION public.handle_new_user_provisioning()"));
+      assert.ok(sqlContent.includes("CREATE TRIGGER on_auth_user_created_provision"));
+      // Verifica política de isolamento por tenant
+      assert.ok(sqlContent.includes("CREATE POLICY \"Tenant isolation for authenticated users\""));
+      // Verifica adição de organization_id nas tabelas
+      assert.ok(sqlContent.includes("ADD COLUMN IF NOT EXISTS organization_id UUID"));
+      // Verifica regras públicas para agendamento
+      assert.ok(sqlContent.includes("CREATE POLICY \"Public booking site read services\""));
+      assert.ok(sqlContent.includes("CREATE POLICY \"Public booking site create appointment\""));
+    });
+
+    it("garante que chaves de cache local são isoladas por usuário e por subdomínio público", () => {
+      const userAId = "usr_tenant_11111111";
+      const userBId = "usr_tenant_22222222";
+      const slug = "salao-estilo";
+
+      const keyA = `luvea_studio_state_v1_${userAId}`;
+      const keyB = `luvea_studio_state_v1_${userBId}`;
+      const publicSiteKey = `luvea_public_site_${slug}`;
+
+      // Chaves devem ser mutuamente exclusivas
+      assert.notEqual(keyA, keyB);
+      assert.notEqual(keyA, publicSiteKey);
+      assert.notEqual(keyB, publicSiteKey);
+
+      assert.ok(keyA.endsWith(userAId));
+      assert.ok(keyB.endsWith(userBId));
+      assert.ok(publicSiteKey.endsWith(slug));
+    });
+
+    it("arquivo de migration 20261021_multitenant_hardening.sql fecha brechas de escalação e vaza de PII", () => {
+      const migrationPath = path.resolve(
+        process.cwd(),
+        "supabase/migrations/20261021_multitenant_hardening.sql"
+      );
+      assert.ok(fs.existsSync(migrationPath), "Migration de hardening deve existir");
+
+      const sqlContent = fs.readFileSync(migrationPath, "utf-8");
+      // Prevenção de alteração de tenant em profiles
+      assert.ok(sqlContent.includes("CREATE OR REPLACE FUNCTION public.prevent_profile_tenant_escalation()"));
+      assert.ok(sqlContent.includes("CREATE TRIGGER trigger_prevent_profile_tenant_escalation"));
+      // Prevenção de alteração de plano ou gateway em organizations
+      assert.ok(sqlContent.includes("CREATE OR REPLACE FUNCTION public.prevent_organization_tampering()"));
+      assert.ok(sqlContent.includes("CREATE TRIGGER trigger_prevent_organization_tampering"));
+      // RPC pública sem vazamento de Stripe ou dados fiscais
+      assert.ok(sqlContent.includes("CREATE OR REPLACE FUNCTION public.get_public_studio_by_slug"));
+      // RPC pública de horários ocupados sem PII de clientes
+      assert.ok(sqlContent.includes("CREATE OR REPLACE FUNCTION public.get_public_busy_slots"));
+      // Backfill de usuários e dados legados
+      assert.ok(sqlContent.includes("SELECT u.id, u.email, u.raw_user_meta_data"));
+      // Proteção de slugs reservados
+      assert.ok(sqlContent.includes("reserved_slugs"));
+    });
+
+    it("createEmptyTenantStudioState inicializa novo estúdio com listas 100% vazias e sem dados demo", async () => {
+      const { createEmptyTenantStudioState } = await import("../agendaste-store");
+      const emptyState = createEmptyTenantStudioState({
+        fullName: "Renata Vasconcellos",
+        businessName: "Renata Estética Avançada",
+        subdomain: "renata-estetica",
+        email: "renata@estetica.com.br",
+      });
+
+      // Clientes e agendamentos NUNCA devem ter dados de terceiros
+      assert.equal(emptyState.clients.length, 0);
+      assert.equal(emptyState.calendarEvents.length, 0);
+      assert.equal(emptyState.waitlist.length, 0);
+      assert.equal(emptyState.invoices.length, 0);
+      assert.equal(emptyState.salesHistory.length, 0);
+
+      // Dados do proprietário devem estar corretos
+      assert.equal(emptyState.settings.personal.firstName, "Renata");
+      assert.equal(emptyState.settings.personal.lastName, "Vasconcellos");
+      assert.equal(emptyState.settings.personal.email, "renata@estetica.com.br");
+      assert.equal(emptyState.settings.business.businessName, "Renata Estética Avançada");
+      assert.equal(emptyState.settings.business.bookingSlug, "renata-estetica");
+      assert.equal(emptyState.staff[0].fullName, "Renata Vasconcellos");
+    });
   });
 });

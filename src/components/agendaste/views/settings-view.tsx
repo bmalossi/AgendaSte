@@ -31,7 +31,10 @@ import {
   ChevronRight,
   AlertCircle,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useAppTheme } from "@/lib/theme";
 import type {
   StudioState,
   WebsiteBookingSetupConfig,
@@ -83,6 +86,7 @@ export function SettingsView({
   initialTab = "business",
   initialSubTab = "client_notifications",
 }: SettingsViewProps) {
+  const { theme, setTheme } = useAppTheme();
   // Aba Superior
   const [topTab, setTopTab] = useState<TopTabId>(() => {
     if (initialTab && ["personal", "staff", "business", "subscription", "whatsapp"].includes(initialTab)) {
@@ -2112,6 +2116,72 @@ export function SettingsView({
                 onChange={(e) => setPersonalPhone(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
               />
+            </div>
+          </div>
+
+          {/* Aparência do Studio */}
+          <div className="pt-6 border-t border-[#E5E5EA] dark:border-[#27272a] space-y-3">
+            <div>
+              <h3 className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white">Aparência do Studio</h3>
+              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                Escolha o tema do seu painel operacional. Alterne entre os modos claro e escuro a qualquer momento.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+              <button
+                type="button"
+                onClick={() => setTheme("light")}
+                className={`p-3.5 rounded-2xl border text-left transition flex items-center justify-between ${
+                  theme === "light"
+                    ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white shadow-sm ring-2 ring-[#E5E5EA] dark:ring-[#3f3f46]"
+                    : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    theme === "light" ? "bg-white text-amber-500 shadow-2xs" : "bg-[#F5F5F7] dark:bg-[#27272a] text-[#71717A]"
+                  }`}>
+                    <Sun className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[13px] font-semibold block leading-tight">Modo Claro</span>
+                    <span className="text-[11px] text-[#71717A] dark:text-[#a1a1aa]">Padrão Luvea</span>
+                  </div>
+                </div>
+                {theme === "light" && (
+                  <div className="w-5 h-5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] flex items-center justify-center">
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </div>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTheme("dark")}
+                className={`p-3.5 rounded-2xl border text-left transition flex items-center justify-between ${
+                  theme === "dark"
+                    ? "border-[#1C1C1E] dark:border-white bg-[#18181b] text-white shadow-sm ring-2 ring-[#27272a]"
+                    : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    theme === "dark" ? "bg-[#27272a] text-amber-400" : "bg-[#F5F5F7] dark:bg-[#27272a] text-[#71717A]"
+                  }`}>
+                    <Moon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[13px] font-semibold block leading-tight">Modo Escuro</span>
+                    <span className={`text-[11px] ${theme === "dark" ? "text-[#a1a1aa]" : "text-[#71717A]"}`}>Luvea Dark</span>
+                  </div>
+                </div>
+                {theme === "dark" && (
+                  <div className="w-5 h-5 rounded-full bg-white text-[#09090b] flex items-center justify-center">
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </div>
+                )}
+              </button>
             </div>
           </div>
 

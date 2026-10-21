@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { checkLuveaDomainStatus } from "@/lib/resend-domain";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const status = await checkLuveaDomainStatus();

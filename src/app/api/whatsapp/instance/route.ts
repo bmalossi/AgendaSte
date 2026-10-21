@@ -3,6 +3,9 @@ import {
   resolveTargetInstance,
   TargetInstanceResolution,
 } from "@/lib/whatsapp-instance-helper";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export interface WhatsAppInstancePayload {
   action: "create_or_connect" | "status" | "disconnect";
@@ -13,6 +16,34 @@ export interface WhatsAppInstancePayload {
 
 export async function POST(request: Request) {
   try {
+    if (isSupabaseConfigured() && process.env.NODE_ENV === "production") {
+      try {
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+          {
+            cookies: {
+              getAll() {
+                return cookieStore.getAll();
+              },
+            },
+          }
+        );
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          return Response.json(
+            { error: "Acesso não autorizado para gerenciar instâncias WhatsApp." },
+            { status: 401 }
+          );
+        }
+      } catch (authErr) {
+        console.warn("[WhatsApp Instance Auth Check]", authErr);
+      }
+    }
+
     const body = (await request.json().catch(() => ({}))) as WhatsAppInstancePayload;
     const action = body.action || "status";
     const phoneDigits = normalizePhoneDigits(body.phoneNumber || "");

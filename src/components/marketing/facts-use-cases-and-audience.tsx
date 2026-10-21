@@ -116,37 +116,37 @@ export function FactsUseCasesAndAudience() {
       <section
         id="fatos"
         aria-label="Resultados comprovados do produto"
-        className="py-16 sm:py-24 bg-[#F5F5F7] border-b border-[#E5E5EA]"
+        className="py-16 sm:py-24 bg-[#F5F5F7] dark:bg-[#09090b] border-b border-[#E5E5EA] dark:border-[#27272a] transition-colors"
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
-          <h2 className="text-3xl sm:text-5xl font-normal text-[#1C1C1E] tracking-tight max-w-2xl mx-auto">
+          <h2 className="text-3xl sm:text-5xl font-normal text-[#1C1C1E] dark:text-white tracking-tight max-w-2xl mx-auto">
             Comprovado para aumentar seu faturamento
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 sm:gap-8 items-start">
             <div className="space-y-1.5">
-              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E]">
+              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E] dark:text-white">
                 26%<span className="text-4xl sm:text-5xl align-top font-light">+</span>
               </p>
-              <p className="text-sm sm:text-base text-[#6E6E73] font-normal">
+              <p className="text-sm sm:text-base text-[#6E6E73] dark:text-[#a1a1aa] font-normal">
                 mais receita no primeiro ano
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E]">
+              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E] dark:text-white">
                 75%<span className="text-4xl sm:text-5xl align-top font-light">+</span>
               </p>
-              <p className="text-sm sm:text-base text-[#6E6E73] font-normal">
+              <p className="text-sm sm:text-base text-[#6E6E73] dark:text-[#a1a1aa] font-normal">
                 taxa média de retorno de clientes
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E]">
+              <p className="text-6xl sm:text-7xl lg:text-8xl font-normal tracking-tight text-[#1C1C1E] dark:text-white">
                 40h<span className="text-4xl sm:text-5xl align-top font-light">+</span>
               </p>
-              <p className="text-sm sm:text-base text-[#6E6E73] font-normal">
+              <p className="text-sm sm:text-base text-[#6E6E73] dark:text-[#a1a1aa] font-normal">
                 economizadas por mês em gestão
               </p>
             </div>
@@ -158,11 +158,11 @@ export function FactsUseCasesAndAudience() {
       <section
         id="casos-de-uso"
         aria-label="Casos reais de empreendedores"
-        className="py-16 sm:py-24 bg-white border-b border-[#E5E5EA] overflow-hidden w-full"
+        className="py-16 sm:py-24 bg-white dark:bg-[#09090b] border-b border-[#E5E5EA] dark:border-[#27272a] overflow-hidden w-full transition-colors"
       >
         <div className="w-full px-4 sm:px-6 lg:px-8 mb-8 sm:mb-12">
           <div className="flex items-end justify-between">
-            <h2 className="text-3xl sm:text-5xl font-normal text-[#1C1C1E] tracking-tight leading-tight max-w-2xl">
+            <h2 className="text-3xl sm:text-5xl font-normal text-[#1C1C1E] dark:text-white tracking-tight leading-tight max-w-2xl">
               Resultados reais em estúdios e clínicas
             </h2>
 
@@ -172,7 +172,7 @@ export function FactsUseCasesAndAudience() {
                 onClick={() => scrollTestimonials("prev")}
                 disabled={currentIndex === 0}
                 aria-label="Depoimento anterior"
-                className="p-3 rounded-full border border-[#E5E5EA] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+                className="p-3 rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -181,7 +181,7 @@ export function FactsUseCasesAndAudience() {
                 onClick={() => scrollTestimonials("next")}
                 disabled={currentIndex === TESTIMONIALS.length - 1}
                 aria-label="Próximo depoimento"
-                className="p-3 rounded-full border border-[#E5E5EA] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+                className="p-3 rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -231,22 +231,22 @@ export function FactsUseCasesAndAudience() {
       <section
         id="para-quem-e"
         aria-label="Para quem é a LUVEA"
-        className="py-16 sm:py-24 bg-[#FAF9F6] border-b border-[#E5E5EA]"
+        className="py-16 sm:py-24 bg-[#FAF9F6] dark:bg-[#09090b] border-b border-[#E5E5EA] dark:border-[#27272a] transition-colors"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <h2 className="text-3xl sm:text-4xl font-normal text-[#1C1C1E] tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-normal text-[#1C1C1E] dark:text-white tracking-tight">
               Sob medida para o seu formato de atendimento
             </h2>
           </div>
 
           {/* Real System Captures: Agenda & Prontuários */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-3">
-              <h3 className="text-[15px] font-semibold text-[#1C1C1E]">
+            <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] p-5 space-y-3 transition-colors">
+              <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
                 Agenda inteligente com pausas químicas e trava de recursos
               </h3>
-              <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
+              <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#09090b]">
                 <Image
                   src="/images/real-calendar.png"
                   alt="Tela real da agenda LUVEA com blocos de pausa e trava de salas"
@@ -257,11 +257,11 @@ export function FactsUseCasesAndAudience() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] p-5 space-y-3">
-              <h3 className="text-[15px] font-semibold text-[#1C1C1E]">
+            <div className="rounded-2xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] p-5 space-y-3 transition-colors">
+              <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
                 Prontuário clínico digital e mapeamento fotográfico
               </h3>
-              <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] bg-white">
+              <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#09090b]">
                 <Image
                   src="/images/real-charts.png"
                   alt="Tela real de prontuários clínicos e fotos antes e depois na LUVEA"
@@ -280,16 +280,16 @@ export function FactsUseCasesAndAudience() {
               return (
                 <div
                   key={seg.title}
-                  className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-start gap-3.5"
+                  className="p-5 rounded-2xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] flex items-start gap-3.5 transition-colors"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-white dark:bg-[#09090b] border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white shrink-0">
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-[14.5px] font-semibold text-[#1C1C1E]">
+                    <h3 className="text-[14.5px] font-semibold text-[#1C1C1E] dark:text-white">
                       {seg.title}
                     </h3>
-                    <p className="text-[12.5px] text-[#6E6E73] leading-snug">
+                    <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-snug">
                       {seg.desc}
                     </p>
                   </div>
@@ -304,7 +304,7 @@ export function FactsUseCasesAndAudience() {
       <section
         id="chamada-final"
         aria-label="Comece a usar a LUVEA"
-        className="py-16 sm:py-24 bg-[#141416] text-white text-center"
+        className="py-16 sm:py-24 bg-[#141416] dark:bg-[#09090b] text-white text-center border-t border-transparent dark:border-[#27272a] transition-colors"
       >
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
           <h2 className="text-3xl sm:text-5xl font-normal text-white tracking-tight leading-tight">
@@ -331,15 +331,15 @@ export function FactsUseCasesAndAudience() {
           </div>
 
           <div className="pt-3 flex flex-wrap items-center justify-center gap-3 text-xs font-mono text-zinc-400">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 dark:bg-[#18181b] border border-zinc-800 dark:border-[#27272a]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               14 dias grátis
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 dark:bg-[#18181b] border border-zinc-800 dark:border-[#27272a]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Sem cartão de crédito
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 dark:bg-[#18181b] border border-zinc-800 dark:border-[#27272a]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Ativação imediata
             </span>

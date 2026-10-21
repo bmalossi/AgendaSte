@@ -25,6 +25,7 @@ import {
   getLoginUrl,
 } from "@/lib/marketing-content";
 import { LuveaWordmark } from "@/components/luvea-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function MarketingHeader() {
   const [activeDropdown, setActiveDropdown] = useState<"how" | "business" | null>(
@@ -90,17 +91,17 @@ export function MarketingHeader() {
   const loginUrl = getLoginUrl();
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-zinc-200/80 transition-all">
+    <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-200/80 dark:border-[#27272a] transition-all">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18 sm:h-20">
           {/* Brand Logo — Wordmark de alta-costura (LUVEA) */}
           <div className="flex items-center gap-8">
             <Link
               href="/"
-              className="flex items-center group focus:outline-none focus-visible:ring-2 focus-visible:ring-black rounded-lg py-1"
+              className="flex items-center group focus:outline-none focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white rounded-lg py-1"
               aria-label="LUVEA - Início"
             >
-              <LuveaWordmark className="text-[20px] sm:text-[22px] group-hover:opacity-80 transition-opacity" />
+              <LuveaWordmark className="text-[20px] sm:text-[22px] group-hover:opacity-80 transition-opacity dark:text-white" />
             </Link>
 
             {/* Desktop Navigation */}
@@ -122,13 +123,13 @@ export function MarketingHeader() {
                   }
                   className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-colors ${
                     activeDropdown === "how"
-                      ? "bg-zinc-100 text-[#18181B]"
-                      : "text-zinc-600 hover:text-[#18181B] hover:bg-zinc-50"
+                      ? "bg-zinc-100 dark:bg-[#18181b] text-[#18181B] dark:text-white"
+                      : "text-zinc-600 dark:text-[#a1a1aa] hover:text-[#18181B] dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-[#18181b]"
                   }`}
                 >
                   <span>Como funciona</span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-200 ${
+                    className={`w-3.5 h-3.5 text-zinc-500 dark:text-[#71717a] transition-transform duration-200 ${
                       activeDropdown === "how" ? "rotate-180" : ""
                     }`}
                   />
@@ -140,11 +141,11 @@ export function MarketingHeader() {
                     id="mega-menu-how"
                     role="region"
                     aria-label="Menu Como Funciona"
-                    className="absolute left-0 top-full mt-3 w-[840px] rounded-2xl bg-white border border-zinc-200 shadow-2xl p-6 grid grid-cols-12 gap-6 animate-in fade-in-0 zoom-in-95 duration-150"
+                    className="absolute left-0 top-full mt-3 w-[840px] rounded-2xl bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] shadow-2xl p-6 grid grid-cols-12 gap-6 animate-in fade-in-0 zoom-in-95 duration-150"
                   >
                     {/* Left Column: Categories List */}
-                    <div className="col-span-4 border-r border-zinc-100 pr-4 space-y-1">
-                      <p className="text-[11px] uppercase font-mono tracking-wider font-semibold text-zinc-600 px-3 py-1.5">
+                    <div className="col-span-4 border-r border-zinc-100 dark:border-[#27272a] pr-4 space-y-1">
+                      <p className="text-[11px] uppercase font-mono tracking-wider font-semibold text-zinc-600 dark:text-[#71717a] px-3 py-1.5">
                         Categorias
                       </p>
                       {HOW_IT_WORKS_MENU.map((cat) => {
@@ -157,13 +158,13 @@ export function MarketingHeader() {
                             onMouseEnter={() => setActiveHowCategory(cat.id)}
                             className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-left text-[13.5px] transition-all ${
                               isSelected
-                                ? "bg-zinc-100 text-[#18181B] font-semibold"
-                                : "text-zinc-500 hover:bg-zinc-50 hover:text-[#18181B] font-normal"
+                                ? "bg-zinc-100 dark:bg-[#27272a] text-[#18181B] dark:text-white font-semibold"
+                                : "text-zinc-500 dark:text-[#a1a1aa] hover:bg-zinc-50 dark:hover:bg-[#27272a] hover:text-[#18181B] dark:hover:text-white font-normal"
                             }`}
                           >
                             <span>{cat.label}</span>
                             {isSelected && (
-                              <ChevronRight className="w-3.5 h-3.5 text-zinc-900" />
+                              <ChevronRight className="w-3.5 h-3.5 text-zinc-900 dark:text-white" />
                             )}
                           </button>
                         );
@@ -172,7 +173,7 @@ export function MarketingHeader() {
 
                     {/* Middle Column: Items for selected category */}
                     <div className="col-span-4 space-y-2">
-                      <p className="text-[11px] uppercase font-mono tracking-wider font-semibold text-zinc-600 px-1 py-1.5">
+                      <p className="text-[11px] uppercase font-mono tracking-wider font-semibold text-zinc-600 dark:text-[#71717a] px-1 py-1.5">
                         {currentHowData.label}
                       </p>
                       <div className="space-y-1">
@@ -181,12 +182,12 @@ export function MarketingHeader() {
                             key={item.title}
                             href={item.href}
                             onClick={() => setActiveDropdown(null)}
-                            className="block p-2.5 rounded-xl hover:bg-zinc-50 transition-colors group"
+                            className="block p-2.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors group"
                           >
-                            <p className="text-[13px] font-semibold text-[#18181B] group-hover:text-black">
+                            <p className="text-[13px] font-semibold text-[#18181B] dark:text-white group-hover:text-black dark:group-hover:text-zinc-100">
                               {item.title}
                             </p>
-                            <p className="text-[11.5px] text-zinc-500 leading-snug mt-0.5">
+                            <p className="text-[11.5px] text-zinc-500 dark:text-[#a1a1aa] leading-snug mt-0.5">
                               {item.description}
                             </p>
                           </Link>
@@ -196,15 +197,15 @@ export function MarketingHeader() {
 
                     {/* Right Column: Editorial Highlight Card */}
                     <div className="col-span-4 pl-2 flex flex-col justify-between">
-                      <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/80 flex-1 flex flex-col justify-between">
+                      <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#27272a] border border-zinc-200/80 dark:border-[#3f3f46] flex-1 flex flex-col justify-between">
                         <div>
-                          <div className="inline-flex items-center px-2 py-0.5 rounded bg-zinc-200/80 text-[10px] font-mono font-semibold text-zinc-800 mb-3 uppercase tracking-wider">
+                          <div className="inline-flex items-center px-2 py-0.5 rounded bg-zinc-200/80 dark:bg-[#18181b] text-[10px] font-mono font-semibold text-zinc-800 dark:text-[#a1a1aa] mb-3 uppercase tracking-wider">
                             <span>Destaque</span>
                           </div>
-                          <h4 className="font-serif text-lg font-normal text-[#18181B] leading-tight mb-1.5">
+                          <h4 className="font-serif text-lg font-normal text-[#18181B] dark:text-white leading-tight mb-1.5">
                             {currentHowData.highlight.title}
                           </h4>
-                          <p className="text-[12px] text-zinc-600 leading-relaxed font-sans">
+                          <p className="text-[12px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed font-sans">
                             {currentHowData.highlight.description}
                           </p>
                         </div>
@@ -212,7 +213,7 @@ export function MarketingHeader() {
                         <Link
                           href={currentHowData.highlight.ctaHref}
                           onClick={() => setActiveDropdown(null)}
-                          className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#18181B] hover:gap-2 transition-all"
+                          className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#18181B] dark:text-white hover:gap-2 transition-all"
                         >
                           <span>{currentHowData.highlight.ctaText}</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -238,13 +239,13 @@ export function MarketingHeader() {
                   }
                   className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-colors ${
                     activeDropdown === "business"
-                      ? "bg-zinc-100 text-[#18181B]"
-                      : "text-zinc-600 hover:text-[#18181B] hover:bg-zinc-50"
+                      ? "bg-zinc-100 dark:bg-[#18181b] text-[#18181B] dark:text-white"
+                      : "text-zinc-600 dark:text-[#a1a1aa] hover:text-[#18181B] dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-[#18181b]"
                   }`}
                 >
                   <span>Negócios</span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-200 ${
+                    className={`w-3.5 h-3.5 text-zinc-500 dark:text-[#71717a] transition-transform duration-200 ${
                       activeDropdown === "business" ? "rotate-180" : ""
                     }`}
                   />
@@ -256,17 +257,17 @@ export function MarketingHeader() {
                     id="mega-menu-business"
                     role="region"
                     aria-label="Menu Negócios"
-                    className="absolute left-0 top-full mt-3 w-[680px] rounded-2xl bg-white border border-zinc-200 shadow-2xl p-6 grid grid-cols-2 gap-6 animate-in fade-in-0 zoom-in-95 duration-150"
+                    className="absolute left-0 top-full mt-3 w-[680px] rounded-2xl bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] shadow-2xl p-6 grid grid-cols-2 gap-6 animate-in fade-in-0 zoom-in-95 duration-150"
                   >
                     {BUSINESS_MENU.map((col) => (
                       <div key={col.id} className="space-y-3">
-                        <div className="flex items-center gap-2 border-b border-zinc-100 pb-2">
+                        <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-[#27272a] pb-2">
                           {col.id === "segmento" ? (
-                            <Building2 className="w-4 h-4 text-zinc-700" />
+                            <Building2 className="w-4 h-4 text-zinc-700 dark:text-[#a1a1aa]" />
                           ) : (
-                            <UserCheck className="w-4 h-4 text-zinc-700" />
+                            <UserCheck className="w-4 h-4 text-zinc-700 dark:text-[#a1a1aa]" />
                           )}
-                          <p className="text-[12px] uppercase font-mono tracking-wider font-semibold text-zinc-800">
+                          <p className="text-[12px] uppercase font-mono tracking-wider font-semibold text-zinc-800 dark:text-white">
                             {col.label}
                           </p>
                         </div>
@@ -276,12 +277,12 @@ export function MarketingHeader() {
                               key={item.title}
                               href={item.href}
                               onClick={() => setActiveDropdown(null)}
-                              className="block p-2.5 rounded-xl hover:bg-zinc-50 transition-colors group"
+                              className="block p-2.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors group"
                             >
-                              <p className="text-[13px] font-semibold text-[#18181B] group-hover:text-black">
+                              <p className="text-[13px] font-semibold text-[#18181B] dark:text-white group-hover:text-black dark:group-hover:text-zinc-100">
                                 {item.title}
                               </p>
-                              <p className="text-[11.5px] text-zinc-500 leading-snug mt-0.5">
+                              <p className="text-[11.5px] text-zinc-500 dark:text-[#a1a1aa] leading-snug mt-0.5">
                                 {item.description}
                               </p>
                             </Link>
@@ -296,7 +297,7 @@ export function MarketingHeader() {
               {/* Direct Preços link */}
               <Link
                 href="/precos"
-                className="px-3.5 py-2 rounded-full text-[13.5px] font-medium text-zinc-600 hover:text-[#18181B] hover:bg-zinc-50 transition-colors"
+                className="px-3.5 py-2 rounded-full text-[13.5px] font-medium text-zinc-600 dark:text-[#a1a1aa] hover:text-[#18181B] dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-[#18181b] transition-colors"
               >
                 Preços
               </Link>
@@ -305,9 +306,12 @@ export function MarketingHeader() {
 
           {/* Desktop Right CTA Action Buttons */}
           <div className="hidden lg:flex items-center gap-2.5">
+            {/* Alternador de Tema Oficial */}
+            <ThemeToggle variant="icon" />
+
             <Link
               href={loginUrl}
-              className="px-4 py-2 text-[13px] font-semibold text-zinc-700 hover:text-black transition-colors"
+              className="px-4 py-2 text-[13px] font-semibold text-zinc-700 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white transition-colors"
             >
               Entrar
             </Link>
@@ -316,26 +320,28 @@ export function MarketingHeader() {
               href={demoWhatsAppUrl}
               target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
               rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-zinc-200 hover:border-zinc-300 bg-white text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-[#18181b] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors shadow-2xs"
             >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Agendar demonstração</span>
             </a>
 
             <Link
               href={primaryCtaUrl}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-all shadow-sm active:scale-[0.98]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-100 transition-all shadow-sm active:scale-[0.98]"
             >
               <span>Começar teste grátis</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
-          {/* Mobile Hamburger Button */}
-          <div className="flex lg:hidden items-center gap-2">
+          {/* Mobile Hamburger Button + Theme Toggle */}
+          <div className="flex lg:hidden items-center gap-1.5">
+            <ThemeToggle variant="icon" />
+
             <Link
               href={primaryCtaUrl}
-              className="px-3.5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold"
+              className="px-3.5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12px] font-semibold"
             >
               Testar Grátis
             </Link>
@@ -344,7 +350,7 @@ export function MarketingHeader() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
               aria-expanded={mobileMenuOpen}
-              className="p-2.5 rounded-xl text-zinc-700 hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-black"
+              className="p-2.5 rounded-xl text-zinc-700 dark:text-[#a1a1aa] hover:bg-zinc-100 dark:hover:bg-[#18181b] focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
             >
               {mobileMenuOpen ? (
                 <X className="w-6 h-6" />
@@ -358,18 +364,18 @@ export function MarketingHeader() {
 
       {/* Mobile Full-Screen / Sliding Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-18 bottom-0 bg-white z-50 overflow-y-auto border-t border-zinc-200 px-6 py-6 space-y-6">
+        <div className="lg:hidden fixed inset-x-0 top-18 bottom-0 bg-white dark:bg-[#09090b] z-50 overflow-y-auto border-t border-zinc-200 dark:border-[#27272a] px-6 py-6 space-y-6">
           <div className="space-y-4">
             {/* Como funciona (Mobile Accordion) */}
-            <div className="border-b border-zinc-100 pb-3">
+            <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
               <button
                 type="button"
                 onClick={() => setMobileHowOpen(!mobileHowOpen)}
-                className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B]"
+                className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B] dark:text-white"
               >
                 <span>Como funciona</span>
                 <ChevronDown
-                  className={`w-5 h-5 text-zinc-500 transition-transform ${
+                  className={`w-5 h-5 text-zinc-500 dark:text-[#71717a] transition-transform ${
                     mobileHowOpen ? "rotate-180" : ""
                   }`}
                 />
@@ -378,7 +384,7 @@ export function MarketingHeader() {
                 <div className="pl-3 pt-2 space-y-3">
                   {HOW_IT_WORKS_MENU.map((cat) => (
                     <div key={cat.id} className="space-y-1">
-                      <p className="text-[12px] font-semibold text-zinc-800 uppercase tracking-wide font-mono">
+                      <p className="text-[12px] font-semibold text-zinc-800 dark:text-[#a1a1aa] uppercase tracking-wide font-mono">
                         {cat.label}
                       </p>
                       {cat.items.map((item) => (
@@ -386,7 +392,7 @@ export function MarketingHeader() {
                           key={item.title}
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="block py-1 text-[13px] text-zinc-600 hover:text-black"
+                          className="block py-1 text-[13px] text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
                         >
                           {item.title}
                         </Link>
@@ -398,15 +404,15 @@ export function MarketingHeader() {
             </div>
 
             {/* Negócios (Mobile Accordion) */}
-            <div className="border-b border-zinc-100 pb-3">
+            <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
               <button
                 type="button"
                 onClick={() => setMobileBusinessOpen(!mobileBusinessOpen)}
-                className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B]"
+                className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B] dark:text-white"
               >
                 <span>Negócios</span>
                 <ChevronDown
-                  className={`w-5 h-5 text-zinc-500 transition-transform ${
+                  className={`w-5 h-5 text-zinc-500 dark:text-[#71717a] transition-transform ${
                     mobileBusinessOpen ? "rotate-180" : ""
                   }`}
                 />
@@ -415,7 +421,7 @@ export function MarketingHeader() {
                 <div className="pl-3 pt-2 space-y-3">
                   {BUSINESS_MENU.map((col) => (
                     <div key={col.id} className="space-y-1">
-                      <p className="text-[12px] font-semibold text-zinc-800 uppercase tracking-wide font-mono">
+                      <p className="text-[12px] font-semibold text-zinc-800 dark:text-[#a1a1aa] uppercase tracking-wide font-mono">
                         {col.label}
                       </p>
                       {col.items.map((item) => (
@@ -423,7 +429,7 @@ export function MarketingHeader() {
                           key={item.title}
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="block py-1 text-[13px] text-zinc-600 hover:text-black"
+                          className="block py-1 text-[13px] text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
                         >
                           {item.title}
                         </Link>
@@ -435,23 +441,28 @@ export function MarketingHeader() {
             </div>
 
             {/* Preços (Mobile Direct Link) */}
-            <div className="border-b border-zinc-100 pb-3">
+            <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
               <Link
                 href="/precos"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 font-serif text-xl text-[#18181B]"
+                className="block py-2 font-serif text-xl text-[#18181B] dark:text-white"
               >
                 Preços
               </Link>
             </div>
           </div>
 
+          {/* Alternador de tema dentro do menu móvel */}
+          <div className="pt-2 border-b border-zinc-100 dark:border-[#27272a] pb-4">
+            <ThemeToggle variant="row" />
+          </div>
+
           {/* Mobile Bottom Action Buttons */}
-          <div className="pt-4 space-y-3">
+          <div className="pt-2 space-y-3">
             <Link
               href={primaryCtaUrl}
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#1C1C1E] text-white text-[14px] font-semibold shadow-sm"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[14px] font-semibold shadow-sm"
             >
               <span>Começar teste grátis (14 dias)</span>
               <ArrowRight className="w-4 h-4" />
@@ -462,16 +473,16 @@ export function MarketingHeader() {
               onClick={() => setMobileMenuOpen(false)}
               target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
               rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-full border border-zinc-300 bg-white text-[13.5px] font-semibold text-[#18181B]"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white"
             >
-              <MessageCircle className="w-4 h-4 text-emerald-600" />
+              <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Agendar demonstração via WhatsApp</span>
             </a>
 
             <Link
               href={loginUrl}
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full block text-center py-2 text-[13.5px] font-semibold text-zinc-600 hover:text-black"
+              className="w-full block text-center py-2 text-[13.5px] font-semibold text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
             >
               Já sou cliente · Entrar
             </Link>

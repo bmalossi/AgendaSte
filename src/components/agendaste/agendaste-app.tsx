@@ -22,12 +22,16 @@ import {
   ChevronRight,
   Clock,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useAppTheme } from "@/lib/theme";
 import {
   StudioState,
   NavigationSectionId,
   CalendarEventItem,
   createInitialStudioState,
+  createEmptyTenantStudioState,
   getTodayDateISO,
   getBookingSiteUrl,
 } from "@/lib/agendaste-store";
@@ -57,6 +61,7 @@ import {
   syncNewAppointmentToSupabase,
   syncAppointmentUpdateToSupabase,
   syncNewClientToSupabase,
+  getCurrentTenantContext,
 } from "@/lib/supabase/agendaste-sync";
 
 export function LuveaApp({
@@ -70,6 +75,7 @@ export function LuveaApp({
   initialWizard?: boolean;
   initialStep?: number;
 }) {
+  const { theme, toggleTheme, isDark } = useAppTheme();
   const [state, setState] = useState<StudioState>(() =>
     createInitialStudioState()
   );
@@ -83,6 +89,8 @@ export function LuveaApp({
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [tenantOrgId, setTenantOrgId] = useState<string | null>(null);
 
   const handleOpenMyBookingSite = () => {
     const isPublished = Boolean(state.settings.website?.websitePublished);
@@ -113,27 +121,30 @@ export function LuveaApp({
     }
   }, []);
 
-  // Manipulador universal de estado com persistência dupla (localStorage + Supabase)
+  // Manipulador universal de estado com persistência dupla isolada por Tenant (localStorage + Supabase)
   const handleUpdateStudioState = (
     updater: StudioState | ((prev: StudioState) => StudioState)
   ) => {
     setState((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
 
-      // 1. Persistência Instantânea Local (Zero perda em refresh/reload)
+      // 1. Persistência Instantânea Local isolada por usuário/tenant
       try {
-        localStorage.setItem("luvea_studio_state_v1", JSON.stringify(next));
+        const cacheKey = currentUser?.id
+          ? `luvea_studio_state_v1_${currentUser.id}`
+          : "luvea_studio_state_dev_offline";
+        localStorage.setItem(cacheKey, JSON.stringify(next));
       } catch (err) {
         console.warn("Erro ao salvar no localStorage:", err);
       }
 
-      // 2. Persistência na Nuvem (Supabase)
-      if (isSupabaseConfigured()) {
+      // 2. Persistência na Nuvem (Supabase) restrita ao tenant do usuário
+      if (isSupabaseConfigured() && tenantOrgId) {
         // Detecta agendamentos recém-criados
         const prevIds = new Set(prev.calendarEvents.map((e) => e.id));
         const newEvents = next.calendarEvents.filter((e) => !prevIds.has(e.id));
         for (const evt of newEvents) {
-          syncNewAppointmentToSupabase(evt, next.staff[0]?.id).catch(console.error);
+          syncNewAppointmentToSupabase(evt, next.staff[0]?.id, tenantOrgId).catch(console.error);
         }
 
         // Detecta agendamentos com status alterado
@@ -152,7 +163,7 @@ export function LuveaApp({
         const prevClientIds = new Set(prev.clients.map((c) => c.id));
         const newClients = next.clients.filter((c) => !prevClientIds.has(c.id));
         for (const cli of newClients) {
-          syncNewClientToSupabase(cli).catch(console.error);
+          syncNewClientToSupabase(cli, next.staff[0]?.id, tenantOrgId).catch(console.error);
         }
       }
 
@@ -160,65 +171,116 @@ export function LuveaApp({
     });
   };
 
-  // Hidratação ao vivo (localStorage + Supabase) e subscrição Realtime
+  // Hidratação ao vivo com isolamento estrito por usuário/tenant
   useEffect(() => {
-    let localState = state;
-    try {
-      const cached =
-        localStorage.getItem("luvea_studio_state_v1") ||
-        localStorage.getItem("agendaste_studio_state_v1");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && Array.isArray(parsed.calendarEvents)) {
-          if (parsed.calendarView?.selectedDateISO === "2026-10-17") {
-            parsed.calendarView.selectedDateISO = getTodayDateISO();
-          }
-          localState = parsed;
-          setState(parsed);
-        }
-      }
-    } catch (err) {
-      console.warn("Erro ao restaurar do localStorage:", err);
-    }
+    let activeChannel: any = null;
 
-    if (!isSupabaseConfigured()) return;
+    async function initUserTenantState() {
+      if (isSupabaseConfigured()) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const user = authData?.user;
+          if (user) {
+            setCurrentUser(user);
+            const userCacheKey = `luvea_studio_state_v1_${user.id}`;
+            const cached = localStorage.getItem(userCacheKey);
+            let localState = state;
 
-    loadStudioStateFromSupabase(localState).then((liveState) => {
-      setState(liveState);
-      try {
-        localStorage.setItem(
-          "luvea_studio_state_v1",
-          JSON.stringify(liveState)
-        );
-      } catch (e) {
-        console.warn("Erro ao salvar cache:", e);
-      }
-    });
+            if (cached) {
+              try {
+                const parsed = JSON.parse(cached);
+                if (parsed && Array.isArray(parsed.calendarEvents)) {
+                  if (parsed.calendarView?.selectedDateISO === "2026-10-17") {
+                    parsed.calendarView.selectedDateISO = getTodayDateISO();
+                  }
+                  localState = parsed;
+                  setState(parsed);
+                }
+              } catch (err) {
+                console.warn("Erro ao restaurar do localStorage do usuário:", err);
+              }
+            } else {
+              // Inicializa com estado limpo e vazio do próprio usuário (ZERO dados de terceiros)
+              const initial = createEmptyTenantStudioState({
+                fullName: user.user_metadata?.full_name,
+                businessName: user.user_metadata?.business_name,
+                subdomain: user.user_metadata?.subdomain,
+                email: user.email,
+              });
+              localState = initial;
+              setState(initial);
+            }
 
-    const channel = supabase
-      .channel("luvea-realtime-appointments")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "appointments" },
-        () => {
-          setState((curr) => {
-            loadStudioStateFromSupabase(curr).then((liveState) => {
+            // Busca contexto do tenant (organização) do usuário
+            const tenantCtx = await getCurrentTenantContext();
+            if (tenantCtx?.organizationId) {
+              setTenantOrgId(tenantCtx.organizationId);
+              const liveState = await loadStudioStateFromSupabase(
+                localState,
+                tenantCtx.organizationId
+              );
               setState(liveState);
               try {
-                localStorage.setItem(
-                  "luvea_studio_state_v1",
-                  JSON.stringify(liveState)
-                );
-              } catch {}
-            });
-            return curr;
-          });
+                localStorage.setItem(userCacheKey, JSON.stringify(liveState));
+              } catch (e) {
+                console.warn("Erro ao salvar cache do usuário:", e);
+              }
+
+              // Subscrição Realtime restrita EXCLUSIVAMENTE ao tenant do usuário
+              activeChannel = supabase
+                .channel(`luvea-realtime-appointments-${tenantCtx.organizationId}`)
+                .on(
+                  "postgres_changes",
+                  {
+                    event: "*",
+                    schema: "public",
+                    table: "appointments",
+                    filter: `organization_id=eq.${tenantCtx.organizationId}`,
+                  },
+                  () => {
+                    setState((latest) => {
+                      loadStudioStateFromSupabase(latest, tenantCtx.organizationId).then((liveState) => {
+                        setState(liveState);
+                        try {
+                          localStorage.setItem(
+                            userCacheKey,
+                            JSON.stringify(liveState)
+                          );
+                        } catch {}
+                      });
+                      return latest;
+                    });
+                  }
+                )
+                .subscribe();
+            }
+            return;
+          }
+        } catch (err) {
+          console.warn("[Luvea Multi-Tenant] Erro ao sincronizar tenant do usuário:", err);
         }
-      )
-      .subscribe();
+      }
+
+      // Fallback em ambiente local / dev sem Supabase conectado
+      try {
+        const cached = localStorage.getItem("luvea_studio_state_dev_offline");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && Array.isArray(parsed.calendarEvents)) {
+            setState(parsed);
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao restaurar cache dev offline:", err);
+      }
+    }
+
+    initUserTenantState();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (activeChannel) {
+        supabase.removeChannel(activeChannel);
+      }
     };
   }, []);
 
@@ -296,18 +358,18 @@ export function LuveaApp({
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-white text-[#1C1C1E]">
+    <div className="min-h-screen flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-[#1C1C1E] dark:text-[#f4f4f5]">
       {/* Mobile Top Header (<768px): Studio & Section Identity + Quick Access */}
-      <header className="md:hidden sticky top-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5E5EA] px-3.5 py-2.5 flex items-center justify-between gap-2 select-none">
+      <header className="md:hidden sticky top-0 inset-x-0 z-30 bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border-b border-[#E5E5EA] dark:border-[#27272a] px-3.5 py-2.5 flex items-center justify-between gap-2 select-none">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-[#FBCFE8] text-[#831843] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
             {providerShortName.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <h1 className="text-[14px] font-bold text-[#1C1C1E] leading-tight truncate">
+            <h1 className="text-[14px] font-bold text-[#1C1C1E] dark:text-white leading-tight truncate">
               {getSectionTitle(activeSection)}
             </h1>
-            <p className="text-[11px] text-[#6E6E73] leading-tight truncate">
+            <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] leading-tight truncate">
               {state.settings.business.businessName || "Luvea Studio"}
             </p>
           </div>
@@ -318,17 +380,32 @@ export function LuveaApp({
             type="button"
             onClick={handleOpenMyBookingSite}
             title="Abrir site de agendamento online"
-            className="h-9 px-3 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] flex items-center gap-1.5 active:scale-95 transition-transform"
+            className="h-9 px-3 rounded-full border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12px] font-medium text-[#1C1C1E] dark:text-white flex items-center gap-1.5 active:scale-95 transition-transform"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-[#1C1C1E]" />
+            <ExternalLink className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-[#a1a1aa]" />
             <span className="hidden sm:inline">Site Online</span>
+          </button>
+
+          {/* Theme Toggle Mobile */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={isDark ? "Mudar para Modo Claro" : "Mudar para Modo Escuro"}
+            aria-label="Alternar tema claro e escuro"
+            className="w-9 h-9 rounded-full border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white active:scale-90 transition-transform"
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-[#1C1C1E]" />
+            )}
           </button>
 
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
             aria-label="Abrir menu de navegação"
-            className="w-9 h-9 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] flex items-center justify-center text-[#1C1C1E] active:scale-90 transition-transform"
+            className="w-9 h-9 rounded-full border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white active:scale-90 transition-transform"
           >
             <Menu className="w-4 h-4" />
           </button>
@@ -340,24 +417,24 @@ export function LuveaApp({
         <div
           role="dialog"
           aria-modal="true"
-          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex justify-start animate-in fade-in duration-150"
+          className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-start animate-in fade-in duration-150"
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className="w-[85%] max-w-[320px] bg-white h-full shadow-2xl flex flex-col justify-between animate-in slide-in-from-left duration-200 select-none"
+            className="w-[85%] max-w-[320px] bg-white dark:bg-[#18181b] h-full shadow-2xl flex flex-col justify-between animate-in slide-in-from-left duration-200 select-none"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drawer Header */}
-            <div className="p-4 border-b border-[#E5E5EA] flex items-center justify-between gap-3 bg-[#FAF9F6]">
+            <div className="p-4 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between gap-3 bg-[#FAF9F6] dark:bg-[#18181b]">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-[#FBCFE8] text-[#831843] flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                   {providerShortName.slice(0, 1).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[14px] font-bold text-[#1C1C1E] truncate">
+                  <p className="text-[14px] font-bold text-[#1C1C1E] dark:text-white truncate">
                     {providerFullName}
                   </p>
-                  <p className="text-[11.5px] text-[#6E6E73] truncate">
+                  <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] truncate">
                     {state.settings.personal.email}
                   </p>
                 </div>
@@ -367,14 +444,14 @@ export function LuveaApp({
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label="Fechar menu"
-                className="w-8 h-8 rounded-full border border-[#D1D1D6] flex items-center justify-center text-[#1C1C1E] hover:bg-white active:scale-95 transition-transform shrink-0"
+                className="w-8 h-8 rounded-full border border-[#D1D1D6] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-white dark:hover:bg-[#27272a] active:scale-95 transition-transform shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Scrollable Navigation Items */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[13.5px]">
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[13.5px] bg-white dark:bg-[#18181b]">
               {/* Grupo 1: Atendimento & Recepção */}
               <div>
                 <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
@@ -710,13 +787,33 @@ export function LuveaApp({
                   <button
                     type="button"
                     onClick={() => {
+                      toggleTheme();
+                    }}
+                    className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white active:scale-95 transition-transform"
+                  >
+                    <span className="flex items-center gap-3">
+                      {isDark ? (
+                        <Sun className="w-4 h-4 text-amber-400" />
+                      ) : (
+                        <Moon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                      )}
+                      <span>{isDark ? "Modo Claro" : "Modo Escuro"}</span>
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-[#27272a] text-zinc-600 dark:text-[#a1a1aa] border border-zinc-200 dark:border-[#3f3f46]">
+                      {isDark ? "Dark" : "Light"}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
                       setMobileMenuOpen(false);
                       signOutUser();
                     }}
-                    className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] active:scale-95 transition-transform"
+                    className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#6E6E73] dark:text-[#71717a] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] active:scale-95 transition-transform"
                   >
                     <span className="flex items-center gap-3">
-                      <LogOut className="w-4 h-4 text-[#8E8E93]" />
+                      <LogOut className="w-4 h-4 text-[#8E8E93] dark:text-zinc-500" />
                       <span>Sair da conta</span>
                     </span>
                   </button>
@@ -725,8 +822,8 @@ export function LuveaApp({
             </div>
 
             {/* Drawer Bottom Bar */}
-            <div className="p-3 border-t border-[#E5E5EA] bg-[#FAF9F6] text-center">
-              <span className="text-[11px] font-semibold text-[#8E8E93]">
+            <div className="p-3 border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] text-center">
+              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a]">
                 LUVEA PWA · Luvea Studio
               </span>
             </div>
@@ -746,7 +843,7 @@ export function LuveaApp({
       />
 
       {/* Main Content Workspace with safe area padding for bottom navigation */}
-      <main className="flex-1 min-w-0 pb-[calc(5.2rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden">
+      <main className="flex-1 min-w-0 pb-[calc(5.2rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden bg-white dark:bg-[#09090b]">
         {activeSection === "get_started" && (
           <GetStartedView
             state={state}
@@ -843,7 +940,7 @@ export function LuveaApp({
       {/* Mobile Fixed Bottom Navigation Bar (<768px): Agenda, Clientes, + Venda, Prontuários, Menu */}
       <nav
         aria-label="Navegação móvel principal"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E5E5EA] shadow-[0_-2px_12px_rgba(0,0,0,0.06)] px-2 pt-1 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] select-none"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border-t border-[#E5E5EA] dark:border-[#27272a] shadow-[0_-2px_12px_rgba(0,0,0,0.06)] px-2 pt-1 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] select-none"
       >
         <div className="grid grid-cols-5 items-center justify-items-center">
           {/* 1. Agenda */}
@@ -854,12 +951,12 @@ export function LuveaApp({
           >
             <Calendar
               className={`w-5 h-5 transition-colors ${
-                activeSection === "calendar" ? "text-[#6E56CF]" : "text-[#71717A]"
+                activeSection === "calendar" ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             />
             <span
               className={`text-[10.5px] font-semibold leading-none ${
-                activeSection === "calendar" ? "text-[#6E56CF]" : "text-[#71717A]"
+                activeSection === "calendar" ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             >
               Agenda
@@ -874,12 +971,12 @@ export function LuveaApp({
           >
             <Contact
               className={`w-5 h-5 transition-colors ${
-                activeSection === "clients" ? "text-[#6E56CF]" : "text-[#71717A]"
+                activeSection === "clients" ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             />
             <span
               className={`text-[10.5px] font-semibold leading-none ${
-                activeSection === "clients" ? "text-[#6E56CF]" : "text-[#71717A]"
+                activeSection === "clients" ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             >
               Clientes
@@ -892,10 +989,10 @@ export function LuveaApp({
             onClick={() => handleOpenQuickSale()}
             className="w-full h-12 flex flex-col items-center justify-center active:scale-90 transition-transform -mt-2"
           >
-            <div className="w-11 h-11 rounded-full bg-[#1C1C1E] text-white flex items-center justify-center shadow-md border-2 border-white">
+            <div className="w-11 h-11 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] flex items-center justify-center shadow-md border-2 border-white dark:border-[#18181b]">
               <Plus className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <span className="text-[10px] font-bold text-[#1C1C1E] mt-0.5 leading-none">
+            <span className="text-[10px] font-bold text-[#1C1C1E] dark:text-white mt-0.5 leading-none">
               Venda
             </span>
           </button>
@@ -908,12 +1005,12 @@ export function LuveaApp({
           >
             <ClipboardList
               className={`w-5 h-5 transition-colors ${
-                activeSection === "charts" ? "text-[#6E56CF]" : "text-[#71717A]"
+                activeSection === "charts" ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             />
             <span
               className={`text-[10.5px] font-semibold leading-none ${
-                activeSection === "charts" ? "text-[#6E56CF]" : "text-[#71717A]"
+                activeSection === "charts" ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             >
               Prontuários
@@ -928,12 +1025,12 @@ export function LuveaApp({
           >
             <Menu
               className={`w-5 h-5 transition-colors ${
-                mobileMenuOpen ? "text-[#6E56CF]" : "text-[#71717A]"
+                mobileMenuOpen ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             />
             <span
               className={`text-[10.5px] font-semibold leading-none ${
-                mobileMenuOpen ? "text-[#6E56CF]" : "text-[#71717A]"
+                mobileMenuOpen ? "text-[#6E56CF] dark:text-[#A494F7]" : "text-[#71717A] dark:text-[#a1a1aa]"
               }`}
             >
               Menu

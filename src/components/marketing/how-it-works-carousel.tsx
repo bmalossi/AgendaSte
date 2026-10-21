@@ -127,13 +127,13 @@ export function HowItWorksCarousel() {
     <section
       id="como-funciona"
       aria-label="Como funciona a LUVEA"
-      className="py-16 sm:py-24 bg-white border-b border-zinc-200/80 overflow-hidden w-full"
+      className="py-16 sm:py-24 bg-white dark:bg-[#09090b] border-b border-zinc-200/80 dark:border-[#27272a] overflow-hidden w-full transition-colors"
     >
       {/* Header: Edge-to-edge full width without max-w-7xl constraint */}
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between mb-8 sm:mb-12">
           <div>
-            <h2 className="text-3xl sm:text-5xl font-normal text-[#18181B] tracking-tight leading-tight">
+            <h2 className="text-3xl sm:text-5xl font-normal text-[#18181B] dark:text-white tracking-tight leading-tight">
               Tudo o que seu estúdio precisa para crescer
             </h2>
           </div>
@@ -145,7 +145,7 @@ export function HowItWorksCarousel() {
               onClick={handlePrev}
               disabled={currentIndex === 0}
               aria-label="Módulo anterior"
-              className="p-3 rounded-full border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs active:scale-95"
+              className="p-3 rounded-full border border-zinc-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-zinc-800 dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs active:scale-95"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -154,7 +154,7 @@ export function HowItWorksCarousel() {
               onClick={handleNext}
               disabled={currentIndex === CAROUSEL_CARDS.length - 1}
               aria-label="Próximo módulo"
-              className="p-3 rounded-full border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs active:scale-95"
+              className="p-3 rounded-full border border-zinc-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-zinc-800 dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs active:scale-95"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -178,22 +178,22 @@ export function HowItWorksCarousel() {
           <div
             key={card.id}
             id={card.id}
-            className={`snap-start shrink-0 w-[88vw] sm:w-[680px] lg:w-[780px] rounded-3xl p-6 sm:p-10 ${card.bgClass} ${card.textClass} flex flex-col justify-between space-y-6 shadow-sm overflow-hidden transition-all`}
+            className={`snap-start shrink-0 w-[88vw] sm:w-[680px] lg:w-[780px] rounded-3xl p-6 sm:p-10 ${card.bgClass} ${card.textClass} dark:bg-[#18181b] dark:text-[#f4f4f5] border border-transparent dark:border-[#27272a] flex flex-col justify-between space-y-6 shadow-sm overflow-hidden transition-all`}
           >
             {card.badgeId && <div id={card.badgeId} className="hidden" aria-hidden="true" />}
             
             {/* Minimal headline + 1 sentence subtitle */}
             <div className="space-y-2 max-w-xl">
-              <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+              <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight text-inherit">
                 {card.title}
               </h3>
-              <p className="text-sm sm:text-base opacity-90 leading-relaxed font-normal">
+              <p className="text-sm sm:text-base opacity-90 leading-relaxed font-normal text-inherit">
                 {card.subtitle}
               </p>
             </div>
 
             {/* Real Project Screenshot Container */}
-            <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] rounded-2xl overflow-hidden shadow-md border border-black/5 bg-white">
+            <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] rounded-2xl overflow-hidden shadow-md border border-black/5 dark:border-[#27272a] bg-white dark:bg-[#09090b]">
               <Image
                 src={card.imageSrc}
                 alt={card.imageAlt}
@@ -210,7 +210,7 @@ export function HowItWorksCarousel() {
       <div className="mt-10 flex justify-center w-full px-4">
         <Link
           href={primaryCtaUrl}
-          className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-[#18181B] text-white text-[14px] font-medium hover:bg-black transition-all shadow-sm active:scale-[0.98]"
+          className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-[#18181B] dark:bg-white text-white dark:text-[#09090b] text-[14px] font-medium hover:bg-black dark:hover:bg-zinc-200 transition-all shadow-sm active:scale-[0.98]"
         >
           <span>Explorar o sistema completo</span>
         </Link>

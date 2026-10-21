@@ -7,6 +7,8 @@ import {
   AppointmentConfirmationEmail,
 } from "@/emails";
 
+export const dynamic = "force-dynamic";
+
 const sendEmailSchema = z.object({
   to: z.union([z.string().email(), z.array(z.string().email()).min(1)]),
   subject: z.string().min(1, "O assunto do e-mail é obrigatório."),

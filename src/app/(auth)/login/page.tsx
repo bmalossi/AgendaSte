@@ -157,13 +157,13 @@ function LoginFormContent() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5EA] p-7 sm:p-9 shadow-xs space-y-6">
+    <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] p-7 sm:p-9 shadow-xs space-y-6 transition-colors">
       {/* Title & Subtitle */}
       <div className="space-y-1.5 text-center">
-        <h1 className="text-2xl sm:text-[26px] font-semibold text-[#1C1C1E] tracking-tight">
+        <h1 className="text-2xl sm:text-[26px] font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
           Acesse sua conta
         </h1>
-        <p className="text-[13px] text-[#6E6E73]">
+        <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa]">
           Plataforma de gestão e agendamento para o seu estúdio
         </p>
       </div>
@@ -173,10 +173,10 @@ function LoginFormContent() {
         type="button"
         onClick={handleGoogleLogin}
         disabled={googleLoading || loading}
-        className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13.5px] font-medium transition shadow-2xs disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13.5px] font-medium transition shadow-2xs disabled:opacity-50"
       >
         {googleLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin text-zinc-600" />
+          <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-400" />
         ) : (
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
@@ -202,14 +202,14 @@ function LoginFormContent() {
 
       {/* Divider */}
       <div className="relative flex items-center justify-center">
-        <div className="border-t border-[#E5E5EA] w-full" />
-        <span className="bg-white px-3 text-[11px] uppercase tracking-wider font-mono text-[#8E8E93]">
+        <div className="border-t border-[#E5E5EA] dark:border-[#27272a] w-full" />
+        <span className="bg-white dark:bg-[#18181b] px-3 text-[11px] uppercase tracking-wider font-mono text-[#8E8E93] dark:text-[#71717a]">
           ou
         </span>
       </div>
 
       {/* Auth Mode Tabs (Password vs Magic Link) */}
-      <div className="grid grid-cols-2 p-1 bg-[#F5F5F7] rounded-xl text-[12.5px] font-medium text-[#6E6E73]">
+      <div className="grid grid-cols-2 p-1 bg-[#F5F5F7] dark:bg-[#27272a] rounded-xl text-[12.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
         <button
           type="button"
           onClick={() => {
@@ -219,8 +219,8 @@ function LoginFormContent() {
           }}
           className={`py-1.5 rounded-lg transition-all ${
             authMode === "password"
-              ? "bg-white text-[#1C1C1E] shadow-2xs font-semibold"
-              : "hover:text-[#1C1C1E]"
+              ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-2xs font-semibold"
+              : "hover:text-[#1C1C1E] dark:hover:text-white"
           }`}
         >
           Senha
@@ -233,8 +233,8 @@ function LoginFormContent() {
           }}
           className={`py-1.5 rounded-lg transition-all ${
             authMode === "magic_link"
-              ? "bg-white text-[#1C1C1E] shadow-2xs font-semibold"
-              : "hover:text-[#1C1C1E]"
+              ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-2xs font-semibold"
+              : "hover:text-[#1C1C1E] dark:hover:text-white"
           }`}
         >
           Link Mágico (sem senha)
@@ -243,23 +243,23 @@ function LoginFormContent() {
 
       {/* Magic Link Sent Feedback */}
       {magicLinkSent ? (
-        <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] text-center space-y-3">
-          <div className="w-10 h-10 rounded-full bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center shadow-2xs">
+        <div className="p-5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-center space-y-3">
+          <div className="w-10 h-10 rounded-full bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white mx-auto flex items-center justify-center shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-[14px] font-semibold text-[#1C1C1E]">
+            <h3 className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white">
               Link de acesso enviado
             </h3>
-            <p className="text-[12.5px] text-[#6E6E73] leading-relaxed">
-              Enviamos um link de login para <strong className="text-[#1C1C1E]">{email}</strong>.
+            <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+              Enviamos um link de login para <strong className="text-[#1C1C1E] dark:text-white">{email}</strong>.
               Abra o e-mail no seu dispositivo para entrar instantaneamente.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setMagicLinkSent(false)}
-            className="text-[12px] text-[#6E6E73] hover:text-[#1C1C1E] underline pt-2"
+            className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white underline pt-2"
           >
             Tentar outro método ou e-mail
           </button>
@@ -271,7 +271,7 @@ function LoginFormContent() {
           <div className="space-y-1.5">
             <label
               htmlFor="login-email"
-              className="block text-[12.5px] font-medium text-[#1C1C1E]"
+              className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#a1a1aa]"
             >
               E-mail
             </label>
@@ -283,7 +283,7 @@ function LoginFormContent() {
               placeholder="seu@estudio.com.br"
               autoComplete="email"
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] bg-white text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
             />
           </div>
 
@@ -293,13 +293,13 @@ function LoginFormContent() {
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="login-password"
-                  className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                  className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#a1a1aa]"
                 >
                   Senha
                 </label>
                 <Link
                   href="/esqueci-senha"
-                  className="text-[12px] font-medium text-[#6E6E73] hover:text-[#1C1C1E] transition-colors"
+                  className="text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition-colors"
                 >
                   Esqueceu a senha?
                 </Link>
@@ -313,12 +313,12 @@ function LoginFormContent() {
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required
-                  className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-[#D4D4D8] bg-white text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
+                  className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-[#1C1C1E] p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white p-1"
                   aria-label={showPassword ? "Ocultar senha" : "Ver senha"}
                 >
                   {showPassword ? (
@@ -339,11 +339,11 @@ function LoginFormContent() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-[#D4D4D8] text-[#1C1C1E] focus:ring-black accent-[#1C1C1E]"
+                className="w-4 h-4 rounded border-[#D4D4D8] dark:border-[#27272a] text-[#1C1C1E] focus:ring-black accent-[#1C1C1E]"
               />
               <label
                 htmlFor="remember-me"
-                className="text-[12.5px] text-[#6E6E73] cursor-pointer"
+                className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] cursor-pointer"
               >
                 Lembrar de mim neste dispositivo
               </label>
@@ -355,7 +355,7 @@ function LoginFormContent() {
             <div
               role="alert"
               aria-live="polite"
-              className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5"
+              className="p-3.5 rounded-xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[12.5px] text-[#1C1C1E] dark:text-white flex items-center gap-2.5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
               <span>{errorMessage}</span>
@@ -374,10 +374,10 @@ function LoginFormContent() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13.5px] font-semibold transition-all shadow-xs active:scale-[0.99] disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-black dark:hover:bg-zinc-100 text-white dark:text-[#09090b] text-[13.5px] font-semibold transition-all shadow-xs active:scale-[0.99] disabled:opacity-50"
           >
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <Loader2 className="w-4 h-4 animate-spin text-white dark:text-[#09090b]" />
             ) : (
               <>
                 <span>
@@ -393,11 +393,11 @@ function LoginFormContent() {
       )}
 
       {/* Footer Call to Action */}
-      <div className="pt-2 text-center text-[12.5px] text-[#6E6E73] border-t border-[#F5F5F7]">
+      <div className="pt-2 text-center text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] border-t border-[#F5F5F7] dark:border-[#27272a]">
         Não tem uma conta?{" "}
         <Link
           href="/checkout"
-          className="font-semibold text-[#1C1C1E] hover:underline"
+          className="font-semibold text-[#1C1C1E] dark:text-white hover:underline"
         >
           Criar estúdio
         </Link>
@@ -410,8 +410,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-white rounded-2xl border border-[#E5E5EA] p-8 shadow-xs flex items-center justify-center min-h-[360px]">
-          <div className="w-6 h-6 rounded-full border-2 border-[#1C1C1E] border-t-transparent animate-spin" />
+        <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] p-8 shadow-xs flex items-center justify-center min-h-[360px]">
+          <div className="w-6 h-6 rounded-full border-2 border-[#1C1C1E] dark:border-white border-t-transparent animate-spin" />
         </div>
       }
     >

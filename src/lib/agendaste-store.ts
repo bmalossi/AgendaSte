@@ -1432,6 +1432,95 @@ export function createInitialStudioState(): StudioState {
   };
 }
 
+/**
+ * Cria o estado inicial limpo e isolado para um novo tenant/estúdio autenticado.
+ * NUNCA injeta clientes ou agendamentos fictícios de demonstração.
+ */
+export function createEmptyTenantStudioState(meta?: {
+  fullName?: string;
+  businessName?: string;
+  subdomain?: string;
+  email?: string;
+}): StudioState {
+  const base = createInitialStudioState();
+
+  const fullName = (meta?.fullName || "Profissional").trim();
+  const nameParts = fullName.split(" ");
+  const firstName = nameParts[0] || "Profissional";
+  const lastName = nameParts.slice(1).join(" ") || "";
+  const businessName = (meta?.businessName || "Meu Estúdio").trim();
+  const slug = normalizeSubdomainSlug(meta?.subdomain || businessName);
+  const email = (meta?.email || "").trim();
+
+  return {
+    ...base,
+    // Garante que listas de dados privados iniciem 100% vazias
+    clients: [],
+    calendarEvents: [],
+    waitlist: [],
+    invoices: [],
+    salesHistory: [],
+    timeTracking: {
+      enabled: false,
+      firstBreakTypeEnabled: false,
+      firstBreakDurationMinutes: 30,
+      activeClockInStaffId: "",
+      activeSessionStatus: "idle",
+      activeElapsedSeconds: 0,
+      logs: [],
+    },
+    marketing: {
+      smsCreditsRemaining: 50,
+      campaigns: [],
+    },
+    staff: [
+      {
+        id: "staff-owner",
+        firstName,
+        lastName,
+        fullName,
+        initials: ((firstName[0] || "") + (lastName[0] || "")).toUpperCase() || "LU",
+        role: "Proprietário & Especialista",
+        avatarColor: "#E11D8F",
+        email: email,
+        phone: "",
+        serviceCommissionPercent: 60,
+        productCommissionPercent: 20,
+        weeklyGoalCents: 580000,
+        bookedThisWeekCents: 0,
+        clockInNotificationsEnabled: false,
+        assignedServiceIds: [],
+      },
+    ],
+    settings: {
+      ...base.settings,
+      personal: {
+        ...base.settings.personal,
+        firstName,
+        lastName,
+        email,
+        phone: "",
+      },
+      business: {
+        ...base.settings.business,
+        businessName,
+        bookingSlug: slug,
+        legalEntityType: "Sociedade Limitada (LTDA) / Salão Parceiro",
+        taxIdCnpjCpf: "",
+        address: "",
+        cityState: "",
+        pixKey: "",
+      },
+      website: {
+        ...getDefaultWebsiteBookingConfig(businessName),
+        subdomainSlug: slug,
+        websitePublished: true,
+      },
+    },
+    lastToastMessage: null,
+  };
+}
+
 // =============================================================================
 // TICKET 01 — FUNÇÕES DE DOMÍNIO: ONBOARDING & SITE DE AGENDAMENTO ONLINE
 // =============================================================================

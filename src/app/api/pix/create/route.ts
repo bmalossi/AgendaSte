@@ -1,7 +1,7 @@
 import {
   isMercadoPagoConfigured,
   createMercadoPagoPixOrder,
-} from "../../../../lib/mercadopago.ts";
+} from "@/lib/mercadopago";
 
 interface CreatePixPayload {
   appointmentId: string;

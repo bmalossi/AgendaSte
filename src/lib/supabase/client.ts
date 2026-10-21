@@ -20,7 +20,7 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
- * Realiza o encerramento seguro da sessão do usuário no Supabase e redireciona para o login.
+ * Realiza o encerramento seguro da sessão do usuário no Supabase e limpa todos os caches locais.
  */
 export async function signOutUser(): Promise<void> {
   if (isSupabaseConfigured()) {
@@ -31,8 +31,26 @@ export async function signOutUser(): Promise<void> {
     }
   }
 
-  // Redireciona o usuário para a página de autenticação
+  // Limpa o cache local de estado para evitar vazamento entre contas no mesmo dispositivo/navegador
   if (typeof window !== "undefined") {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (
+          key &&
+          (key.startsWith("luvea_studio_state_v1") ||
+            key.startsWith("agendaste_studio_state_v1") ||
+            key.startsWith("luvea_public_site_") ||
+            key.startsWith("luvea_user_"))
+        ) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch (err) {
+      console.warn("[Luvea Auth] Erro ao limpar cache local no logout:", err);
+    }
     window.location.href = "/login";
   }
 }

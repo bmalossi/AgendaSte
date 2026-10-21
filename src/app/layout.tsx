@@ -76,9 +76,25 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${plusJakarta.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var storedTheme = localStorage.getItem('luvea_theme');
+                if (storedTheme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body
         suppressHydrationWarning
-        className="font-sans min-h-screen bg-white text-[#18181B] antialiased selection:bg-[#ECE9FE] selection:text-[#18181B]"
+        className="font-sans min-h-screen bg-white text-[#18181B] dark:bg-[#09090b] dark:text-[#f4f4f5] antialiased selection:bg-[#ECE9FE] selection:text-[#18181B] dark:selection:bg-[#27272a] dark:selection:text-white"
       >
         {children}
       </body>

@@ -1,4 +1,4 @@
-import { isMercadoPagoConfigured } from "../../../../lib/mercadopago.ts";
+import { isMercadoPagoConfigured } from "@/lib/mercadopago";
 
 export async function GET(request: Request) {
   try {

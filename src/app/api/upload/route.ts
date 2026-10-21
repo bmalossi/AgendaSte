@@ -1,4 +1,9 @@
-import { isR2Configured, uploadBufferToR2 } from "../../../lib/cloudflare-r2.ts";
+import { isR2Configured, uploadBufferToR2 } from "@/lib/cloudflare-r2";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+export const dynamic = "force-dynamic";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -15,6 +20,34 @@ const ALLOWED_MIME_TYPES = new Set([
 
 export async function POST(req: Request) {
   try {
+    if (isSupabaseConfigured() && process.env.NODE_ENV === "production") {
+      try {
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+          {
+            cookies: {
+              getAll() {
+                return cookieStore.getAll();
+              },
+            },
+          }
+        );
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          return Response.json(
+            { error: "Acesso não autorizado para upload de arquivos." },
+            { status: 401 }
+          );
+        }
+      } catch (authErr) {
+        console.warn("[Upload Auth Check]", authErr);
+      }
+    }
+
     const formData = await req.formData();
     const file = formData.get("file");
     const folder = (formData.get("folder") as string) || "geral";

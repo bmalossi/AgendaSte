@@ -6,6 +6,9 @@ import {
   normalizePhoneDigits,
   resolveTargetInstance,
 } from "@/lib/whatsapp-instance-helper";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export interface WhatsAppSettingsPayload {
   phoneNumber?: string;
@@ -17,6 +20,34 @@ export interface WhatsAppSettingsPayload {
 
 export async function GET(request: Request) {
   try {
+    if (isSupabaseConfigured() && process.env.NODE_ENV === "production") {
+      try {
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+          {
+            cookies: {
+              getAll() {
+                return cookieStore.getAll();
+              },
+            },
+          }
+        );
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          return Response.json(
+            { error: "Acesso não autorizado para consultar configurações de WhatsApp." },
+            { status: 401 }
+          );
+        }
+      } catch (authErr) {
+        console.warn("[WhatsApp Settings Auth Check]", authErr);
+      }
+    }
+
     const url = new URL(request.url);
     const rawPhone = url.searchParams.get("phoneNumber") || "";
     const customInstance = url.searchParams.get("instanceName") || "";
@@ -107,6 +138,34 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (isSupabaseConfigured() && process.env.NODE_ENV === "production") {
+      try {
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+          {
+            cookies: {
+              getAll() {
+                return cookieStore.getAll();
+              },
+            },
+          }
+        );
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          return Response.json(
+            { error: "Acesso não autorizado para atualizar configurações de WhatsApp." },
+            { status: 401 }
+          );
+        }
+      } catch (authErr) {
+        console.warn("[WhatsApp Settings POST Auth Check]", authErr);
+      }
+    }
+
     const body = (await request.json().catch(() => ({}))) as WhatsAppSettingsPayload;
     const phoneDigits = normalizePhoneDigits(body.phoneNumber || "");
     const customInstance = body.instanceName || "";

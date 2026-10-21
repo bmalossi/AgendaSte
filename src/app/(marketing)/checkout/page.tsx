@@ -15,6 +15,7 @@ import {
   Lock,
 } from "lucide-react";
 import { LuveaWordmark } from "@/components/luvea-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   checkoutFormSchema,
   normalizeSubdomain,
@@ -246,18 +247,21 @@ function CheckoutContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC] text-[#1C1C1E] selection:bg-[#1C1C1E] selection:text-white">
+    <div className="min-h-screen bg-[#FAFAFC] dark:bg-[#09090b] text-[#1C1C1E] dark:text-[#f4f4f5] selection:bg-[#1C1C1E] dark:selection:bg-[#27272a] selection:text-white transition-colors">
       {/* Top Simple Header */}
-      <header className="border-b border-[#E5E5EA] bg-white sticky top-0 z-40">
+      <header className="border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#09090b]/95 backdrop-blur-md sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
           <Link href="/" className="inline-flex items-center group py-1" aria-label="LUVEA - Início">
-            <LuveaWordmark className="text-[20px] group-hover:opacity-80 transition-opacity" />
+            <LuveaWordmark className="text-[20px] group-hover:opacity-80 transition-opacity dark:text-white" />
           </Link>
 
-          <div className="flex items-center gap-2 text-xs font-mono text-[#6E6E73]">
-            <Lock className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden sm:inline">Ambiente Seguro &amp; Criptografado</span>
-            <span className="sm:hidden">Seguro</span>
+          <div className="flex items-center gap-4">
+            <ThemeToggle variant="pill" />
+            <div className="flex items-center gap-2 text-xs font-mono text-[#6E6E73] dark:text-[#a1a1aa]">
+              <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Ambiente Seguro &amp; Criptografado</span>
+              <span className="sm:hidden">Seguro</span>
+            </div>
           </div>
         </div>
       </header>
@@ -270,28 +274,30 @@ function CheckoutContent() {
             <span
               className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
                 currentStep === 1
-                  ? "bg-[#1C1C1E] text-white"
+                  ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b]"
                   : "bg-emerald-600 text-white"
               }`}
             >
               {currentStep > 1 ? <Check className="w-3.5 h-3.5" /> : "1"}
             </span>
-            <span className="text-[13px] font-semibold text-[#1C1C1E]">
+            <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
               Dados do seu Estúdio
             </span>
-            <span className="text-zinc-300">/</span>
+            <span className="text-zinc-300 dark:text-[#27272a]">/</span>
             <span
               className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
                 currentStep === 2
-                  ? "bg-[#1C1C1E] text-white"
-                  : "bg-zinc-200 text-zinc-600"
+                  ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b]"
+                  : "bg-zinc-200 dark:bg-[#27272a] text-zinc-600 dark:text-[#a1a1aa]"
               }`}
             >
               2
             </span>
             <span
-              className={`text-[13px] font-medium ${
-                currentStep === 2 ? "text-[#1C1C1E] font-semibold" : "text-[#8E8E93]"
+              className={`text-[13px] ${
+                currentStep === 2
+                  ? "text-[#1C1C1E] dark:text-white font-semibold"
+                  : "text-[#8E8E93] dark:text-[#71717a] font-medium"
               }`}
             >
               Plano &amp; Pagamento
@@ -302,12 +308,12 @@ function CheckoutContent() {
         {/* Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           {/* Left Column: Form Steps */}
-          <div className="lg:col-span-7 bg-white rounded-2xl border border-[#E5E5EA] p-6 sm:p-9 shadow-xs space-y-6">
+          <div className="lg:col-span-7 bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] p-6 sm:p-9 shadow-xs space-y-6 transition-colors">
             {errors.general && (
               <div
                 role="alert"
                 aria-live="polite"
-                className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5"
+                className="p-3.5 rounded-xl bg-[#F5F5F7] dark:bg-[#09090b] border border-[#E5E5EA] dark:border-[#27272a] text-[12.5px] text-[#1C1C1E] dark:text-[#f4f4f5] flex items-center gap-2.5"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
                 <span>{errors.general}</span>
@@ -317,20 +323,20 @@ function CheckoutContent() {
             {/* Pix Qr Code Screen (when generated) */}
             {pixPayload ? (
               <div className="space-y-6 text-center py-4">
-                <div className="w-12 h-12 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-[#F5F5F7] dark:bg-[#09090b] border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white mx-auto flex items-center justify-center">
                   <QrCode className="w-6 h-6 stroke-[1.75]" />
                 </div>
                 <div className="space-y-1">
-                  <h2 className="text-xl font-bold text-[#1C1C1E]">
+                  <h2 className="text-xl font-bold text-[#1C1C1E] dark:text-white">
                     Pague o sinal do plano com Pix
                   </h2>
-                  <p className="text-[13px] text-[#6E6E73] max-w-md mx-auto">
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-md mx-auto">
                     Escaneie o QR Code abaixo no app do seu banco ou copie a chave Pix para ativar sua conta instantaneamente.
                   </p>
                 </div>
 
                 {pixPayload.qrCodeBase64 && (
-                  <div className="p-4 bg-white rounded-2xl border border-[#E5E5EA] inline-block shadow-xs">
+                  <div className="p-4 bg-white dark:bg-white rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] inline-block shadow-xs">
                     <img
                       src={
                         pixPayload.qrCodeBase64.startsWith("data:")
@@ -351,7 +357,7 @@ function CheckoutContent() {
                         navigator.clipboard.writeText(pixPayload.copiaECola || "");
                         alert("Código Pix Copia e Cola copiado!");
                       }}
-                      className="w-full px-5 py-3 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-semibold transition"
+                      className="w-full px-5 py-3 rounded-full bg-[#1C1C1E] hover:bg-black dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition"
                     >
                       Copiar Código Pix
                     </button>
@@ -361,7 +367,7 @@ function CheckoutContent() {
                 <div className="pt-2">
                   <Link
                     href={`/app?subdomain=${encodeURIComponent(subdomain)}`}
-                    className="text-[13px] font-semibold text-[#1C1C1E] hover:underline"
+                    className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white hover:underline"
                   >
                     Já efetuei o pagamento, ir para o estúdio →
                   </Link>
@@ -373,10 +379,10 @@ function CheckoutContent() {
               ========================================================================= */
               <div className="space-y-5">
                 <div>
-                  <h2 className="text-xl font-semibold text-[#1C1C1E] tracking-tight">
+                  <h2 className="text-xl font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
                     Informações do titular e do estúdio
                   </h2>
-                  <p className="text-[12.5px] text-[#6E6E73] mt-0.5">
+                  <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
                     Seus dados serão vinculados à sua organização multi-tenant na LUVEA.
                   </p>
                 </div>
@@ -386,7 +392,7 @@ function CheckoutContent() {
                   <div className="space-y-1 sm:col-span-2">
                     <label
                       htmlFor="checkout-name"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                     >
                       Nome completo
                     </label>
@@ -397,10 +403,10 @@ function CheckoutContent() {
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Camila Valente"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] text-[13.5px] focus:outline-none focus:border-[#1C1C1E] transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.fullName && (
-                      <p className="text-[11px] text-amber-600">{errors.fullName}</p>
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.fullName}</p>
                     )}
                   </div>
 
@@ -408,7 +414,7 @@ function CheckoutContent() {
                   <div className="space-y-1">
                     <label
                       htmlFor="checkout-email"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                     >
                       E-mail corporativo / pessoal
                     </label>
@@ -419,10 +425,10 @@ function CheckoutContent() {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="camila@estudio.com.br"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] text-[13.5px] focus:outline-none focus:border-[#1C1C1E] transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.email && (
-                      <p className="text-[11px] text-amber-600">{errors.email}</p>
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.email}</p>
                     )}
                   </div>
 
@@ -430,7 +436,7 @@ function CheckoutContent() {
                   <div className="space-y-1">
                     <label
                       htmlFor="checkout-whatsapp"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                     >
                       WhatsApp com DDD
                     </label>
@@ -441,10 +447,10 @@ function CheckoutContent() {
                       onChange={(e) => setWhatsapp(e.target.value)}
                       placeholder="(11) 98765-4321"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] text-[13.5px] focus:outline-none focus:border-[#1C1C1E] transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.whatsapp && (
-                      <p className="text-[11px] text-amber-600">{errors.whatsapp}</p>
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.whatsapp}</p>
                     )}
                   </div>
 
@@ -452,7 +458,7 @@ function CheckoutContent() {
                   <div className="space-y-1 sm:col-span-2">
                     <label
                       htmlFor="checkout-cpf-cnpj"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                     >
                       CPF ou CNPJ (para emissão e faturamento)
                     </label>
@@ -463,10 +469,10 @@ function CheckoutContent() {
                       onChange={(e) => setCpfCnpj(e.target.value)}
                       placeholder="000.000.000-00 ou 00.000.000/0001-00"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] text-[13.5px] focus:outline-none focus:border-[#1C1C1E] transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.cpfCnpj && (
-                      <p className="text-[11px] text-amber-600">{errors.cpfCnpj}</p>
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.cpfCnpj}</p>
                     )}
                   </div>
 
@@ -474,7 +480,7 @@ function CheckoutContent() {
                   <div className="space-y-1 sm:col-span-2">
                     <label
                       htmlFor="checkout-business"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                     >
                       Nome do seu estúdio ou clínica
                     </label>
@@ -485,10 +491,10 @@ function CheckoutContent() {
                       onChange={(e) => handleBusinessNameChange(e.target.value)}
                       placeholder="Espaço Unniko Beauty"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] text-[13.5px] focus:outline-none focus:border-[#1C1C1E] transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.businessName && (
-                      <p className="text-[11px] text-amber-600">
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">
                         {errors.businessName}
                       </p>
                     )}
@@ -498,12 +504,12 @@ function CheckoutContent() {
                   <div className="space-y-1 sm:col-span-2">
                     <label
                       htmlFor="checkout-subdomain"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                     >
                       Subdomínio do seu site de agendamento online
                     </label>
-                    <div className="flex items-center rounded-xl border border-[#D4D4D8] bg-[#F5F5F7] px-3.5 py-2.5 focus-within:border-[#1C1C1E] focus-within:bg-white transition">
-                      <span className="text-[12px] font-mono text-[#8E8E93] pr-1">
+                    <div className="flex items-center rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#09090b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white focus-within:bg-white dark:focus-within:bg-[#09090b] transition">
+                      <span className="text-[12px] font-mono text-[#8E8E93] dark:text-[#71717a] pr-1">
                         https://
                       </span>
                       <input
@@ -513,16 +519,16 @@ function CheckoutContent() {
                         onChange={(e) => handleSubdomainChange(e.target.value)}
                         placeholder="espaco-unniko"
                         required
-                        className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none font-mono"
+                        className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none font-mono"
                       />
-                      <span className="text-[12.5px] font-mono font-semibold text-[#1C1C1E] shrink-0 pl-1">
+                      <span className="text-[12.5px] font-mono font-semibold text-[#1C1C1E] dark:text-white shrink-0 pl-1">
                         .luvea.app
                       </span>
                     </div>
                     {errors.subdomain && (
-                      <p className="text-[11px] text-amber-600">{errors.subdomain}</p>
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.subdomain}</p>
                     )}
-                    <p className="text-[11.5px] text-[#6E6E73]">
+                    <p className="text-[11.5px] text-[#6E6E73] dark:text-[#71717a]">
                       Endereço exclusivo para divulgação no Instagram e agendamento dos seus clientes.
                     </p>
                   </div>
@@ -532,7 +538,7 @@ function CheckoutContent() {
                   <button
                     type="button"
                     onClick={handleProceedToStep2}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13.5px] font-semibold transition-all shadow-xs active:scale-[0.99]"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#1C1C1E] hover:bg-black dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13.5px] font-semibold transition-all shadow-xs active:scale-[0.99]"
                   >
                     <span>Continuar para escolha do plano e pagamento</span>
                     <ArrowRight className="w-4 h-4" />
@@ -548,32 +554,32 @@ function CheckoutContent() {
                   <button
                     type="button"
                     onClick={() => setCurrentStep(1)}
-                    className="inline-flex items-center gap-1.5 text-[12px] text-[#6E6E73] hover:text-[#1C1C1E] mb-2 transition"
+                    className="inline-flex items-center gap-1.5 text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white mb-2 transition"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>Voltar para dados cadastrais</span>
                   </button>
-                  <h2 className="text-xl font-semibold text-[#1C1C1E] tracking-tight">
+                  <h2 className="text-xl font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
                     Plano e forma de pagamento
                   </h2>
-                  <p className="text-[12.5px] text-[#6E6E73] mt-0.5">
+                  <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
                     14 dias de teste grátis com garantia total. Cancele quando quiser.
                   </p>
                 </div>
 
                 {/* Billing Cycle Switcher */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA]">
-                  <span className="text-[13px] font-medium text-[#1C1C1E]">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F5F5F7] dark:bg-[#09090b] border border-[#E5E5EA] dark:border-[#27272a]">
+                  <span className="text-[13px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]">
                     Ciclo de faturamento
                   </span>
-                  <div className="flex items-center gap-1 bg-white p-1 rounded-full border border-[#D4D4D8] text-[12px]">
+                  <div className="flex items-center gap-1 bg-white dark:bg-[#18181b] p-1 rounded-full border border-[#D4D4D8] dark:border-[#27272a] text-[12px]">
                     <button
                       type="button"
                       onClick={() => setBillingCycle("monthly")}
                       className={`px-3 py-1 rounded-full transition ${
                         billingCycle === "monthly"
-                          ? "bg-[#1C1C1E] text-white font-semibold"
-                          : "text-[#6E6E73] hover:text-black"
+                          ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-semibold"
+                          : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
                       }`}
                     >
                       Mensal
@@ -583,8 +589,8 @@ function CheckoutContent() {
                       onClick={() => setBillingCycle("yearly")}
                       className={`px-3 py-1 rounded-full transition ${
                         billingCycle === "yearly"
-                          ? "bg-[#1C1C1E] text-white font-semibold"
-                          : "text-[#6E6E73] hover:text-black"
+                          ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-semibold"
+                          : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
                       }`}
                     >
                       Anual (~14% off)
@@ -594,7 +600,7 @@ function CheckoutContent() {
 
                 {/* Plan Tier Selection Cards */}
                 <div className="space-y-2.5">
-                  <label className="block text-[12.5px] font-medium text-[#1C1C1E]">
+                  <label className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]">
                     Selecione o plano desejado
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -614,25 +620,25 @@ function CheckoutContent() {
                           }
                           className={`p-4 rounded-xl text-left border transition relative flex flex-col justify-between ${
                             isSelected
-                              ? "border-[#1C1C1E] bg-[#F5F5F7] ring-1 ring-[#1C1C1E]"
-                              : "border-[#E5E5EA] bg-white hover:border-[#D4D4D8]"
+                              ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#09090b] ring-1 ring-[#1C1C1E] dark:ring-white"
+                              : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:border-[#D4D4D8] dark:hover:border-[#3f3f46]"
                           }`}
                         >
                           {plan.badge && (
-                            <span className="text-[10px] font-mono uppercase font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mb-1">
+                            <span className="text-[10px] font-mono uppercase font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/50 dark:border-emerald-800/40 px-2 py-0.5 rounded-full inline-block mb-1">
                               {plan.badge}
                             </span>
                           )}
-                          <p className="text-[14px] font-bold text-[#1C1C1E]">
+                          <p className="text-[14px] font-bold text-[#1C1C1E] dark:text-white">
                             {plan.name}
                           </p>
-                          <p className="text-[18px] font-semibold text-[#1C1C1E] mt-1 font-mono">
+                          <p className="text-[18px] font-semibold text-[#1C1C1E] dark:text-white mt-1 font-mono">
                             R$ {pPrice}
-                            <span className="text-[11px] font-sans text-[#6E6E73] font-normal">
+                            <span className="text-[11px] font-sans text-[#6E6E73] dark:text-[#a1a1aa] font-normal">
                               /mês
                             </span>
                           </p>
-                          <p className="text-[11px] text-[#6E6E73] mt-1 leading-tight">
+                          <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-tight">
                             {plan.maxStaffLabel}
                           </p>
                         </button>
@@ -643,7 +649,7 @@ function CheckoutContent() {
 
                 {/* Payment Method Selector */}
                 <div className="space-y-2.5 pt-2">
-                  <label className="block text-[12.5px] font-medium text-[#1C1C1E]">
+                  <label className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]">
                     Forma de pagamento
                   </label>
                   <div className="grid grid-cols-2 gap-3">
@@ -652,8 +658,8 @@ function CheckoutContent() {
                       onClick={() => setPaymentMethod("credit_card")}
                       className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-[13px] font-semibold transition ${
                         paymentMethod === "credit_card"
-                          ? "border-[#1C1C1E] bg-[#F5F5F7] ring-1 ring-[#1C1C1E]"
-                          : "border-[#E5E5EA] bg-white hover:bg-[#F5F5F7]"
+                          ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#09090b] ring-1 ring-[#1C1C1E] dark:ring-white text-[#1C1C1E] dark:text-white"
+                          : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#09090b] text-[#1C1C1E] dark:text-white"
                       }`}
                     >
                       <CreditCard className="w-4 h-4" />
@@ -665,8 +671,8 @@ function CheckoutContent() {
                       onClick={() => setPaymentMethod("pix")}
                       className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-[13px] font-semibold transition ${
                         paymentMethod === "pix"
-                          ? "border-[#1C1C1E] bg-[#F5F5F7] ring-1 ring-[#1C1C1E]"
-                          : "border-[#E5E5EA] bg-white hover:bg-[#F5F5F7]"
+                          ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#09090b] ring-1 ring-[#1C1C1E] dark:ring-white text-[#1C1C1E] dark:text-white"
+                          : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#09090b] text-[#1C1C1E] dark:text-white"
                       }`}
                     >
                       <QrCode className="w-4 h-4" />
@@ -677,11 +683,11 @@ function CheckoutContent() {
 
                 {/* Credit Card Inputs (Only when Credit Card is selected) */}
                 {paymentMethod === "credit_card" && (
-                  <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] space-y-3">
+                  <div className="p-4 rounded-xl bg-[#F5F5F7] dark:bg-[#09090b] border border-[#E5E5EA] dark:border-[#27272a] space-y-3">
                     <div className="space-y-1">
                       <label
                         htmlFor="card-number"
-                        className="block text-[12px] font-medium text-[#1C1C1E]"
+                        className="block text-[12px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                       >
                         Número do cartão
                       </label>
@@ -692,10 +698,10 @@ function CheckoutContent() {
                         onChange={(e) => setCardNumber(e.target.value)}
                         placeholder="0000 0000 0000 0000"
                         maxLength={19}
-                        className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] bg-white text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
+                        className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] font-mono focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                       />
                       {errors.cardNumber && (
-                        <p className="text-[11px] text-amber-600">
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
                           {errors.cardNumber}
                         </p>
                       )}
@@ -704,7 +710,7 @@ function CheckoutContent() {
                     <div className="space-y-1">
                       <label
                         htmlFor="card-name"
-                        className="block text-[12px] font-medium text-[#1C1C1E]"
+                        className="block text-[12px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                       >
                         Nome como está no cartão
                       </label>
@@ -714,10 +720,10 @@ function CheckoutContent() {
                         value={cardName}
                         onChange={(e) => setCardName(e.target.value)}
                         placeholder="CAMILA V SILVA"
-                        className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] bg-white text-[13px] uppercase focus:outline-none focus:border-[#1C1C1E]"
+                        className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] uppercase focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                       />
                       {errors.cardName && (
-                        <p className="text-[11px] text-amber-600">{errors.cardName}</p>
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.cardName}</p>
                       )}
                     </div>
 
@@ -725,7 +731,7 @@ function CheckoutContent() {
                       <div className="space-y-1">
                         <label
                           htmlFor="card-exp"
-                          className="block text-[12px] font-medium text-[#1C1C1E]"
+                          className="block text-[12px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                         >
                           Validade
                         </label>
@@ -736,17 +742,17 @@ function CheckoutContent() {
                           onChange={(e) => handleExpChange(e.target.value)}
                           placeholder="MM/AA"
                           maxLength={5}
-                          className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] bg-white text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
+                          className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] font-mono focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                         />
                         {errors.cardExp && (
-                          <p className="text-[11px] text-amber-600">{errors.cardExp}</p>
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.cardExp}</p>
                         )}
                       </div>
 
                       <div className="space-y-1">
                         <label
                           htmlFor="card-cvc"
-                          className="block text-[12px] font-medium text-[#1C1C1E]"
+                          className="block text-[12px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
                         >
                           CVC / CVV
                         </label>
@@ -757,10 +763,10 @@ function CheckoutContent() {
                           onChange={(e) => setCardCvc(e.target.value)}
                           placeholder="123"
                           maxLength={4}
-                          className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] bg-white text-[13px] font-mono focus:outline-none focus:border-[#1C1C1E]"
+                          className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] font-mono focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                         />
                         {errors.cardCvc && (
-                          <p className="text-[11px] text-amber-600">{errors.cardCvc}</p>
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400">{errors.cardCvc}</p>
                         )}
                       </div>
                     </div>
@@ -769,8 +775,8 @@ function CheckoutContent() {
 
                 {/* Pix Explanation */}
                 {paymentMethod === "pix" && (
-                  <div className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] space-y-1 text-[12.5px] text-[#6E6E73]">
-                    <p className="font-semibold text-[#1C1C1E]">
+                  <div className="p-4 rounded-xl bg-[#F5F5F7] dark:bg-[#09090b] border border-[#E5E5EA] dark:border-[#27272a] space-y-1 text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                    <p className="font-semibold text-[#1C1C1E] dark:text-white">
                       Pix Recorrente Instantâneo
                     </p>
                     <p>
@@ -792,10 +798,10 @@ function CheckoutContent() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-[13.5px] font-semibold transition-all shadow-xs active:scale-[0.99] disabled:opacity-50"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#1C1C1E] hover:bg-black dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13.5px] font-semibold transition-all shadow-xs active:scale-[0.99] disabled:opacity-50"
                   >
                     {isSubmitting ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <Loader2 className="w-4 h-4 animate-spin text-white dark:text-[#09090b]" />
                     ) : (
                       <>
                         <span>Concluir assinatura e ativar estúdio</span>
@@ -810,10 +816,10 @@ function CheckoutContent() {
 
           {/* Right Column: Order Summary (Editorial Luxury Surface) */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-[#1C1C1E] text-white rounded-2xl p-6 sm:p-7 space-y-5 border border-zinc-800 shadow-md">
-              <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+            <div className="bg-[#1C1C1E] dark:bg-[#18181b] text-white rounded-2xl p-6 sm:p-7 space-y-5 border border-zinc-800 dark:border-[#27272a] shadow-md">
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-800 dark:border-[#27272a]">
                 <div>
-                  <span className="text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+                  <span className="text-[11px] font-mono text-zinc-400 dark:text-[#a1a1aa] uppercase tracking-wider">
                     Plano Selecionado
                   </span>
                   <h3 className="text-xl font-bold text-white mt-0.5">
@@ -824,15 +830,15 @@ function CheckoutContent() {
                   <p className="text-2xl font-bold font-mono text-white">
                     R$ {priceReais}
                   </p>
-                  <p className="text-[11px] text-zinc-400 font-sans">
+                  <p className="text-[11px] text-zinc-400 dark:text-[#a1a1aa] font-sans">
                     /mês ({billingCycle === "yearly" ? "anual" : "mensal"})
                   </p>
                 </div>
               </div>
 
               {/* Subdomain Reservation Badge */}
-              <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-between">
-                <span className="text-[12px] text-zinc-400">Subdomínio reservado:</span>
+              <div className="p-3.5 rounded-xl bg-zinc-900 dark:bg-[#09090b] border border-zinc-800 dark:border-[#27272a] flex items-center justify-between">
+                <span className="text-[12px] text-zinc-400 dark:text-[#a1a1aa]">Subdomínio reservado:</span>
                 <span className="text-[12.5px] font-mono font-semibold text-emerald-400">
                   {subdomain ? `${subdomain}.luvea.app` : "seu-estudio.luvea.app"}
                 </span>
@@ -840,10 +846,10 @@ function CheckoutContent() {
 
               {/* Features Included */}
               <div className="space-y-2.5 pt-1">
-                <p className="text-[12px] uppercase font-mono tracking-wider font-semibold text-zinc-400">
+                <p className="text-[12px] uppercase font-mono tracking-wider font-semibold text-zinc-400 dark:text-[#a1a1aa]">
                   Incluso na sua assinatura
                 </p>
-                <ul className="space-y-2 text-[12.5px] text-zinc-300">
+                <ul className="space-y-2 text-[12.5px] text-zinc-300 dark:text-[#d4d4d8]">
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     <span>Site de Agendamento Online no link da bio</span>
@@ -868,21 +874,21 @@ function CheckoutContent() {
               </div>
 
               {/* Today Cost: R$ 0.00 (14 days free trial) */}
-              <div className="pt-4 border-t border-zinc-800 flex items-center justify-between text-[14px]">
-                <span className="text-zinc-300">Total a pagar hoje:</span>
+              <div className="pt-4 border-t border-zinc-800 dark:border-[#27272a] flex items-center justify-between text-[14px]">
+                <span className="text-zinc-300 dark:text-[#a1a1aa]">Total a pagar hoje:</span>
                 <span className="font-bold text-white font-mono text-xl">
                   R$ 0,00
                 </span>
               </div>
-              <p className="text-[11.5px] text-zinc-400 leading-relaxed">
+              <p className="text-[11.5px] text-zinc-400 dark:text-[#a1a1aa] leading-relaxed">
                 Você terá 14 dias de acesso completo sem cobrança. A primeira mensalidade será cobrada apenas ao término do período de avaliação.
               </p>
             </div>
 
             {/* Trust Badges */}
-            <div className="p-4 rounded-xl bg-white border border-[#E5E5EA] space-y-2 text-xs text-[#6E6E73]">
-              <div className="flex items-center gap-2 text-[#1C1C1E] font-semibold">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <div className="p-4 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] space-y-2 text-xs text-[#6E6E73] dark:text-[#a1a1aa] transition-colors">
+              <div className="flex items-center gap-2 text-[#1C1C1E] dark:text-white font-semibold">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Garantia de Satisfação Total</span>
               </div>
               <p>
