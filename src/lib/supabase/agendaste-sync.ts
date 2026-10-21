@@ -268,6 +268,8 @@ export async function loadStudioStateFromSupabase(
           sendAutomaticReminders: c.send_automatic_reminders ?? true,
         };
       });
+    } else {
+      updated.clients = [];
     }
 
     // 5. Agendamentos (Cloud + Local Unsynced Merge)
@@ -375,6 +377,9 @@ export async function loadStudioStateFromSupabase(
     const unsyncedLocal = (currentState.calendarEvents || []).filter(
       (local) =>
         !cloudIds.has(local.id) &&
+        !local.id.startsWith("demo-") &&
+        !local.id.startsWith("apt-") &&
+        !local.id.startsWith("busy-slot-") &&
         !cloudKeys.has(`${local.dateISO}_${local.startTime}_${local.clientName}`)
     );
 
@@ -382,6 +387,8 @@ export async function loadStudioStateFromSupabase(
       updated.calendarEvents = [...cloudAppointments, ...unsyncedLocal];
     } else if (unsyncedLocal.length > 0) {
       updated.calendarEvents = unsyncedLocal;
+    } else {
+      updated.calendarEvents = [];
     }
 
     // Sincroniza em background os eventos locais pendentes
@@ -411,6 +418,8 @@ export async function loadStudioStateFromSupabase(
           createdAtISO: w.created_at || "2026-10-17",
         };
       });
+    } else {
+      updated.waitlist = [];
     }
 
     return updated;
