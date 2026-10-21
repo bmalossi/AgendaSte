@@ -28,6 +28,7 @@ import {
   claimBookingSiteSubdomain,
   updateWebsiteSetupConfig,
   getDefaultWebsiteBookingConfig,
+  getBookingSiteUrl,
 } from "@/lib/agendaste-store";
 import { LuveaWordmark } from "@/components/luvea-logo";
 
@@ -602,6 +603,8 @@ export function WebsiteSetupWizard({
                   onClick={() => {
                     if (onOpenPublicSite) {
                       onOpenPublicSite(activeSlug);
+                    } else {
+                      window.open(getBookingSiteUrl(activeSlug), "_blank", "noopener,noreferrer");
                     }
                   }}
                   className="w-full sm:w-auto px-5 py-2.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] text-[13px] font-medium hover:bg-[#F5F5F7] transition-colors shadow-2xs inline-flex items-center justify-center gap-1.5"

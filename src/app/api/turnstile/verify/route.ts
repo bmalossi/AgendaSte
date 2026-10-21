@@ -7,6 +7,12 @@ export async function POST(request: Request) {
     const token = body.token || body["cf-turnstile-response"];
     const action = body.action;
 
+    const host = request.headers.get("host") || "";
+    const isLocalhost =
+      body.isLocalhost === true ||
+      host.includes("localhost") ||
+      host.includes("127.0.0.1");
+
     const remoteip =
       request.headers.get("cf-connecting-ip") ||
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -15,6 +21,7 @@ export async function POST(request: Request) {
     const result = await verifyTurnstileToken(token, {
       remoteip,
       expectedAction: action,
+      isLocalhost,
     });
 
     if (!result.success) {

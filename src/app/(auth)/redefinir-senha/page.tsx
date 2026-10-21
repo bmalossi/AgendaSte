@@ -121,10 +121,19 @@ export default function RedefinirSenhaPage() {
             {/* Password Strength Meter */}
             {password && (
               <div className="space-y-1 pt-1">
-                <div className="grid grid-cols-4 gap-1.5 h-1">
+                <div
+                  role="progressbar"
+                  aria-label="Força da senha"
+                  aria-valuenow={passwordStrength.score}
+                  aria-valuemin={0}
+                  aria-valuemax={4}
+                  aria-valuetext={passwordStrength.label}
+                  className="grid grid-cols-4 gap-1.5 h-1"
+                >
                   {[1, 2, 3, 4].map((step) => (
                     <div
                       key={step}
+                      aria-hidden="true"
                       className={`rounded-full transition-all duration-200 ${
                         passwordStrength.score >= step
                           ? passwordStrength.colorClass
@@ -133,7 +142,7 @@ export default function RedefinirSenhaPage() {
                     />
                   ))}
                 </div>
-                <p className="text-[11px] text-[#6E6E73] font-medium">
+                <p className="text-[11px] text-[#6E6E73] font-medium" aria-hidden="true">
                   Força da senha:{" "}
                   <span className="text-[#1C1C1E]">{passwordStrength.label}</span>
                 </p>
@@ -161,8 +170,12 @@ export default function RedefinirSenhaPage() {
           </div>
 
           {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+            <div
+              role="alert"
+              aria-live="polite"
+              className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
               <span>{errorMessage}</span>
             </div>
           )}

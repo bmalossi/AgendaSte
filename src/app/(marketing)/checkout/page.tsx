@@ -176,18 +176,32 @@ function CheckoutContent() {
     try {
       if (turnstileToken) {
         try {
+          const isLocal =
+            typeof window !== "undefined" &&
+            (window.location.hostname === "localhost" ||
+              window.location.hostname === "127.0.0.1" ||
+              window.location.hostname.endsWith(".localhost"));
+
           const verifyRes = await fetch("/api/turnstile/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: turnstileToken, action: "checkout" }),
+            body: JSON.stringify({
+              token: turnstileToken,
+              action: "checkout",
+              isLocalhost: isLocal,
+            }),
           });
           const verifyData = await verifyRes.json();
           if (!verifyRes.ok || !verifyData.success) {
-            setErrors({ general: "Falha na verificação de segurança contra robôs." });
-            setIsSubmitting(false);
-            turnstileRef.current?.reset();
-            setTurnstileToken("");
-            return;
+            if (!isLocal) {
+              setErrors({ general: "Falha na verificação de segurança contra robôs." });
+              setIsSubmitting(false);
+              turnstileRef.current?.reset();
+              setTurnstileToken("");
+              return;
+            } else {
+              console.warn("[Turnstile Dev] Verificação flexibilizada em localhost:", verifyData);
+            }
           }
         } catch (verErr) {
           console.warn("[Turnstile checkout verify check]", verErr);
@@ -290,8 +304,12 @@ function CheckoutContent() {
           {/* Left Column: Form Steps */}
           <div className="lg:col-span-7 bg-white rounded-2xl border border-[#E5E5EA] p-6 sm:p-9 shadow-xs space-y-6">
             {errors.general && (
-              <div className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <div
+                role="alert"
+                aria-live="polite"
+                className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
                 <span>{errors.general}</span>
               </div>
             )}

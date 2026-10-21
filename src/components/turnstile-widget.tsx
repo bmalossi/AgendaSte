@@ -81,6 +81,14 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetRef, TurnstileWidgetPro
           },
           "error-callback": (code: string) => {
             console.warn("[Turnstile Error Callback]:", code);
+            const isLocal =
+              typeof window !== "undefined" &&
+              (window.location.hostname === "localhost" ||
+                window.location.hostname === "127.0.0.1" ||
+                window.location.hostname.endsWith(".localhost"));
+            if (isLocal) {
+              onVerify("XXXX.DUMMY.TOKEN.XXXX");
+            }
             onError?.(code);
           },
           "expired-callback": () => {

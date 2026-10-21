@@ -1455,6 +1455,27 @@ export function normalizeSubdomainSlug(raw: string): string {
   return compact || "meu-estudio";
 }
 
+/**
+ * Retorna a URL canônica pública do site de agendamento do estúdio.
+ * Se o ambiente de execução for o navegador e estiver rodando em localhost / 127.0.0.1,
+ * redireciona para `${origin}/site/${slug}` para permitir navegação e testes imediatos em desenvolvimento.
+ * Em produção, retorna `https://${slug}.luvea.app`.
+ */
+export function getBookingSiteUrl(subdomainSlug?: string): string {
+  const slug = normalizeSubdomainSlug(subdomainSlug || "meu-estudio");
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname?.toLowerCase() || "";
+    if (
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname === "127.0.0.1"
+    ) {
+      return `${window.location.origin}/site/${slug}`;
+    }
+  }
+  return `https://${slug}.luvea.app`;
+}
+
 export function getDefaultBookingControls(): BookingControlsConfig {
   return {
     autoApproveMode: "always",

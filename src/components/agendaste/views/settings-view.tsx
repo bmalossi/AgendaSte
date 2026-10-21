@@ -30,6 +30,7 @@ import {
   Info,
   ChevronRight,
   AlertCircle,
+  LogOut,
 } from "lucide-react";
 import type {
   StudioState,
@@ -51,8 +52,10 @@ import {
   getDefaultClientNotifications,
   getDefaultCheckoutSettings,
   getDefaultChartingSettings,
+  getBookingSiteUrl,
 } from "@/lib/agendaste-store";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
+import { signOutUser } from "@/lib/supabase/client";
 
 interface SettingsViewProps {
   state: StudioState;
@@ -254,6 +257,7 @@ export function SettingsView({
   const [saveToast, setSaveToast] = useState<string | null>(null);
 
   const fullBookingUrl = `https://${subdomainSlug || "luveastudio"}.luvea.app`;
+  const bookingSiteOpenUrl = getBookingSiteUrl(subdomainSlug);
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(fullBookingUrl);
     setCopiedLink(true);
@@ -716,7 +720,7 @@ export function SettingsView({
                     <div className="space-y-0.5">
                       <p className="font-semibold text-[13.5px] text-[#1C1C1E]">{businessName}</p>
                       <a
-                        href={fullBookingUrl}
+                        href={bookingSiteOpenUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[12.5px] text-[#6E6E73] hover:text-[#1C1C1E] font-mono underline decoration-zinc-300 underline-offset-2"
@@ -727,7 +731,7 @@ export function SettingsView({
 
                     <div className="flex items-center gap-2 flex-wrap">
                       <a
-                        href={fullBookingUrl}
+                        href={bookingSiteOpenUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] text-[12px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
@@ -2109,6 +2113,24 @@ export function SettingsView({
                 className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
               />
             </div>
+          </div>
+
+          {/* Sessão & Acesso */}
+          <div className="pt-6 border-t border-[#E5E5EA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h3 className="text-[14px] font-semibold text-[#1C1C1E]">Sessão da Conta</h3>
+              <p className="text-[12px] text-[#6E6E73]">
+                Conectado atualmente como <span className="font-medium text-[#1C1C1E]">{personalEmail || state.settings.personal.email}</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => signOutUser()}
+              className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition shadow-2xs self-start sm:self-auto flex items-center gap-2"
+            >
+              <LogOut className="w-3.5 h-3.5 text-zinc-600" />
+              <span>Sair da conta</span>
+            </button>
           </div>
         </div>
       )}

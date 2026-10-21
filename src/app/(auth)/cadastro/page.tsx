@@ -66,18 +66,32 @@ export default function CadastroPage() {
       // Validação de segurança Cloudflare Turnstile
       if (turnstileToken) {
         try {
+          const isLocal =
+            typeof window !== "undefined" &&
+            (window.location.hostname === "localhost" ||
+              window.location.hostname === "127.0.0.1" ||
+              window.location.hostname.endsWith(".localhost"));
+
           const verifyRes = await fetch("/api/turnstile/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: turnstileToken, action: "signup" }),
+            body: JSON.stringify({
+              token: turnstileToken,
+              action: "signup",
+              isLocalhost: isLocal,
+            }),
           });
           const verifyData = await verifyRes.json();
           if (!verifyRes.ok || !verifyData.success) {
-            setErrorMessage("Falha na verificação de segurança contra robôs.");
-            setLoading(false);
-            turnstileRef.current?.reset();
-            setTurnstileToken("");
-            return;
+            if (!isLocal) {
+              setErrorMessage("Falha na verificação de segurança contra robôs.");
+              setLoading(false);
+              turnstileRef.current?.reset();
+              setTurnstileToken("");
+              return;
+            } else {
+              console.warn("[Turnstile Dev] Verificação flexibilizada em localhost:", verifyData);
+            }
           }
         } catch (verErr) {
           console.warn("[Turnstile verification check]", verErr);
@@ -252,10 +266,19 @@ export default function CadastroPage() {
           {/* Minimalist Password Strength Meter */}
           {password && (
             <div className="space-y-1 pt-1">
-              <div className="grid grid-cols-4 gap-1.5 h-1">
+              <div
+                role="progressbar"
+                aria-label="Força da senha"
+                aria-valuenow={passwordStrength.score}
+                aria-valuemin={0}
+                aria-valuemax={4}
+                aria-valuetext={passwordStrength.label}
+                className="grid grid-cols-4 gap-1.5 h-1"
+              >
                 {[1, 2, 3, 4].map((step) => (
                   <div
                     key={step}
+                    aria-hidden="true"
                     className={`rounded-full transition-all duration-200 ${
                       passwordStrength.score >= step
                         ? passwordStrength.colorClass
@@ -264,7 +287,7 @@ export default function CadastroPage() {
                   />
                 ))}
               </div>
-              <p className="text-[11px] text-[#6E6E73] font-medium">
+              <p className="text-[11px] text-[#6E6E73] font-medium" aria-hidden="true">
                 Força da senha:{" "}
                 <span className="text-[#1C1C1E]">{passwordStrength.label}</span>
               </p>
@@ -294,8 +317,12 @@ export default function CadastroPage() {
 
         {/* Error Banner */}
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+          <div
+            role="alert"
+            aria-live="polite"
+            className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[12.5px] text-[#1C1C1E] flex items-center gap-2.5"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
             <span>{errorMessage}</span>
           </div>
         )}

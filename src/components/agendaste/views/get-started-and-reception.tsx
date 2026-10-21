@@ -25,6 +25,8 @@ import {
   bookFromPublicSite,
   processWhatsappInboundReply,
   formatBRL,
+  getBookingSiteUrl,
+  normalizeSubdomainSlug,
 } from "@/lib/agendaste-store";
 
 import { PublicBookingWebsite } from "@/components/agendaste/public-booking-website";
@@ -68,7 +70,11 @@ export function GetStartedView({
 
     setState((prev) => completeOnboardingStep(prev, stepId));
     if (stepId === "booking_site") {
-      onOpenBookingSite();
+      if (isWebsitePublished) {
+        window.open(bookingSiteUrl, "_blank", "noopener,noreferrer");
+      } else {
+        onOpenBookingSite();
+      }
     } else if (stepId === "add_services") {
       onNavigate("catalog_services");
     } else {
@@ -76,13 +82,21 @@ export function GetStartedView({
     }
   };
 
+  const isWebsitePublished = Boolean(state.settings.website?.websitePublished);
+  const activeSubdomain =
+    state.settings.website?.subdomainSlug ||
+    normalizeSubdomainSlug(state.settings.business.businessName);
+  const bookingSiteUrl = getBookingSiteUrl(activeSubdomain);
+
   const handleOpenMyBookingSite = () => {
-    if (state.settings.website?.websitePublished) {
-      onOpenBookingSite();
+    if (isWebsitePublished) {
+      window.open(bookingSiteUrl, "_blank", "noopener,noreferrer");
     } else if (onOpenWebsiteWizard) {
       onOpenWebsiteWizard(1);
-    } else {
+    } else if (onOpenBookingSite) {
       onOpenBookingSite();
+    } else {
+      window.open(bookingSiteUrl, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -93,14 +107,26 @@ export function GetStartedView({
         <h1 className="text-[22px] font-bold tracking-tight text-[#18181B]">
           Bem-vindo, {state.settings.personal.firstName}
         </h1>
-        <button
-          type="button"
-          onClick={handleOpenMyBookingSite}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-300 bg-white text-[13px] font-semibold text-[#18181B] hover:bg-zinc-50 transition-colors"
-        >
-          <span>Meu site de agendamento</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </button>
+        {isWebsitePublished ? (
+          <a
+            href={bookingSiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors shadow-2xs"
+          >
+            <span>Meu site de agendamento</span>
+            <ExternalLink className="w-3.5 h-3.5 text-[#6E6E73]" />
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={handleOpenMyBookingSite}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors shadow-2xs"
+          >
+            <span>Meu site de agendamento</span>
+            <ExternalLink className="w-3.5 h-3.5 text-[#6E6E73]" />
+          </button>
+        )}
       </div>
 
       {/* Main Let's get started container (01-get-started.png) */}
@@ -154,13 +180,25 @@ export function GetStartedView({
                 </p>
               </div>
               <div className="pt-3 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => handleStartStep("booking_site")}
-                  className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
-                >
-                  {state.onboarding.steps[0].completed ? "Tudo pronto" : "Começar"}
-                </button>
+                {isWebsitePublished ? (
+                  <a
+                    href={bookingSiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-black transition-colors"
+                  >
+                    <span>Acessar meu site</span>
+                    <ExternalLink className="w-3 h-3 text-zinc-400" />
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleStartStep("booking_site")}
+                    className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-black transition-colors"
+                  >
+                    {state.onboarding.steps[0].completed ? "Tudo pronto" : "Começar"}
+                  </button>
+                )}
               </div>
             </div>
           </div>

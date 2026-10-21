@@ -7,6 +7,7 @@ import {
   updateWebsiteSetupConfig,
   getDefaultWebsiteBookingConfig,
   bookFromPublicSite,
+  getBookingSiteUrl,
   type BookingSiteThemeId,
 } from "../agendaste-store.ts";
 
@@ -57,6 +58,12 @@ describe("Ticket 01 — Fase 1: Criação do Site de Agendamento Online & Subdom
     assert.equal(updated.settings.website.websitePublished, true);
     assert.equal(updated.onboarding.steps[0].completed, true);
     assert.equal(updated.lastToastMessage, "URL atualizada com sucesso");
+  });
+
+  it("gera a URL canônica pública de agendamento em ambiente node/produção", () => {
+    assert.equal(getBookingSiteUrl("teste"), "https://teste.luvea.app");
+    assert.equal(getBookingSiteUrl("bruno-hair"), "https://bruno-hair.luvea.app");
+    assert.equal(getBookingSiteUrl(""), "https://meu-estudio.luvea.app");
   });
 
   it("permite selecionar qualquer um dos 6 temas autênticos", () => {

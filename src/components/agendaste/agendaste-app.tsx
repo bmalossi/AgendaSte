@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Clock,
+  LogOut,
 } from "lucide-react";
 import {
   StudioState,
@@ -28,6 +29,7 @@ import {
   CalendarEventItem,
   createInitialStudioState,
   getTodayDateISO,
+  getBookingSiteUrl,
 } from "@/lib/agendaste-store";
 import { LuveaSidebar } from "@/components/agendaste/sidebar";
 import {
@@ -49,7 +51,7 @@ import {
   ComplementarySectionView,
 } from "@/components/agendaste/views/marketing-and-settings-view";
 import { WebsiteSetupWizard } from "@/components/agendaste/website-setup-wizard";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured, signOutUser } from "@/lib/supabase/client";
 import {
   loadStudioStateFromSupabase,
   syncNewAppointmentToSupabase,
@@ -81,6 +83,18 @@ export function LuveaApp({
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleOpenMyBookingSite = () => {
+    const isPublished = Boolean(state.settings.website?.websitePublished);
+    if (!isPublished) {
+      setWebsiteWizardInitialStep(1);
+      setWebsiteWizardOpen(true);
+      return;
+    }
+    const slug = state.settings.website?.subdomainSlug;
+    const targetUrl = getBookingSiteUrl(slug);
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  };
 
   // Sincroniza seção e wizard com a URL
   useEffect(() => {
@@ -302,7 +316,7 @@ export function LuveaApp({
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            onClick={() => setBookingSiteOpen(true)}
+            onClick={handleOpenMyBookingSite}
             title="Abrir site de agendamento online"
             className="h-9 px-3 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] flex items-center gap-1.5 active:scale-95 transition-transform"
           >
@@ -692,6 +706,20 @@ export function LuveaApp({
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOutUser();
+                    }}
+                    className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] active:scale-95 transition-transform"
+                  >
+                    <span className="flex items-center gap-3">
+                      <LogOut className="w-4 h-4 text-[#8E8E93]" />
+                      <span>Sair da conta</span>
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -714,6 +742,7 @@ export function LuveaApp({
         totalOnboardingCount={totalOnboardingCount}
         providerFullName={providerFullName}
         providerShortName={providerShortName}
+        onSignOut={signOutUser}
       />
 
       {/* Main Content Workspace with safe area padding for bottom navigation */}
@@ -723,7 +752,7 @@ export function LuveaApp({
             state={state}
             setState={handleUpdateStudioState}
             onNavigate={(sec) => setActiveSection(sec)}
-            onOpenBookingSite={() => setBookingSiteOpen(true)}
+            onOpenBookingSite={handleOpenMyBookingSite}
             onOpenWebsiteWizard={(step = 1) => {
               setWebsiteWizardInitialStep(step);
               setWebsiteWizardOpen(true);
@@ -929,9 +958,10 @@ export function LuveaApp({
           setState={handleUpdateStudioState}
           initialStep={websiteWizardInitialStep}
           onClose={() => setWebsiteWizardOpen(false)}
-          onOpenPublicSite={() => {
+          onOpenPublicSite={(slug) => {
             setWebsiteWizardOpen(false);
-            setBookingSiteOpen(true);
+            const targetUrl = getBookingSiteUrl(slug);
+            window.open(targetUrl, "_blank", "noopener,noreferrer");
           }}
           onNavigateToCatalog={() => {
             setWebsiteWizardOpen(false);

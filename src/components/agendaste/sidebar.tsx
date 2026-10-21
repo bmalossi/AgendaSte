@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ShieldCheck,
   AudioLines,
@@ -20,6 +20,7 @@ import {
   ChevronUp,
   PanelLeftClose,
   PanelLeftOpen,
+  LogOut,
 } from "lucide-react";
 import type { NavigationSectionId } from "@/lib/agendaste-store";
 import { LuveaIcon } from "@/components/luvea-logo";
@@ -31,6 +32,7 @@ interface SidebarProps {
   totalOnboardingCount: number;
   providerFullName: string;
   providerShortName: string;
+  onSignOut?: () => void;
 }
 
 export function LuveaSidebar({
@@ -40,8 +42,28 @@ export function LuveaSidebar({
   totalOnboardingCount,
   providerFullName,
   providerShortName,
+  onSignOut,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setProfileMenuOpen(false);
+      }
+    }
+    if (profileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [profileMenuOpen]);
   const [paymentsOpen, setPaymentsOpen] = useState(
     activeSection.startsWith("payments_")
   );
@@ -188,6 +210,14 @@ export function LuveaSidebar({
           >
             <Settings className="w-4 h-4" />
           </button>
+          <button
+            type="button"
+            onClick={() => onSignOut?.()}
+            title="Sair da conta"
+            className="p-2.5 rounded-xl text-zinc-500 hover:text-[#1C1C1E] hover:bg-zinc-100 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </aside>
     );
@@ -195,39 +225,84 @@ export function LuveaSidebar({
 
   return (
     <aside className="hidden md:flex flex-col w-[232px] shrink-0 border-r border-[#E5E7EB] bg-white h-screen sticky top-0 select-none">
-      {/* Top Profile Header identical to 01-get-started.png */}
-      <div className="flex items-center justify-between px-3.5 py-3 border-b border-[#F1F1F4]">
-        <button
-          type="button"
-          onClick={() => onSelectSection("settings")}
-          className="flex items-center gap-2.5 min-w-0 text-left group"
-        >
-          <div className="w-7 h-7 rounded-full bg-[#FBCFE8] text-[#831843] flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold">
-              {providerShortName.slice(0, 1).toUpperCase()}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
-              <span className="text-[13px] font-semibold text-[#18181B] truncate max-w-[112px]">
-                {providerFullName}
+      {/* Top Profile Header with luxury popup menu */}
+      <div ref={profileMenuRef} className="relative px-3.5 py-3 border-b border-[#F1F1F4]">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            aria-expanded={profileMenuOpen}
+            aria-label="Menu da conta e perfil"
+            className="flex items-center gap-2.5 min-w-0 text-left group"
+          >
+            <div className="w-7 h-7 rounded-full bg-[#FBCFE8] text-[#831843] flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold">
+                {providerShortName.slice(0, 1).toUpperCase()}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
             </div>
-            <p className="text-[11px] text-zinc-500 leading-tight truncate">
-              {providerShortName}
-            </p>
-          </div>
-        </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="text-[13px] font-semibold text-[#18181B] truncate max-w-[112px]">
+                  {providerFullName}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-zinc-500 shrink-0 transition-transform ${
+                    profileMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </div>
+              <p className="text-[11px] text-zinc-500 leading-tight truncate">
+                {providerShortName}
+              </p>
+            </div>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setCollapsed(true)}
-          title="Recolher barra lateral"
-          className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 transition-colors"
-        >
-          <PanelLeftClose className="w-4 h-4" />
-        </button>
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="Recolher barra lateral"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 transition-colors"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Profile Dropdown Popover */}
+        {profileMenuOpen && (
+          <div className="absolute top-[calc(100%+6px)] left-2 right-2 z-50 bg-white rounded-2xl border border-[#E5E5EA] p-1.5 shadow-lg space-y-1 animate-in fade-in zoom-in-95 duration-100">
+            <div className="px-3 py-2 border-b border-[#F5F5F7]">
+              <p className="text-[12px] font-semibold text-[#1C1C1E] truncate">
+                {providerFullName}
+              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                <span className="text-[11px] text-[#6E6E73]">Assinatura Ativa</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setProfileMenuOpen(false);
+                onSelectSection("settings");
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors text-left"
+            >
+              <Settings className="w-3.5 h-3.5 text-zinc-500" />
+              <span>Configurações</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setProfileMenuOpen(false);
+                onSignOut?.();
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12.5px] font-medium text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors text-left"
+            >
+              <LogOut className="w-3.5 h-3.5 text-zinc-500" />
+              <span>Sair da conta</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Scrollable Navigation */}
@@ -739,6 +814,14 @@ export function LuveaSidebar({
         >
           <HelpCircle className="w-4 h-4 text-zinc-700" />
           <span>Ajuda</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onSignOut?.()}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-zinc-100 transition-colors"
+        >
+          <LogOut className="w-4 h-4 text-zinc-500" />
+          <span>Sair da conta</span>
         </button>
       </div>
     </aside>

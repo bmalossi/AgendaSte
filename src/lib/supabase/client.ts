@@ -18,3 +18,21 @@ export function isSupabaseConfigured(): boolean {
       !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("demo-")
   );
 }
+
+/**
+ * Realiza o encerramento seguro da sessão do usuário no Supabase e redireciona para o login.
+ */
+export async function signOutUser(): Promise<void> {
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("[Luvea Auth] Erro ao encerrar sessão no Supabase:", err);
+    }
+  }
+
+  // Redireciona o usuário para a página de autenticação
+  if (typeof window !== "undefined") {
+    window.location.href = "/login";
+  }
+}
