@@ -48,6 +48,7 @@ import {
   issueGiftCard,
   createClientProfile,
   saveCatalogService,
+  generateUuid,
 } from "@/lib/agendaste-store";
 
 interface PaymentsViewProps {
@@ -2725,7 +2726,7 @@ export function QuickSaleDrawer({
                   disabled={!newClientName.trim()}
                   onClick={() => {
                     if (!newClientName.trim()) return;
-                    const newId = `cli-${Date.now()}`;
+                    const newId = generateUuid();
                     onUpdateState((prev) =>
                       createClientProfile(prev, {
                         id: newId,

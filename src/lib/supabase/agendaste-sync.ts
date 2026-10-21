@@ -271,9 +271,39 @@ export async function loadStudioStateFromSupabase(
       );
     }
 
-    // 4. Clientes
+    // 4. Clientes com deduplicação defensiva por nome e ID
     if (clientsData && clientsData.length > 0) {
-      updated.clients = clientsData.map((c): ClientProfile => {
+      // Ordena para priorizar registros que tenham email ou telefone real antes do fallback
+      const sortedClientsData = [...clientsData].sort((a, b) => {
+        const scoreA =
+          (a.email ? 2 : 0) +
+          (a.phone_whatsapp && !a.phone_whatsapp.includes("99876-5432") ? 1 : 0);
+        const scoreB =
+          (b.email ? 2 : 0) +
+          (b.phone_whatsapp && !b.phone_whatsapp.includes("99876-5432") ? 1 : 0);
+        return scoreB - scoreA;
+      });
+
+      const seenNames = new Set<string>();
+      const dedupedClients: ClientProfile[] = [];
+      const duplicateIdMap = new Map<string, string>(); // duplicateId -> canonicalId
+
+      for (const c of sortedClientsData) {
+        const normalizedName = (c.full_name || "").trim().toLowerCase();
+        if (normalizedName && seenNames.has(normalizedName)) {
+          // Mapeia o ID duplicado para o cliente canônico já registrado
+          const canonical = dedupedClients.find(
+            (cl) => cl.fullName.trim().toLowerCase() === normalizedName
+          );
+          if (canonical) {
+            duplicateIdMap.set(c.id, canonical.id);
+          }
+          continue;
+        }
+        if (normalizedName) {
+          seenNames.add(normalizedName);
+        }
+
         const lastVisit = c.last_visit_at ? c.last_visit_at.slice(0, 10) : null;
         const daysSince = lastVisit
           ? Math.max(
@@ -285,7 +315,7 @@ export async function loadStudioStateFromSupabase(
             )
           : null;
 
-        return {
+        dedupedClients.push({
           id: c.id,
           fullName: c.full_name,
           email: c.email || "",
@@ -313,8 +343,18 @@ export async function loadStudioStateFromSupabase(
           visitsCount: c.visits_count || 1,
           noShowCount: c.no_show_count || 0,
           sendAutomaticReminders: c.send_automatic_reminders ?? true,
-        };
-      });
+        });
+      }
+      updated.clients = dedupedClients;
+
+      // Se houver agendamentos associados aos IDs duplicados, remapeia para o canônico
+      if (duplicateIdMap.size > 0 && appointmentsData) {
+        for (const a of appointmentsData) {
+          if (a.client_id && duplicateIdMap.has(a.client_id)) {
+            a.client_id = duplicateIdMap.get(a.client_id);
+          }
+        }
+      }
     } else {
       updated.clients = [];
     }
@@ -561,12 +601,21 @@ export async function syncNewAppointmentToSupabase(
     // Resolver ou criar Cliente no Supabase para integridade de chave estrangeira
     let validClientId: string | null = null;
     if (event.clientId && isValidUuid(event.clientId)) {
-      validClientId = event.clientId;
-    } else if (event.clientName && event.clientName !== "Cliente") {
+      const { data: matchedById } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("id", event.clientId)
+        .maybeSingle();
+      if (matchedById?.id) {
+        validClientId = matchedById.id;
+      }
+    }
+
+    if (!validClientId && event.clientName && event.clientName !== "Cliente") {
       let clientQuery = supabase
         .from("clients")
         .select("id")
-        .eq("full_name", event.clientName)
+        .eq("full_name", event.clientName.trim())
         .limit(1);
       if (orgId) {
         clientQuery = clientQuery.eq("organization_id", orgId);
@@ -578,10 +627,11 @@ export async function syncNewAppointmentToSupabase(
         const { data: newCli } = await supabase
           .from("clients")
           .insert({
+            id: event.clientId && isValidUuid(event.clientId) ? event.clientId : undefined,
             organization_id: orgId || undefined,
             professional_id: profId,
-            full_name: event.clientName,
-            phone_whatsapp: "(11) 99876-5432",
+            full_name: event.clientName.trim(),
+            phone_whatsapp: "(11) 99999-0000",
             avatar_color: "#FBCFE8",
           })
           .select("id")
@@ -753,11 +803,45 @@ export async function syncNewClientToSupabase(
       }
     }
 
+    // Prevenção estrita de duplicidade:
+    // 1. Verifica se já existe por ID
+    if (isValidUuid(client.id)) {
+      const { data: existingById } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("id", client.id)
+        .maybeSingle();
+      if (existingById?.id) {
+        return;
+      }
+    }
+
+    // 2. Verifica se já existe cliente com o mesmo nome exato nesta organização
+    let existingByNameQuery = supabase
+      .from("clients")
+      .select("id")
+      .eq("full_name", client.fullName.trim());
+    if (orgId) {
+      existingByNameQuery = existingByNameQuery.eq("organization_id", orgId);
+    }
+    const { data: existingByName } = await existingByNameQuery.maybeSingle();
+    if (existingByName?.id) {
+      await supabase
+        .from("clients")
+        .update({
+          phone_whatsapp: client.phone || undefined,
+          email: client.email || undefined,
+          avatar_color: client.avatarColor || undefined,
+        })
+        .eq("id", existingByName.id);
+      return;
+    }
+
     await supabase.from("clients").insert({
       id: isValidUuid(client.id) ? client.id : undefined,
       organization_id: orgId || undefined,
       professional_id: profId,
-      full_name: client.fullName,
+      full_name: client.fullName.trim(),
       email: client.email || null,
       phone_whatsapp: client.phone,
       avatar_color: client.avatarColor || "#FBCFE8",

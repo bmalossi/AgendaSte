@@ -111,6 +111,7 @@ export function CalendarView({
   const [isRepeating, setIsRepeating] = useState<boolean>(false);
   const [collectDeposit, setCollectDeposit] = useState<boolean>(true);
   const [conflictError, setConflictError] = useState<string | null>(null);
+  const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
 
   // Dynamic real-time tracking (updates every 30s, hydration-safe)
   const [currentTime, setCurrentTime] = useState<{
@@ -238,6 +239,8 @@ export function CalendarView({
   );
 
   const handleCreateEvent = () => {
+    if (isSubmittingEvent) return;
+    setIsSubmittingEvent(true);
     setConflictError(null);
     const result = validateAndCreateCalendarEvent(state, {
       eventType,
@@ -261,6 +264,7 @@ export function CalendarView({
 
     if (!result.ok) {
       setConflictError(result.message);
+      setIsSubmittingEvent(false);
       return;
     }
 
@@ -277,6 +281,7 @@ export function CalendarView({
     setInlineClientPhone("");
     setInlineClientEmail("");
     setAddressOrNotes("");
+    setIsSubmittingEvent(false);
   };
 
   return (
@@ -1532,9 +1537,10 @@ export function CalendarView({
               </div>
               <button
                 onClick={handleCreateEvent}
-                className="px-7 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[14px] font-semibold transition"
+                disabled={isSubmittingEvent}
+                className="px-7 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] disabled:opacity-50 text-white text-[14px] font-semibold transition"
               >
-                Criar
+                {isSubmittingEvent ? "Criando..." : "Criar"}
               </button>
             </div>
           </div>

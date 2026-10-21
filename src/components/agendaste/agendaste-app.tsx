@@ -140,31 +140,37 @@ export function LuveaApp({
 
       // 2. Persistência na Nuvem (Supabase) restrita ao tenant do usuário
       if (isSupabaseConfigured() && tenantOrgId) {
-        // Detecta agendamentos recém-criados
-        const prevIds = new Set(prev.calendarEvents.map((e) => e.id));
-        const newEvents = next.calendarEvents.filter((e) => !prevIds.has(e.id));
-        for (const evt of newEvents) {
-          syncNewAppointmentToSupabase(evt, next.staff[0]?.id, tenantOrgId).catch(console.error);
-        }
+        (async () => {
+          try {
+            // Sincroniza novos clientes PRIMEIRO para garantir chave estrangeira e evitar duplicidade
+            const prevClientIds = new Set(prev.clients.map((c) => c.id));
+            const newClients = next.clients.filter((c) => !prevClientIds.has(c.id));
+            for (const cli of newClients) {
+              await syncNewClientToSupabase(cli, next.staff[0]?.id, tenantOrgId);
+            }
 
-        // Detecta agendamentos com status alterado
-        for (const evt of next.calendarEvents) {
-          const oldEvt = prev.calendarEvents.find((e) => e.id === evt.id);
-          if (
-            oldEvt &&
-            (oldEvt.status !== evt.status ||
-              oldEvt.whatsappClientReply !== evt.whatsappClientReply)
-          ) {
-            syncAppointmentUpdateToSupabase(evt).catch(console.error);
+            // Sincroniza agendamentos recém-criados DEPOIS dos clientes já estarem persistidos
+            const prevIds = new Set(prev.calendarEvents.map((e) => e.id));
+            const newEvents = next.calendarEvents.filter((e) => !prevIds.has(e.id));
+            for (const evt of newEvents) {
+              await syncNewAppointmentToSupabase(evt, next.staff[0]?.id, tenantOrgId);
+            }
+
+            // Detecta agendamentos com status alterado
+            for (const evt of next.calendarEvents) {
+              const oldEvt = prev.calendarEvents.find((e) => e.id === evt.id);
+              if (
+                oldEvt &&
+                (oldEvt.status !== evt.status ||
+                  oldEvt.whatsappClientReply !== evt.whatsappClientReply)
+              ) {
+                await syncAppointmentUpdateToSupabase(evt);
+              }
+            }
+          } catch (syncErr) {
+            console.error("Erro na sincronização sequencial com Supabase:", syncErr);
           }
-        }
-
-        // Detecta novos clientes
-        const prevClientIds = new Set(prev.clients.map((c) => c.id));
-        const newClients = next.clients.filter((c) => !prevClientIds.has(c.id));
-        for (const cli of newClients) {
-          syncNewClientToSupabase(cli, next.staff[0]?.id, tenantOrgId).catch(console.error);
-        }
+        })();
 
         // Sincroniza dados da organização e site de agendamento quando alterados no wizard
         if (

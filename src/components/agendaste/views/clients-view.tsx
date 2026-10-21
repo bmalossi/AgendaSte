@@ -34,6 +34,7 @@ import {
   uploadAutoSortedClientPhoto,
   deleteClientPhoto,
   importStudioMigrationData,
+  generateUuid,
 } from "@/lib/agendaste-store";
 
 interface ClientsViewProps {
@@ -128,7 +129,7 @@ export function ClientsView({
   const handleCreateClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFullName.trim()) return;
-    const newClientId = `cli-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    const newClientId = generateUuid();
     onUpdateState((prev) =>
       createClientProfile(prev, {
         id: newClientId,

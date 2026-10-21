@@ -38,6 +38,28 @@ export type PriceType = "fixed" | "starting_at" | "hidden";
 
 export type ResourceCategory = "equipment" | "room";
 
+export function isValidUuid(id?: string | null): boolean {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    id
+  );
+}
+
+export function generateUuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // fallback
+    }
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export interface PhysicalResource {
   id: string;
   name: string;
@@ -2459,30 +2481,39 @@ export function validateAndCreateCalendarEvent(
   let updatedClients = state.clients;
   let client = state.clients.find((c) => c.id === input.clientId);
   if (!client && input.newClientInline?.fullName) {
-    client = {
-      id: `cli-inline-${Date.now()}`,
-      fullName: input.newClientInline.fullName,
-      email: input.newClientInline.email || "cliente@luveastudio.app",
-      phone: input.newClientInline.phone || "(11) 99999-0000",
-      avatarColor: "#FBCFE8",
-      createdAtISO: input.dateISO,
-      lastVisitISO: input.dateISO,
-      daysSinceLastVisit: 0,
-      totalSpentCents: 0,
-      visitsCount: 1,
-      noShowCount: 0,
-      sendAutomaticReminders: true,
-      notesAndForms: {
-        anamnesis: "",
-        allergies: "",
-        formulasAndPreferences: "",
-        birthday: "",
-      },
-      autoSortedPhotos: [],
-      packages: [],
-      memberships: [],
-    };
-    updatedClients = [client, ...state.clients];
+    const inlineNameNorm = input.newClientInline.fullName.trim().toLowerCase();
+    const existing = state.clients.find(
+      (c) => c.fullName.trim().toLowerCase() === inlineNameNorm
+    );
+    if (existing) {
+      client = existing;
+    } else {
+      const newClientId = generateUuid();
+      client = {
+        id: newClientId,
+        fullName: input.newClientInline.fullName.trim(),
+        email: input.newClientInline.email || "cliente@luveastudio.app",
+        phone: input.newClientInline.phone || "(11) 99999-0000",
+        avatarColor: "#FBCFE8",
+        createdAtISO: input.dateISO,
+        lastVisitISO: input.dateISO,
+        daysSinceLastVisit: 0,
+        totalSpentCents: 0,
+        visitsCount: 1,
+        noShowCount: 0,
+        sendAutomaticReminders: true,
+        notesAndForms: {
+          anamnesis: "",
+          allergies: "",
+          formulasAndPreferences: "",
+          birthday: "",
+        },
+        autoSortedPhotos: [],
+        packages: [],
+        memberships: [],
+      };
+      updatedClients = [client, ...state.clients];
+    }
   }
 
   // Se for Entrada na Lista de Espera, adiciona também na lista de espera
@@ -2543,7 +2574,7 @@ export function validateAndCreateCalendarEvent(
     : 0;
 
   const newEvent: CalendarEventItem = {
-    id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: generateUuid(),
     eventType: input.eventType,
     dateISO: input.dateISO,
     startTime: input.startTime,
@@ -2736,10 +2767,21 @@ export function createClientProfile(
     anamnesis?: string;
   }
 ): StudioState {
+  const normName = input.fullName.trim().toLowerCase();
+  const existing = state.clients.find(
+    (c) => c.fullName.trim().toLowerCase() === normName
+  );
+  if (existing) {
+    return {
+      ...state,
+      lastToastMessage: `Cliente ${existing.fullName} já cadastrado no estúdio.`,
+    };
+  }
+
   const palette = ["#FBCFE8", "#DDD6FE", "#BBF7D0", "#FDE68A", "#BAE6FD"];
   const newClient: ClientProfile = {
-    id: input.id ?? `cli-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-    fullName: input.fullName,
+    id: input.id ?? generateUuid(),
+    fullName: input.fullName.trim(),
     email: input.email || "cliente@luveastudio.app",
     phone: input.phone || "(11) 99999-0000",
     avatarColor: palette[state.clients.length % palette.length],

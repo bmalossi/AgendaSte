@@ -36,6 +36,7 @@ import {
   updateUserWhatsAppConfig,
   disconnectUserWhatsApp,
   formatWhatsAppMessage,
+  isValidUuid,
 } from "../agendaste-store.ts";
 
 describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Online (Luvea Studio)", () => {
@@ -296,6 +297,62 @@ describe("Ticket 03 — Agenda Inteligente (Calendar), Salto de Semanas, Trava d
     );
     assert.equal(rebooked.calendarEvents[0].dateISO, "2026-11-16");
   });
+
+  it("creates an inline client with a valid UUID and reuses existing client without creating duplicates", () => {
+    const initial = createInitialStudioState();
+    const initialClientCount = initial.clients.length;
+
+    // 1. Cria agendamento com cliente inline inédito
+    const result1 = validateAndCreateCalendarEvent(initial, {
+      eventType: "appointment",
+      dateISO: "2026-10-18",
+      startTime: "14:00",
+      providerId: "staff-bruno",
+      newClientInline: {
+        fullName: "Fernanda Soares",
+        email: "fernanda@soares.com",
+        phone: "(11) 98765-1122",
+      },
+      serviceIds: ["srv-rejuv"],
+      addressOrNotes: "Primeiro atendimento",
+      isRepeating: false,
+      collectDeposit: false,
+    });
+
+    assert.equal(result1.ok, true);
+    if (!result1.ok) return;
+
+    assert.equal(result1.state.clients.length, initialClientCount + 1);
+    const createdClient = result1.state.clients[0];
+    assert.equal(createdClient.fullName, "Fernanda Soares");
+    assert.equal(isValidUuid(createdClient.id), true);
+    assert.equal(result1.createdEvent.clientId, createdClient.id);
+    assert.equal(isValidUuid(result1.createdEvent.id), true);
+
+    // 2. Cria segundo agendamento com o mesmo cliente inline: deve reaproveitar sem duplicar
+    const result2 = validateAndCreateCalendarEvent(result1.state, {
+      eventType: "appointment",
+      dateISO: "2026-10-19",
+      startTime: "14:00",
+      providerId: "staff-bruno",
+      newClientInline: {
+        fullName: "Fernanda Soares",
+        email: "fernanda@soares.com",
+        phone: "(11) 98765-1122",
+      },
+      serviceIds: ["srv-rejuv"],
+      addressOrNotes: "Segundo atendimento",
+      isRepeating: false,
+      collectDeposit: false,
+    });
+
+    assert.equal(result2.ok, true);
+    if (!result2.ok) return;
+
+    // O número de clientes não deve aumentar novamente (zero duplicidade)
+    assert.equal(result2.state.clients.length, initialClientCount + 1);
+    assert.equal(result2.createdEvent.clientId, createdClient.id);
+  });
 });
 
 describe("Ticket 04 — Clientes (Clients), Drawer 5 Abas, Notas/Fichas e Fotos Auto-organizadas", () => {
@@ -316,6 +373,21 @@ describe("Ticket 04 — Clientes (Clients), Drawer 5 Abas, Notas/Fichas e Fotos 
     const absentClients = filterClientsByRetention(afterCreate, "absent_30_45", "");
     assert.equal(absentClients.length, 1);
     assert.equal(absentClients[0].fullName, "Mariana Albuquerque");
+  });
+
+  it("prevents duplicate client creation when adding a client with an existing name", () => {
+    const initial = createInitialStudioState();
+    const countBefore = initial.clients.length;
+
+    // Tenta criar cliente que já existe no estado inicial (ex: Stefany)
+    const afterDuplicate = createClientProfile(initial, {
+      fullName: "Stefany",
+      email: "stefany.nova@gmail.com",
+      phone: "(11) 91234-5678",
+    });
+
+    assert.equal(afterDuplicate.clients.length, countBefore);
+    assert.match(afterDuplicate.lastToastMessage || "", /já cadastrado/i);
   });
 
   it("updates Notes/Forms (Ficha de Atendimento) and auto-sorts uploaded photos by appointment", () => {
