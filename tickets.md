@@ -1,98 +1,119 @@
-# Tickets: Plataforma LUVEA (Edição Brasil)
+# Tickets: LUVEA TV Kiosk
 
-Construção ponta a ponta da plataforma de agendamento, POS, catálogo segmentado, CRM, equipe e automação WhatsApp/Pix baseada nas capturas de referência da LUVEA.
+Módulo de painel de agenda em tempo real para Smart TVs e monitores de recepção. Spec: `.scratch/tv-kiosk/PRD.md`.
 
-Work the **frontier**: any ticket whose blockers are all done. For a purely linear chain that means top to bottom.
+Work the **frontier**: any ticket whose blockers are all done. Tickets 01 and 02 can start immediately in parallel.
 
-## Ticket 01: Fundação Editorial LUVEA, Navegação Multinível, Primeiros Passos (`0/3 Get Started`) e Site de Agendamento Online (`Luvea Studio`)
+## 01 — Domínio puro: módulo tv-kiosk com funções de negócio e testes
 
-**What to build:** Substituir a casca visual anterior pelo Design System Editorial da LUVEA (títulos em serif editorial, sans-serif geométrica, superfícies brancas/lilás, botões pílula `#1C1C1E`, switches roxos/rosa e toasts escuros flutuantes), entregando a barra lateral retrátil com submenus expansíveis idêntica a `01-get-started.png`, a tela `0/3 Primeiros Passos` com progresso dinâmico (`0/3` a `3/3`), modal de `"Importar meus dados"`, card de avaliação Gold (`14 dias restantes`), motor central de estado do domínio (`Domain Store`) e o **Site de Agendamento Online (`Luvea Studio`)** interativo onde o **Cliente** escolhe um serviço, seleciona horário e paga o **Sinal / Taxa de Reserva** via Pix Dinâmico.
+**What to build:** Um módulo de funções puras (sem I/O, sem Supabase) contendo toda a lógica de negócio do TV Kiosk, junto com uma suite de testes completa. Ao final deste ticket, é possível importar e testar toda a lógica de mascaragem LGPD, derivação de status, geração de código, filtragem, agrupamento e paginação — tudo executa sem banco de dados.
 
-**Blocked by:** None — can start immediately
+**Blocked by:** None — can start immediately.
 
-- [x] `DESIGN.md` e `PRODUCT.md` atualizados refletindo fielmente a estética editorial, tipografia, cores e componentes pílula da LUVEA.
-- [x] Barra lateral esquerda retrátil com perfil do **Profissional**, contador `X/3 Primeiros Passos`, grupo `Colegas de IA` (`Recepção`), grupo `Negócio` (`Agenda`, `Pagamentos` expansível, `Clientes`, `Catálogo` expansível, `Equipe` expansível, `Marketing`, `Relatórios` expansível, `Estoque`, `Prontuários`) e rodapé (`Indique e ganhe R$ 150`, `Configurações`, `Ajuda`).
-- [x] Tela `0/3 Primeiros Passos` idêntica a `01-get-started.png` e `01-1-get-started.png` com os 3 cartões ilustrados (`Seja encontrado e agendado online`, `Adicione seus serviços`, `Comece a receber pagamentos`), card `"Importe seus dados gratuitamente"`, card `"Seu teste gratuito — 14 dias restantes [Gold]"` e card de preview `"Luvea Studio"`.
-- [x] **Site de Agendamento Online (`Luvea Studio`)** acessível pelo botão `"Meu site de agendamento ↗"` no topo direito, permitindo ao **Cliente** escolher serviço, data/hora e gerar cobrança de **Sinal** via Pix (`/api/pix/create`), confirmando o agendamento no estado global.
+- [x] Função `maskNameLGPD(fullName)` mascara nomes brasileiros: `"Mariana da Silva Oliveira"` → `"Mariana O."`, com skip de preposições (da, de, do, das, dos, e)
+- [x] Função `deriveAppointmentStatus(appointment, now)` retorna `in_progress | next | delayed | completed | waiting` baseado em lógica temporal comparando `starts_at`/`ends_at` com `now`
+- [x] Função `generatePairingCode()` retorna string de 6 dígitos numéricos
+- [x] Função `filterTVAppointments(appointments)` remove registros com status `canceled` e `no_show`, mantém `confirmed`, `completed`, `pending`
+- [x] Função `buildTVPollingResponse(rawAppointments, professionals, org, now)` transforma dados brutos do banco no shape `TVPollingResponse` com nomes mascarados, status derivados e agrupamento por profissional
+- [x] Função `paginateProfessionals(professionals, maxPerPage)` divide em páginas de até 5 profissionais para rotação na TV
+- [x] Tipos TypeScript: `TVAppointmentDTO`, `TVPollingResponse` exportados
+- [x] Suite de testes em `node:test` + `node:assert/strict` cobrindo: nomes com preposições, nomes de uma só palavra, edge cases de status (exatamente no starts_at, exatamente no ends_at), filtragem, paginação com 0/1/5/8 profissionais
 
-## Ticket 02: Catálogo Completo (`Serviços`, `Pacotes`, `Assinaturas` e `Recursos Físicos`) com Duração Segmentada
+## 02 — Schema e migração: tabela tv_pairings + ADR + CONTEXT.md
 
-**What to build:** Entregar todas as telas e regras de negócio da seção `06 - Catálogo` (`06-1` a `06-4-add`): visão de **Serviços** com estado vazio/populável e card `"✨ Serviços sugeridos"` por IA (checkboxes, `"Regenerar"` e `"Criar"`), editor de página inteira `Novo serviço` com navegação de âncoras à esquerda (`Detalhes básicos`, `Configurações padrão`, `Recursos`, `Opções`, `Adicionais`), editor de página inteira `Novo pacote` (`06-3`), gestão de **Assinaturas** recorrentes e gerenciador de **Recursos Físicos** (`Equipamentos` com ícone rosa de tesoura e `Salas` com ícone verde de porta em `06-4-add`).
+**What to build:** A tabela `tv_pairings` no Supabase com RLS multi-tenant, o ADR documentando as decisões arquiteturais inéditas do módulo, e os novos termos de domínio no glossário. Ao final deste ticket, a infraestrutura de dados está pronta para os API routes.
 
-**Blocked by:** Ticket 01: Fundação Editorial LUVEA, Navegação Multinível, Primeiros Passos (`0/3 Get Started`) e Site de Agendamento Online (`Luvea Studio`)
+**Blocked by:** None — can start immediately.
 
-- [x] Tela `Catálogo → Serviços` (`06-1` e `06-1-1`) permite selecionar sugestões de serviços geradas por IA, regenerar sugestões e criar serviços em 1 clique.
-- [x] Editor `Novo serviço` (`06-2`, `06-2-1`, `06-2-2`, `06-2-3`) inclui upload de imagem, botão `"✨ Gerar descrição"`, `Categoria`, `Cor no calendário`, switch `Disponível para agendamento online`, `Preço` (`Fixo`, `A partir de`, `Preço Oculto`), switch `Exigir sinal`, `Duração Total`, switches de **Tempo de Processamento** e **Tempo de Bloqueio**, vínculo de **Recursos Físicos**, **Opções** e **Adicionais** (`+X min · +R$ Y`).
-- [x] Tela `Catálogo → Pacotes` (`06-3`) permite criar e listar **Pacotes** (`Detalhes`, `Produtos e Serviços`, `Preço`, `Validade`, `Termos e Condições`) com switch `"Vender no seu site"`.
-- [x] Tela `Catálogo → Assinaturas` permite criar e listar planos de **Assinatura** recorrente com créditos mensais.
-- [x] Tela `Catálogo → Recursos` (`06-4` e `06-4-add`) inclui o Hero Editorial e o gerenciador com filtros (`Todas as categorias`, `Equipamentos`, `Salas`), permitindo cadastrar e associar salas e equipamentos aos serviços.
+- [x] Migração SQL cria tabela `tv_pairings` com: `id` (UUID PK), `code` (VARCHAR(6) UNIQUE), `organization_id` (FK organizations), `device_name` (VARCHAR(100)), `status` (PENDING/AUTHORIZED/EXPIRED/REVOKED), `token` (UUID), `expires_at` (TIMESTAMPTZ, default now + 10min), `created_at`, `updated_at`
+- [x] RLS habilitado com policy de tenant isolation para `authenticated` e policy de INSERT anônimo restrita a `status = 'PENDING' AND organization_id IS NULL`
+- [x] Trigger `handle_updated_at()` reutilizado para `tv_pairings`
+- [x] ADR `docs/adr/0004-tv-kiosk-device-auth-and-polling.md` documenta: token de device em vez de Supabase Auth, polling em vez de Realtime, exclusão do middleware
+- [x] `CONTEXT.md` atualizado com termos: TV Kiosk (Painel de Recepção), Pareamento de TV (TV Pairing), Token de Dispositivo (Device Token)
 
-## Ticket 03: Agenda Inteligente (`Calendar`) com Salto de Semanas (`+2` a `+8`), 4 Tipos de Evento, Trava de Recursos, Lista de Espera e Checkout em 1 Toque
+## 03 — API routes de pareamento: gerar código e autorizar
 
-**What to build:** Entregar a experiência completa da seção `03 - Agenda` (`03-1` a `03-4`): grade horária em modo `Dia` e `Semana` com linha e pílula magenta do horário atual, seletor de datas com popover de calendário e salto rápido `"Pular por semana"` (`+2` a `+8` semanas), filtro por **Profissional**, drawer lateral de **Lista de Espera (`Waitlist`)** (`03-3`), seleção de horário vazio com borda magenta (`03-4`) abrindo o drawer `Novo agendamento` com os 4 tipos de **Evento de Agenda** (`Agendamento`, `Bloqueio Pessoal`, `Horário de Trabalho`, `Entrada na Lista de Espera`), criação inline de cliente e serviço, validação de conflito de **Recurso Físico** e cálculo de **Tempo de Processamento**/**Tempo de Bloqueio**, além do drawer de Detalhes & Checkout em 1 Toque ao clicar em um agendamento existente.
+**What to build:** Os dois endpoints que fazem o fluxo de pareamento funcionar end-to-end. Ao final deste ticket, é possível gerar um código via curl (anônimo), e depois autorizá-lo via curl (autenticado) — o registro em `tv_pairings` transita de PENDING para AUTHORIZED com `organization_id` e `token` preenchidos.
 
-**Blocked by:** Ticket 01: Fundação Editorial LUVEA, Navegação Multinível, Primeiros Passos (`0/3 Get Started`) e Site de Agendamento Online (`Luvea Studio`), Ticket 02: Catálogo Completo (`Serviços`, `Pacotes`, `Assinaturas` e `Recursos Físicos`) com Duração Segmentada
+**Blocked by:** 01 — Domínio puro, 02 — Schema e migração.
 
-- [x] Topo da **Agenda** (`03-1`) exibe mês atual, botão de calendário, seletor de data com popover contendo mini-calendário e botões `"Pular por semana"` (`+2` a `+8`), alternador `Dia / Semana`, filtro de **Profissional**, botão `Lista de espera`, botão `Venda rápida` e botão pílula preto `Adicionar`.
-- [x] Grade exibe a linha horizontal e pílula magenta do horário atual, blocos de agendamento coloridos pela categoria do serviço (mostrando janelas de **Tempo de Processamento** e **Tempo de Bloqueio** quando aplicável) e destaca com borda superior magenta o slot vazio clicado (`03-4`).
-- [x] Drawer `Novo agendamento` (`03-4` a `03-4-event-type`) suporta os 4 tipos de **Evento de Agenda**, busca/criação inline `+ Adicionar Novo Cliente`, busca/criação inline `+ Adicionar novo serviço`, switches `Tornar este evento recorrente` e `Cobrar Sinal`, e bloqueia ou alerta conflito se o **Recurso Físico** (`Sala`/`Equipamento`) exigido já estiver ocupado no horário.
-- [x] Drawer `Lista de espera` (`03-3`) permite filtrar por **Profissional**, adicionar entradas e converter uma espera em agendamento confirmado em 1 clique.
-- [x] Clicar em um agendamento existente na grade abre o Drawer de Detalhes & Checkout em 1 Toque (Confirmar presença, Cobrar Pix/Cartão, Reagendar retorno `+15d/+30d/+45d`, Disparar lembrete WhatsApp).
+- [x] `POST /api/tv/pair` — acessível sem autenticação, gera código de 6 dígitos via `generatePairingCode()`, insere em `tv_pairings` com `status: PENDING`, retorna `{ code: "892437" }`
+- [x] `POST /api/tv/pair` faz cleanup oportunístico de registros expirados (`status = 'PENDING' AND expires_at < now()` → `status = 'EXPIRED'`)
+- [x] `GET /api/tv/pair?code=892437` — retorna status do código para polling da TV durante pareamento (3s). Quando `AUTHORIZED`, retorna `{ status: "AUTHORIZED", token: "uuid" }`
+- [x] `POST /api/tv/authorize` — requer autenticação Supabase (cookies), recebe `{ code: "892437" }`, valida que o código existe e está PENDING e não expirado, atualiza para `AUTHORIZED` com `organization_id` do usuário logado
+- [x] Validação: código inexistente retorna 404, código expirado retorna 410, código já autorizado retorna 409
+- [x] Rate limiting: máx 10 requests/min por IP no endpoint de pair
 
-## Ticket 04: Diretório de Clientes (`Clients`), Drawer de Perfil em 5 Abas, Ficha de Atendimento e Galeria Auto-Organizada (`Auto-sorted`)
+## 04 — API route de agendamentos: polling com token
 
-**What to build:** Entregar a seção `05 - Clientes` (`05-1` a `05-3-photos`): alternância entre o Hero Editorial (`"Faça cada cliente se sentir o seu favorito"`) e o diretório populado de **Clientes** com busca, filtros de retenção (`Todos`, `Ausentes +30/45d`, `VIPs`), exportação, botão rápido de adicionar foto na linha, toast escuro inferior (`"Cliente Stefany criado com sucesso!"`) e drawer lateral de perfil com 5 abas de ícones (`Agendamentos`, `Notas/Fichas`, `Fotos`, `Assinaturas`, `Pacotes`).
+**What to build:** O endpoint principal que a TV chama a cada 20 segundos para obter a agenda do dia. Ao final deste ticket, é possível fazer `GET /api/tv/appointments` com header `Authorization: Bearer {token}` e receber o `TVPollingResponse` completo com dados LGPD-safe.
 
-**Blocked by:** Ticket 01: Fundação Editorial LUVEA, Navegação Multinível, Primeiros Passos (`0/3 Get Started`) e Site de Agendamento Online (`Luvea Studio`)
+**Blocked by:** 01 — Domínio puro, 02 — Schema e migração.
 
-- [x] Tela `Clientes` (`05-1`, `05-2`, `05-3`) inclui o Hero Editorial e a tabela completa (`Nome` com avatar colorido, `E-mail`, `Telefone`, `Adição Rápida`), filtros de retenção (`Ausentes +30/45d`) e botões superiores (`Adicionar fotos`, `Exportar clientes`, `Adicionar cliente`).
-- [x] Criar um novo **Cliente** exibe o toast escuro flutuante na base da tela (`"Cliente [Nome] criado com sucesso!"`) idêntico a `05-3-clients-added.png`.
-- [x] Drawer lateral do **Cliente** exibe botões `Agendar horário` e `Venda rápida`, mais as 5 abas de ícones:
-  - `Agendamentos`: sub-abas `Próximos`, `Cancelados` e `Anteriores`.
-  - `Notas/Fichas`: edição e salvamento da **Ficha de Atendimento** (anamnese, alergias, fórmulas e preferências).
-  - `Fotos` (`05-3-clients-added-photos.png`): seção `"✦ Auto-organizadas"` com dropzone de fotos agrupadas e rotuladas automaticamente por data/serviço do agendamento e comparativo Antes & Depois.
-  - `Assinaturas` e `Pacotes`: visualização e abatimento de créditos de sessões ativos do cliente.
+- [x] `GET /api/tv/appointments` — valida token via `tv_pairings` (`status = 'AUTHORIZED'`), resolve `organization_id`
+- [x] Verifica `subscription_status` da organização — se não for `active` ou `trialing`, retorna 403 com `{ error: "subscription_inactive" }`
+- [x] Query de agendamentos: filtra por `organization_id`, data de hoje (no timezone da organização via `settings->>'timezone'`), e status `confirmed/completed/pending`
+- [x] Usa `buildTVPollingResponse()` para montar o response com nomes mascarados, status derivados, e agrupamento por profissional
+- [x] Inclui `serverTime` (ISO 8601) e `timezone` no response
+- [x] Token inválido ou revogado retorna 401 com `{ error: "unauthorized" }`
 
-## Ticket 05: Pagamentos (`Payments`): Venda Rápida POS (`Quick Sale`), Construtor de Faturas (`Invoices`), Vale-Presentes e Histórico de Vendas
+## 05 — API route de dispositivos: listar e revogar
 
-**What to build:** Entregar a seção `04 - Pagamentos` (`04-1`, `04-2`, `04-2-1`) e o drawer global de **Venda Rápida (`Quick Sale`)**: tabela de `Histórico de vendas`, Hero Editorial de `Faturas` (`04-2`) + construtor de página inteira `Nova Fatura` (`04-2-1`), gestão de **Vale-Presentes (`Gift Cards`)** e checkout POS com emissão de QR Code Pix Dinâmico (`/api/pix/create`) ou abatimento de créditos de pacote/vale-presente.
+**What to build:** Endpoints para a gestora gerenciar TVs conectadas no painel de configurações. Ao final deste ticket, é possível listar todas as TVs autorizadas da organização e revogar qualquer uma delas.
 
-**Blocked by:** Ticket 01: Fundação Editorial LUVEA, Navegação Multinível, Primeiros Passos (`0/3 Get Started`) e Site de Agendamento Online (`Luvea Studio`), Ticket 02: Catálogo Completo (`Serviços`, `Pacotes`, `Assinaturas` e `Recursos Físicos`) com Duração Segmentada, Ticket 04: Diretório de Clientes (`Clients`), Drawer de Perfil em 5 Abas, Ficha de Atendimento e Galeria Auto-Organizada (`Auto-sorted`)
+**Blocked by:** 02 — Schema e migração.
 
-- [x] `Pagamentos → Histórico de vendas` (`04-1`) lista todas as transações com `Horário do agendamento`, `Cliente`, `Status` e `Valor`, permitindo inspecionar o recibo detalhado.
-- [x] `Pagamentos → Faturas` exibe o Hero Editorial (`04-2`) e a lista de faturas emitidas, abrindo o editor de página inteira `Nova Fatura` (`04-2-1`) com `Detalhes` (`Título da fatura`, `Profissional`, `Observação`), `Itens da fatura` (serviços, produtos, pacotes ou valor avulso), `Subtotal`, `Adicionar desconto na fatura`, `Taxa/Imposto`, `Cronograma de pagamento` e envio de link Pix/Cartão.
-- [x] `Pagamentos → Vale-presentes` permite emitir, listar e resgatar **Vale-Presentes** no checkout.
-- [x] Drawer de **Venda Rápida (`Quick Sale`)** acessível do topo da Agenda ou do perfil do Cliente calcula subtotal, gorjeta/desconto, permite abater sessão de **Pacote** ou saldo de **Vale-Presente**, e gera QR Code Pix Dinâmico instantâneo (`/api/pix/create`).
+- [x] `GET /api/tv/devices` — requer autenticação, retorna lista de TVs com `id`, `device_name`, `status`, `created_at` para a organização do usuário logado
+- [x] `DELETE /api/tv/devices` — requer autenticação, recebe `{ id: "uuid" }`, atualiza `status` para `REVOKED` (não deleta o registro)
+- [x] `PATCH /api/tv/devices` — requer autenticação, recebe `{ id: "uuid", device_name: "TV Recepção" }`, atualiza o `device_name`
+- [x] Apenas donos e admins da organização podem revogar/renomear TVs
 
-## Ticket 06: Recepção IA (`Reception`) em 3 Etapas e Motor WhatsApp QR Code 2-Way Sync
+## 06 — Tela de pareamento da TV: UnpairedView
 
-**What to build:** Entregar a seção `02 - Recepção IA` (`02-reception-ia.png`) unindo a apresentação editorial e demo interativa com o pareamento de WhatsApp via QR Code e o motor 2-Way Sync de confirmação automática na **Agenda**.
+**What to build:** A primeira tela que aparece ao acessar `/tv` numa TV não pareada. Ao final deste ticket, a gestora vê o código na TV, digita no celular, e a TV transita suavemente para o estado "pareado" (mesmo que o LiveBoardView ainda não exista — a transição pode ir para uma tela placeholder).
 
-**Blocked by:** Ticket 03: Agenda Inteligente (`Calendar`) com Salto de Semanas (`+2` a `+8`), 4 Tipos de Evento, Trava de Recursos, Lista de Espera e Checkout em 1 Toque
+**Blocked by:** 03 — API routes de pareamento.
 
-- [x] Barra superior de 3 etapas idêntica a `02-reception-ia.png` (`Conheça a Recepção` | `Configuração rápida` | `Pronta`) com botão superior direito `Precisa de ajuda?`.
-- [x] Etapa 1 (`Conheça a Recepção`) reproduz a pílula de onda sonora (`"Toque para testar a Recepção"`), título serif `"Apresentando a Recepção"`, 3 bullets com ícones de estrela de 4 pontas e barra inferior (`Pular para configuração` e `Testar demo da Recepção`).
-- [x] Etapa 2 (`Configuração rápida`) exibe o QR Code de pareamento do WhatsApp do **Profissional**, regras de horário de atendimento da IA e configuração de lembretes automáticos de 24h e 2h antes do atendimento.
-- [x] Etapa 3 (`Pronta`) exibe o log em tempo real de mensagens enviadas e recebidas (`/api/whatsapp/send`), permitindo simular respostas do cliente (`1 = Confirmar`, `2 = Reagendar`) que atualizam imediatamente o status do agendamento na **Agenda**.
+- [x] Rota `/tv` com layout standalone: fundo `#09090B`, sem navigation, sem sidebar, meta tag `noindex`
+- [x] `/tv` excluída do matcher do middleware Next.js (adição de `tv` à regex de exclusão)
+- [x] Componente `UnpairedView`: logo LUVEA em marca d'água, instrução editorial ("Acesse o app LUVEA → Configurações → Conectar TV"), código em 64px monoespaçado com prefixo `LUV-`, QR Code (via `qrcode.react`) apontando para deep-link de pareamento
+- [x] `qrcode.react` adicionado ao `package.json`
+- [x] Polling a cada 3s no `GET /api/tv/pair?code=X` para detectar autorização
+- [x] Ao detectar `AUTHORIZED`, salva `tv_token` no `localStorage` e transita com fade suave para o estado pareado
+- [x] Se o código expirar (10min), gera novo código automaticamente sem reload
+- [x] Wake Lock API com try/catch + vídeo 1x1px invisível em loop como fallback
 
-## Ticket 07: Gestão de Equipe (`Team`): Profissionais, Comissões com Meta Semanal, Fechamento de Repasse (`Payroll`) e Controle de Ponto (`Timeclock`)
+## 07 — Painel ao vivo da TV: LiveBoardView
 
-**What to build:** Entregar todas as telas da seção `06-5 - Equipe` (`06-5-staff`, `06-5-commissions`, `06-5-payroll`, `06-5-time-tracking` e `06-5-1`): gestão de **Profissionais (`Staff`)**, **Política de Comissão (`Commissions`)** com barra de meta semanal, **Fechamento de Repasse (`Payroll`)** via Pix e **Folha de Ponto (`Time tracking`)** com relógio digital interativo.
+**What to build:** A tela principal que exibe a agenda do dia em tempo real. Ao final deste ticket, a TV pareada exibe a grade completa de agendamentos com atualização automática, legível a 3-5 metros, com todas as proteções de resiliência e acessibilidade.
 
-**Blocked by:** Ticket 01: Fundação Editorial LUVEA, Navegação Multinível, Primeiros Passos (`0/3 Get Started`) e Site de Agendamento Online (`Luvea Studio`), Ticket 05: Pagamentos (`Payments`): Venda Rápida POS (`Quick Sale`), Construtor de Faturas (`Invoices`), Vale-Presentes e Histórico de Vendas
+**Blocked by:** 04 — API route de agendamentos, 06 — Tela de pareamento.
 
-- [x] `Equipe → Profissionais` (`06-5-staff`) inclui o banner lilás com botões `"Configurar equipe"` e `"Sou só eu"`, os 3 cards `"Como funciona"` e a tabela/cadastro de membros da equipe com permissões e cores de agenda.
-- [x] `Equipe → Comissões` (`06-5-commissions`) inclui abas `Serviços | Produtos`, o Hero Editorial com o card escuro de Meta Semanal (`R$ 1.450,50 de R$ 5.800,00 — 25% concluído`) e a tabela de configuração de percentual de comissão por **Profissional**.
-- [x] `Equipe → Folha de pagamento` (`06-5-payroll`) inclui o Hero Editorial e o painel de **Fechamento de Repasse** por período, somando automaticamente comissões de serviços/produtos, gorjetas e horas registradas na **Folha de Ponto**, com liquidação via Pix.
-- [x] `Equipe → Controle de ponto` (`06-5-time-tracking` e `06-5-1`) inclui o Hero Editorial com o relógio escuro `Timeclock` (`04:21:18`), cronômetro ativo com `Check in`, `Pausa` e `Check out`, planilha de horários registrados e painel de configuração de notificações e intervalos com switches rosa (`06-5-1`).
+- [x] Header fixo: logo + nome do estúdio (esquerda), relógio HH:MM:SS + data por extenso em pt-BR (centro), badge de status de conexão (direita)
+- [x] Relógio sincronizado via `serverTime` do polling, ticking local a cada 1s entre polls
+- [x] Grid de colunas por Profissional: cada coluna com nome do profissional no topo, lista de cards de agendamento ordenados por horário
+- [x] Card de agendamento: horário em destaque, nome do cliente (LGPD-safe), nome do serviço, badge de status com cores semânticas de alto contraste (emerald/sky/amber/zinc sobre fundo dark)
+- [x] Layout adaptativo: 1-5 profissionais = colunas iguais; 6+ = paginação automática em grupos de 5, rotação a cada 20s com fade, indicador "página N/M" no rodapé
+- [x] Polling a cada 20s; highlight suave (ring/pulse CSS) no card que mudou
+- [x] Estado vazio: "Sem agendamentos hoje" ou "Agenda do dia concluída" centrado, tipografia `text-zinc-500` 24px
+- [x] Resiliência de rede: mantém última resposta renderizada, exibe aviso "Sem conexão. Reconectando..." no topo, retry com backoff exponencial
+- [x] Se token for revogado (401) ou assinatura inativa (403), volta para `UnpairedView` limpando localStorage
+- [x] Proteção burn-in: micro-movimentação de 1px a cada 10 minutos via CSS transform
+- [x] Escala tipográfica para distância: profissional 28-32px, cliente/horário 22-26px, serviço/status 16-18px
+- [x] Animações CSS puro: `transition-opacity duration-300` para cards, `transition-colors duration-300` para badges
+- [x] DOM enxuto com memoização (React.memo / useMemo / useCallback) para evitar re-renders desnecessários
 
-## Ticket 08: Campanhas de Marketing (`Marketing`) com Assistente IA e Preview em Smartphone + Configurações (`Settings`), Relatórios (`Insights`), Estoque e Prontuários
+## 08 — Seção "LUVEA TV" nas Configurações do painel
 
-**What to build:** Entregar as seções `07 - Marketing` (`07-1`, `07-1-1`), `08 - Configurações` (`08-1` a `08-3`) e as visões de `Relatórios (Insights)`, `Estoque (Inventory)` e `Prontuários (Charts)` da barra lateral.
+**What to build:** A interface no painel da gestora para parear novas TVs, listar TVs conectadas, renomear e revogar acesso. Ao final deste ticket, o fluxo completo funciona end-to-end: a gestora abre Configurações, digita o código da TV, e a TV ativa.
 
-**Blocked by:** Ticket 01: Fundação Editorial LUVEA, Navegação Multinível, Primeiros Passos (`0/3 Get Started`) e Site de Agendamento Online (`Luvea Studio`), Ticket 04: Diretório de Clientes (`Clients`), Drawer de Perfil em 5 Abas, Ficha de Atendimento e Galeria Auto-Organizada (`Auto-sorted`)
+**Blocked by:** 05 — API route de dispositivos.
 
-- [x] `Marketing` (`07-1`) exibe os 3 cards superiores (`Criar campanha de e-mail`, `Criar campanha de texto/WhatsApp`, `Comprar mais créditos / 500 restantes`), abas `Todas | E-mail | Texto` e seção `"Como funciona"`.
-- [x] Modal `Nova campanha` (`07-1-1`) dividido em duas colunas: à esquerda, fluxo em 3 etapas (`Criar mensagem`, `Selecionar clientes`, `Revisar e enviar`) com botão `"✨ Criar rascunho"`, campos de Assunto/Mensagem, upload de imagem com badge `Gold` e cards de sugestões prontas (incluindo reativação de clientes ausentes +30/45d); à direita, preview em tempo real dentro do smartphone segurado pela mão.
-- [x] `Configurações` (`08-1`, `08-1-1`, `08-2`, `08-2-2`, `08-3`) reproduz as 4 abas superiores (`Pessoal`, `Equipe`, `Negócio`, `Assinatura`), botões superiores `▷ Bem-vindo à LUVEA` e `🎁 Indique e ganhe R$ 150`, e sub-abas laterais (`Detalhes Pessoais` com foto rosa e telefone verificado, `Minhas Preferências` com checkboxes pretos de E-mail/Texto/Push e switches roxos de Notas de Clientes, Sincronização de Calendário e Lista de Espera, `Segurança`, `Controle de Ponto`, `Detalhes do Negócio` com CNPJ/CPF, `Unidades`, `Site de Agendamento`, `Regras de Agendamento`, `Maquininha & Checkout Pix`, `Conta de Recebimento`, `LGPD`, `Prontuários` e `Vale-presentes`).
-- [x] Telas de `Relatórios (Insights)`, `Estoque (Inventory)` e `Prontuários (Charts)` acessíveis na barra lateral exibindo KPIs financeiros/retenção, controle de produtos de revenda/uso interno e central de fichas clínicas.
+- [x] Nova seção "LUVEA TV" no componente de configurações, seguindo o design system existente (Editorial Clean)
+- [x] Campo de input para digitar código de 6 dígitos com validação
+- [x] Ao submeter código válido, chama `POST /api/tv/authorize` e exibe feedback de sucesso
+- [x] Lista de TVs conectadas com nome do dispositivo, data de pareamento, e status
+- [x] Botão de revogar acesso por TV (pílula secundária do projeto, sem botões vermelhos estridentes — conforme AGENTS.md)
+- [x] Campo editável para renomear TV (ex: "Smart TV" → "TV Recepção")
+- [x] Deep-link: quando URL contém `?action=pair-tv&code=892437`, abre Configurações e preenche o campo com o código automaticamente
+- [x] Copy editorial conciso e sóbrio — zero prolixidade de IA (conforme AGENTS.md)

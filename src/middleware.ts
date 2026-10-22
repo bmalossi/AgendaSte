@@ -7,11 +7,12 @@ export const config = {
     /*
      * Match all request paths except for:
      * - api (API routes)
+     * - tv (Standalone Kiosk mode para Smart TVs)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, manifest.json, robots.txt, sitemap.xml
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.json|robots.txt|sitemap.xml|icon-.*|apple-touch-icon.*).*)",
+    "/((?!api|tv|_next/static|_next/image|favicon.ico|manifest.json|robots.txt|sitemap.xml|icon-.*|apple-touch-icon.*).*)",
   ],
 };
 

@@ -104,6 +104,19 @@ _Avoid_: Plano gratuito, Freemium
 Pessoa ou canal indicado pela LUVEA como ponto de contato com titulares de dados e com a ANPD, nos termos da LGPD.
 _Avoid_: Suporte de privacidade
 
+**TV Kiosk (Painel de Recepção)**:
+Tela de exibição passiva da agenda do dia em tempo real, projetada para monitores e Smart TVs do estúdio com layout escuro de alto contraste e dados anonimizados em conformidade com a LGPD.
+_Avoid_: Painel da TV, Dashboard público, Telão de senha
+
+**Pareamento de TV (TV Pairing)**:
+Processo de autorização de um novo dispositivo de exibição mediante geração de código numérico de 6 dígitos com expiração de 10 minutos inserido pela gestora no painel LUVEA.
+_Avoid_: Login na TV, Conexão remota
+
+**Token de Dispositivo (Device Token)**:
+Identificador único (UUID) gerado na autorização do pareamento e armazenado localmente na Smart TV, validado a cada requisição de sincronização no backend.
+_Avoid_: Chave de API, Senha da TV, Sessão de usuário
+
+
 
 
 

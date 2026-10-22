@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Globe,
   Clock,
@@ -33,8 +34,12 @@ import {
   LogOut,
   Sun,
   Moon,
+  Lock,
+  Tv,
 } from "lucide-react";
 import { useAppTheme } from "@/lib/theme";
+import { PLANS_CATALOG } from "@/lib/marketing-content";
+import { TvKioskSettingsSection } from "@/components/agendaste/tv-kiosk-settings-section";
 import type {
   StudioState,
   WebsiteBookingSetupConfig,
@@ -67,7 +72,7 @@ interface SettingsViewProps {
   initialSubTab?: string;
 }
 
-type TopTabId = "business" | "personal" | "staff" | "whatsapp" | "subscription";
+type TopTabId = "business" | "personal" | "staff" | "whatsapp" | "subscription" | "tv_kiosk";
 type BusinessSubTabId =
   | "business_details"
   | "locations"
@@ -87,13 +92,34 @@ export function SettingsView({
   initialSubTab = "client_notifications",
 }: SettingsViewProps) {
   const { theme, setTheme } = useAppTheme();
+  const [initialTvCode, setInitialTvCode] = useState("");
+
   // Aba Superior
   const [topTab, setTopTab] = useState<TopTabId>(() => {
-    if (initialTab && ["personal", "staff", "business", "subscription", "whatsapp"].includes(initialTab)) {
+    if (initialTab && ["personal", "staff", "business", "subscription", "whatsapp", "tv_kiosk"].includes(initialTab)) {
       return initialTab as TopTabId;
     }
     return "business";
   });
+
+  // Deep-link para pareamento de TV via URL (?action=pair-tv&code=892437)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const action = searchParams.get("action");
+        const codeParam = searchParams.get("code");
+        if (action === "pair-tv") {
+          setTopTab("tv_kiosk");
+          if (codeParam) {
+            setInitialTvCode(codeParam);
+          }
+        }
+      } catch (err) {
+        console.warn("[Settings Deep-link]", err);
+      }
+    }
+  }, []);
 
   // Sub-aba lateral de Negócio
   const [subTab, setSubTab] = useState<BusinessSubTabId>(() => {
@@ -115,6 +141,24 @@ export function SettingsView({
       return initialSubTab as BusinessSubTabId;
     }
     return "client_notifications";
+  });
+
+  // Sincroniza aba quando fornecida externamente via navegação
+  useEffect(() => {
+    if (initialTab && ["personal", "staff", "business", "subscription", "whatsapp", "tv_kiosk"].includes(initialTab)) {
+      setTopTab(initialTab as TopTabId);
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setSubTab(initialSubTab as BusinessSubTabId);
+    }
+  }, [initialSubTab]);
+
+  // Ciclo selecionado para visualização de planos (mensal vs anual)
+  const [selectedCycle, setSelectedCycle] = useState<"monthly" | "yearly">(() => {
+    return state.onboarding?.billingCycle === "yearly" ? "yearly" : "monthly";
   });
 
   // Configuração Base
@@ -363,6 +407,7 @@ export function SettingsView({
           { id: "personal" as const, label: "Pessoal", icon: User },
           { id: "staff" as const, label: "Equipe", icon: Users },
           { id: "whatsapp" as const, label: "WhatsApp & Automação", icon: MessageSquare },
+          { id: "tv_kiosk" as const, label: "LUVEA TV", icon: Tv },
           { id: "subscription" as const, label: "Plano & Assinatura", icon: SubscriptionIcon },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -2264,42 +2309,231 @@ export function SettingsView({
         </div>
       )}
 
-      {topTab === "subscription" && (
-        <div className="bg-white rounded-3xl border border-[#E5E5EA] p-6 lg:p-8 space-y-6">
-          <div>
-            <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Plano &amp; Assinatura LUVEA</h2>
-            <p className="text-[13px] text-[#6E6E73] mt-0.5">
-              Sua conta está no plano <strong className="text-[#1C1C1E]">Gold (Avaliação ativa)</strong>.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-2xl border border-[#E5E5EA] bg-white space-y-2">
-              <h3 className="font-semibold text-base text-[#1C1C1E]">Essencial</h3>
-              <p className="text-[26px] font-serif text-[#1C1C1E]">R$ 97<span className="text-xs font-sans text-[#6E6E73]">/mês</span></p>
-              <p className="text-xs text-[#6E6E73]">Para profissionais autônomos.</p>
-            </div>
-
-            <div className="p-6 rounded-2xl border-2 border-[#1C1C1E] bg-[#FAFAFA] space-y-2 relative">
-              <span className="absolute top-4 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#1C1C1E] text-white">
-                Mais Popular
-              </span>
-              <h3 className="font-semibold text-base text-[#1C1C1E]">Gold</h3>
-              <p className="text-[26px] font-serif text-[#1C1C1E]">R$ 197<span className="text-xs font-sans text-[#6E6E73]">/mês</span></p>
-              <p className="text-xs text-[#6E6E73]">Recepção IA, lista de espera e WhatsApp 2-Way.</p>
-            </div>
-
-            <div className="p-6 rounded-2xl border border-[#E5E5EA] bg-white space-y-2">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#1C1C1E] text-white">
-                Platinum
-              </span>
-              <h3 className="font-semibold text-base text-[#1C1C1E]">Platinum</h3>
-              <p className="text-[26px] font-serif text-[#1C1C1E]">R$ 347<span className="text-xs font-sans text-[#6E6E73]">/mês</span></p>
-              <p className="text-xs text-[#6E6E73]">Rastreamento web com Google &amp; Meta Pixel e multi-unidades.</p>
-            </div>
-          </div>
+      {topTab === "tv_kiosk" && (
+        <div className="bg-white dark:bg-[#18181b] rounded-3xl border border-[#E5E5EA] dark:border-[#27272a] p-6 lg:p-8 space-y-6 shadow-sm">
+          <TvKioskSettingsSection initialCode={initialTvCode} />
         </div>
       )}
+
+      {topTab === "subscription" && (() => {
+        const currentTier = (state.onboarding?.planTier || "Gold").toLowerCase();
+        const subStatus = state.onboarding?.subscriptionStatus || "trialing";
+        const trialDays = state.onboarding?.trialDaysLeft ?? 14;
+        const isTrialActive = subStatus === "trialing" && trialDays > 0;
+        const isTrialExpired = subStatus === "trialing" && trialDays <= 0;
+        const isSubActive = subStatus === "active";
+        const isPastDue = subStatus === "past_due";
+
+        // Nome formatado do plano atual
+        const currentPlanFormatted =
+          currentTier.includes("platinum") ? "Platinum" :
+          currentTier.includes("essencial") ? "Essencial" : "Gold";
+
+        return (
+          <div className="bg-white dark:bg-[#18181b] rounded-3xl border border-[#E5E5EA] dark:border-[#27272a] p-6 lg:p-8 space-y-8">
+            {/* Header com Status Atual */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-[22px] font-serif font-normal text-[#1C1C1E] dark:text-white">
+                    Plano &amp; Assinatura LUVEA
+                  </h2>
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                    Gerencie a potência da sua recepção, limites de equipe e integrações oficiais.
+                  </p>
+                </div>
+
+                {/* Alternador de Ciclo Mensal / Anual */}
+                <div className="inline-flex items-center p-1 bg-[#F5F5F7] dark:bg-[#27272a] rounded-full border border-[#E5E5EA] dark:border-[#3f3f46] shrink-0 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCycle("monthly")}
+                    className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all ${
+                      selectedCycle === "monthly"
+                        ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
+                        : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                    }`}
+                  >
+                    Mensal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCycle("yearly")}
+                    className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all flex items-center gap-1.5 ${
+                      selectedCycle === "yearly"
+                        ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
+                        : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                    }`}
+                  >
+                    <span>Anual</span>
+                    <span className="text-[10px] font-semibold tracking-wide uppercase px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      -15%
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card de Status da Assinatura Atual */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#F5F5F7] dark:bg-[#202023] border border-[#E5E5EA] dark:border-[#2e2e32] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-medium bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white shadow-xs">
+                    {isSubActive ? (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                        <span>Assinatura Ativa • Plano {currentPlanFormatted}</span>
+                      </>
+                    ) : isPastDue ? (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                        <span>Pagamento Pendente • Plano {currentPlanFormatted}</span>
+                      </>
+                    ) : isTrialExpired ? (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-500/20" />
+                        <span>Avaliação Expirada • Plano {currentPlanFormatted}</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                        <span>
+                          Avaliação Ativa • {trialDays} {trialDays === 1 ? "dia restante" : "dias restantes"} (Plano {currentPlanFormatted})
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-2xl leading-relaxed">
+                    {isSubActive
+                      ? `Sua assinatura está ativa e sendo renovada automaticamente no ciclo ${selectedCycle === "yearly" ? "anual" : "mensal"}. Seus recursos estão liberados.`
+                      : isPastDue
+                      ? "Identificamos uma pendência na última renovação. Atualize sua forma de pagamento para evitar bloqueio da agenda."
+                      : isTrialExpired
+                      ? "O período de 14 dias de teste gratuito foi concluído. Selecione um plano abaixo para manter seu link da bio e atendimentos online operando."
+                      : "Durante o período de testes, todos os recursos avançados estão disponíveis. Adicione sua forma de pagamento para manter seu estúdio 100% ativo ao fim da avaliação."}
+                  </p>
+                </div>
+
+                {!isSubActive && (
+                  <Link
+                    href={`/checkout?plan=${currentTier}&cycle=${selectedCycle}`}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium shadow-sm hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all shrink-0 active:scale-[0.98]"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>{isTrialExpired ? "Reativar com Cartão" : "Efetivar Assinatura"}</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Grid dos 3 Planos Canônicos */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+              {PLANS_CATALOG.map((plan) => {
+                const isCurrentPlan = currentTier.includes(plan.id);
+                const price = selectedCycle === "yearly" ? plan.annualMonthlyPriceReais : plan.monthlyPriceReais;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative p-6 sm:p-7 rounded-2xl flex flex-col justify-between transition-all ${
+                      plan.isPopular
+                        ? "border-2 border-[#1C1C1E] dark:border-white bg-[#FAFAFA] dark:bg-[#202023] shadow-sm"
+                        : "border border-[#E5E5EA] dark:border-[#2e2e32] bg-white dark:bg-[#18181b]"
+                    }`}
+                  >
+                    {plan.isPopular && (
+                      <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-xs">
+                        Mais Popular
+                      </span>
+                    )}
+
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-[17px] text-[#1C1C1E] dark:text-white">
+                            {plan.name}
+                          </h3>
+                          {isCurrentPlan && (
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-zinc-200 border border-[#E5E5EA] dark:border-[#3f3f46]">
+                              Plano Atual
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-snug min-h-[36px]">
+                          {plan.tagline}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-[#F2F2F7] dark:border-[#27272a]">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[28px] sm:text-[32px] font-serif font-normal text-[#1C1C1E] dark:text-white">
+                            R$ {price}
+                          </span>
+                          <span className="text-[12px] font-sans text-[#6E6E73] dark:text-[#a1a1aa]">
+                            /mês {selectedCycle === "yearly" && "no anual"}
+                          </span>
+                        </div>
+                        <p className="text-[11.5px] text-[#8E8E93] dark:text-[#71717a] mt-0.5">
+                          {plan.maxStaffLabel} • {plan.aiReceptionLimit}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 space-y-2 border-t border-[#F2F2F7] dark:border-[#27272a]">
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                          Incluso no plano:
+                        </p>
+                        <ul className="space-y-1.5">
+                          {plan.highlights.slice(0, 5).map((feature, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-[12px] text-[#1C1C1E] dark:text-zinc-300">
+                              <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white shrink-0 mt-0.5" />
+                              <span className="leading-tight">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="pt-6">
+                      {isCurrentPlan && isSubActive ? (
+                        <div className="w-full py-2.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[#8E8E93] dark:text-zinc-400 text-[12.5px] font-medium text-center border border-[#E5E5EA] dark:border-[#3f3f46]">
+                          Plano Ativo
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/checkout?plan=${plan.id}&cycle=${selectedCycle}`}
+                          className={`w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full text-[12.5px] font-medium transition-all ${
+                            plan.isPopular || isCurrentPlan
+                              ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 shadow-sm"
+                              : "border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#323238]"
+                          }`}
+                        >
+                          <span>{isCurrentPlan ? "Continuar com " + plan.name : "Assinar " + plan.name}</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Micro-garantias e Segurança */}
+            <div className="pt-4 border-t border-[#E5E5EA] dark:border-[#27272a] flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+              <div className="flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                <span>Processamento criptografado de ponta a ponta</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                <span>Cancele a qualquer momento sem burocracia</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                <span>Dados de clientes e agenda 100% seguros</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* MODAL 1: PRÉVIA DA NOTIFICAÇÃO (WhatsApp vs E-mail)                       */}
