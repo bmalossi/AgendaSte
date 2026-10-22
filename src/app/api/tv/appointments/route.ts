@@ -96,6 +96,19 @@ export async function GET(request: Request) {
           name: [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.studio_name || "Profissional",
         }));
 
+        // 3.1. Busca serviços da organização para mapear nomes reais
+        const { data: srvsData } = await supabaseAdmin
+          .from("services")
+          .select("id, name")
+          .eq("organization_id", org.id);
+
+        const servicesMap = new Map<string, string>();
+        for (const s of srvsData || []) {
+          if (s.id && s.name) {
+            servicesMap.set(s.id, s.name);
+          }
+        }
+
         // 4. Calcula limites da data de hoje no fuso horário do estúdio
         const dayFormatter = new Intl.DateTimeFormat("en-CA", {
           timeZone: timezone,
@@ -106,10 +119,20 @@ export async function GET(request: Request) {
         const todayYMD = dayFormatter.format(now); // YYYY-MM-DD
 
         // 5. Busca agendamentos do dia atual para a organização
-        // Filtra por data_iso ou starts_at
+        // Consulta as colunas reais com relacionamento em clients para obter nome do cliente
         const { data: aptsData, error: aptsErr } = await supabaseAdmin
           .from("appointments")
-          .select("id, professional_id, client_name, service_name, starts_at, ends_at, status")
+          .select(`
+            id,
+            professional_id,
+            client_id,
+            service_ids,
+            starts_at,
+            ends_at,
+            status,
+            notes,
+            client:clients(full_name)
+          `)
           .eq("organization_id", org.id)
           .gte("starts_at", `${todayYMD}T00:00:00Z`)
           .lte("starts_at", `${todayYMD}T23:59:59Z`)
@@ -119,15 +142,51 @@ export async function GET(request: Request) {
           console.error("[TV Appointments] Erro ao buscar agendamentos:", aptsErr);
         }
 
-        const rawAppointments: RawTVAppointment[] = (aptsData || []).map((a) => ({
-          id: a.id,
-          professional_id: a.professional_id,
-          client_name: a.client_name,
-          service_name: a.service_name,
-          starts_at: a.starts_at,
-          ends_at: a.ends_at,
-          status: a.status,
-        }));
+        const rawAppointments: RawTVAppointment[] = (aptsData || []).map((a: any) => {
+          let clientName = a.client?.full_name || "";
+          let serviceName = "";
+
+          if (Array.isArray(a.service_ids) && a.service_ids.length > 0) {
+            const names = a.service_ids
+              .map((sid: string) => servicesMap.get(sid))
+              .filter(Boolean);
+            if (names.length > 0) {
+              serviceName = names.join(" + ");
+            }
+          }
+
+          // Se clientName ou serviceName ainda estiverem vazios, tenta extrair de __LUVEA_META__ em a.notes
+          if (
+            (!clientName || !serviceName) &&
+            a.notes &&
+            (a.notes.includes("__LUVEA_META__:") || a.notes.includes("__AURA_META__:"))
+          ) {
+            try {
+              const metaLine = a.notes
+                .split("\n")
+                .find((p: string) => p.startsWith("__LUVEA_META__:") || p.startsWith("__AURA_META__:"));
+              if (metaLine) {
+                const meta = JSON.parse(
+                  metaLine.replace("__LUVEA_META__:", "").replace("__AURA_META__:", "")
+                );
+                if (!clientName && meta.clientName) clientName = meta.clientName;
+                if (!serviceName && Array.isArray(meta.serviceNames) && meta.serviceNames.length > 0) {
+                  serviceName = meta.serviceNames.join(" + ");
+                }
+              }
+            } catch {}
+          }
+
+          return {
+            id: a.id,
+            professional_id: a.professional_id,
+            client_name: clientName || "Cliente",
+            service_name: serviceName || "Atendimento",
+            starts_at: a.starts_at,
+            ends_at: a.ends_at,
+            status: a.status,
+          };
+        });
 
         const response = buildTVPollingResponse(
           rawAppointments,

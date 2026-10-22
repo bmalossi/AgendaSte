@@ -6,6 +6,7 @@ import {
   ClientProfile,
   CalendarEventItem,
   WaitlistEntryItem,
+  calculateRemainingTrialDays,
 } from "../agendaste-store";
 
 export function isValidUuid(id?: string | null): boolean {
@@ -181,7 +182,7 @@ export async function loadStudioStateFromSupabase(
 
     const updated = { ...currentState };
 
-    // Sincroniza informações da Organização
+    // Sincroniza informações da Organização e Assinatura
     if (orgData) {
       updated.settings.business.businessName = orgData.name || updated.settings.business.businessName;
       updated.settings.business.bookingSlug = orgData.slug || updated.settings.business.bookingSlug;
@@ -198,6 +199,37 @@ export async function loadStudioStateFromSupabase(
           s.id === "booking_site" ? { ...s, completed: true } : s
         );
       }
+
+      // Sincronização dinâmica de Plano e Dias de Avaliação
+      const planTierRaw = (orgData.plan_tier || "gold").toLowerCase();
+      const planTierFormatted =
+        planTierRaw === "platinum"
+          ? "Platinum"
+          : planTierRaw === "essencial"
+          ? "Essencial"
+          : "Gold";
+
+      const subStatus = (orgData.subscription_status || "trialing") as
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled";
+
+      const trialEndsAt =
+        orgData.trial_ends_at ||
+        (orgData.created_at
+          ? new Date(
+              new Date(orgData.created_at).getTime() + 14 * 24 * 60 * 60 * 1000
+            ).toISOString()
+          : null);
+
+      const daysLeft = subStatus === "active" ? 0 : calculateRemainingTrialDays(trialEndsAt);
+
+      updated.onboarding.planTier = planTierFormatted;
+      updated.onboarding.trialDaysLeft = daysLeft;
+      updated.onboarding.subscriptionStatus = subStatus;
+      updated.onboarding.trialEndsAtISO = trialEndsAt || undefined;
+      updated.onboarding.billingCycle = orgData.billing_cycle || "monthly";
     }
 
     // 1. Perfil do Profissional & Negócio
@@ -698,30 +730,37 @@ export async function syncNewAppointmentToSupabase(
       ? event.status
       : "confirmed";
 
-    await supabase.from("appointments").insert({
-      id: isValidUuid(event.id) ? event.id : undefined,
-      organization_id: orgId || undefined,
-      professional_id: profId,
-      client_id: validClientId,
-      service_ids: validServiceIds,
-      resource_ids: validResourceIds,
-      event_type: event.eventType || "appointment",
-      starts_at: startsAt,
-      ends_at: endsAt,
-      active_duration_minutes: event.activeDurationMinutes || 60,
-      processing_start_offset_minutes:
-        event.processingStartOffsetMinutes || 0,
-      processing_duration_minutes: event.processingDurationMinutes || 0,
-      block_after_minutes: event.blockAfterMinutes || 0,
-      is_repeating: Boolean(event.isRepeating),
-      status,
-      total_cents: event.totalCents || 0,
-      deposit_cents: event.depositCents || 0,
-      deposit_paid: Boolean(event.depositPaid),
-      payment_method: "pix",
-      notes: notesToSave,
-      whatsapp_client_reply: event.whatsappClientReply || "none",
-    });
+    const { error: upsertErr } = await supabase.from("appointments").upsert(
+      {
+        id: isValidUuid(event.id) ? event.id : undefined,
+        organization_id: orgId || undefined,
+        professional_id: profId,
+        client_id: validClientId,
+        service_ids: validServiceIds,
+        resource_ids: validResourceIds,
+        event_type: event.eventType || "appointment",
+        starts_at: startsAt,
+        ends_at: endsAt,
+        active_duration_minutes: event.activeDurationMinutes || 60,
+        processing_start_offset_minutes:
+          event.processingStartOffsetMinutes || 0,
+        processing_duration_minutes: event.processingDurationMinutes || 0,
+        block_after_minutes: event.blockAfterMinutes || 0,
+        is_repeating: Boolean(event.isRepeating),
+        status,
+        total_cents: event.totalCents || 0,
+        deposit_cents: event.depositCents || 0,
+        deposit_paid: Boolean(event.depositPaid),
+        payment_method: "pix",
+        notes: notesToSave,
+        whatsapp_client_reply: event.whatsappClientReply || "none",
+      },
+      { onConflict: "id" }
+    );
+
+    if (upsertErr) {
+      console.warn("Aviso ao persistir agendamento no Supabase:", upsertErr.message || upsertErr);
+    }
   } catch (err) {
     console.warn("Falha ao persistir agendamento no Supabase:", err);
   }
@@ -837,23 +876,29 @@ export async function syncNewClientToSupabase(
       return;
     }
 
-    await supabase.from("clients").insert({
-      id: isValidUuid(client.id) ? client.id : undefined,
-      organization_id: orgId || undefined,
-      professional_id: profId,
-      full_name: client.fullName.trim(),
-      email: client.email || null,
-      phone_whatsapp: client.phone,
-      avatar_color: client.avatarColor || "#FBCFE8",
-      anamnesis_notes: client.notesAndForms?.anamnesis || "",
-      allergies_warnings: client.notesAndForms?.allergies || "",
-      preferences_notes: client.notesAndForms?.formulasAndPreferences || "",
-      birthday: client.notesAndForms?.birthday || "",
-      send_automatic_reminders: client.sendAutomaticReminders ?? true,
-      total_spent_cents: client.totalSpentCents || 0,
-      visits_count: client.visitsCount || 1,
-      no_show_count: client.noShowCount || 0,
-    });
+    const { error: cliErr } = await supabase.from("clients").upsert(
+      {
+        id: isValidUuid(client.id) ? client.id : undefined,
+        organization_id: orgId || undefined,
+        professional_id: profId,
+        full_name: client.fullName.trim(),
+        email: client.email || null,
+        phone_whatsapp: client.phone,
+        avatar_color: client.avatarColor || "#FBCFE8",
+        anamnesis_notes: client.notesAndForms?.anamnesis || "",
+        allergies_warnings: client.notesAndForms?.allergies || "",
+        preferences_notes: client.notesAndForms?.formulasAndPreferences || "",
+        birthday: client.notesAndForms?.birthday || "",
+        send_automatic_reminders: client.sendAutomaticReminders ?? true,
+        total_spent_cents: client.totalSpentCents || 0,
+        visits_count: client.visitsCount || 1,
+        no_show_count: client.noShowCount || 0,
+      },
+      { onConflict: "id" }
+    );
+    if (cliErr) {
+      console.warn("Aviso ao persistir cliente no Supabase:", cliErr.message || cliErr);
+    }
   } catch (err) {
     console.warn("Falha ao persistir cliente no Supabase:", err);
   }
