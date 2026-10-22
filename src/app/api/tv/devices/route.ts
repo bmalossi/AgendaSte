@@ -55,37 +55,36 @@ export async function GET(request: Request) {
     }
 
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabaseAdmin
-        .from("tv_pairings")
-        .select("id, code, device_name, status, created_at, updated_at")
-        .eq("organization_id", auth.organizationId)
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await supabaseAdmin
+          .from("tv_pairings")
+          .select("id, code, device_name, status, created_at, updated_at")
+          .eq("organization_id", auth.organizationId)
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("[TV Devices] Erro ao listar dispositivos:", error);
-        return NextResponse.json(
-          { error: "Erro ao consultar dispositivos conectados." },
-          { status: 500 }
-        );
+        if (!error && data) {
+          return NextResponse.json({ devices: data || [] });
+        }
+        console.warn("[TV Devices] Tabela ausente ou aviso no Supabase, utilizando fallback em memória:", error?.message || error);
+      } catch (dbErr) {
+        console.warn("[TV Devices] Falha ao consultar Supabase, utilizando fallback em memória:", dbErr);
       }
-
-      return NextResponse.json({ devices: data || [] });
-    } else {
-      const all = getAllMemoryPairings();
-      const orgDevices = all
-        .filter((d) => d.organization_id === auth.organizationId)
-        .map((d) => ({
-          id: d.id,
-          code: d.code,
-          device_name: d.device_name,
-          status: d.status,
-          created_at: d.created_at,
-          updated_at: d.updated_at,
-        }))
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      return NextResponse.json({ devices: orgDevices });
     }
+
+    const all = getAllMemoryPairings();
+    const orgDevices = all
+      .filter((d) => d.organization_id === auth.organizationId)
+      .map((d) => ({
+        id: d.id,
+        code: d.code,
+        device_name: d.device_name,
+        status: d.status,
+        created_at: d.created_at,
+        updated_at: d.updated_at,
+      }))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return NextResponse.json({ devices: orgDevices });
   } catch (err) {
     console.error("[TV Devices GET] Erro:", err);
     return NextResponse.json(
@@ -126,24 +125,30 @@ export async function DELETE(request: Request) {
       );
     }
 
-    if (isSupabaseConfigured()) {
-      const { error } = await supabaseAdmin
-        .from("tv_pairings")
-        .update({
-          status: "REVOKED",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .eq("organization_id", auth.organizationId);
+    let revoked = false;
 
-      if (error) {
-        console.error("[TV Devices DELETE] Erro ao revogar:", error);
-        return NextResponse.json(
-          { error: "Falha ao revogar dispositivo." },
-          { status: 500 }
-        );
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabaseAdmin
+          .from("tv_pairings")
+          .update({
+            status: "REVOKED",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .eq("organization_id", auth.organizationId);
+
+        if (!error) {
+          revoked = true;
+        } else {
+          console.warn("[TV Devices DELETE] Aviso no Supabase, tentando em memória:", error.message || error);
+        }
+      } catch (dbErr) {
+        console.warn("[TV Devices DELETE] Falha ao conectar ao Supabase, tentando em memória:", dbErr);
       }
-    } else {
+    }
+
+    if (!revoked) {
       const all = getAllMemoryPairings();
       const device = all.find(
         (d) => d.id === id && d.organization_id === auth.organizationId
@@ -195,24 +200,30 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (isSupabaseConfigured()) {
-      const { error } = await supabaseAdmin
-        .from("tv_pairings")
-        .update({
-          device_name: deviceName,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .eq("organization_id", auth.organizationId);
+    let updated = false;
 
-      if (error) {
-        console.error("[TV Devices PATCH] Erro ao renomear:", error);
-        return NextResponse.json(
-          { error: "Falha ao atualizar nome do dispositivo." },
-          { status: 500 }
-        );
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabaseAdmin
+          .from("tv_pairings")
+          .update({
+            device_name: deviceName,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .eq("organization_id", auth.organizationId);
+
+        if (!error) {
+          updated = true;
+        } else {
+          console.warn("[TV Devices PATCH] Aviso no Supabase, tentando em memória:", error.message || error);
+        }
+      } catch (dbErr) {
+        console.warn("[TV Devices PATCH] Falha ao conectar ao Supabase, tentando em memória:", dbErr);
       }
-    } else {
+    }
+
+    if (!updated) {
       const all = getAllMemoryPairings();
       const device = all.find(
         (d) => d.id === id && d.organization_id === auth.organizationId

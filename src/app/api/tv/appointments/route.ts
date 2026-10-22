@@ -32,117 +32,135 @@ export async function GET(request: Request) {
 
     if (isSupabaseConfigured()) {
       // 1. Valida o token do dispositivo na tabela tv_pairings
-      const { data: pairing, error: pairErr } = await supabaseAdmin
-        .from("tv_pairings")
-        .select("id, organization_id, status, device_name")
-        .eq("token", tvToken)
-        .maybeSingle();
+      let pairing: { id: string; organization_id: string | null; status: string; device_name: string } | null = null;
+      let queryFailed = false;
 
-      if (pairErr || !pairing || pairing.status !== "AUTHORIZED" || !pairing.organization_id) {
+      try {
+        const { data, error: pairErr } = await supabaseAdmin
+          .from("tv_pairings")
+          .select("id, organization_id, status, device_name")
+          .eq("token", tvToken)
+          .maybeSingle();
+
+        if (pairErr) {
+          queryFailed = true;
+          console.warn("[TV Appointments] Tabela 'tv_pairings' ausente ou erro no Supabase (verificando memória):", pairErr.message || pairErr);
+        } else {
+          pairing = data;
+        }
+      } catch (dbErr) {
+        queryFailed = true;
+        console.warn("[TV Appointments] Falha de conexão ao Supabase:", dbErr);
+      }
+
+      if (pairing && pairing.status === "AUTHORIZED" && pairing.organization_id) {
+        // 2. Valida o status da assinatura da organização
+        const { data: org, error: orgErr } = await supabaseAdmin
+          .from("organizations")
+          .select("id, name, subscription_status, settings")
+          .eq("id", pairing.organization_id)
+          .maybeSingle();
+
+        if (orgErr || !org) {
+          return NextResponse.json(
+            { error: "Organização vinculada não encontrada." },
+            { status: 404 }
+          );
+        }
+
+        const activeStatuses = ["active", "trialing"];
+        if (!activeStatuses.includes(org.subscription_status)) {
+          return NextResponse.json(
+            { error: "subscription_inactive", message: "A assinatura do estúdio está inativa ou suspensa." },
+            { status: 403 }
+          );
+        }
+
+        const timezone =
+          typeof org.settings?.timezone === "string" && org.settings.timezone.trim()
+            ? org.settings.timezone.trim()
+            : "America/Sao_Paulo";
+
+        // 3. Busca profissionais da organização
+        const { data: profsData, error: profsErr } = await supabaseAdmin
+          .from("professionals")
+          .select("id, first_name, last_name, studio_name")
+          .eq("organization_id", org.id);
+
+        if (profsErr) {
+          console.error("[TV Appointments] Erro ao buscar profissionais:", profsErr);
+        }
+
+        const professionals: RawTVProfessional[] = (profsData || []).map((p) => ({
+          id: p.id,
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.studio_name || "Profissional",
+        }));
+
+        // 4. Calcula limites da data de hoje no fuso horário do estúdio
+        const dayFormatter = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        const todayYMD = dayFormatter.format(now); // YYYY-MM-DD
+
+        // 5. Busca agendamentos do dia atual para a organização
+        // Filtra por data_iso ou starts_at
+        const { data: aptsData, error: aptsErr } = await supabaseAdmin
+          .from("appointments")
+          .select("id, professional_id, client_name, service_name, starts_at, ends_at, status")
+          .eq("organization_id", org.id)
+          .gte("starts_at", `${todayYMD}T00:00:00Z`)
+          .lte("starts_at", `${todayYMD}T23:59:59Z`)
+          .in("status", ["confirmed", "completed", "pending"]);
+
+        if (aptsErr) {
+          console.error("[TV Appointments] Erro ao buscar agendamentos:", aptsErr);
+        }
+
+        const rawAppointments: RawTVAppointment[] = (aptsData || []).map((a) => ({
+          id: a.id,
+          professional_id: a.professional_id,
+          client_name: a.client_name,
+          service_name: a.service_name,
+          starts_at: a.starts_at,
+          ends_at: a.ends_at,
+          status: a.status,
+        }));
+
+        const response = buildTVPollingResponse(
+          rawAppointments,
+          professionals,
+          {
+            id: org.id,
+            name: org.name,
+            settings: org.settings,
+          },
+          now
+        );
+
+        return NextResponse.json(response);
+      }
+
+      if (!queryFailed && pairing && (pairing.status !== "AUTHORIZED" || !pairing.organization_id)) {
         return NextResponse.json(
           { error: "Dispositivo não autorizado ou revogado." },
           { status: 401 }
         );
       }
+    }
 
-      // 2. Valida o status da assinatura da organização
-      const { data: org, error: orgErr } = await supabaseAdmin
-        .from("organizations")
-        .select("id, name, subscription_status, settings")
-        .eq("id", pairing.organization_id)
-        .maybeSingle();
+    // Fallback em memória (ambiente local/demo/testes ou antes da migration ser executada)
+    const pairings = getAllMemoryPairings();
+    const pairing = pairings.find(
+      (p) => p.token === tvToken && p.status === "AUTHORIZED"
+    );
 
-      if (orgErr || !org) {
-        return NextResponse.json(
-          { error: "Organização vinculada não encontrada." },
-          { status: 404 }
-        );
-      }
-
-      const activeStatuses = ["active", "trialing"];
-      if (!activeStatuses.includes(org.subscription_status)) {
-        return NextResponse.json(
-          { error: "subscription_inactive", message: "A assinatura do estúdio está inativa ou suspensa." },
-          { status: 403 }
-        );
-      }
-
-      const timezone =
-        typeof org.settings?.timezone === "string" && org.settings.timezone.trim()
-          ? org.settings.timezone.trim()
-          : "America/Sao_Paulo";
-
-      // 3. Busca profissionais da organização
-      const { data: profsData, error: profsErr } = await supabaseAdmin
-        .from("professionals")
-        .select("id, first_name, last_name, studio_name")
-        .eq("organization_id", org.id);
-
-      if (profsErr) {
-        console.error("[TV Appointments] Erro ao buscar profissionais:", profsErr);
-      }
-
-      const professionals: RawTVProfessional[] = (profsData || []).map((p) => ({
-        id: p.id,
-        name: [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.studio_name || "Profissional",
-      }));
-
-      // 4. Calcula limites da data de hoje no fuso horário do estúdio
-      const dayFormatter = new Intl.DateTimeFormat("en-CA", {
-        timeZone: timezone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      const todayYMD = dayFormatter.format(now); // YYYY-MM-DD
-
-      // 5. Busca agendamentos do dia atual para a organização
-      // Filtra por data_iso ou starts_at
-      const { data: aptsData, error: aptsErr } = await supabaseAdmin
-        .from("appointments")
-        .select("id, professional_id, client_name, service_name, starts_at, ends_at, status")
-        .eq("organization_id", org.id)
-        .gte("starts_at", `${todayYMD}T00:00:00Z`)
-        .lte("starts_at", `${todayYMD}T23:59:59Z`)
-        .in("status", ["confirmed", "completed", "pending"]);
-
-      if (aptsErr) {
-        console.error("[TV Appointments] Erro ao buscar agendamentos:", aptsErr);
-      }
-
-      const rawAppointments: RawTVAppointment[] = (aptsData || []).map((a) => ({
-        id: a.id,
-        professional_id: a.professional_id,
-        client_name: a.client_name,
-        service_name: a.service_name,
-        starts_at: a.starts_at,
-        ends_at: a.ends_at,
-        status: a.status,
-      }));
-
-      const response = buildTVPollingResponse(
-        rawAppointments,
-        professionals,
-        {
-          id: org.id,
-          name: org.name,
-          settings: org.settings,
-        },
-        now
-      );
-
-      return NextResponse.json(response);
-    } else {
-      // Fallback em memória (ambiente local/demo/testes)
-      const pairings = getAllMemoryPairings();
-      const pairing = pairings.find(
-        (p) => p.token === tvToken && p.status === "AUTHORIZED"
-      );
-
-      if (!pairing) {
-        return NextResponse.json(
-          { error: "Dispositivo não autorizado ou revogado." },
-          { status: 401 }
+    if (!pairing) {
+      return NextResponse.json(
+        { error: "Dispositivo não autorizado ou revogado." },
+        { status: 401 }
         );
       }
 
@@ -220,7 +238,6 @@ export async function GET(request: Request) {
       );
 
       return NextResponse.json(response);
-    }
   } catch (err) {
     console.error("[TV Appointments] Erro inesperado:", err);
     return NextResponse.json(

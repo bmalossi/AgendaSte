@@ -67,10 +67,10 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
       setLoading(true);
       setError(null);
       const res = await fetch("/api/tv/pair", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error("Falha ao comunicar com o servidor.");
+        throw new Error(data.error || "Falha ao comunicar com o servidor.");
       }
-      const data = await res.json();
       if (data.code) {
         setCode(data.code);
         setExpiresAt(data.expiresAt);
@@ -79,7 +79,7 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
       }
     } catch (err: any) {
       console.error("[TV UnpairedView] Erro ao gerar código:", err);
-      setError("Não foi possível gerar o código. Verifique a conexão Wi-Fi da TV.");
+      setError(err?.message || "Não foi possível gerar o código. Verifique a conexão Wi-Fi da TV.");
     } finally {
       setLoading(false);
     }
