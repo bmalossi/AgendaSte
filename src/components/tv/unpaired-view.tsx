@@ -165,13 +165,13 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
       <header className="w-full flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
           <LuveaWordmark dark className="text-xl tracking-[0.24em]" />
-          <span className="text-[11px] uppercase tracking-widest font-mono px-2 py-0.5 rounded-full bg-[#18181B] border border-[#27272A] text-zinc-400">
-            TV Kiosk OS
+          <span className="text-[11px] uppercase tracking-widest px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-400 font-medium">
+            Modo Recepção
           </span>
         </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-          Aguardando conexão
+        <div className="flex items-center gap-2.5 text-xs text-zinc-400">
+          <span className="w-2 h-2 rounded-full bg-zinc-300 ring-2 ring-white/20 animate-pulse" />
+          <span>Pronto para parear</span>
         </div>
       </header>
 
@@ -180,26 +180,26 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
         {loading ? (
           <div className="flex flex-col items-center gap-4 text-zinc-400">
             <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-white animate-spin" />
-            <span className="text-sm font-medium tracking-wide">
+            <span className="text-sm font-light tracking-wide text-zinc-300">
               Gerando código de conexão seguro...
             </span>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center gap-4 text-center max-w-md p-8 rounded-2xl bg-[#18181B] border border-red-900/40">
+          <div className="flex flex-col items-center gap-4 text-center max-w-md p-8 rounded-2xl bg-[#141418] border border-white/[0.08]">
             <p className="text-sm text-zinc-300">{error}</p>
             <button
               onClick={fetchNewCode}
-              className="px-5 py-2 rounded-full text-xs font-medium bg-white text-black hover:bg-zinc-200 transition-colors"
+              className="px-6 py-2.5 rounded-full text-xs font-medium bg-white text-black hover:bg-zinc-200 transition-colors"
             >
               Tentar novamente
             </button>
           </div>
         ) : (
-          <div className="w-full bg-[#18181B] border border-[#27272A] rounded-3xl p-8 md:p-12 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-10">
+          <div className="w-full bg-[#101013]/90 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-8 md:p-12 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.8)] flex flex-col md:flex-row items-center justify-between gap-12">
             {/* Instruções e Código */}
             <div className="flex-1 flex flex-col items-start gap-6">
               <div>
-                <span className="text-xs uppercase tracking-widest font-semibold text-zinc-400">
+                <span className="text-xs uppercase tracking-widest font-medium text-zinc-400">
                   Pareamento de Dispositivo
                 </span>
                 <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mt-1">
@@ -207,43 +207,73 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
                 </h1>
               </div>
 
-              <div className="space-y-3 text-sm text-zinc-400">
+              <div className="space-y-3.5 text-sm text-zinc-400">
                 <div className="flex items-start gap-3">
-                  <span className="w-5 h-5 rounded-full bg-[#27272A] text-zinc-300 text-xs font-mono flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-full bg-white/[0.06] border border-white/[0.1] text-zinc-300 text-xs font-medium flex items-center justify-center shrink-0 mt-0.5">
                     1
                   </span>
                   <span>Acesse o app LUVEA no celular ou computador da gestora.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="w-5 h-5 rounded-full bg-[#27272A] text-zinc-300 text-xs font-mono flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-full bg-white/[0.06] border border-white/[0.1] text-zinc-300 text-xs font-medium flex items-center justify-center shrink-0 mt-0.5">
                     2
                   </span>
-                  <span>Vá em <strong>Configurações ➔ LUVEA TV</strong>.</span>
+                  <span>Vá em <strong>Configurações · LUVEA TV</strong>.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="w-5 h-5 rounded-full bg-[#27272A] text-zinc-300 text-xs font-mono flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-full bg-white/[0.06] border border-white/[0.1] text-zinc-300 text-xs font-medium flex items-center justify-center shrink-0 mt-0.5">
                     3
                   </span>
-                  <span>Digite o código abaixo ou aponte a câmera para o QR Code.</span>
+                  <span>Digite os 6 dígitos abaixo ou aponte a câmera para o QR Code.</span>
                 </div>
               </div>
 
-              {/* Código Gigante Legível a Distância */}
-              <div className="w-full pt-2">
-                <div className="p-4 md:p-6 rounded-2xl bg-[#09090B] border border-[#27272A] flex items-center justify-center">
-                  <span className="text-4xl md:text-6xl font-mono font-bold tracking-wider text-white select-all">
-                    {formattedCode}
-                  </span>
+              {/* Segmentos Táteis de Dígitos Legíveis a Distância */}
+              <div className="w-full pt-3">
+                <div className="flex items-center justify-start gap-2.5 md:gap-3.5 select-all">
+                  <div className="flex items-center gap-2">
+                    {code ? (
+                      code.slice(0, 3).split("").map((digit, i) => (
+                        <span
+                          key={i}
+                          className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.12] flex items-center justify-center text-3xl md:text-4xl font-light tabular-nums text-white shadow-inner"
+                        >
+                          {digit}
+                        </span>
+                      ))
+                    ) : (
+                      [0, 1, 2].map((i) => (
+                        <span key={i} className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.06] animate-pulse" />
+                      ))
+                    )}
+                  </div>
+                  <span className="text-zinc-600 text-xl font-light px-1">–</span>
+                  <div className="flex items-center gap-2">
+                    {code ? (
+                      code.slice(3, 6).split("").map((digit, i) => (
+                        <span
+                          key={i + 3}
+                          className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.12] flex items-center justify-center text-3xl md:text-4xl font-light tabular-nums text-white shadow-inner"
+                        >
+                          {digit}
+                        </span>
+                      ))
+                    ) : (
+                      [3, 4, 5].map((i) => (
+                        <span key={i} className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.06] animate-pulse" />
+                      ))
+                    )}
+                  </div>
                 </div>
-                <p className="text-[11px] text-zinc-500 font-mono mt-2 text-center">
-                  Código temporário válido por 10 minutos
+                <p className="text-[12px] text-zinc-500 font-normal mt-3">
+                  Código de acesso temporário · Válido por 10 minutos
                 </p>
               </div>
             </div>
 
-            {/* QR Code Container */}
+            {/* QR Code Container em Estética Cerâmica Pura */}
             <div className="flex flex-col items-center justify-center shrink-0">
-              <div className="p-4 rounded-2xl bg-white shadow-xl flex items-center justify-center">
+              <div className="p-5 rounded-2xl bg-white shadow-[0_16px_36px_-8px_rgba(0,0,0,0.6)] flex items-center justify-center">
                 {qrUrl ? (
                   <QRCodeSVG
                     value={qrUrl}
@@ -253,21 +283,25 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
                     bgColor="#FFFFFF"
                   />
                 ) : (
-                  <div className="w-[200px] h-[200px] bg-zinc-200 animate-pulse rounded-lg" />
+                  <div className="w-[200px] h-[200px] bg-zinc-200 animate-pulse rounded-xl" />
                 )}
               </div>
-              <span className="text-xs text-zinc-400 font-medium mt-3">
-                Aponte a câmera do celular
+              <span className="text-xs text-zinc-400 font-normal mt-3 tracking-wide">
+                Aponte a câmera para autorizar
               </span>
             </div>
           </div>
         )}
       </main>
 
-      {/* Rodapé */}
-      <footer className="w-full flex items-center justify-between text-xs text-zinc-600 z-10 border-t border-[#18181B] pt-4">
-        <span>LUVEA Salon OS &copy; {new Date().getFullYear()}</span>
-        <span className="font-mono text-[11px]">Proteção LGPD Ativa · Modo Recepção</span>
+      {/* Rodapé Fixo */}
+      <footer className="w-full flex items-center justify-between text-xs text-zinc-500 z-10 border-t border-white/[0.06] pt-5">
+        <div className="flex items-center gap-3">
+          <span className="tracking-widest uppercase text-[11px] font-medium text-zinc-400">LUVEA</span>
+          <span className="text-zinc-700">·</span>
+          <span className="text-zinc-500 text-[12px]">Salon OS</span>
+        </div>
+        <span className="text-[12px] text-zinc-500 font-normal">Modo de Exibição Pública para Recepção</span>
       </footer>
     </div>
   );
