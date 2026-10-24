@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { LuveaWordmark, LuveaIcon } from "@/components/luvea-logo";
+import { CheckCircle2, Calendar } from "lucide-react";
 import {
   TVPollingResponse,
   TVAppointmentDTO,
   TVProfessionalColumn,
-  TVAppointmentStatus,
   paginateProfessionals,
 } from "@/lib/tv-kiosk";
 
@@ -15,91 +14,249 @@ interface LiveBoardViewProps {
   onUnauthorized: () => void;
 }
 
-// Micro-indicador semântico de status em conformidade com o AGENTS.md e craft editorial de luxo
-// Zero badges berrantes: apenas "Em Atendimento", "A Seguir" e "Em Finalização" quando relevante.
-function StatusBadge({ status }: { status: TVAppointmentStatus }) {
-  switch (status) {
-    case "in_progress":
-      return (
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[12.5px] font-medium bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 ring-2 ring-emerald-500/20" />
-          </span>
-          Em Atendimento
-        </span>
-      );
-    case "next":
-    case "waiting":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-white/[0.06] border border-white/[0.1] text-zinc-300">
-          A Seguir
-        </span>
-      );
-    case "delayed":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300/90">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
-          Em Finalização
-        </span>
-      );
-    // "waiting", "completed" e agendamentos futuros não usam badges poluídos
-    case "waiting":
-    case "completed":
-    default:
-      return null;
-  }
-}
-
-// Card de agendamento individual otimizado para leitura nítida a 3-6 metros
-const AppointmentCard = React.memo(function AppointmentCard({
-  appointment,
+// Coluna Cockpit em Tempo Real de cada Profissional (conforme referência editorial de luxo)
+const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn({
+  column,
+  currentServerMs,
   isHighlighted,
 }: {
-  appointment: TVAppointmentDTO;
+  column: TVProfessionalColumn;
+  currentServerMs: number;
   isHighlighted: boolean;
 }) {
-  const isCompleted = appointment.status === "completed";
-  const isInProgress = appointment.status === "in_progress";
+  // Ordena por horário de início
+  const sorted = useMemo(() => {
+    return [...column.appointments].sort((a, b) => {
+      const aTime = a.startsAt ? new Date(a.startsAt).getTime() : 0;
+      const bTime = b.startsAt ? new Date(b.startsAt).getTime() : 0;
+      return aTime - bTime;
+    });
+  }, [column.appointments]);
+
+  // Identifica agendamento em andamento e próximos
+  const { inProgressApt, nextApt, freeTimeText, isInService } = useMemo<{
+    inProgressApt: TVAppointmentDTO | null;
+    nextApt: TVAppointmentDTO | null;
+    freeTimeText: string;
+    isInService: boolean;
+  }>(() => {
+    let inProgress: TVAppointmentDTO | null = null;
+    const upcoming: TVAppointmentDTO[] = [];
+
+    for (const apt of sorted) {
+      if (apt.status === "completed") continue;
+
+      const startsMs = apt.startsAt ? new Date(apt.startsAt).getTime() : 0;
+      const endsMs = apt.endsAt ? new Date(apt.endsAt).getTime() : startsMs + 45 * 60000;
+
+      // Atendimento em andamento: marcado explicitamente como in_progress OU horário atual dentro da janela
+      if (
+        apt.status === "in_progress" ||
+        (currentServerMs >= startsMs && currentServerMs < endsMs)
+      ) {
+        if (!inProgress) {
+          inProgress = apt;
+          continue;
+        }
+      }
+
+      // Se já terminou antes do horário atual, não é próximo
+      if (endsMs <= currentServerMs) {
+        continue;
+      }
+
+      upcoming.push(apt);
+    }
+
+    const next = upcoming[0] || null;
+
+    let freeText = "";
+    if (!inProgress && next && next.startsAt) {
+      const nextStartMs = new Date(next.startsAt).getTime();
+      const diffMinutes = Math.max(0, Math.round((nextStartMs - currentServerMs) / 60000));
+      if (diffMinutes < 60) {
+        freeText = `${diffMinutes} min`;
+      } else {
+        const h = Math.floor(diffMinutes / 60);
+        const m = diffMinutes % 60;
+        freeText = m > 0 ? `${h}h ${m} min` : `${h}h`;
+      }
+    }
+
+    return {
+      inProgressApt: inProgress,
+      nextApt: next,
+      freeTimeText: freeText,
+      isInService: !!inProgress,
+    };
+  }, [sorted, currentServerMs]);
+
+  const initial = column.name.charAt(0).toUpperCase() || "P";
 
   return (
-    <div
-      className={`relative w-full rounded-2xl p-5 md:p-6 transition-all duration-700 flex flex-col justify-between gap-3.5 ${
-        isInProgress
-          ? "bg-gradient-to-br from-zinc-900/95 via-zinc-900/70 to-emerald-950/25 border-emerald-500/35 shadow-[0_12px_36px_-8px_rgba(16,185,129,0.18)] ring-1 ring-emerald-500/20"
-          : isCompleted
-          ? "bg-[#0C0C0E]/50 border-white/[0.03] opacity-35"
-          : "bg-zinc-900/50 hover:bg-zinc-900/70 border-white/[0.07] shadow-sm"
+    <section
+      className={`relative flex flex-col justify-between h-full rounded-2xl md:rounded-3xl p-6 md:p-7 transition-all duration-700 overflow-hidden ${
+        isInService
+          ? "bg-[#0b0f11]/95 border border-emerald-500/40 ring-1 ring-emerald-500/25 shadow-[0_0_36px_rgba(16,185,129,0.12)]"
+          : "bg-[#0d0d10]/95 border border-white/[0.08] shadow-[0_16px_40px_-12px_rgba(0,0,0,0.6)]"
       } ${
         isHighlighted
-          ? "ring-2 ring-emerald-400/60 shadow-[0_0_24px_rgba(52,211,153,0.3)]"
+          ? "ring-2 ring-emerald-400/60 shadow-[0_0_28px_rgba(52,211,153,0.35)]"
           : ""
       }`}
     >
-      {/* Linha 1: Horário Formatado Editorial (Sem setas unicode ou fontes mono cruas) */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[23px] md:text-[27px] font-semibold tabular-nums text-white tracking-tight">
-            {appointment.startTime}
-          </span>
-          <span className="text-zinc-600 font-light text-base">–</span>
-          <span className="text-[17px] md:text-[20px] font-normal tabular-nums text-zinc-400 tracking-tight">
-            {appointment.endTime}
+      {/* 1. TOPO: Avatar com Inicial + Nome + Status */}
+      <div className="flex items-center gap-3.5 pb-5 border-b border-white/[0.06] shrink-0">
+        <div className="w-11 h-11 rounded-full bg-white/[0.06] border border-white/[0.12] flex items-center justify-center text-[18px] font-semibold text-zinc-100 shrink-0 select-none">
+          {initial}
+        </div>
+        <div className="flex flex-col truncate">
+          <h3 className="text-[21px] md:text-[23px] font-semibold text-white tracking-tight truncate leading-tight">
+            {column.name}
+          </h3>
+          <span
+            className={`text-[11px] font-bold tracking-[0.14em] uppercase mt-1 ${
+              isInService ? "text-emerald-400" : "text-zinc-400 font-medium"
+            }`}
+          >
+            {isInService ? "Em Atendimento" : "Disponível"}
           </span>
         </div>
-        <StatusBadge status={appointment.status} />
       </div>
 
-      {/* Linha 2: Nome do Cliente (LGPD-safe) e Serviço */}
-      <div className="pt-0.5 space-y-1">
-        <h4 className="text-[21px] md:text-[25px] font-medium text-zinc-100 tracking-tight leading-snug truncate">
-          {appointment.clientName}
-        </h4>
-        <p className="text-[14.5px] md:text-[16.5px] text-zinc-400 font-normal truncate">
-          {appointment.serviceName}
-        </p>
+      {/* 2. CORPO CENTRAL E INFORMAÇÕES DO ATENDIMENTO */}
+      <div className="flex-1 flex flex-col justify-center py-4">
+        {inProgressApt ? (
+          /* CASO 1: EM ATENDIMENTO */
+          <div className="flex flex-col justify-between h-full">
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-zinc-400">
+                Cliente Atual
+              </span>
+              <h4 className="text-[22px] md:text-[25px] font-bold text-white tracking-tight leading-snug truncate">
+                {inProgressApt.clientName}
+              </h4>
+              <p className="text-[14.5px] text-zinc-400 font-normal truncate">
+                {inProgressApt.serviceName}
+              </p>
+            </div>
+
+            {/* Caixa de Horário */}
+            <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 my-4">
+              <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-zinc-400 block mb-1">
+                Horário
+              </span>
+              <div className="text-[20px] md:text-[22px] font-bold text-white tracking-tight tabular-nums">
+                {inProgressApt.startTime} – {inProgressApt.endTime}
+              </div>
+            </div>
+
+            {/* Bloco Próximo Atendimento */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between text-[11px] font-semibold tracking-[0.16em] uppercase text-zinc-400">
+                <span>Próximo</span>
+                {nextApt && (
+                  <span className="text-[13px] font-bold text-zinc-300 tabular-nums">
+                    {nextApt.startTime}
+                  </span>
+                )}
+              </div>
+              {nextApt ? (
+                <div className="mt-1.5 space-y-0.5">
+                  <h5 className="text-[15.5px] font-semibold text-zinc-100 tracking-tight truncate">
+                    {nextApt.clientName}
+                  </h5>
+                  <p className="text-[13px] text-zinc-400 font-normal truncate">
+                    {nextApt.serviceName}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-1.5">
+                  <h5 className="text-[15px] font-medium text-zinc-500 tracking-tight">
+                    Nenhum cliente agendado
+                  </h5>
+                  <p className="text-[12.5px] text-zinc-600 font-normal">
+                    Último atendimento do dia
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : nextApt ? (
+          /* CASO 2: DISPONÍVEL COM PRÓXIMO AGENDAMENTO */
+          <div className="flex flex-col justify-between h-full">
+            <div className="flex flex-col items-center justify-center text-center py-4 my-auto">
+              <CheckCircle2 className="w-8 h-8 text-zinc-400 stroke-[1.5]" />
+              <h4 className="text-[20px] md:text-[22px] font-semibold text-white tracking-tight mt-2.5">
+                Livre agora
+              </h4>
+              <p className="text-[13.5px] text-zinc-400 font-normal mt-0.5">
+                Disponível para atendimento
+              </p>
+            </div>
+
+            {/* Bloco Próximo Horário */}
+            <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 my-3">
+              <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-zinc-400 block mb-1">
+                Próximo Horário
+              </span>
+              <div className="text-[24px] md:text-[26px] font-bold text-white tracking-tight tabular-nums">
+                {nextApt.startTime}
+              </div>
+              <p className="text-[13.5px] text-zinc-300 font-medium mt-1 truncate">
+                {nextApt.clientName} · {nextApt.serviceName}
+              </p>
+            </div>
+
+            {/* Bloco Tempo Livre */}
+            <div className="pt-2">
+              <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-zinc-400 block">
+                Tempo Livre
+              </span>
+              <div className="text-[19px] md:text-[21px] font-bold text-white tracking-tight mt-0.5 tabular-nums">
+                {freeTimeText}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* CASO 3: DISPONÍVEL SEM MAIS AGENDAMENTOS (AGENDA LIVRE) */
+          <div className="flex flex-col justify-between h-full">
+            <div className="flex flex-col items-center justify-center text-center py-4 my-auto">
+              <Calendar className="w-8 h-8 text-zinc-400 stroke-[1.5]" />
+              <h4 className="text-[20px] md:text-[22px] font-semibold text-white tracking-tight mt-2.5">
+                Livre agora
+              </h4>
+              <p className="text-[13.5px] text-zinc-400 font-normal mt-0.5">
+                Disponível para atendimento
+              </p>
+            </div>
+
+            {/* Bloco Sem Agenda */}
+            <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 my-3">
+              <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-zinc-400 block mb-1">
+                Próximo Horário
+              </span>
+              <div className="text-[20px] md:text-[22px] font-bold text-white tracking-tight">
+                Sem agenda
+              </div>
+              <p className="text-[13.5px] text-zinc-400 font-normal mt-1">
+                Nenhum agendamento previsto
+              </p>
+            </div>
+
+            {/* Bloco Situação */}
+            <div className="pt-2">
+              <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-zinc-400 block">
+                Situação
+              </span>
+              <div className="text-[19px] md:text-[21px] font-semibold text-white tracking-tight mt-0.5">
+                Agenda livre
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </section>
   );
 });
 
@@ -109,6 +266,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
   const [reconnectingSeconds, setReconnectingSeconds] = useState<number | null>(null);
   const [clockTime, setClockTime] = useState("");
   const [clockDate, setClockDate] = useState("");
+  const [currentServerMs, setCurrentServerMs] = useState<number>(Date.now());
   const [pageIndex, setPageIndex] = useState(0);
   const [burnInOffset, setBurnInOffset] = useState({ x: 0, y: 0 });
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
@@ -226,36 +384,50 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
     return () => clearInterval(pollInterval);
   }, [syncAppointments]);
 
-  // 4. Relógio digital sincronizado (atualização a cada 1 segundo)
+  // 4. Relógio digital sincronizado e data localizada
   useEffect(() => {
     const tz = boardData?.timezone || "America/Sao_Paulo";
 
     const updateClock = () => {
       const current = new Date(Date.now() + serverTimeOffsetRef.current);
+      setCurrentServerMs(current.getTime());
 
       try {
         const timeStr = new Intl.DateTimeFormat("pt-BR", {
           timeZone: tz,
           hour: "2-digit",
           minute: "2-digit",
-          second: "2-digit",
           hour12: false,
         }).format(current);
         setClockTime(timeStr);
 
-        const dateStr = new Intl.DateTimeFormat("pt-BR", {
+        const dayOfWeek = new Intl.DateTimeFormat("pt-BR", {
           timeZone: tz,
-          weekday: "long",
+          weekday: "short",
+        })
+          .format(current)
+          .replace(".", "")
+          .toUpperCase();
+        const day = new Intl.DateTimeFormat("pt-BR", {
+          timeZone: tz,
           day: "numeric",
-          month: "long",
+        }).format(current);
+        const month = new Intl.DateTimeFormat("pt-BR", {
+          timeZone: tz,
+          month: "short",
+        })
+          .format(current)
+          .replace(".", "")
+          .toUpperCase();
+        const year = new Intl.DateTimeFormat("pt-BR", {
+          timeZone: tz,
           year: "numeric",
         }).format(current);
 
-        // Capitaliza a primeira letra do dia da semana (ex: Quinta-feira, 22 de Outubro)
-        const formattedDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-        setClockDate(formattedDate);
+        setClockDate(`${dayOfWeek} · ${day} ${month} ${year}`);
       } catch {
-        setClockTime(current.toLocaleTimeString("pt-BR"));
+        setClockTime(current.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+        setClockDate("");
       }
     };
 
@@ -286,48 +458,12 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
   const currentColumns: TVProfessionalColumn[] =
     professionalPages[pageIndex] || [];
 
-  // 6. Filtra estritamente agendamentos ativos em tempo real (em andamento e próximos; nunca anteriores)
-  const activeColumns: TVProfessionalColumn[] = useMemo(() => {
-    const currentServerMs = Date.now() + serverTimeOffsetRef.current;
-
-    return currentColumns.map((col) => {
-      const activeApts = col.appointments.filter((apt) => {
-        // Nunca exibir concluídos
-        if (apt.status === "completed") return false;
-
-        // Se endsAt estiver presente, verifica se já expirou (fim <= agora)
-        if (apt.endsAt) {
-          const endsMs = new Date(apt.endsAt).getTime();
-          if (!isNaN(endsMs) && endsMs <= currentServerMs) {
-            return false;
-          }
-        }
-
-        return true;
-      });
-
-      return {
-        ...col,
-        appointments: activeApts,
-      };
-    });
-  }, [currentColumns, clockTime]);
-
-  const totalAppointmentsCount = useMemo(() => {
-    return activeColumns.reduce(
-      (sum, p) => sum + p.appointments.length,
-      0
-    );
-  }, [activeColumns]);
-
-  const activeAppointmentsCount = totalAppointmentsCount;
-
   return (
     <div
       style={{
         transform: `translate(${burnInOffset.x}px, ${burnInOffset.y}px)`,
       }}
-      className="relative flex flex-col justify-between h-screen w-screen p-6 md:p-10 bg-[#09090B] text-white overflow-hidden transition-transform duration-1000"
+      className="relative flex flex-col justify-between h-screen w-screen p-6 md:p-10 bg-[#070709] text-white overflow-hidden transition-transform duration-1000 select-none"
     >
       {/* Vídeo invisível de 1x1 pixel em loop como fallback de Wake Lock */}
       <video
@@ -344,7 +480,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
         />
       </video>
 
-      {/* Faixa de Aviso de Queda de Conexão (Resiliência) */}
+      {/* Faixa de Aviso de Queda de Conexão */}
       {!isOnline && (
         <div className="absolute top-0 left-0 w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2 text-xs font-mono text-amber-300 z-50">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
@@ -353,140 +489,104 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
         </div>
       )}
 
-      {/* Header Fixo */}
-      <header className="w-full flex items-center justify-between pb-6 border-b border-white/[0.08] shrink-0">
-        {/* Esquerda: Identidade do Estúdio */}
-        <div className="flex items-center gap-4">
-          <LuveaWordmark dark className="text-2xl tracking-[0.24em]" />
-          <div className="h-6 w-px bg-white/[0.1]" />
-          <span className="text-xl md:text-2xl font-semibold tracking-tight text-zinc-100 truncate max-w-md">
-            {boardData?.organizationName || "Carregando estúdio..."}
+      {/* 1. Header Superior Fixo: LUVEA | Meu Estúdio & 18:02 SÁB · 24 OUT 2026 */}
+      <header className="w-full flex items-center justify-between pb-5 border-b border-white/[0.08] shrink-0">
+        {/* Esquerda: Identidade do Estúdio + Subtítulo PAINEL DE ATENDIMENTOS */}
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl md:text-[26px] font-bold tracking-tight text-white font-mono">
+              LUVEA
+            </span>
+            <span className="text-zinc-600 font-light text-xl">|</span>
+            <span className="text-lg md:text-xl font-semibold tracking-tight text-zinc-100 truncate max-w-md">
+              {boardData?.organizationName || "Meu Estúdio"}
+            </span>
+          </div>
+          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-zinc-500 mt-1">
+            Painel de Atendimentos
           </span>
         </div>
 
-        {/* Centro: Relógio em Tempo Real e Data por Extenso (Editorial Elegante) */}
-        <div className="flex flex-col items-center justify-center text-center">
-          <span className="text-4xl md:text-5xl font-light tabular-nums tracking-tight text-white">
-            {clockTime || "--:--:--"}
+        {/* Direita: Relógio Digital Limpo e Data Localizada */}
+        <div className="flex flex-col items-end text-right">
+          <span className="text-4xl md:text-5xl font-bold tabular-nums tracking-tight text-white leading-none">
+            {clockTime || "--:--"}
           </span>
-          <span className="text-xs md:text-sm text-zinc-400 font-normal tracking-wider uppercase mt-1">
+          <span className="text-xs md:text-[13px] font-semibold tracking-wider uppercase text-zinc-400 mt-1.5">
             {clockDate}
           </span>
         </div>
-
-        {/* Direita: Status de Transmissão */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs text-zinc-300">
-            {isOnline ? (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 ring-2 ring-emerald-500/20" />
-                </span>
-                <span className="font-medium tracking-wide">Painel da Recepção</span>
-              </>
-            ) : (
-              <>
-                <span className="w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-500/20 animate-pulse" />
-                <span className="font-medium tracking-wide text-amber-300">Reconectando</span>
-              </>
-            )}
-          </div>
-        </div>
       </header>
 
-      {/* Corpo Principal: Grid de Profissionais em Colunas */}
-      <main className="flex-1 w-full my-6 overflow-hidden flex flex-col justify-start">
+      {/* 2. Barra de Seção: Equipe em tempo real + SINCRONIZADO */}
+      <div className="w-full flex items-center justify-between py-4 shrink-0">
+        <h2 className="text-[18px] md:text-[20px] font-semibold text-zinc-100 tracking-tight">
+          Equipe em tempo real
+        </h2>
+
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 ring-2 ring-emerald-500/20" />
+              </span>
+              <span className="text-emerald-400 uppercase text-[11.5px] font-bold tracking-wider">
+                Sincronizado
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-500/20 animate-pulse" />
+              <span className="text-amber-300 uppercase text-[11.5px] font-bold tracking-wider">
+                Reconectando
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Corpo Principal: Grid Cockpit de Profissionais */}
+      <main className="flex-1 w-full pb-4 overflow-hidden flex flex-col justify-start">
         {!boardData ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-zinc-500 text-sm">
             <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-white animate-spin" />
             <span className="font-light tracking-wide text-zinc-400">Sincronizando agenda do dia...</span>
           </div>
-        ) : totalAppointmentsCount === 0 ? (
-          /* Estado Vazio: Nenhum agendamento no dia */
+        ) : currentColumns.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none">
-            <div className="p-4 rounded-3xl bg-[#141417] border border-white/[0.08] mb-4">
-              <LuveaIcon size={44} dark />
-            </div>
             <h3 className="text-2xl md:text-3xl font-medium tracking-tight text-zinc-300">
-              Sem agendamentos hoje
+              Nenhum profissional cadastrado
             </h3>
             <p className="text-sm text-zinc-500 mt-2 max-w-sm">
-              Os novos agendamentos confirmados aparecerão automaticamente nesta tela.
-            </p>
-          </div>
-        ) : activeAppointmentsCount === 0 ? (
-          /* Estado Vazio: Todos os agendamentos concluídos */
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none">
-            <div className="p-4 rounded-3xl bg-[#141417] border border-white/[0.08] mb-4">
-              <LuveaIcon size={44} dark />
-            </div>
-            <h3 className="text-2xl md:text-3xl font-medium tracking-tight text-zinc-300">
-              Agenda do dia concluída
-            </h3>
-            <p className="text-sm text-zinc-500 mt-2 max-w-sm">
-              Todos os atendimentos programados para hoje foram finalizados.
+              Cadastre os profissionais na equipe para acompanhar a escala em tempo real na TV.
             </p>
           </div>
         ) : (
-          /* Grid de Colunas de Profissionais */
           <div
-            className="grid h-full gap-5 transition-opacity duration-500"
+            className="grid h-full gap-5 md:gap-6 transition-opacity duration-500"
             style={{
-              gridTemplateColumns: `repeat(${Math.max(1, activeColumns.length)}, minmax(0, 1fr))`,
+              gridTemplateColumns: `repeat(${Math.max(1, currentColumns.length)}, minmax(0, 1fr))`,
             }}
           >
-            {activeColumns.map((column) => (
-              <section
+            {currentColumns.map((column) => (
+              <ProfessionalCockpitColumn
                 key={column.id}
-                className="flex flex-col h-full bg-[#101013]/90 backdrop-blur-2xl border border-white/[0.07] rounded-3xl p-5 md:p-6 overflow-hidden shadow-[0_16px_40px_-12px_rgba(0,0,0,0.8)]"
-              >
-                {/* Nome do Profissional no Topo da Coluna com Avatar Elegante */}
-                <div className="pb-4 mb-4 border-b border-white/[0.06] flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3 truncate">
-                    <div className="w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center text-sm font-medium text-zinc-200 shrink-0">
-                      {column.name.charAt(0)}
-                    </div>
-                    <h3 className="text-[22px] md:text-[26px] font-semibold text-white tracking-tight truncate">
-                      {column.name}
-                    </h3>
-                  </div>
-                  <span className="text-[12px] font-mono font-medium px-2.5 py-1 rounded-full bg-white/[0.04] text-zinc-400 border border-white/[0.06] shrink-0">
-                    {column.appointments.length} {column.appointments.length === 1 ? "ativo" : "ativos"}
-                  </span>
-                </div>
-
-                {/* Lista de Cards de Agendamento da Coluna */}
-                <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-none">
-                  {column.appointments.length === 0 ? (
-                    <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed border-white/[0.06] bg-white/[0.01]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 mb-2" />
-                      <p className="text-sm font-normal text-zinc-500">
-                        Disponível para atendimento
-                      </p>
-                    </div>
-                  ) : (
-                    column.appointments.map((apt) => (
-                      <AppointmentCard
-                        key={apt.id}
-                        appointment={apt}
-                        isHighlighted={highlightedIds.has(apt.id)}
-                      />
-                    ))
-                  )}
-                </div>
-              </section>
+                column={column}
+                currentServerMs={currentServerMs}
+                isHighlighted={column.appointments.some((a) => highlightedIds.has(a.id))}
+              />
             ))}
           </div>
         )}
       </main>
 
-      {/* Rodapé Fixo (Zero Jargão de Desenvolvedor ou AI Slop) */}
+      {/* 4. Rodapé Fixo */}
       <footer className="w-full flex items-center justify-between pt-4 border-t border-white/[0.06] text-xs text-zinc-500 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="tracking-widest uppercase text-[11px] font-medium text-zinc-400">LUVEA</span>
-          <span className="text-zinc-700">·</span>
-          <span className="text-zinc-500 text-[12px]">Salon OS</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] md:text-[12px] font-medium tracking-widest text-zinc-500 uppercase">
+            LUVEA - {boardData?.organizationName?.toUpperCase() || "MEU ESTÚDIO"}
+          </span>
         </div>
 
         {professionalPages.length > 1 && (
@@ -499,8 +599,8 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
           </div>
         )}
 
-        <div className="text-[12px] text-zinc-500 font-normal">
-          Atendimentos com horário agendado
+        <div className="text-[11px] md:text-[12px] font-medium tracking-widest text-zinc-500 uppercase">
+          AGENDA ATUALIZADA AUTOMATICAMENTE
         </div>
       </footer>
     </div>
