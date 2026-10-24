@@ -60,6 +60,17 @@ export function generateUuid(): string {
   });
 }
 
+/**
+ * Calcula os dias restantes de teste gratuito com base na data de expiração ISO.
+ */
+export function calculateRemainingTrialDays(trialEndsAtISO?: string | null): number {
+  if (!trialEndsAtISO) return 14;
+  const target = new Date(trialEndsAtISO).getTime();
+  if (isNaN(target)) return 14;
+  const diffMs = target - Date.now();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
 export interface PhysicalResource {
   id: string;
   name: string;
@@ -303,6 +314,9 @@ export interface StaffMember {
   bookedThisWeekCents: number;
   clockInNotificationsEnabled: boolean;
   assignedServiceIds: string[];
+  availableOnline?: boolean;
+  matchBusinessHours?: boolean;
+  customSchedule?: DayBusinessHours[];
 }
 
 export interface TimesheetLog {
@@ -413,6 +427,16 @@ export interface DayBusinessHours {
   startTime: string; // "08:00"
   endTime: string;   // "17:00"
 }
+
+export const DEFAULT_STAFF_SCHEDULE: DayBusinessHours[] = [
+  { dayOfWeek: 0, label: "Domingo", isOpen: false, startTime: "08:00", endTime: "17:00" },
+  { dayOfWeek: 1, label: "Segunda-feira", isOpen: true, startTime: "08:00", endTime: "17:00" },
+  { dayOfWeek: 2, label: "Terça-feira", isOpen: true, startTime: "08:00", endTime: "17:00" },
+  { dayOfWeek: 3, label: "Quarta-feira", isOpen: true, startTime: "08:00", endTime: "17:00" },
+  { dayOfWeek: 4, label: "Quinta-feira", isOpen: true, startTime: "08:00", endTime: "17:00" },
+  { dayOfWeek: 5, label: "Sexta-feira", isOpen: true, startTime: "08:00", endTime: "17:00" },
+  { dayOfWeek: 6, label: "Sábado", isOpen: true, startTime: "08:00", endTime: "17:00" },
+];
 
 export interface WebsiteTrackingConfig {
   googleAnalyticsId: string;
@@ -580,10 +604,14 @@ export interface StudioState {
       title: string;
       description: string;
       completed: boolean;
+      actionLabel?: string;
     }>;
     importedData: boolean;
     trialDaysLeft: number;
-    planTier: "Gold" | "Platinum" | "Standard";
+    planTier: "Gold" | "Platinum" | "Standard" | "Essencial";
+    subscriptionStatus?: "trialing" | "active" | "past_due" | "canceled";
+    trialEndsAtISO?: string;
+    billingCycle?: "monthly" | "yearly";
   };
   reception: {
     activeStep: "meet" | "setup" | "ready";
@@ -779,6 +807,9 @@ export function createInitialStudioState(): StudioState {
       importedData: false,
       trialDaysLeft: 14,
       planTier: "Gold",
+      subscriptionStatus: "trialing",
+      trialEndsAtISO: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      billingCycle: "monthly",
     },
     reception: {
       activeStep: "meet",
@@ -1980,6 +2011,7 @@ export function checkCalendarSlotConflict(
     providerId: string;
     providerFullName: string;
     requiredResourceIds: string[];
+    excludeEventId?: string;
   }
 ):
   | { ok: true }
@@ -1988,7 +2020,8 @@ export function checkCalendarSlotConflict(
     (ev) =>
       ev.dateISO === params.dateISO &&
       ev.status !== "canceled" &&
-      ev.eventType === "appointment"
+      ev.eventType === "appointment" &&
+      (!params.excludeEventId || ev.id !== params.excludeEventId)
   );
 
   for (const ev of sameDayEvents) {
@@ -2452,7 +2485,6 @@ export function skipCalendarByWeeks(
       ...state.calendarView,
       selectedDateISO: nextDateISO,
     },
-    lastToastMessage: `Agenda avançada em +${weeksToAdd} semanas (${nextDateISO}).`,
   };
 }
 
@@ -2475,7 +2507,17 @@ export function validateAndCreateCalendarEvent(
   | { ok: true; state: StudioState; createdEvent: CalendarEventItem }
   | { ok: false; conflictType: "resource" | "provider"; message: string } {
   const provider =
-    state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
+    (state.staff.find((s) => s.id === input.providerId) ||
+      state.staff.find(
+        (s) =>
+          s.fullName.trim().toLowerCase() ===
+          (input.providerId || "").trim().toLowerCase()
+      ) ||
+      state.staff.find(
+        (s) =>
+          s.id.toLowerCase() === (input.providerId || "").toLowerCase()
+      )) ??
+    state.staff[0];
 
   // Resolve ou cria cliente inline
   let updatedClients = state.clients;
@@ -2579,7 +2621,7 @@ export function validateAndCreateCalendarEvent(
     dateISO: input.dateISO,
     startTime: input.startTime,
     endTime: computedEndTime,
-    activeDurationMinutes: activeDuration,
+    activeDurationMinutes: Math.max(15, endMin - startMin),
     processingStartOffsetMinutes: processingOffset,
     processingDurationMinutes: processingDuration,
     blockAfterMinutes: blockAfter,
@@ -2749,6 +2791,141 @@ export function rebookAppointmentOneTap(
     ...state,
     calendarEvents: [rebookedEvent, ...state.calendarEvents],
     lastToastMessage: `Retorno de ${source.clientName} agendado para ${nextDateISO} (+${daysForward} dias)!`,
+  };
+}
+
+export function rescheduleCalendarEvent(
+  state: StudioState,
+  input: {
+    eventId: string;
+    newDateISO: string;
+    newStartTime: string;
+    newEndTime?: string;
+    newProviderId?: string;
+    allowConflict?: boolean;
+    notifyNote?: string;
+    status?: "confirmed" | "pending";
+  }
+): {
+  ok: boolean;
+  message?: string;
+  state: StudioState;
+  updatedEvent?: CalendarEventItem;
+} {
+  const target = state.calendarEvents.find((e) => e.id === input.eventId);
+  if (!target) {
+    return {
+      ok: false,
+      message: "Agendamento não encontrado na agenda.",
+      state,
+    };
+  }
+
+  // Resolver duração e novo horário final
+  const startMin = parseTimeMinutes(input.newStartTime);
+  let endMin: number;
+  if (input.newEndTime) {
+    endMin = parseTimeMinutes(input.newEndTime);
+  } else {
+    const duration = target.activeDurationMinutes || 60;
+    const block = target.blockAfterMinutes || 0;
+    endMin = startMin + duration + block;
+  }
+  const computedEndTime = formatMinutesToHHMM(endMin);
+
+  // Resolver profissional
+  let provider = state.staff.find(
+    (s) => s.id === (input.newProviderId || target.providerId)
+  );
+  if (!provider && input.newProviderId) {
+    provider =
+      state.staff.find(
+        (s) =>
+          s.fullName.trim().toLowerCase() ===
+          input.newProviderId!.trim().toLowerCase()
+      ) ||
+      state.staff.find(
+        (s) =>
+          s.firstName.trim().toLowerCase() ===
+          input.newProviderId!.trim().toLowerCase()
+      );
+  }
+  if (!provider) {
+    provider =
+      state.staff.find((s) => s.id === target.providerId) || state.staff[0];
+  }
+
+  // Checagem de conflito se allowConflict não for true
+  if (!input.allowConflict && target.eventType === "appointment") {
+    const conflict = checkCalendarSlotConflict(state, {
+      dateISO: input.newDateISO,
+      startMin,
+      endMin,
+      providerId: provider.id,
+      providerFullName: provider.fullName,
+      requiredResourceIds: target.resourceIds || [],
+      excludeEventId: target.id,
+    });
+    if (!conflict.ok) {
+      return {
+        ok: false,
+        message: conflict.message,
+        state,
+      };
+    }
+  }
+
+  const updatedEvent: CalendarEventItem = {
+    ...target,
+    dateISO: input.newDateISO,
+    startTime: input.newStartTime,
+    endTime: computedEndTime,
+    activeDurationMinutes: Math.max(15, endMin - startMin),
+    providerId: provider.id,
+    providerName: provider.fullName,
+    status: input.status ?? "confirmed",
+    whatsappReminderSent: false,
+    whatsappClientReply: "none",
+    addressOrNotes: input.notifyNote
+      ? `${target.addressOrNotes ? target.addressOrNotes + "\n" : ""}${input.notifyNote}`
+      : target.addressOrNotes,
+  };
+
+  const updatedEvents = state.calendarEvents.map((e) =>
+    e.id === target.id ? updatedEvent : e
+  );
+
+  const client = state.clients.find((c) => c.id === target.clientId);
+
+  const newLog: ReceptionAiLog = {
+    id: `rec-log-${Date.now()}`,
+    timestampLabel: "Agora mesmo",
+    clientName: target.clientName,
+    clientPhone: client?.phone || "(11) 99888-7766",
+    direction: "outbound",
+    channel: "WhatsApp 2-Way",
+    messageText: `Reagendamento confirmado: ${target.serviceNames.join(" + ")} movido de ${formatDateBR(target.dateISO)} ${target.startTime} para ${formatDateBR(input.newDateISO)} ${input.newStartTime} com ${provider.fullName}.`,
+    outcomeBadge: "Reagendado na Agenda",
+  };
+
+  const nextState: StudioState = {
+    ...state,
+    calendarEvents: updatedEvents,
+    calendarView: {
+      ...state.calendarView,
+      selectedDateISO: input.newDateISO,
+    },
+    reception: {
+      ...state.reception,
+      logs: [newLog, ...state.reception.logs],
+    },
+    lastToastMessage: `Agendamento de ${target.clientName} reagendado para ${formatDateBR(input.newDateISO)} às ${input.newStartTime} (${provider.fullName})!`,
+  };
+
+  return {
+    ok: true,
+    state: nextState,
+    updatedEvent,
   };
 }
 
@@ -2961,7 +3138,17 @@ export function createAndSendInvoice(
   }
 ): StudioState {
   const provider =
-    state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
+    (state.staff.find((s) => s.id === input.providerId) ||
+      state.staff.find(
+        (s) =>
+          s.fullName.trim().toLowerCase() ===
+          (input.providerId || "").trim().toLowerCase()
+      ) ||
+      state.staff.find(
+        (s) =>
+          s.id.toLowerCase() === (input.providerId || "").toLowerCase()
+      )) ??
+    state.staff[0];
   const client =
     state.clients.find((c) => c.id === input.clientId) ?? state.clients[0];
 
@@ -3030,7 +3217,17 @@ export function executeQuickSaleCheckout(
   const client =
     state.clients.find((c) => c.id === input.clientId) ?? state.clients[0];
   const provider =
-    state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
+    (state.staff.find((s) => s.id === input.providerId) ||
+      state.staff.find(
+        (s) =>
+          s.fullName.trim().toLowerCase() ===
+          (input.providerId || "").trim().toLowerCase()
+      ) ||
+      state.staff.find(
+        (s) =>
+          s.id.toLowerCase() === (input.providerId || "").toLowerCase()
+      )) ??
+    state.staff[0];
 
   const saleDateISO = input.dateISO || getTodayDateISO();
   const timeLabel =
@@ -3380,12 +3577,30 @@ export function calculatePayrollSummary(
   state: StudioState
 ): PayrollStaffSummary[] {
   return state.staff.map((member) => {
+    // 1. Vendas diretas registradas no histórico
     const memberSales = state.salesHistory.filter(
       (s) => s.providerId === member.id && s.status !== "Reembolsado"
     );
+    const salesSumCents = memberSales.reduce((acc, s) => acc + s.amountCents, 0);
+
+    // 2. Agendamentos na agenda atribuídos a este profissional (cálculo dinâmico real)
+    const memberEvents = state.calendarEvents.filter(
+      (e) =>
+        (e.providerId === member.id ||
+          e.providerName?.toLowerCase() === member.fullName?.toLowerCase()) &&
+        e.status !== "canceled"
+    );
+    const eventsSumCents = memberEvents.reduce(
+      (acc, e) => acc + (e.totalCents || 0),
+      0
+    );
+
     const salesTotalCents =
-      memberSales.reduce((acc, s) => acc + s.amountCents, 0) ||
-      member.bookedThisWeekCents;
+      eventsSumCents + salesSumCents > 0
+        ? eventsSumCents + salesSumCents
+        : state.calendarEvents.length > 0
+        ? 0
+        : member.bookedThisWeekCents || 0;
     const tipsCents = memberSales.reduce((acc, s) => acc + s.tipCents, 0);
 
     const serviceCommissionCents = Math.round(
@@ -3409,7 +3624,7 @@ export function calculatePayrollSummary(
       staffId: member.id,
       staffName: member.fullName,
       role: member.role,
-      bookedCents: member.bookedThisWeekCents,
+      bookedCents: salesTotalCents,
       serviceCommissionCents,
       productCommissionCents,
       tipsCents,

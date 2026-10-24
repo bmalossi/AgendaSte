@@ -41,10 +41,26 @@ function emitChange() {
 export function applyThemeToDOM(theme: AppTheme): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  if (theme === "dark") {
+  const isDark = theme === "dark";
+
+  if (isDark) {
     root.classList.add("dark");
   } else {
     root.classList.remove("dark");
+  }
+
+  // Atualiza dinamicamente as meta tags theme-color no DOM para Android/iOS PWA
+  const targetColor = isDark ? "#141416" : "#FFFFFF";
+  const metaThemeColors = document.querySelectorAll('meta[name="theme-color"]');
+  if (metaThemeColors.length > 0) {
+    metaThemeColors.forEach((meta) => {
+      meta.setAttribute("content", targetColor);
+    });
+  } else {
+    const meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    meta.setAttribute("content", targetColor);
+    document.head.appendChild(meta);
   }
 }
 

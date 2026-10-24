@@ -310,4 +310,93 @@ describe("Módulo de Autenticação, Checkout & Multi-Tenant (Luvea.app)", () =>
       assert.equal(emptyState.staff[0].fullName, "Renata Vasconcellos");
     });
   });
+
+  describe("5. Ciclo de Vida da Assinatura & Cálculo de Dias de Teste Gratuito (Trial Countdown)", () => {
+    it("calcula corretamente os dias restantes a partir de trialEndsAtISO", async () => {
+      const { calculateRemainingTrialDays } = await import("../agendaste-store");
+
+      // Nulo ou indefinido retorna padrão seguro de 14 dias
+      assert.equal(calculateRemainingTrialDays(null), 14);
+      assert.equal(calculateRemainingTrialDays(undefined), 14);
+      assert.equal(calculateRemainingTrialDays("invalid-date-string"), 14);
+
+      // 7 dias no futuro (ex: 6 dias e 20 horas restantes no relógio) deve retornar 7 dias
+      const sevenDaysFuture = new Date(Date.now() + (6.9 * 24 * 60 * 60 * 1000)).toISOString();
+      assert.equal(calculateRemainingTrialDays(sevenDaysFuture), 7);
+
+      // Menos de 24 horas no futuro deve retornar 1 dia
+      const oneDayFuture = new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString();
+      assert.equal(calculateRemainingTrialDays(oneDayFuture), 1);
+
+      // Exatamente 14 dias no futuro (ex: 13.9 dias recém-criados) deve retornar 14 dias
+      const freshTrial = new Date(Date.now() + (13.95 * 24 * 60 * 60 * 1000)).toISOString();
+      assert.equal(calculateRemainingTrialDays(freshTrial), 14);
+
+      // Data no passado deve retornar 0 (nunca negativo)
+      const pastDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+      assert.equal(calculateRemainingTrialDays(pastDate), 0);
+    });
+
+    it("inicializa estado do estúdio com parâmetros canônicos de assinatura e contagem de teste dinâmico", async () => {
+      const { createInitialStudioState, createEmptyTenantStudioState } = await import("../agendaste-store");
+
+      const demoState = createInitialStudioState();
+      assert.equal(demoState.onboarding.planTier, "Gold");
+      assert.equal(demoState.onboarding.subscriptionStatus, "trialing");
+      assert.ok(demoState.onboarding.trialDaysLeft >= 13 && demoState.onboarding.trialDaysLeft <= 14);
+      assert.ok(typeof demoState.onboarding.trialEndsAtISO === "string");
+
+      const emptyState = createEmptyTenantStudioState({
+        fullName: "Camila Couto",
+        businessName: "Camila Beauty",
+        subdomain: "camila-beauty",
+        email: "camila@beauty.com",
+      });
+      assert.equal(emptyState.onboarding.planTier, "Gold");
+      assert.equal(emptyState.onboarding.subscriptionStatus, "trialing");
+      assert.ok(emptyState.onboarding.trialDaysLeft >= 13 && emptyState.onboarding.trialDaysLeft <= 14);
+      assert.ok(typeof emptyState.onboarding.trialEndsAtISO === "string");
+    });
+  });
+
+  describe("6. PWA Mobile App & Compliance de Instalação Multiplataforma (iOS & Android)", () => {
+    it("valida manifest.json oficial com ícones PNG, maskable e shortcuts", () => {
+      const manifestPath = path.resolve(process.cwd(), "public/manifest.json");
+      assert.ok(fs.existsSync(manifestPath), "manifest.json deve existir em public/");
+
+      const manifestContent = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+      assert.equal(manifestContent.display, "standalone");
+      assert.equal(manifestContent.start_url, "/app");
+      assert.equal(manifestContent.scope, "/");
+      assert.equal(manifestContent.id, "/app");
+
+      // Deve ter pelo menos 192x192 PNG e 512x512 PNG
+      const icons = manifestContent.icons as Array<{ src: string; sizes: string; type?: string; purpose?: string }>;
+      assert.ok(icons.some((i) => i.sizes === "192x192" && i.type === "image/png"));
+      assert.ok(icons.some((i) => i.sizes === "512x512" && i.type === "image/png"));
+      assert.ok(icons.some((i) => i.purpose?.includes("maskable")));
+
+      // Atalhos nativos de acesso rápido
+      assert.ok(Array.isArray(manifestContent.shortcuts));
+      assert.ok(manifestContent.shortcuts.length >= 2);
+    });
+
+    it("valida a existência de todos os assets de ícones PWA e Service Worker", () => {
+      const icon192 = path.resolve(process.cwd(), "public/icon-192.png");
+      const icon512 = path.resolve(process.cwd(), "public/icon-512.png");
+      const iconMaskable = path.resolve(process.cwd(), "public/icon-maskable-512.png");
+      const appleTouchIcon = path.resolve(process.cwd(), "public/apple-touch-icon.png");
+      const serviceWorker = path.resolve(process.cwd(), "public/sw.js");
+
+      assert.ok(fs.existsSync(icon192) && fs.statSync(icon192).size > 500, "icon-192.png deve existir");
+      assert.ok(fs.existsSync(icon512) && fs.statSync(icon512).size > 500, "icon-512.png deve existir");
+      assert.ok(fs.existsSync(iconMaskable) && fs.statSync(iconMaskable).size > 500, "icon-maskable-512.png deve existir");
+      assert.ok(fs.existsSync(appleTouchIcon) && fs.statSync(appleTouchIcon).size > 500, "apple-touch-icon.png deve existir");
+      assert.ok(fs.existsSync(serviceWorker), "sw.js deve existir em public/");
+
+      const swContent = fs.readFileSync(serviceWorker, "utf-8");
+      assert.ok(swContent.includes("addEventListener(\"install\"") || swContent.includes("addEventListener('install'"));
+      assert.ok(swContent.includes("addEventListener(\"fetch\"") || swContent.includes("addEventListener('fetch'"));
+    });
+  });
 });

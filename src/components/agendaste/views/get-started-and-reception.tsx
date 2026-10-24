@@ -31,11 +31,12 @@ import {
 
 import { PublicBookingWebsite } from "@/components/agendaste/public-booking-website";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
+import { usePWAInstall } from "@/hooks/use-pwa-install";
 
 interface GetStartedProps {
   state: StudioState;
   setState: React.Dispatch<React.SetStateAction<StudioState>>;
-  onNavigate: (section: NavigationSectionId) => void;
+  onNavigate: (section: NavigationSectionId, tab?: string) => void;
   onOpenBookingSite: () => void;
   onOpenWebsiteWizard?: (step?: number) => void;
 }
@@ -47,6 +48,7 @@ export function GetStartedView({
   onOpenBookingSite,
   onOpenWebsiteWizard,
 }: GetStartedProps) {
+  const pwa = usePWAInstall();
   const [showImportModal, setShowImportModal] = useState(false);
   const [importSource, setImportSource] = useState(
     "Agenda Física (Papel & Caneta) / Planilha"
@@ -317,30 +319,67 @@ export function GetStartedView({
         </div>
 
         <div className="lg:col-span-4 bg-[#F5F5F7] dark:bg-[#18181b] rounded-2xl p-6 flex flex-col justify-between space-y-4 border border-transparent dark:border-[#27272a]">
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-[#18181B] dark:text-white">
-                Seu teste gratuito
+              <span className="text-[13.5px] font-semibold text-[#18181B] dark:text-white">
+                {state.onboarding.subscriptionStatus === "active"
+                  ? "Sua assinatura"
+                  : state.onboarding.subscriptionStatus === "past_due"
+                  ? "Assinatura LUVEA"
+                  : "Seu teste gratuito"}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#C69214] text-white text-[11px] font-bold">
-                {state.onboarding.planTier}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white text-[11px] font-semibold shadow-xs">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    state.onboarding.subscriptionStatus === "active"
+                      ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                      : state.onboarding.subscriptionStatus === "past_due"
+                      ? "bg-rose-500 ring-2 ring-rose-500/20"
+                      : "bg-amber-500 ring-2 ring-amber-500/20"
+                  }`}
+                />
+                {state.onboarding.planTier || "Gold"}
               </span>
             </div>
-            <p className="text-[26px] font-bold text-[#18181B] dark:text-white tracking-tight">
-              {state.onboarding.trialDaysLeft} dias restantes
+
+            <p className="text-[24px] sm:text-[26px] font-bold text-[#18181B] dark:text-white tracking-tight leading-tight">
+              {state.onboarding.subscriptionStatus === "active"
+                ? "Assinatura Ativa"
+                : state.onboarding.subscriptionStatus === "past_due"
+                ? "Pagamento pendente"
+                : state.onboarding.trialDaysLeft === 0
+                ? "Período de teste encerrado"
+                : state.onboarding.trialDaysLeft === 1
+                ? "1 dia restante"
+                : `${state.onboarding.trialDaysLeft} dias restantes`}
             </p>
+
             <p className="text-[13px] text-zinc-600 dark:text-[#a1a1aa] leading-relaxed">
-              Selecione o plano e adicione seu cartão ou conta Pix para salvar
-              seu progresso e continuar usando a LUVEA.
+              {state.onboarding.subscriptionStatus === "active"
+                ? "Seu estúdio está com todos os recursos, automações e inteligência artificial liberados."
+                : state.onboarding.subscriptionStatus === "past_due"
+                ? "Houve uma falha na renovação da sua assinatura. Atualize seu cartão ou Pix para manter os serviços ativos."
+                : state.onboarding.trialDaysLeft === 0
+                ? "Seu período de teste de 14 dias terminou. Escolha um plano para salvar seu progresso e continuar usando a LUVEA."
+                : state.onboarding.trialDaysLeft === 1
+                ? "Último dia de teste gratuito. Adicione seu cartão ou conta Pix para não interromper seus agendamentos."
+                : "Selecione o plano e adicione seu cartão ou conta Pix para salvar seu progresso e continuar usando a LUVEA."}
             </p>
           </div>
+
           <div>
             <button
               type="button"
-              onClick={() => onNavigate("settings")}
-              className="px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors"
+              onClick={() => onNavigate("settings", "subscription")}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors shadow-xs"
             >
-              Adicionar cartão de pagamento
+              {state.onboarding.subscriptionStatus === "active"
+                ? "Gerenciar assinatura"
+                : state.onboarding.subscriptionStatus === "past_due"
+                ? "Regularizar pagamento"
+                : state.onboarding.trialDaysLeft === 0
+                ? "Escolher um plano"
+                : "Adicionar cartão de pagamento"}
             </button>
           </div>
         </div>
@@ -354,33 +393,48 @@ export function GetStartedView({
           </h2>
 
           <div className="border border-[#E5E7EB] dark:border-[#27272a] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#27272a] bg-white dark:bg-[#18181b]">
+            {/* PWA Mobile App Card (Anti-AI Slop & Multi-Platform) */}
             <div className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-9 h-9 rounded-lg bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] flex items-center justify-center font-bold text-sm shrink-0">
                   L
                 </div>
                 <div>
-                  <p className="text-[13.5px] font-semibold text-[#18181B] dark:text-white">
-                    Baixe o App LUVEA Mobile (PWA)
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[13.5px] font-semibold text-[#18181B] dark:text-white">
+                      {pwa.isInstalled
+                        ? "App LUVEA Mobile Instalado"
+                        : pwa.isIOS
+                        ? "Instale o App LUVEA no iPhone"
+                        : "Baixe o App LUVEA Mobile"}
+                    </p>
+                    {pwa.isInstalled && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                        Ativo
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[12.5px] text-zinc-500 dark:text-[#a1a1aa]">
-                    Gerencie seu estúdio de qualquer lugar usando seu celular.
+                    {pwa.isInstalled
+                      ? "Seu estúdio está operando em tela cheia na sua tela de início."
+                      : "Gerencie agendamentos, clientes e vendas com 1 toque na sua tela inicial."}
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setState((prev) => ({
-                    ...prev,
-                    lastToastMessage:
-                      "Link do Web App Mobile (PWA) copiado para instalação no celular!",
-                  }))
-                }
-                className="px-4 py-2 rounded-full border border-zinc-300 dark:border-[#27272a] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] shrink-0"
-              >
-                Baixar App
-              </button>
+              {pwa.isInstalled ? (
+                <div className="px-3.5 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] text-[12px] font-medium shrink-0">
+                  Instalado
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => pwa.install()}
+                  className="px-4 py-2 rounded-full border border-zinc-300 dark:border-[#27272a] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] shrink-0 active:scale-95 transition-all shadow-xs"
+                >
+                  {pwa.hasNativePrompt ? "Instalar App" : pwa.isIOS ? "Instalar no iPhone" : "Baixar App"}
+                </button>
+              )}
             </div>
 
             <div className="p-4 flex items-center justify-between gap-4">
@@ -537,6 +591,7 @@ export function GetStartedView({
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -7,6 +7,8 @@ import {
   CalendarEventItem,
   WaitlistEntryItem,
   calculateRemainingTrialDays,
+  StaffMember,
+  DEFAULT_STAFF_SCHEDULE,
 } from "../agendaste-store";
 
 export function isValidUuid(id?: string | null): boolean {
@@ -232,8 +234,8 @@ export async function loadStudioStateFromSupabase(
       updated.onboarding.billingCycle = orgData.billing_cycle || "monthly";
     }
 
-    // 1. Perfil do Profissional & Negócio
-    if (profs && profs[0]) {
+    // 1. Perfil do Profissional & Negócio + Sincronização da Equipe (Staff)
+    if (profs && profs.length > 0) {
       const p = profs[0];
       updated.settings = {
         ...updated.settings,
@@ -258,9 +260,46 @@ export async function loadStudioStateFromSupabase(
             updated.settings.business.defaultDepositPercent,
         },
       };
-      if (p.weekly_goal_cents && updated.staff[0]) {
-        updated.staff[0].weeklyGoalCents = p.weekly_goal_cents;
-      }
+
+      // Mapeia e sincroniza membros da equipe (staff) a partir de professionals do Supabase
+      const dbStaffMembers: StaffMember[] = profs.map((prof) => {
+        const existing = updated.staff.find(
+          (s) =>
+            s.id === prof.id ||
+            (prof.email && s.email.toLowerCase() === prof.email.toLowerCase()) ||
+            s.fullName.trim().toLowerCase() === `${prof.first_name || ""} ${prof.last_name || ""}`.trim().toLowerCase()
+        );
+        const fullName = `${prof.first_name || ""} ${prof.last_name || ""}`.trim() || prof.studio_name || "Profissional";
+        const parts = fullName.split(" ");
+        const initials = ((parts[0]?.[0] || "") + (parts[parts.length - 1]?.[0] || "")).toUpperCase() || "PR";
+        return {
+          id: prof.id,
+          firstName: prof.first_name || parts[0] || "",
+          lastName: prof.last_name || parts.slice(1).join(" ") || "",
+          fullName,
+          initials,
+          role: prof.role || existing?.role || "Especialista",
+          email: prof.email || existing?.email || "",
+          phone: prof.phone_whatsapp || existing?.phone || "",
+          avatarColor: prof.avatar_color || existing?.avatarColor || "#DDD6FE",
+          serviceCommissionPercent: prof.service_commission_percent ?? existing?.serviceCommissionPercent ?? 60,
+          productCommissionPercent: prof.product_commission_percent ?? existing?.productCommissionPercent ?? 20,
+          weeklyGoalCents: prof.weekly_goal_cents || existing?.weeklyGoalCents || 580000,
+          bookedThisWeekCents: existing?.bookedThisWeekCents || 0,
+          clockInNotificationsEnabled: existing?.clockInNotificationsEnabled ?? true,
+          assignedServiceIds: existing?.assignedServiceIds || updated.services.map((s) => s.id),
+          availableOnline: existing?.availableOnline ?? true,
+          matchBusinessHours: existing?.matchBusinessHours ?? true,
+          customSchedule: existing?.customSchedule || DEFAULT_STAFF_SCHEDULE,
+        };
+      });
+
+      const dbIds = new Set(dbStaffMembers.map((s) => s.id));
+      const dbNames = new Set(dbStaffMembers.map((s) => s.fullName.toLowerCase()));
+      const localOnlyStaff = updated.staff.filter(
+        (s) => !dbIds.has(s.id) && !dbNames.has(s.fullName.toLowerCase()) && !isDemoEntity(s.fullName)
+      );
+      updated.staff = [...dbStaffMembers, ...localOnlyStaff];
     }
 
     // 2. Recursos Físicos
@@ -417,6 +456,8 @@ export async function loadStudioStateFromSupabase(
         let metaServiceNames: string[] = [];
         let metaDateISO = "";
         let metaStartTime = "";
+        let metaProviderId = "";
+        let metaProviderName = "";
 
         if (a.notes && (a.notes.includes("__LUVEA_META__:") || a.notes.includes("__AURA_META__:"))) {
           try {
@@ -432,6 +473,8 @@ export async function loadStudioStateFromSupabase(
               metaServiceNames = meta.serviceNames || [];
               metaDateISO = meta.dateISO || "";
               metaStartTime = meta.startTime || "";
+              metaProviderId = meta.providerId || "";
+              metaProviderName = meta.providerName || "";
               displayNotes = parts
                 .filter(
                   (p: string) =>
@@ -456,6 +499,61 @@ export async function loadStudioStateFromSupabase(
               ? metaServiceNames
               : ["Atendimento"];
 
+        // Resolve profissional correto do agendamento (prioriza metadados explícitos de transferência/atribuição)
+        let matchedStaff: StaffMember | undefined = undefined;
+
+        // 1. Prioridade Máxima: se houver metaProviderId ou metaProviderName definido nos metadados do agendamento
+        if (metaProviderId || metaProviderName) {
+          matchedStaff = updated.staff.find(
+            (s) =>
+              (metaProviderId && s.id === metaProviderId) ||
+              (metaProviderName &&
+                s.fullName.trim().toLowerCase() === metaProviderName.trim().toLowerCase()) ||
+              (metaProviderName &&
+                s.firstName.trim().toLowerCase() === metaProviderName.trim().toLowerCase())
+          );
+        }
+
+        // 2. Se não encontrou por metadata (ou não havia metadata), busca pelo professional_id do banco
+        if (!matchedStaff && a.professional_id) {
+          matchedStaff = updated.staff.find((s) => s.id === a.professional_id);
+        }
+
+        // 3. Fallback: se houver metaProviderName mas o profissional ainda não está no array staff, cria o membro dinamicamente
+        if (!matchedStaff && metaProviderName) {
+          const parts = metaProviderName.trim().split(" ");
+          const initials = ((parts[0]?.[0] || "") + (parts[parts.length - 1]?.[0] || "")).toUpperCase() || "PR";
+          const dynamicStaff: StaffMember = {
+            id: metaProviderId || a.professional_id || `staff-${Date.now()}`,
+            firstName: parts[0] || "",
+            lastName: parts.slice(1).join(" ") || "",
+            fullName: metaProviderName,
+            initials,
+            role: "Especialista",
+            email: `${parts[0]?.toLowerCase() || "staff"}@luveastudio.app`,
+            phone: "(11) 99999-0000",
+            avatarColor: "#DDD6FE",
+            serviceCommissionPercent: 60,
+            productCommissionPercent: 20,
+            weeklyGoalCents: 580000,
+            bookedThisWeekCents: 0,
+            clockInNotificationsEnabled: true,
+            assignedServiceIds: updated.services.map((s) => s.id),
+            availableOnline: true,
+            matchBusinessHours: true,
+            customSchedule: DEFAULT_STAFF_SCHEDULE,
+          };
+          updated.staff.push(dynamicStaff);
+          matchedStaff = dynamicStaff;
+        }
+
+        const resolvedProviderId = matchedStaff
+          ? matchedStaff.id
+          : metaProviderId || a.professional_id || updated.staff[0]?.id || "staff-bruno";
+        const resolvedProviderName = matchedStaff
+          ? matchedStaff.fullName
+          : metaProviderName || (updated.staff[0] ? updated.staff[0].fullName : `${updated.settings.personal.firstName} ${updated.settings.personal.lastName}`);
+
         return {
           id: a.id,
           eventType: a.event_type || "appointment",
@@ -466,8 +564,8 @@ export async function loadStudioStateFromSupabase(
           processingStartOffsetMinutes: a.processing_start_offset_minutes || 0,
           processingDurationMinutes: a.processing_duration_minutes || 0,
           blockAfterMinutes: a.block_after_minutes || 0,
-          providerId: "staff-bruno",
-          providerName: `${updated.settings.personal.firstName} ${updated.settings.personal.lastName}`,
+          providerId: resolvedProviderId,
+          providerName: resolvedProviderName,
           clientId: a.client_id || undefined,
           clientName: finalClientName,
           serviceIds: a.service_ids || [],
@@ -510,9 +608,9 @@ export async function loadStudioStateFromSupabase(
     }
 
     // Sincroniza em background os eventos locais legítimos pendentes
-    if (unsyncedLocal.length > 0 && profs && profs[0]?.id) {
+    if (unsyncedLocal.length > 0) {
       for (const evt of unsyncedLocal) {
-        syncNewAppointmentToSupabase(evt, profs[0].id).catch(console.warn);
+        syncNewAppointmentToSupabase(evt, evt.providerId, orgId).catch(console.warn);
       }
     }
 
@@ -521,13 +619,16 @@ export async function loadStudioStateFromSupabase(
       updated.waitlist = waitlistData.map((w): WaitlistEntryItem => {
         const client = updated.clients.find((c) => c.id === w.client_id);
         const service = updated.services.find((s) => s.id === w.service_id);
+        const matchedWaitlistStaff = updated.staff.find(
+          (s) => s.id === w.professional_id
+        );
         return {
           id: w.id,
           clientId: w.client_id || "cli-1",
           clientName: client ? client.fullName : "Cliente",
           clientPhone: client ? client.phone : "(11) 99999-0000",
-          providerId: "staff-bruno",
-          providerName: `${updated.settings.personal.firstName} ${updated.settings.personal.lastName}`,
+          providerId: matchedWaitlistStaff?.id || updated.staff[0]?.id || "staff-bruno",
+          providerName: matchedWaitlistStaff?.fullName || (updated.staff[0] ? updated.staff[0].fullName : `${updated.settings.personal.firstName} ${updated.settings.personal.lastName}`),
           serviceId: w.service_id || "srv-1",
           serviceName: service ? service.name : "Serviço",
           preferredDateISO: w.preferred_date,
@@ -616,14 +717,22 @@ export async function syncNewAppointmentToSupabase(
       orgId = ctx?.organizationId;
     }
 
-    let profId = professionalId;
+    let profId = professionalId || event.providerId;
     if (!isValidUuid(profId)) {
-      let query = supabase.from("professionals").select("id").limit(1);
+      let query = supabase.from("professionals").select("id, first_name, last_name, studio_name");
       if (orgId) {
         query = query.eq("organization_id", orgId);
       }
       const { data: profs } = await query;
-      if (profs && profs[0]?.id) {
+      const matched = profs?.find(
+        (p) =>
+          p.id === event.providerId ||
+          `${p.first_name || ""} ${p.last_name || ""}`.trim().toLowerCase() === (event.providerName || "").trim().toLowerCase() ||
+          (p.studio_name && p.studio_name.trim().toLowerCase() === (event.providerName || "").trim().toLowerCase())
+      );
+      if (matched?.id) {
+        profId = matched.id;
+      } else if (profs && profs[0]?.id) {
         profId = profs[0].id;
       } else {
         profId = "11111111-1111-1111-1111-111111111111";
@@ -713,6 +822,8 @@ export async function syncNewAppointmentToSupabase(
       dateISO: event.dateISO,
       startTime: event.startTime,
       originalId: event.id,
+      providerId: event.providerId,
+      providerName: event.providerName,
       addressOrNotes: event.addressOrNotes || "",
     })}`;
     const notesToSave = event.addressOrNotes
@@ -767,16 +878,23 @@ export async function syncNewAppointmentToSupabase(
 }
 
 /**
- * Atualiza o status de um agendamento no Supabase (se configurado)
+ * Atualiza o status e/ou profissional de um agendamento no Supabase (se configurado)
  */
 export async function syncAppointmentUpdateToSupabase(
-  event: CalendarEventItem
+  event: CalendarEventItem,
+  organizationId?: string
 ) {
   if (!isSupabaseConfigured()) return;
   // Trava de Isolamento: ignora atualizações em IDs de demonstração
   if (isDemoOrMockId(event.id) || !isValidUuid(event.id)) return;
 
   try {
+    let orgId = organizationId;
+    if (!orgId) {
+      const ctx = await getCurrentTenantContext();
+      orgId = ctx?.organizationId;
+    }
+
     if (isValidUuid(event.id)) {
       const allowedStatuses = [
         "confirmed",
@@ -788,17 +906,186 @@ export async function syncAppointmentUpdateToSupabase(
       const status = allowedStatuses.includes(event.status)
         ? event.status
         : "confirmed";
+
+      let targetProfessionalId: string | undefined = undefined;
+
+      if (isValidUuid(event.providerId)) {
+        targetProfessionalId = event.providerId;
+      }
+
+      // Se providerId não for UUID ou precisamos garantir correspondência no Supabase
+      if (!targetProfessionalId && event.providerName) {
+        const { data: profs } = await supabase
+          .from("professionals")
+          .select("id, first_name, last_name, studio_name")
+          .eq("organization_id", orgId);
+        const matched = profs?.find(
+          (p) =>
+            `${p.first_name || ""} ${p.last_name || ""}`.trim().toLowerCase() === event.providerName.trim().toLowerCase() ||
+            (p.first_name && p.first_name.trim().toLowerCase() === event.providerName.trim().toLowerCase()) ||
+            (p.studio_name && p.studio_name.trim().toLowerCase() === event.providerName.trim().toLowerCase())
+        );
+        if (matched?.id) {
+          targetProfessionalId = matched.id;
+        } else {
+          // Garante que o profissional secundário João exista no banco de dados com ID válido
+          const parts = event.providerName.trim().split(" ");
+          const firstName = parts[0] || "Profissional";
+          const lastName = parts.slice(1).join(" ") || "";
+          const cleanName = firstName.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const slug = `${cleanName}-${Date.now()}`;
+          const { data: newProf } = await supabase
+            .from("professionals")
+            .insert({
+              organization_id: orgId || undefined,
+              first_name: firstName,
+              last_name: lastName,
+              studio_name: event.providerName,
+              slug,
+              role: "Especialista",
+              email: `${cleanName}@luveastudio.app`,
+              phone_whatsapp: "(11) 99999-0000",
+              avatar_color: "#DDD6FE",
+              service_commission_percent: 60,
+              product_commission_percent: 20,
+              weekly_goal_cents: 580000,
+            })
+            .select("id")
+            .single();
+
+          if (newProf?.id) {
+            targetProfessionalId = newProf.id;
+          }
+        }
+      }
+
+      const startsAt = new Date(
+        `${event.dateISO}T${event.startTime}:00`
+      ).toISOString();
+      const durationMs = (event.activeDurationMinutes || 60) * 60 * 1000;
+      const endsAt = new Date(
+        new Date(startsAt).getTime() + durationMs
+      ).toISOString();
+
+      const metaLine = `__LUVEA_META__:${JSON.stringify({
+        clientName: event.clientName,
+        serviceNames: event.serviceNames,
+        dateISO: event.dateISO,
+        startTime: event.startTime,
+        originalId: event.id,
+        providerId: targetProfessionalId || event.providerId,
+        providerName: event.providerName,
+        addressOrNotes: event.addressOrNotes || "",
+      })}`;
+      const notesToSave = event.addressOrNotes
+        ? `${metaLine}\n${event.addressOrNotes}`
+        : metaLine;
+
+      const updatePayload: Record<string, any> = {
+        status,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        active_duration_minutes: event.activeDurationMinutes || 60,
+        whatsapp_client_reply: event.whatsappClientReply || "none",
+        notes: notesToSave,
+      };
+
+      if (targetProfessionalId) {
+        updatePayload.professional_id = targetProfessionalId;
+      }
+
       await supabase
         .from("appointments")
-        .update({
-          status,
-          whatsapp_client_reply: event.whatsappClientReply || "none",
-          notes: event.addressOrNotes,
-        })
+        .update(updatePayload)
         .eq("id", event.id);
     }
   } catch (err) {
     console.warn("Falha ao atualizar agendamento no Supabase:", err);
+  }
+}
+
+/**
+ * Insere ou atualiza um membro da equipe (profissional) no Supabase isolado por organização
+ */
+export async function syncNewStaffToSupabase(
+  staff: StaffMember,
+  organizationId?: string
+) {
+  if (!isSupabaseConfigured()) return;
+  if (isDemoOrMockId(staff.id) || isDemoEntity(staff.fullName)) return;
+
+  try {
+    let orgId = organizationId;
+    if (!orgId) {
+      const ctx = await getCurrentTenantContext();
+      orgId = ctx?.organizationId;
+    }
+
+    const parts = staff.fullName.trim().split(" ");
+    const firstName = staff.firstName || parts[0] || "Profissional";
+    const lastName = staff.lastName || parts.slice(1).join(" ") || "";
+    const cleanFirstName = firstName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const slug = `${cleanFirstName || "staff"}-${Date.now()}`;
+
+    const staffPayload: Record<string, any> = {
+      organization_id: orgId || undefined,
+      first_name: firstName,
+      last_name: lastName,
+      studio_name: staff.fullName,
+      slug,
+      role: staff.role || "Especialista",
+      email: staff.email || `${cleanFirstName || "staff"}@luveastudio.app`,
+      phone_whatsapp: staff.phone || "(11) 99999-0000",
+      avatar_color: staff.avatarColor || "#DDD6FE",
+      service_commission_percent: staff.serviceCommissionPercent || 60,
+      product_commission_percent: staff.productCommissionPercent || 20,
+      weekly_goal_cents: staff.weeklyGoalCents || 580000,
+    };
+
+    // Prevenção de duplicidade: se já existe profissional com mesmo ID, email ou nome na organização
+    let existingProfId: string | undefined = isValidUuid(staff.id) ? staff.id : undefined;
+
+    if (!existingProfId) {
+      let checkQuery = supabase
+        .from("professionals")
+        .select("id, first_name, last_name, studio_name, email");
+      if (orgId) {
+        checkQuery = checkQuery.eq("organization_id", orgId);
+      }
+      const { data: existingList } = await checkQuery;
+      const sFullName = staff.fullName.trim().toLowerCase();
+      const matched = existingList?.find((p) => {
+        const pFullName = [p.first_name, p.last_name].filter(Boolean).join(" ").trim().toLowerCase();
+        return (
+          p.id === staff.id ||
+          (p.email && staff.email && p.email.toLowerCase() === staff.email.toLowerCase()) ||
+          pFullName === sFullName ||
+          (p.studio_name && p.studio_name.trim().toLowerCase() === sFullName)
+        );
+      });
+      if (matched?.id) {
+        existingProfId = matched.id;
+      }
+    }
+
+    if (existingProfId) {
+      staffPayload.id = existingProfId;
+    }
+
+    const query = existingProfId
+      ? supabase.from("professionals").upsert(staffPayload, { onConflict: "id" })
+      : supabase.from("professionals").insert(staffPayload);
+
+    const { data, error } = await query.select("id").single();
+
+    if (data?.id && data.id !== staff.id) {
+      staff.id = data.id;
+    }
+    if (error) {
+      console.warn("Aviso ao sincronizar profissional no Supabase:", error.message || error);
+    }
+  } catch (err) {
+    console.warn("Falha ao sincronizar profissional no Supabase:", err);
   }
 }
 

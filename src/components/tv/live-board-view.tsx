@@ -30,6 +30,7 @@ function StatusBadge({ status }: { status: TVAppointmentStatus }) {
         </span>
       );
     case "next":
+    case "waiting":
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-white/[0.06] border border-white/[0.1] text-zinc-300">
           A Seguir
@@ -285,24 +286,41 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
   const currentColumns: TVProfessionalColumn[] =
     professionalPages[pageIndex] || [];
 
-  // 6. Contagem de agendamentos do dia para cálculo de estado vazio
+  // 6. Filtra estritamente agendamentos ativos em tempo real (em andamento e próximos; nunca anteriores)
+  const activeColumns: TVProfessionalColumn[] = useMemo(() => {
+    const currentServerMs = Date.now() + serverTimeOffsetRef.current;
+
+    return currentColumns.map((col) => {
+      const activeApts = col.appointments.filter((apt) => {
+        // Nunca exibir concluídos
+        if (apt.status === "completed") return false;
+
+        // Se endsAt estiver presente, verifica se já expirou (fim <= agora)
+        if (apt.endsAt) {
+          const endsMs = new Date(apt.endsAt).getTime();
+          if (!isNaN(endsMs) && endsMs <= currentServerMs) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      return {
+        ...col,
+        appointments: activeApts,
+      };
+    });
+  }, [currentColumns, clockTime]);
+
   const totalAppointmentsCount = useMemo(() => {
-    if (!boardData?.professionals) return 0;
-    return boardData.professionals.reduce(
+    return activeColumns.reduce(
       (sum, p) => sum + p.appointments.length,
       0
     );
-  }, [boardData?.professionals]);
+  }, [activeColumns]);
 
-  const activeAppointmentsCount = useMemo(() => {
-    if (!boardData?.professionals) return 0;
-    return boardData.professionals.reduce(
-      (sum, p) =>
-        sum +
-        p.appointments.filter((a) => a.status !== "completed").length,
-      0
-    );
-  }, [boardData?.professionals]);
+  const activeAppointmentsCount = totalAppointmentsCount;
 
   return (
     <div
@@ -415,10 +433,10 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
           <div
             className="grid h-full gap-5 transition-opacity duration-500"
             style={{
-              gridTemplateColumns: `repeat(${Math.max(1, currentColumns.length)}, minmax(0, 1fr))`,
+              gridTemplateColumns: `repeat(${Math.max(1, activeColumns.length)}, minmax(0, 1fr))`,
             }}
           >
-            {currentColumns.map((column) => (
+            {activeColumns.map((column) => (
               <section
                 key={column.id}
                 className="flex flex-col h-full bg-[#101013]/90 backdrop-blur-2xl border border-white/[0.07] rounded-3xl p-5 md:p-6 overflow-hidden shadow-[0_16px_40px_-12px_rgba(0,0,0,0.8)]"
@@ -434,7 +452,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
                     </h3>
                   </div>
                   <span className="text-[12px] font-mono font-medium px-2.5 py-1 rounded-full bg-white/[0.04] text-zinc-400 border border-white/[0.06] shrink-0">
-                    {column.appointments.filter((a) => a.status !== "completed").length} ativos
+                    {column.appointments.length} {column.appointments.length === 1 ? "ativo" : "ativos"}
                   </span>
                 </div>
 

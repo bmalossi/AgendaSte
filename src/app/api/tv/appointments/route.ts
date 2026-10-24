@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/service-role";
 import {
   buildTVPollingResponse,
   getAllMemoryPairings,
+  getDayBoundsInTimezone,
   RawTVAppointment,
   RawTVProfessional,
   RawTVOrganization,
@@ -91,10 +92,27 @@ export async function GET(request: Request) {
           console.error("[TV Appointments] Erro ao buscar profissionais:", profsErr);
         }
 
-        const professionals: RawTVProfessional[] = (profsData || []).map((p) => ({
-          id: p.id,
-          name: [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.studio_name || "Profissional",
-        }));
+        // Agrupa e deduplica profissionais por nome normalizado para evitar colunas duplicadas
+        const seenNames = new Map<string, string>(); // normName -> primaryId
+        const idAliasMap = new Map<string, string>(); // duplicateId -> primaryId
+        const professionals: RawTVProfessional[] = [];
+
+        for (const p of profsData || []) {
+          const rawName = [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.studio_name || "Profissional";
+          const normName = rawName.toLowerCase();
+
+          if (seenNames.has(normName)) {
+            const primaryId = seenNames.get(normName)!;
+            idAliasMap.set(p.id, primaryId);
+          } else {
+            seenNames.set(normName, p.id);
+            idAliasMap.set(p.id, p.id);
+            professionals.push({
+              id: p.id,
+              name: rawName,
+            });
+          }
+        }
 
         // 3.1. Busca serviços da organização para mapear nomes reais
         const { data: srvsData } = await supabaseAdmin
@@ -110,16 +128,12 @@ export async function GET(request: Request) {
         }
 
         // 4. Calcula limites da data de hoje no fuso horário do estúdio
-        const dayFormatter = new Intl.DateTimeFormat("en-CA", {
-          timeZone: timezone,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-        const todayYMD = dayFormatter.format(now); // YYYY-MM-DD
+        const dayBounds = getDayBoundsInTimezone(now, timezone);
 
-        // 5. Busca agendamentos do dia atual para a organização
-        // Consulta as colunas reais com relacionamento em clients para obter nome do cliente
+        // 5. Busca agendamentos ativos para a TV:
+        // - ends_at >= now (não expirados: no horário marcado em andamento ou futuros)
+        // - starts_at <= dayBounds.endOfDayIso (pertencentes a hoje no fuso do estúdio)
+        // - status in ['confirmed', 'pending'] (exclui cancelados, no_show e concluídos)
         const { data: aptsData, error: aptsErr } = await supabaseAdmin
           .from("appointments")
           .select(`
@@ -134,9 +148,9 @@ export async function GET(request: Request) {
             client:clients(full_name)
           `)
           .eq("organization_id", org.id)
-          .gte("starts_at", `${todayYMD}T00:00:00Z`)
-          .lte("starts_at", `${todayYMD}T23:59:59Z`)
-          .in("status", ["confirmed", "completed", "pending"]);
+          .gte("ends_at", now.toISOString())
+          .lte("starts_at", dayBounds.endOfDayIso)
+          .in("status", ["confirmed", "pending"]);
 
         if (aptsErr) {
           console.error("[TV Appointments] Erro ao buscar agendamentos:", aptsErr);
@@ -179,7 +193,7 @@ export async function GET(request: Request) {
 
           return {
             id: a.id,
-            professional_id: a.professional_id,
+            professional_id: idAliasMap.get(a.professional_id) || a.professional_id,
             client_name: clientName || "Cliente",
             service_name: serviceName || "Atendimento",
             starts_at: a.starts_at,
@@ -274,9 +288,9 @@ export async function GET(request: Request) {
           professional_id: "prof-2",
           client_name: "Lucas Mendes de Souza",
           service_name: "Barba Terapia Completa",
-          starts_at: makeIso(currentHour - 1, 0),
-          ends_at: makeIso(currentHour, 0),
-          status: "completed",
+          starts_at: makeIso(currentHour + 1, 30),
+          ends_at: makeIso(currentHour + 2, 15),
+          status: "confirmed",
         },
         {
           id: "demo-apt-4",

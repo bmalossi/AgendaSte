@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Calendar as CalendarIcon,
   ChevronDown,
@@ -22,11 +22,17 @@ import {
   CalendarPlus,
   CreditCard,
   ShieldCheck,
+  FileText,
+  Pencil,
+  Settings,
+  EllipsisVertical,
+  GripVertical,
 } from "lucide-react";
 import {
   StudioState,
   CalendarEventItem,
   CalendarEventType,
+  DayBusinessHours,
   formatBRL,
   formatDateBR,
   parseTimeMinutes,
@@ -35,10 +41,13 @@ import {
   validateAndCreateCalendarEvent,
   bookFromWaitlistEntry,
   rebookAppointmentOneTap,
+  rescheduleCalendarEvent,
   processWhatsappInboundReply,
   executeQuickSaleCheckout,
   saveCatalogService,
   getTodayDateISO,
+  addDaysToDateISO,
+  checkCalendarSlotConflict,
 } from "@/lib/agendaste-store";
 
 interface CalendarViewProps {
@@ -47,8 +56,59 @@ interface CalendarViewProps {
   onOpenQuickSale: (prefillAppointment?: CalendarEventItem) => void;
 }
 
-const START_HOUR = 8;
-const HOURS = Array.from({ length: 15 }, (_, idx) => idx + START_HOUR); // 08:00 .. 22:00 (grade ativa até 23:00)
+const START_HOUR = 6; // Starts at 6am (06:00) as in luxury salon OS reference
+const HOURS = Array.from({ length: 16 }, (_, idx) => idx + START_HOUR); // 06:00 .. 21:00 (active until 22:00)
+const HOUR_HEIGHT = 72; // px per hour slot
+
+function formatHour12(hour: number): string {
+  if (hour === 0) return "12am";
+  if (hour < 12) return `${hour}am`;
+  if (hour === 12) return "12pm";
+  return `${hour - 12}pm`;
+}
+
+function formatTime12h(hours: number, minutes: number): string {
+  const ampm = hours >= 12 ? "pm" : "am";
+  const displayH = hours % 12 === 0 ? 12 : hours % 12;
+  const displayM = minutes === 0 ? "00" : String(minutes).padStart(2, "0");
+  return `${displayH}:${displayM}${ampm}`;
+}
+
+function formatDurationLabel(totalMinutes: number): string {
+  if (totalMinutes <= 0) return "0 min";
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (hours === 0) {
+    return `${mins} mins`;
+  }
+  if (mins === 0) {
+    return hours === 1 ? "1 hr" : `${hours} hrs`;
+  }
+  return `${hours} hr${hours > 1 ? "s" : ""} ${mins} mins`;
+}
+
+function getDayOfWeek(dateISO: string): number {
+  const parts = dateISO.split("-").map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  return d.getDay();
+}
+
+function getDayWorkingHours(
+  businessHours: DayBusinessHours[] | undefined,
+  dateISO: string
+): { isOpen: boolean; startMinutes: number; endMinutes: number } {
+  const dow = getDayOfWeek(dateISO);
+  const schedule = businessHours?.find((h) => h.dayOfWeek === dow);
+  if (!schedule) {
+    if (dow === 0) return { isOpen: false, startMinutes: 8 * 60, endMinutes: 17 * 60 };
+    return { isOpen: true, startMinutes: 8 * 60, endMinutes: 17 * 60 };
+  }
+  return {
+    isOpen: schedule.isOpen,
+    startMinutes: parseTimeMinutes(schedule.startTime || "08:00"),
+    endMinutes: parseTimeMinutes(schedule.endTime || "17:00"),
+  };
+}
 
 function getWeekDays(selectedDateISO: string) {
   const parts = selectedDateISO.split("-").map(Number);
@@ -58,6 +118,15 @@ function getWeekDays(selectedDateISO: string) {
   sunday.setDate(baseDate.getDate() - dayOfWeek);
 
   const labels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const labelsFull = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(sunday);
     d.setDate(sunday.getDate() + i);
@@ -66,10 +135,52 @@ function getWeekDays(selectedDateISO: string) {
     const day = String(d.getDate()).padStart(2, "0");
     return {
       label: labels[i],
+      labelFull: labelsFull[i],
       dayNum: d.getDate(),
       dateISO: `${year}-${month}-${day}`,
     };
   });
+}
+
+function formatNavDate(dateISO: string): string {
+  const parts = dateISO.split("-").map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${days[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function getMonthShort(dateISO: string): string {
+  const parts = dateISO.split("-").map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return months[d.getMonth()];
 }
 
 export function CalendarView({
@@ -85,6 +196,163 @@ export function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(
     null
   );
+
+  // Mantém selectedEvent sincronizado quando o estado dos agendamentos é atualizado
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const fresh = state.calendarEvents.find((e) => e.id === selectedEvent.id);
+    if (fresh) {
+      if (
+        fresh.providerId !== selectedEvent.providerId ||
+        fresh.providerName !== selectedEvent.providerName ||
+        fresh.status !== selectedEvent.status ||
+        fresh.dateISO !== selectedEvent.dateISO ||
+        fresh.startTime !== selectedEvent.startTime ||
+        fresh.endTime !== selectedEvent.endTime ||
+        fresh.whatsappClientReply !== selectedEvent.whatsappClientReply
+      ) {
+        setSelectedEvent(fresh);
+      }
+    }
+  }, [
+    state.calendarEvents,
+    selectedEvent?.id,
+    selectedEvent?.providerId,
+    selectedEvent?.providerName,
+    selectedEvent?.status,
+    selectedEvent?.dateISO,
+    selectedEvent?.startTime,
+    selectedEvent?.endTime,
+    selectedEvent?.whatsappClientReply,
+  ]);
+
+  // Reschedule Modal State & Mechanics
+  const [rescheduleEvent, setRescheduleEvent] = useState<CalendarEventItem | null>(null);
+  const [rescheduleDateISO, setRescheduleDateISO] = useState<string>("");
+  const [rescheduleStartTime, setRescheduleStartTime] = useState<string>("");
+  const [rescheduleDurationMinutes, setRescheduleDurationMinutes] = useState<number>(60);
+  const [rescheduleProviderId, setRescheduleProviderId] = useState<string>("");
+  const [rescheduleNotifyWhatsapp, setRescheduleNotifyWhatsapp] = useState<boolean>(true);
+  const [rescheduleConflictWarning, setRescheduleConflictWarning] = useState<string | null>(null);
+
+  const handleOpenReschedule = (event: CalendarEventItem) => {
+    setRescheduleEvent(event);
+    setRescheduleDateISO(event.dateISO);
+    setRescheduleStartTime(event.startTime);
+    const duration = event.activeDurationMinutes || 60;
+    setRescheduleDurationMinutes(duration);
+    setRescheduleProviderId(event.providerId);
+    setRescheduleConflictWarning(null);
+    setRescheduleNotifyWhatsapp(true);
+  };
+
+  const computedRescheduleEndTime = useMemo(() => {
+    if (!rescheduleStartTime) return "";
+    const startMin = parseTimeMinutes(rescheduleStartTime);
+    const endMin = startMin + rescheduleDurationMinutes;
+    return formatMinutesToHHMM(endMin);
+  }, [rescheduleStartTime, rescheduleDurationMinutes]);
+
+  useEffect(() => {
+    if (!rescheduleEvent || !rescheduleDateISO || !rescheduleStartTime) {
+      setRescheduleConflictWarning(null);
+      return;
+    }
+    const startMin = parseTimeMinutes(rescheduleStartTime);
+    const endMin = startMin + rescheduleDurationMinutes;
+    const provider =
+      state.staff.find((s) => s.id === rescheduleProviderId) ||
+      state.staff.find(
+        (s) =>
+          s.fullName.trim().toLowerCase() ===
+          rescheduleProviderId.trim().toLowerCase()
+      ) ||
+      state.staff[0];
+
+    if (!provider) return;
+
+    const conflict = checkCalendarSlotConflict(state, {
+      dateISO: rescheduleDateISO,
+      startMin,
+      endMin,
+      providerId: provider.id,
+      providerFullName: provider.fullName,
+      requiredResourceIds: rescheduleEvent.resourceIds || [],
+      excludeEventId: rescheduleEvent.id,
+    });
+
+    if (!conflict.ok) {
+      setRescheduleConflictWarning(conflict.message);
+    } else {
+      setRescheduleConflictWarning(null);
+    }
+  }, [
+    rescheduleEvent,
+    rescheduleDateISO,
+    rescheduleStartTime,
+    rescheduleDurationMinutes,
+    rescheduleProviderId,
+    state,
+  ]);
+
+  const handleConfirmReschedule = (forceEncaixe = false) => {
+    if (!rescheduleEvent) return;
+    if (rescheduleConflictWarning && !forceEncaixe) {
+      return;
+    }
+
+    const result = rescheduleCalendarEvent(state, {
+      eventId: rescheduleEvent.id,
+      newDateISO: rescheduleDateISO,
+      newStartTime: rescheduleStartTime,
+      newEndTime: computedRescheduleEndTime,
+      newProviderId: rescheduleProviderId,
+      allowConflict: true,
+      notifyNote: `Reagendado para ${formatDateBR(rescheduleDateISO)} às ${rescheduleStartTime}`,
+      status: "confirmed",
+    });
+
+    if (!result.ok) {
+      alert(result.message || "Erro ao reagendar atendimento.");
+      return;
+    }
+
+    onUpdateState(() => result.state);
+
+    const client = state.clients.find((c) => c.id === rescheduleEvent.clientId);
+    if (rescheduleNotifyWhatsapp && client?.phone) {
+      const cleanPhone = client.phone.replace(/\D/g, "");
+      const provName =
+        state.staff.find((s) => s.id === rescheduleProviderId)?.fullName ||
+        rescheduleEvent.providerName;
+      const msg = encodeURIComponent(
+        `Olá ${client.fullName}! Seu atendimento de ${rescheduleEvent.serviceNames.join(" + ")} foi reagendado para ${formatDateBR(rescheduleDateISO)} às ${rescheduleStartTime} com ${provName}. Responda 1 para confirmar ou 2 se precisar ajustar.`
+      );
+      if (cleanPhone.length >= 10 && typeof window !== "undefined") {
+        window.open(`https://wa.me/55${cleanPhone}?text=${msg}`, "_blank");
+      }
+    }
+
+    setRescheduleEvent(null);
+    setSelectedEvent(null);
+  };
+
+  const handleMarkAwaitingReschedule = () => {
+    if (!rescheduleEvent) return;
+    onUpdateState((prev) =>
+      processWhatsappInboundReply(prev, rescheduleEvent.id, "2_reschedule")
+    );
+    setSelectedEvent((prev) =>
+      prev && prev.id === rescheduleEvent.id
+        ? {
+            ...prev,
+            whatsappClientReply: "2_reschedule",
+            status: "pending",
+          }
+        : null
+    );
+    setRescheduleEvent(null);
+  };
 
   // New Appointment Form State (03-4-calendar.png)
   const [eventType, setEventType] = useState<CalendarEventType>("appointment");
@@ -112,6 +380,12 @@ export function CalendarView({
   const [collectDeposit, setCollectDeposit] = useState<boolean>(true);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
+  const [customDurationMinutes, setCustomDurationMinutes] = useState<number | null>(null);
+  const [customEndTime, setCustomEndTime] = useState<string | null>(null);
+  const [servicesPopoverOpen, setServicesPopoverOpen] = useState(false);
+  const [pendingServiceIds, setPendingServiceIds] = useState<string[]>([]);
+  const [durationDropdownOpen, setDurationDropdownOpen] = useState(false);
+  const [activeServiceMenuId, setActiveServiceMenuId] = useState<string | null>(null);
 
   // Dynamic real-time tracking (updates every 30s, hydration-safe)
   const [currentTime, setCurrentTime] = useState<{
@@ -180,7 +454,7 @@ export function CalendarView({
       isViewingToday &&
       scrollContainerRef.current
     ) {
-      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * 80;
+      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
       scrollContainerRef.current.scrollTo({
         top: Math.max(0, topPx - 160),
         behavior: "smooth",
@@ -199,11 +473,96 @@ export function CalendarView({
       },
     }));
     if (currentTime && scrollContainerRef.current) {
-      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * 80;
+      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
       scrollContainerRef.current.scrollTo({
         top: Math.max(0, topPx - 160),
         behavior: "smooth",
       });
+    }
+  };
+
+  const handleNavigatePrev = () => {
+    if (viewMode === "week") {
+      onUpdateState((prev) => skipCalendarByWeeks(prev, -1));
+    } else {
+      onUpdateState((prev) => {
+        const parts = prev.calendarView.selectedDateISO.split("-").map(Number);
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        d.setDate(d.getDate() - 1);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return {
+          ...prev,
+          calendarView: {
+            ...prev.calendarView,
+            selectedDateISO: `${year}-${month}-${day}`,
+          },
+        };
+      });
+    }
+  };
+
+  const handleNavigateNext = () => {
+    if (viewMode === "week") {
+      onUpdateState((prev) => skipCalendarByWeeks(prev, 1));
+    } else {
+      onUpdateState((prev) => {
+        const parts = prev.calendarView.selectedDateISO.split("-").map(Number);
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        d.setDate(d.getDate() + 1);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return {
+          ...prev,
+          calendarView: {
+            ...prev.calendarView,
+            selectedDateISO: `${year}-${month}-${day}`,
+          },
+        };
+      });
+    }
+  };
+
+  const [hoveredSlot, setHoveredSlot] = useState<{
+    dateISO: string;
+    snappedMinutes: number;
+    topPx: number;
+    timeHHMM: string;
+    timeLabel: string;
+  } | null>(null);
+
+  const handleColumnMouseMove = (
+    e: React.MouseEvent<HTMLDivElement>,
+    dateISO: string
+  ) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const totalMinutes = START_HOUR * 60 + (y / HOUR_HEIGHT) * 60;
+    const snappedMinutes = Math.min(
+      (START_HOUR + HOURS.length) * 60,
+      Math.max(START_HOUR * 60, Math.round(totalMinutes / 15) * 15)
+    );
+    const snappedTopPx = ((snappedMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+
+    const hours = Math.floor(snappedMinutes / 60);
+    const minutes = snappedMinutes % 60;
+    const timeHHMM = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    const timeLabel = formatTime12h(hours, minutes);
+
+    setHoveredSlot({
+      dateISO,
+      snappedMinutes,
+      topPx: snappedTopPx,
+      timeHHMM,
+      timeLabel,
+    });
+  };
+
+  const handleColumnClick = (dateISO: string) => {
+    if (hoveredSlot && hoveredSlot.dateISO === dateISO) {
+      openNewDrawerAtSlot(hoveredSlot.timeHHMM, "appointment", dateISO);
     }
   };
 
@@ -215,11 +574,33 @@ export function CalendarView({
         e.providerId === state.calendarView.selectedProviderId)
   );
 
-  const openNewDrawerAtSlot = (timeHHMM: string, presetType?: CalendarEventType) => {
+  const openNewDrawerAtSlot = (
+    timeHHMM: string,
+    presetType?: CalendarEventType,
+    presetDateISO?: string,
+    overrideProviderId?: string
+  ) => {
     setConflictError(null);
-    setEventType(presetType ?? "appointment");
-    setEventDateISO(selectedDateISO);
+    const chosenType = presetType ?? "appointment";
+    setEventType(chosenType);
+    setEventDateISO(presetDateISO ?? selectedDateISO);
     setStartTime(timeHHMM);
+    setCustomDurationMinutes(null);
+    setCustomEndTime(null);
+    setServicesPopoverOpen(false);
+    setDurationDropdownOpen(false);
+    setActiveServiceMenuId(null);
+    const targetProviderId =
+      overrideProviderId ||
+      (state.calendarView.selectedProviderId !== "all"
+        ? state.calendarView.selectedProviderId
+        : providerId || state.staff[0]?.id || "staff-bruno");
+    setProviderId(targetProviderId);
+    if (chosenType === "personal_block") {
+      setSelectedServiceIds([]);
+    } else if (selectedServiceIds.length === 0 && state.services[0]) {
+      setSelectedServiceIds([state.services[0].id]);
+    }
     setNewAppointmentDrawerOpen(true);
   };
 
@@ -230,13 +611,84 @@ export function CalendarView({
     (acc, s) => acc + s.priceCents,
     0
   );
-  const computedDurationMin = selectedServicesObjects.reduce(
+  const baseServiceDurationMin = selectedServicesObjects.reduce(
     (acc, s) => acc + s.durationMinutes + (s.blockTimeEnabled ? s.blockAfterMinutes : 0),
     0
   );
-  const computedEndTime = formatMinutesToHHMM(
-    parseTimeMinutes(startTime) + (computedDurationMin || 60)
-  );
+  const defaultDurationMin =
+    eventType === "personal_block"
+      ? 30
+      : baseServiceDurationMin > 0
+      ? baseServiceDurationMin
+      : 30;
+
+  const effectiveDurationMin = customDurationMinutes ?? defaultDurationMin;
+  const effectiveEndTime =
+    customEndTime ??
+    formatMinutesToHHMM(parseTimeMinutes(startTime) + effectiveDurationMin);
+
+  const handleStartTimeChange = (newStart: string) => {
+    setStartTime(newStart);
+    const startMin = parseTimeMinutes(newStart);
+    const newEndMin = startMin + effectiveDurationMin;
+    setCustomEndTime(formatMinutesToHHMM(newEndMin));
+  };
+
+  const handleEndTimeChange = (newEnd: string) => {
+    setCustomEndTime(newEnd);
+    const startMin = parseTimeMinutes(startTime);
+    const endMin = parseTimeMinutes(newEnd);
+    if (endMin > startMin) {
+      setCustomDurationMinutes(endMin - startMin);
+    }
+  };
+
+  const handleSelectDuration = (durationMin: number) => {
+    setCustomDurationMinutes(durationMin);
+    const startMin = parseTimeMinutes(startTime);
+    setCustomEndTime(formatMinutesToHHMM(startMin + durationMin));
+    setDurationDropdownOpen(false);
+  };
+
+  const getDurationOptions = () => {
+    const base = defaultDurationMin;
+    const optionsSet = new Set<number>();
+    optionsSet.add(base);
+    if (eventType === "personal_block") {
+      [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 240].forEach((m) =>
+        optionsSet.add(m)
+      );
+    } else {
+      [5, 10, 15, 20, 25, 30, 45, 60, 75, 90, 120].forEach((delta) => {
+        optionsSet.add(base + delta);
+      });
+      [15, 30, 45, 60, 75, 90, 105, 120].forEach((m) => {
+        if (m >= base) optionsSet.add(m);
+      });
+    }
+    if (customDurationMinutes) {
+      optionsSet.add(customDurationMinutes);
+    }
+    return Array.from(optionsSet).sort((a, b) => a - b);
+  };
+
+  const handleRemoveService = (serviceId: string) => {
+    setSelectedServiceIds((prev) => prev.filter((id) => id !== serviceId));
+    setCustomDurationMinutes(null);
+    setCustomEndTime(null);
+  };
+
+  const handleMoveService = (index: number, direction: "up" | "down") => {
+    setSelectedServiceIds((prev) => {
+      const copy = [...prev];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= copy.length) return prev;
+      const temp = copy[index];
+      copy[index] = copy[targetIndex];
+      copy[targetIndex] = temp;
+      return copy;
+    });
+  };
 
   const handleCreateEvent = () => {
     if (isSubmittingEvent) return;
@@ -246,6 +698,7 @@ export function CalendarView({
       eventType,
       dateISO: eventDateISO,
       startTime,
+      endTime: effectiveEndTime,
       providerId,
       clientId: showInlineNewClient ? undefined : clientId || state.clients[0]?.id,
       newClientInline:
@@ -256,7 +709,7 @@ export function CalendarView({
               email: inlineClientEmail.trim() || "cliente@luveastudio.app",
             }
           : undefined,
-      serviceIds: selectedServiceIds,
+      serviceIds: eventType === "personal_block" ? [] : selectedServiceIds,
       addressOrNotes,
       isRepeating,
       collectDeposit,
@@ -284,739 +737,978 @@ export function CalendarView({
     setIsSubmittingEvent(false);
   };
 
-  return (
-    <div className="flex flex-col h-[calc(100dvh-53px-calc(4.5rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] bg-white dark:bg-[#09090b] overflow-hidden">
-      {/* Top Calendar Header (03-1-calendar.png) */}
-      <header className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] z-20">
-        {/* Desktop Header Layout (>= md) */}
-        <div className="hidden md:flex items-center justify-between gap-4">
-          {/* Left: Month/Year + Popover Date Picker (03-2-calendar.png) */}
-          <div className="relative flex items-center gap-3">
-            <button
-              onClick={() => setDatePopoverOpen((v) => !v)}
-              className="flex items-center gap-2 text-[22px] font-semibold text-[#1C1C1E] dark:text-white hover:opacity-80 transition"
-            >
-              <span>Outubro 2026</span>
-              <ChevronDown className="w-5 h-5 text-[#6E6E73] dark:text-[#a1a1aa]" />
-            </button>
+  const renderDatePopover = (positionClass: string) => {
+    if (!datePopoverOpen) return null;
 
-            <button
-              onClick={handleGoToToday}
-              className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
-            >
-              Hoje
-            </button>
+    const [selYear, selMonth] = selectedDateISO.split("-").map(Number);
+    const daysInMonth = new Date(selYear, selMonth, 0).getDate();
+    const firstDayIndex = new Date(selYear, selMonth - 1, 1).getDay();
 
-            {/* Popover Date Picker with +2 to +8 weeks jump (03-2-calendar.png) */}
-            {datePopoverOpen && (
-              <div className="absolute left-0 top-12 w-[340px] bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-modal p-5 z-50">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
-                    Outubro 2026
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() =>
-                        onUpdateState((prev) => skipCalendarByWeeks(prev, -1))
-                      }
-                      className="p-1.5 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() =>
-                        onUpdateState((prev) => skipCalendarByWeeks(prev, 1))
-                      }
-                      className="p-1.5 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+    return (
+      <>
+        {/* Click outside backdrop */}
+        <div
+          className="fixed inset-0 z-40 bg-black/5 dark:bg-black/20"
+          onClick={() => setDatePopoverOpen(false)}
+          aria-hidden="true"
+        />
 
-                {/* Mini Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-[#8E8E93] dark:text-[#71717a] mb-2">
-                  <span>D</span>
-                  <span>S</span>
-                  <span>T</span>
-                  <span>Q</span>
-                  <span>Q</span>
-                  <span>S</span>
-                  <span>S</span>
-                </div>
-                <div className="grid grid-cols-7 gap-1 text-center text-[13px] mb-4">
-                  {Array.from({ length: 31 }, (_, i) => {
-                    const day = i + 1;
-                    const iso = `2026-10-${String(day).padStart(2, "0")}`;
-                    const isSelected = selectedDateISO === iso;
-                    return (
-                      <button
-                        key={day}
-                        onClick={() => {
-                          onUpdateState((prev) => ({
-                            ...prev,
-                            calendarView: {
-                              ...prev.calendarView,
-                              selectedDateISO: iso,
-                            },
-                          }));
-                          setDatePopoverOpen(false);
-                        }}
-                        className={`h-8 w-8 mx-auto rounded-full flex items-center justify-center font-medium transition ${
-                          isSelected
-                            ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b]"
-                            : "text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Quick Week Skip Pills (+2 to +8 weeks — 03-2-calendar.png) */}
-                <div className="pt-3 border-t border-[#E5E5EA] dark:border-[#27272a]">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a] mb-2.5">
-                    Avançar semanas (Retorno rápido)
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[2, 3, 4, 5, 6, 7, 8].map((weeks) => (
-                      <button
-                        key={weeks}
-                        onClick={() => {
-                          onUpdateState((prev) => skipCalendarByWeeks(prev, weeks));
-                          setDatePopoverOpen(false);
-                        }}
-                        className="px-3 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] hover:bg-[#1C1C1E] dark:hover:bg-white hover:text-white dark:hover:text-[#09090b] text-[12px] font-semibold text-[#1C1C1E] dark:text-white transition"
-                      >
-                        +{weeks} sem.
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2.5 text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
-                    Data selecionada:{" "}
-                    <strong className="text-[#1C1C1E] dark:text-white">{formatDateBR(selectedDateISO)}</strong>
-                  </p>
-                </div>
-              </div>
-            )}
+        {/* Popover Card */}
+        <div
+          className={`absolute ${positionClass} w-[min(340px,calc(100vw-2rem))] bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] shadow-xl p-4 sm:p-5 z-50 animate-in fade-in zoom-in-95 duration-150`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white capitalize">
+              {formatDateBR(selectedDateISO)}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleNavigatePrev}
+                title="Retroceder"
+                aria-label="Retroceder"
+                className="p-1.5 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleGoToToday}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white"
+              >
+                Hoje
+              </button>
+              <button
+                type="button"
+                onClick={handleNavigateNext}
+                title="Avançar"
+                aria-label="Avançar"
+                className="p-1.5 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          {/* Center: Week Strip (Dom .. Sáb) */}
-          <div className="flex items-center gap-1.5 bg-[#F5F5F7] dark:bg-[#18181b] border border-transparent dark:border-[#27272a] px-2 py-1.5 rounded-full">
-            {getWeekDays(selectedDateISO).map((wd) => {
-              const active = selectedDateISO === wd.dateISO;
+          {/* Mini Calendar Grid */}
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-[#8E8E93] dark:text-[#71717a] mb-2">
+            <span>D</span>
+            <span>S</span>
+            <span>T</span>
+            <span>Q</span>
+            <span>Q</span>
+            <span>S</span>
+            <span>S</span>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[13px] mb-4">
+            {/* Blank leading days for accurate day-of-week alignment */}
+            {Array.from({ length: firstDayIndex }, (_, i) => (
+              <span key={`empty-${i}`} className="h-8 w-8 mx-auto" />
+            ))}
+
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const iso = `${selYear}-${String(selMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const isSelected = selectedDateISO === iso;
               return (
                 <button
-                  key={wd.dateISO}
-                  onClick={() =>
+                  key={day}
+                  type="button"
+                  onClick={() => {
                     onUpdateState((prev) => ({
                       ...prev,
                       calendarView: {
                         ...prev.calendarView,
-                        selectedDateISO: wd.dateISO,
+                        selectedDateISO: iso,
                       },
-                    }))
-                  }
-                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition flex items-center gap-1.5 ${
-                    active
-                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] shadow-sm"
-                      : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                    }));
+                    setDatePopoverOpen(false);
+                  }}
+                  className={`h-8 w-8 mx-auto rounded-full flex items-center justify-center font-medium transition ${
+                    isSelected
+                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b]"
+                      : "text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                   }`}
                 >
-                  <span>{wd.label}</span>
-                  <span>{wd.dayNum}</span>
+                  {day}
                 </button>
               );
             })}
           </div>
 
-          {/* Right: Mode Toggle, Waitlist Button, and + New Button (03-1 / 03-3 / 03-4) */}
-          <div className="flex items-center gap-2.5">
-            {/* Provider Selector */}
-            <select
-              aria-label="Filtrar por profissional"
-              value={state.calendarView.selectedProviderId}
-              onChange={(e) =>
+          {/* Quick Week Skip Pills */}
+          <div className="pt-3 border-t border-[#E5E5EA] dark:border-[#27272a]">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a] mb-2.5">
+              Avançar semanas (Retorno rápido)
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {[2, 3, 4, 5, 6, 7, 8].map((weeks) => (
+                <button
+                  key={weeks}
+                  type="button"
+                  onClick={() => {
+                    onUpdateState((prev) => skipCalendarByWeeks(prev, weeks));
+                    setDatePopoverOpen(false);
+                  }}
+                  className="px-3 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] hover:bg-[#1C1C1E] dark:hover:bg-white hover:text-white dark:hover:text-[#09090b] text-[12px] font-semibold text-[#1C1C1E] dark:text-white transition"
+                >
+                  +{weeks} sem.
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100dvh-53px-calc(4.5rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] bg-white dark:bg-[#09090b] overflow-hidden">
+      {/* Top Calendar Header Matching Reference Screenshot (media_1792845742688_c1165d63.png) */}
+      <header className="relative z-50 px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]">
+        {/* Desktop Header Layout (>= md) */}
+        <div className="hidden md:flex items-center justify-between gap-4">
+          {/* Left: Oct + [📅] + < Sat Oct 24, 2026 > */}
+          <div className="relative flex items-center gap-2.5 sm:gap-3">
+            <span className="text-[20px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+              {getMonthShort(selectedDateISO)}
+            </span>
+
+            {/* Calendar Icon Button */}
+            <button
+              type="button"
+              onClick={() => setDatePopoverOpen((v) => !v)}
+              title="Abrir calendário"
+              className="p-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white transition flex items-center justify-center"
+            >
+              <CalendarIcon className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+            </button>
+
+            {/* Integrated Navigation Pill: < [ Date Text ] > */}
+            <div className="flex items-center rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-2xs">
+              <button
+                type="button"
+                onClick={handleNavigatePrev}
+                title="Retroceder"
+                aria-label="Retroceder"
+                className="px-2.5 py-1.5 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-l-full transition flex items-center justify-center"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDatePopoverOpen((v) => !v)}
+                title="Selecionar data"
+                className="px-3.5 py-1.5 text-[13px] font-semibold text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition whitespace-nowrap"
+              >
+                {formatNavDate(selectedDateISO)}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNavigateNext}
+                title="Avançar"
+                aria-label="Avançar"
+                className="px-2.5 py-1.5 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-r-full transition flex items-center justify-center"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Popover Date Picker with +2 to +8 weeks jump */}
+            {renderDatePopover("left-0 top-full mt-2")}
+          </div>
+
+          {/* Right: [⚙] [Week ⌄] [(BS) Bruno ⌄] [Waitlist] [Quick sale] [Add] */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Settings Icon */}
+            <button
+              type="button"
+              title="Configurações da agenda"
+              aria-label="Configurações"
+              className="p-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] transition flex items-center justify-center"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            {/* View Mode Toggle: Week ⌄ / Day ⌄ */}
+            <button
+              type="button"
+              onClick={() =>
                 onUpdateState((prev) => ({
                   ...prev,
                   calendarView: {
                     ...prev.calendarView,
-                    selectedProviderId: e.target.value,
+                    mode: viewMode === "week" ? "day" : "week",
                   },
                 }))
               }
-              className="px-3.5 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] focus:outline-none"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
             >
-              <option value="all">Toda a equipe ({state.staff.length})</option>
-              {state.staff.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.fullName}
-                </option>
-              ))}
-            </select>
+              <span>{viewMode === "week" ? "Week" : "Day"}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
+            </button>
 
-            {/* Day / Week Segmented Switch */}
-            <div className="flex items-center bg-[#F5F5F7] dark:bg-[#27272a] p-1 rounded-full border border-transparent dark:border-[#3f3f46]">
-              <button
-                onClick={() =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    calendarView: { ...prev.calendarView, mode: "day" },
-                  }))
-                }
-                className={`px-3 py-1 rounded-full text-[12px] font-semibold transition ${
-                  viewMode === "day"
-                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
-                    : "text-[#6E6E73] dark:text-[#a1a1aa]"
-                }`}
-              >
-                Dia
-              </button>
-              <button
-                onClick={() =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    calendarView: { ...prev.calendarView, mode: "week" },
-                  }))
-                }
-                className={`px-3 py-1 rounded-full text-[12px] font-semibold transition ${
-                  viewMode === "week"
-                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
-                    : "text-[#6E6E73] dark:text-[#a1a1aa]"
-                }`}
-              >
-                Semana
-              </button>
+            {/* Provider Pill: (BS) Bruno ⌄ */}
+            <div className="relative flex items-center">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition">
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-[#1C1C1E] shrink-0"
+                  style={{
+                    backgroundColor:
+                      state.staff.find(
+                        (s) => s.id === state.calendarView.selectedProviderId
+                      )?.avatarColor || "#E5E5EA",
+                  }}
+                >
+                  {state.staff.find(
+                    (s) => s.id === state.calendarView.selectedProviderId
+                  )?.initials || "All"}
+                </span>
+                <select
+                  aria-label="Filtrar por profissional"
+                  value={state.calendarView.selectedProviderId}
+                  onChange={(e) =>
+                    onUpdateState((prev) => ({
+                      ...prev,
+                      calendarView: {
+                        ...prev.calendarView,
+                        selectedProviderId: e.target.value,
+                      },
+                    }))
+                  }
+                  className="bg-transparent text-[13px] font-medium text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer pr-1"
+                >
+                  <option value="all">Equipe ({state.staff.length})</option>
+                  {state.staff.map((st) => (
+                    <option key={st.id} value={st.id}>
+                      {st.fullName.split(" ")[0]}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa] shrink-0 pointer-events-none" />
+              </div>
             </div>
 
-            {/* Waitlist Drawer Trigger (03-3-calendar.png) */}
+            {/* Waitlist Button */}
             <button
+              type="button"
               onClick={() => setWaitlistDrawerOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-semibold text-[#1C1C1E] dark:text-white transition"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white transition"
             >
-              <Clock className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
-              <span>Lista de espera</span>
+              <span>Waitlist</span>
               {state.waitlist.length > 0 && (
-                <span className="px-2 py-0.5 text-[11px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
                   {state.waitlist.length}
                 </span>
               )}
             </button>
 
-            {/* Quick Sale POS Button */}
+            {/* Quick sale Button */}
             <button
+              type="button"
               onClick={() => onOpenQuickSale()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-semibold text-[#1C1C1E] dark:text-white transition"
+              className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white transition"
             >
-              <CreditCard className="w-4 h-4 text-[#E11D8F]" />
-              <span>Venda rápida</span>
+              Quick sale
             </button>
 
-            {/* + Novo Appointment Drawer Trigger (03-4-calendar.png) */}
+            {/* Add Button */}
             <button
+              type="button"
               onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition shadow-sm"
+              className="px-4 py-1.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition shadow-sm"
             >
-              <Plus className="w-4 h-4" />
-              <span>Adicionar</span>
+              Add
             </button>
           </div>
         </div>
 
         {/* Mobile Header Layout (< md) */}
         <div className="md:hidden space-y-2.5">
-          {/* Row 1: Month/Year + Date Picker + Hoje + Action Buttons (Fila de espera & Agendar) */}
           <div className="flex items-center justify-between gap-2">
             <div className="relative flex items-center gap-2">
-              <button
-                onClick={() => setDatePopoverOpen((v) => !v)}
-                className="flex items-center gap-1.5 text-[17px] font-bold text-[#1C1C1E] active:scale-95 transition"
-              >
-                <span>Outubro 2026</span>
-                <ChevronDown className="w-4 h-4 text-[#6E6E73]" />
-              </button>
-
+              <span className="text-[17px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+                {getMonthShort(selectedDateISO)}
+              </span>
               <button
                 type="button"
-                onClick={handleGoToToday}
-                className="px-2.5 py-1 rounded-full border border-[#E5E5EA] text-[11.5px] font-semibold text-[#1C1C1E] active:scale-95 transition"
+                onClick={() => setDatePopoverOpen((v) => !v)}
+                title="Abrir calendário"
+                aria-label="Abrir calendário"
+                className="p-1 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white"
               >
-                Hoje
+                <CalendarIcon className="w-3.5 h-3.5" />
               </button>
+              <div className="flex items-center rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[12px]">
+                <button
+                  type="button"
+                  onClick={handleNavigatePrev}
+                  title="Retroceder"
+                  aria-label="Retroceder"
+                  className="px-2 py-1 text-[#6E6E73] dark:text-[#a1a1aa] rounded-l-full"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDatePopoverOpen((v) => !v)}
+                  title="Selecionar data"
+                  className="px-2.5 py-1 font-semibold text-[#1C1C1E] dark:text-white whitespace-nowrap"
+                >
+                  {formatNavDate(selectedDateISO)}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNavigateNext}
+                  title="Avançar"
+                  aria-label="Avançar"
+                  className="px-2 py-1 text-[#6E6E73] dark:text-[#a1a1aa] rounded-r-full"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
               {/* Mobile Popover Date Picker */}
-              {datePopoverOpen && (
-                <div className="absolute left-0 top-10 w-[min(340px,calc(100vw-2rem))] bg-white rounded-[20px] border border-[#E5E5EA] shadow-gg-modal p-4 z-50">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[14px] font-semibold text-[#1C1C1E]">
-                      Outubro 2026
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() =>
-                          onUpdateState((prev) => skipCalendarByWeeks(prev, -1))
-                        }
-                        className="p-1.5 rounded-full hover:bg-[#F5F5F7] text-[#6E6E73]"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          onUpdateState((prev) => skipCalendarByWeeks(prev, 1))
-                        }
-                        className="p-1.5 rounded-full hover:bg-[#F5F5F7] text-[#6E6E73]"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Mini Calendar Grid */}
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-[#8E8E93] mb-1.5">
-                    <span>D</span>
-                    <span>S</span>
-                    <span>T</span>
-                    <span>Q</span>
-                    <span>Q</span>
-                    <span>S</span>
-                    <span>S</span>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-[12px] mb-3">
-                    {Array.from({ length: 31 }, (_, i) => {
-                      const day = i + 1;
-                      const iso = `2026-10-${String(day).padStart(2, "0")}`;
-                      const isSelected = selectedDateISO === iso;
-                      return (
-                        <button
-                          key={day}
-                          onClick={() => {
-                            onUpdateState((prev) => ({
-                              ...prev,
-                              calendarView: {
-                                ...prev.calendarView,
-                                selectedDateISO: iso,
-                              },
-                            }));
-                            setDatePopoverOpen(false);
-                          }}
-                          className={`h-7 w-7 mx-auto rounded-full flex items-center justify-center font-medium transition ${
-                            isSelected
-                              ? "bg-[#1C1C1E] text-white"
-                              : "text-[#1C1C1E] hover:bg-[#F5F5F7]"
-                          }`}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Quick Week Skip Pills */}
-                  <div className="pt-2.5 border-t border-[#E5E5EA]">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[#8E8E93] mb-2">
-                      Avançar semanas (Retorno rápido)
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {[2, 3, 4, 5, 6, 7, 8].map((weeks) => (
-                        <button
-                          key={weeks}
-                          onClick={() => {
-                            onUpdateState((prev) => skipCalendarByWeeks(prev, weeks));
-                            setDatePopoverOpen(false);
-                          }}
-                          className="px-2.5 py-1 rounded-full bg-[#F5F5F7] hover:bg-[#1C1C1E] hover:text-white text-[11px] font-semibold text-[#1C1C1E] transition"
-                        >
-                          +{weeks} sem.
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+              {renderDatePopover("left-0 top-full mt-2")}
             </div>
 
-            {/* Quick Actions on Mobile (ALWAYS visible, never hidden) */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Waitlist (Fila de espera) Trigger */}
-              <button
-                type="button"
-                onClick={() => setWaitlistDrawerOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E5EA] bg-white text-[12px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7] active:scale-95 transition"
-              >
-                <Clock className="w-3.5 h-3.5 text-[#6E56CF]" />
-                <span>Fila</span>
-                {state.waitlist.length > 0 && (
-                  <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-[#6E56CF] text-white font-bold">
-                    {state.waitlist.length}
-                  </span>
-                )}
-              </button>
-
-              {/* + Novo Agendamento Button */}
-              <button
-                type="button"
-                onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold active:scale-95 transition shadow-sm"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Agendar</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
+              className="px-3 py-1.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold shrink-0"
+            >
+              Add
+            </button>
           </div>
 
-          {/* Row 2: Week Strip (Dom .. Sáb) with clean 7-column grid */}
-          <div className="grid grid-cols-7 gap-1 bg-[#F5F5F7] p-1 rounded-full text-center">
-            {getWeekDays(selectedDateISO).map((wd) => {
-              const active = selectedDateISO === wd.dateISO;
-              return (
-                <button
-                  key={wd.dateISO}
-                  onClick={() =>
-                    onUpdateState((prev) => ({
-                      ...prev,
-                      calendarView: {
-                        ...prev.calendarView,
-                        selectedDateISO: wd.dateISO,
-                      },
-                    }))
-                  }
-                  className={`py-1 rounded-full text-[11px] font-semibold transition flex flex-col items-center justify-center ${
-                    active
-                      ? "bg-[#1C1C1E] text-white shadow-sm"
-                      : "text-[#6E6E73] hover:text-[#1C1C1E]"
-                  }`}
-                >
-                  <span className="text-[10px] uppercase">{wd.label}</span>
-                  <span className="text-[12px] font-bold leading-tight">{wd.dayNum}</span>
-                </button>
-              );
-            })}
-          </div>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-[12px]">
+            <button
+              type="button"
+              onClick={() =>
+                onUpdateState((prev) => ({
+                  ...prev,
+                  calendarView: {
+                    ...prev.calendarView,
+                    mode: viewMode === "week" ? "day" : "week",
+                  },
+                }))
+              }
+              className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[#1C1C1E] shrink-0"
+            >
+              {viewMode === "week" ? "Week" : "Day"} ⌄
+            </button>
 
-          {/* Row 3: Provider Filter + Day/Week Segmented Control */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <select
-                aria-label="Filtrar por profissional"
-                value={state.calendarView.selectedProviderId}
-                onChange={(e) =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    calendarView: {
-                      ...prev.calendarView,
-                      selectedProviderId: e.target.value,
-                    },
-                  }))
-                }
-                className="w-full px-3 py-1.5 rounded-full border border-[#E5E5EA] text-[12px] font-medium text-[#1C1C1E] bg-white focus:outline-none truncate"
-              >
-                <option value="all">Toda a equipe ({state.staff.length})</option>
-                {state.staff.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.fullName}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <button
+              type="button"
+              onClick={() => setWaitlistDrawerOpen(true)}
+              className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[#1C1C1E] shrink-0"
+            >
+              Waitlist {state.waitlist.length > 0 && `(${state.waitlist.length})`}
+            </button>
 
-            <div className="flex items-center bg-[#F5F5F7] p-0.5 rounded-full shrink-0">
-              <button
-                onClick={() =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    calendarView: { ...prev.calendarView, mode: "day" },
-                  }))
-                }
-                className={`px-3 py-1 rounded-full text-[11px] font-semibold transition ${
-                  viewMode === "day"
-                    ? "bg-white text-[#1C1C1E] shadow-sm"
-                    : "text-[#6E6E73]"
-                }`}
-              >
-                Dia
-              </button>
-              <button
-                onClick={() =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    calendarView: { ...prev.calendarView, mode: "week" },
-                  }))
-                }
-                className={`px-3 py-1 rounded-full text-[11px] font-semibold transition ${
-                  viewMode === "week"
-                    ? "bg-white text-[#1C1C1E] shadow-sm"
-                    : "text-[#6E6E73]"
-                }`}
-              >
-                Semana
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => onOpenQuickSale()}
+              className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[#1C1C1E] shrink-0"
+            >
+              Quick sale
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Week Mode 7-Day Overview Strip when viewMode === 'week' */}
-      {viewMode === "week" && (
-        <div className="px-6 py-3 bg-[#F5F3FF] border-b border-[#DDD6FE] grid grid-cols-7 gap-2">
-          {getWeekDays(selectedDateISO).map((wd) => {
-            const dayEvents = state.calendarEvents.filter(
-              (ev) => ev.dateISO === wd.dateISO && ev.status !== "canceled"
-            );
-            const isSelected = selectedDateISO === wd.dateISO;
-            return (
-              <div
-                key={wd.dateISO}
-                onClick={() =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    calendarView: {
-                      ...prev.calendarView,
-                      selectedDateISO: wd.dateISO,
-                    },
-                  }))
-                }
-                className={`p-2.5 rounded-[14px] border cursor-pointer transition ${
-                  isSelected
-                    ? "bg-white border-[#6E56CF] shadow-sm"
-                    : "bg-white/70 border-[#E5E5EA] hover:bg-white"
-                }`}
-              >
-                <div className="flex items-center justify-between text-[11px] font-bold text-[#1C1C1E] mb-1">
-                  <span>
-                    {wd.label} {wd.dayNum}
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold">
-                    {dayEvents.length}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {dayEvents.slice(0, 2).map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="text-[10px] truncate px-1.5 py-0.5 rounded bg-[#F5F5F7] text-[#1C1C1E] font-medium"
+      {/* Week Mode Full 7-Day Matrix or Day Mode View */}
+      {viewMode === "week" ? (
+        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#09090b]">
+          {/* 7-Day Header Strip */}
+          <div className="flex border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] sticky top-0 z-30 overflow-x-auto no-scrollbar">
+            {/* Time gutter spacer */}
+            <div className="w-14 sm:w-16 shrink-0 border-r border-[#E5E5EA] dark:border-[#27272a]" />
+
+            {/* 7 Day Columns Header */}
+            <div className="grid grid-cols-7 flex-1 min-w-[700px] md:min-w-0">
+              {getWeekDays(selectedDateISO).map((wd) => {
+                const isToday =
+                  currentTime ? wd.dateISO === currentTime.todayISO : false;
+                const isSelected = selectedDateISO === wd.dateISO;
+                return (
+                  <button
+                    key={wd.dateISO}
+                    type="button"
+                    onClick={() =>
+                      onUpdateState((prev) => ({
+                        ...prev,
+                        calendarView: {
+                          ...prev.calendarView,
+                          selectedDateISO: wd.dateISO,
+                        },
+                      }))
+                    }
+                    className="py-3 px-1 sm:px-2 text-center border-r border-[#E5E5EA] dark:border-[#27272a] transition select-none flex flex-col items-center justify-center gap-0.5 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/40"
+                  >
+                    <span
+                      className={`text-[15px] sm:text-[16px] font-bold leading-none ${
+                        isSelected || isToday
+                          ? "text-[#E11D8F]"
+                          : "text-[#1C1C1E] dark:text-white"
+                      }`}
                     >
-                      {ev.startTime} {ev.clientName}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Provider Subheader Bar / Legend */}
-      <div className="px-3.5 sm:px-6 py-2 bg-[#FAFAFC] dark:bg-[#18181b] border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar text-[11px] sm:text-[12px]">
-        <div className="flex items-center gap-2 shrink-0">
-          {state.staff.map((member) => (
-            <div
-              key={member.id}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] shrink-0"
-            >
-              <span
-                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold text-[#1C1C1E]"
-                style={{ backgroundColor: member.avatarColor }}
-              >
-                {member.initials}
-              </span>
-              <span className="font-semibold text-[#1C1C1E] dark:text-white">
-                {member.fullName.split(" ")[0]}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center gap-3 text-[#6E6E73] dark:text-[#a1a1aa] shrink-0">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-[#E11D8F]" />
-            <span>Tempo ativo</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full border border-dashed border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]" />
-            <span>Pausa/Encaixe</span>
-          </span>
-          <span className="hidden sm:flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
-            <span>WhatsApp Sincronizado</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Main Hourly Grid */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative">
-        <div style={{ minHeight: `${HOURS.length * 80}px` }} className="relative">
-          {/* Magenta Current Time Line (Dynamic real-time indicator) */}
-          {isViewingToday && currentTime && (
-            <div
-              className="absolute left-0 right-0 z-20 flex items-center pointer-events-none transition-all duration-300"
-              style={{
-                top: `${Math.max(
-                  0,
-                  Math.min(
-                    HOURS.length * 80,
-                    ((currentTime.totalMinutes - START_HOUR * 60) / 60) * 80
-                  )
-                )}px`,
-              }}
-            >
-              <div className="w-14 sm:w-20 pl-2 sm:pl-3 flex justify-end pr-2">
-                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] sm:text-[11px] font-mono font-bold shadow-sm whitespace-nowrap">
-                  {currentTime.formatted}
-                </span>
-              </div>
-              <div className="flex-1 h-[2px] bg-[#E11D8F]" />
-            </div>
-          )}
-
-          {/* Hourly Rows */}
-          {HOURS.map((hour) => {
-            const label = `${String(hour).padStart(2, "0")}:00`;
-            return (
-              <div
-                key={hour}
-                onClick={() => openNewDrawerAtSlot(label, "appointment")}
-                className="h-[80px] border-b border-[#EFEFF4] dark:border-[#27272a] flex group hover:bg-[#FAFAFC] dark:hover:bg-[#18181b] cursor-pointer transition"
-              >
-                <div className="w-14 sm:w-20 pr-2 sm:pr-3 pt-2 text-right text-[11px] sm:text-[12px] font-mono text-[#8E8E93] dark:text-[#71717a] select-none border-r border-[#EFEFF4] dark:border-[#27272a]">
-                  {label}
-                </div>
-                <div className="flex-1 relative px-3 sm:px-4 flex items-center">
-                  <span className="opacity-0 group-hover:opacity-100 text-[11px] sm:text-[12px] font-medium text-[#6E56CF] dark:text-[#A494F7] transition">
-                    + Clique para agendar às {label}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Rendered Appointment & Event Blocks */}
-          {eventsForSelectedDate.map((ev) => {
-            const startMin = parseTimeMinutes(ev.startTime);
-            const endMin = parseTimeMinutes(ev.endTime);
-            const topPx = Math.max(0, ((startMin - START_HOUR * 60) / 60) * 80);
-            const heightPx = Math.max(58, ((endMin - startMin) / 60) * 80);
-            const hasProcessingWindow = ev.processingDurationMinutes > 0;
-            const resourcesUsed = state.resources.filter((r) =>
-              ev.resourceIds.includes(r.id)
-            );
-
-            // Check if multiple providers have events at this exact overlapping slot
-            const isAllProviders = state.calendarView.selectedProviderId === "all";
-            const hasSimultaneousEvent =
-              isAllProviders &&
-              eventsForSelectedDate.some(
-                (other) =>
-                  other.id !== ev.id &&
-                  Math.max(startMin, parseTimeMinutes(other.startTime)) <
-                    Math.min(endMin, parseTimeMinutes(other.endTime))
-              );
-
-            const isSecondary = ev.providerId !== state.staff[0]?.id;
-
-            return (
-              <div
-                key={ev.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedEvent(ev);
-                }}
-                style={{
-                  top: `${topPx}px`,
-                  height: `${heightPx}px`,
-                  borderLeftColor: ev.calendarColor,
-                  ...(hasSimultaneousEvent
-                    ? {
-                        left: isSecondary ? "calc(3.75rem + 50%)" : "3.75rem",
-                        width: "calc(50% - 2.25rem)",
-                      }
-                    : {}),
-                }}
-                className={`absolute z-10 ${
-                  hasSimultaneousEvent
-                    ? ""
-                    : "left-[3.75rem] sm:left-[5.5rem] right-2 sm:right-4"
-                } rounded-[14px] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] border-l-[5px] shadow-gg-card hover:shadow-md p-2.5 sm:p-3 cursor-pointer transition flex flex-col justify-between overflow-hidden`}
-              >
-                <div className="flex items-start justify-between gap-1.5">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                      <span className="text-[11.5px] sm:text-[12px] font-mono font-bold text-[#1C1C1E] dark:text-white shrink-0">
-                        {ev.startTime} – {ev.endTime}
-                      </span>
-                      <span className="text-[12px] sm:text-[13px] font-bold text-[#1C1C1E] dark:text-white truncate">
-                        · {ev.clientName}
-                      </span>
-                    </div>
-                    <p className="text-[11px] sm:text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium truncate mt-0.5">
-                      {ev.serviceNames.join(" + ")} · {ev.providerName}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                    {ev.depositPaid && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                        Sinal Pix
-                      </span>
-                    )}
-                    {ev.whatsappClientReply === "1_confirmed" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#6E56CF] ring-2 ring-[#6E56CF]/20" />
-                        WhatsApp 1
-                      </span>
-                    )}
-                    {ev.whatsappClientReply === "2_reschedule" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] ring-2 ring-[#D97706]/20" />
-                        Reagendar
-                      </span>
-                    )}
-                    {ev.status === "completed" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[9px] sm:text-[10px] font-medium shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#1C1C1E] ring-2 ring-[#1C1C1E]/20" />
-                        Pago
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Processing Time Segmented Bar Indicator (ADR-0002) */}
-                {hasProcessingWindow && (
-                  <div className="my-1 px-2 sm:px-2.5 py-1 rounded-lg bg-[#F5F3FF] border border-dashed border-[#6E56CF]/50 flex flex-wrap sm:flex-nowrap items-center justify-between gap-1 text-[10.5px] sm:text-[11px] text-[#6E56CF]">
-                    <span className="inline-flex items-center gap-1.5 truncate">
-                      <Clock className="w-3 h-3 shrink-0" />
-                      Pausa ({ev.processingDurationMinutes} min livres p/ encaixe)
+                      {wd.dayNum}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const gapStartHHMM = formatMinutesToHHMM(
-                          startMin + ev.processingStartOffsetMinutes
-                        );
-                        openNewDrawerAtSlot(gapStartHHMM, "appointment");
-                      }}
-                      className="underline font-bold hover:text-[#1C1C1E] shrink-0"
+                    <span
+                      className={`text-[12px] sm:text-[13px] font-medium leading-tight mt-1 ${
+                        isSelected || isToday
+                          ? "text-[#E11D8F] font-semibold"
+                          : "text-[#6E6E73] dark:text-[#a1a1aa]"
+                      }`}
                     >
-                      + Encaixar
-                    </button>
+                      {wd.labelFull}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Scrollable Matrix */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto overflow-x-auto relative"
+          >
+            <div
+              style={{ minHeight: `${HOURS.length * HOUR_HEIGHT}px` }}
+              className="flex min-w-[760px] md:min-w-0 relative"
+            >
+              {/* Time Gutter on the Left */}
+              <div className="w-14 sm:w-16 shrink-0 border-r border-[#E5E5EA] dark:border-[#27272a] select-none relative bg-white dark:bg-[#18181b] z-20">
+                {HOURS.map((hour) => (
+                  <div
+                    key={hour}
+                    style={{ height: `${HOUR_HEIGHT}px` }}
+                    className="pr-2 sm:pr-3 pt-1.5 text-right text-[11px] font-mono text-[#8E8E93] dark:text-[#71717a] border-b border-[#EFEFF4] dark:border-[#27272a]"
+                  >
+                    {formatHour12(hour)}
+                  </div>
+                ))}
+
+                {/* Current Time Badge on Gutter */}
+                {currentTime && (
+                  <div
+                    className="absolute right-1 -translate-y-1/2 z-30 pointer-events-none"
+                    style={{
+                      top: `${((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                    }}
+                  >
+                    <span className="px-1.5 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] font-mono font-bold shadow-xs whitespace-nowrap">
+                      {currentTime.formatted}
+                    </span>
                   </div>
                 )}
-
-                <div className="flex items-center justify-between gap-2 text-[10.5px] sm:text-[11px] text-[#6E6E73] pt-1 border-t border-[#F5F5F7]">
-                  <span className="truncate flex-1 min-w-0">
-                    {resourcesUsed.length > 0
-                      ? `Recursos: ${resourcesUsed.map((r) => r.name).join(", ")}`
-                      : ev.addressOrNotes || "1-Toque para Retorno ou Baixa"}
-                  </span>
-                  <span className="font-mono font-bold text-[#1C1C1E] shrink-0">
-                    {formatBRL(ev.totalCents)}
-                  </span>
-                </div>
               </div>
-            );
-          })}
+
+              {/* 7 Columns Container */}
+              <div className="grid grid-cols-7 flex-1 relative">
+                {/* Real-time Magenta Line across all 7 columns */}
+                {currentTime && (
+                  <div
+                    className="absolute left-0 right-0 h-[2px] bg-[#E11D8F] z-20 pointer-events-none transition-all duration-300"
+                    style={{
+                      top: `${((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                    }}
+                  />
+                )}
+
+                {/* Render each day column */}
+                {getWeekDays(selectedDateISO).map((wd) => {
+                  const workingHours = getDayWorkingHours(
+                    state.settings?.website?.businessHours,
+                    wd.dateISO
+                  );
+                  const isHovered = hoveredSlot?.dateISO === wd.dateISO;
+
+                  // Day events for this specific column
+                  const dayEvents = state.calendarEvents.filter(
+                    (e) =>
+                      e.dateISO === wd.dateISO &&
+                      e.status !== "canceled" &&
+                      (state.calendarView.selectedProviderId === "all" ||
+                        e.providerId === state.calendarView.selectedProviderId)
+                  );
+
+                  return (
+                    <div
+                      key={wd.dateISO}
+                      onMouseMove={(e) => handleColumnMouseMove(e, wd.dateISO)}
+                      onMouseLeave={() => setHoveredSlot(null)}
+                      onClick={() => handleColumnClick(wd.dateISO)}
+                      className="relative border-r border-[#E5E5EA] dark:border-[#27272a] select-none cursor-pointer"
+                    >
+                      {/* Background Hour Rows */}
+                      {HOURS.map((hour) => (
+                        <div
+                          key={hour}
+                          style={{ height: `${HOUR_HEIGHT}px` }}
+                          className="border-b border-[#EFEFF4] dark:border-[#27272a]"
+                        />
+                      ))}
+
+                      {/* Hatched / "Rabiscada" Non-working overlays */}
+                      {!workingHours.isOpen ? (
+                        // Entire day closed
+                        <div
+                          className="absolute inset-0 pointer-events-none z-0"
+                          style={{
+                            backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
+                            backgroundColor: "rgba(244, 244, 245, 0.65)",
+                          }}
+                        />
+                      ) : (
+                        <>
+                          {/* Top hatched area: Before working hours (e.g. before 8am) */}
+                          {workingHours.startMinutes > START_HOUR * 60 && (
+                            <div
+                              className="absolute left-0 right-0 top-0 pointer-events-none z-0"
+                              style={{
+                                height: `${((workingHours.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                                backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
+                                backgroundColor: "rgba(244, 244, 245, 0.65)",
+                              }}
+                            />
+                          )}
+                          {/* Bottom hatched area: After working hours (e.g. after 5pm) */}
+                          {workingHours.endMinutes <
+                            (START_HOUR + HOURS.length) * 60 && (
+                            <div
+                              className="absolute left-0 right-0 pointer-events-none z-0"
+                              style={{
+                                top: `${((workingHours.endMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                                height: `${(((START_HOUR + HOURS.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
+                                backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
+                                backgroundColor: "rgba(244, 244, 245, 0.65)",
+                              }}
+                            />
+                          )}
+                        </>
+                      )}
+
+                      {/* Interactive Hover Slot Guide & Pill ("9:30am", "3:15pm") */}
+                      {isHovered && hoveredSlot && (
+                        <>
+                          <div
+                            className="absolute left-0 right-0 h-[1.5px] bg-[#E11D8F]/60 pointer-events-none z-20"
+                            style={{ top: `${hoveredSlot.topPx}px` }}
+                          />
+                          <div
+                            className="absolute left-1.5 z-30 pointer-events-none -translate-y-1/2 px-2 py-0.5 rounded-[6px] bg-white dark:bg-zinc-800 border border-[#D4D4D8] dark:border-[#3F3F46] shadow-sm text-[11px] font-semibold text-[#1C1C1E] dark:text-zinc-100 whitespace-nowrap"
+                            style={{ top: `${hoveredSlot.topPx}px` }}
+                          >
+                            {hoveredSlot.timeLabel}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Render Appointments in this column */}
+                      {dayEvents.map((ev) => {
+                        const startMin = parseTimeMinutes(ev.startTime);
+                        const endMin = parseTimeMinutes(ev.endTime);
+                        const topPx = Math.max(
+                          0,
+                          ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT
+                        );
+                        const heightPx = Math.max(
+                          38,
+                          ((endMin - startMin) / 60) * HOUR_HEIGHT
+                        );
+                        const isCompleted = ev.status === "completed";
+                        const isPending = ev.status === "pending";
+
+                        if (ev.serviceNames.length > 1 && heightPx >= 68) {
+                          const totalEvtMin = Math.max(15, endMin - startMin);
+                          let runningSliceMin = startMin;
+                          const numSrv = ev.serviceNames.length;
+                          return (
+                            <div
+                              key={ev.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedEvent(ev);
+                              }}
+                              style={{
+                                top: `${topPx}px`,
+                                height: `${heightPx}px`,
+                              }}
+                              className="absolute z-10 left-1 right-1 flex flex-col gap-1 cursor-pointer select-none"
+                            >
+                              {ev.serviceNames.map((sName, sIdx) => {
+                                const approxDuration = Math.round(totalEvtMin / numSrv);
+                                const sStart = runningSliceMin;
+                                const sEnd =
+                                  sIdx === numSrv - 1 ? endMin : sStart + approxDuration;
+                                runningSliceMin = sEnd;
+                                const sStartH = Math.floor(sStart / 60);
+                                const sStartM = sStart % 60;
+                                const sEndH = Math.floor(sEnd / 60);
+                                const sEndM = sEnd % 60;
+                                const sliceTimeStr = `${formatTime12h(sStartH, sStartM)} - ${formatTime12h(sEndH, sEndM)}`;
+
+                                return (
+                                  <div
+                                    key={`${ev.id}-${sIdx}`}
+                                    className={`flex-1 rounded-[10px] p-2 flex flex-col justify-start overflow-hidden border shadow-xs transition hover:shadow-md ${
+                                      isCompleted
+                                        ? "bg-[#E2E8F0] dark:bg-[#27272a] border-[#94A3B8] dark:border-[#52525b] text-[#1C1C1E] dark:text-zinc-100"
+                                        : isPending
+                                        ? "bg-[#FEF3C7] dark:bg-[#451a03] border-[#F59E0B] dark:border-[#b45309] text-[#78350F] dark:text-[#fef3c7]"
+                                        : "bg-[#FCE7F3] dark:bg-[#3b1228] border-[#F472B6] dark:border-[#9d174d] text-[#1C1C1E] dark:text-pink-50"
+                                    }`}
+                                  >
+                                    <span className="text-[10px] font-medium opacity-80 leading-none">
+                                      {sliceTimeStr}
+                                    </span>
+                                    <span className="font-semibold text-[11px] truncate mt-0.5">
+                                      {sName}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={ev.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEvent(ev);
+                            }}
+                            style={{
+                              top: `${topPx}px`,
+                              height: `${heightPx}px`,
+                            }}
+                            className={`absolute z-10 left-1 right-1 rounded-[10px] p-2 cursor-pointer transition select-none flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
+                              isCompleted
+                                ? "bg-[#E2E8F0] dark:bg-[#27272a] border border-[#94A3B8] dark:border-[#52525b] text-[#1C1C1E] dark:text-zinc-100"
+                                : isPending
+                                ? "bg-[#FEF3C7] dark:bg-[#451a03] border border-[#F59E0B] dark:border-[#b45309] text-[#78350F] dark:text-[#fef3c7]"
+                                : "bg-[#FCE7F3] dark:bg-[#3b1228] border border-[#F472B6] dark:border-[#9d174d] text-[#1C1C1E] dark:text-pink-50"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-1 leading-tight">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-bold text-[11.5px] truncate block leading-none">
+                                  {ev.clientName}
+                                </span>
+                                <span className="text-[10.5px] opacity-75 truncate block mt-0.5">
+                                  {ev.serviceNames.join(", ")}
+                                </span>
+                              </div>
+                              <div className="shrink-0 mt-0.5">
+                                {isCompleted ? (
+                                  <FileText className="w-3.5 h-3.5 text-[#475569] dark:text-zinc-300" />
+                                ) : (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-[#E11D8F] dark:text-[#f472b6]" />
+                                )}
+                              </div>
+                            </div>
+                            {heightPx >= 52 && (
+                              <div className="text-[10px] font-mono opacity-70 truncate mt-auto">
+                                {ev.startTime} – {ev.endTime}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Day Mode Single Day Timeline */
+        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#09090b]">
+          {/* Day Mode Subheader */}
+          <div className="px-3.5 sm:px-6 py-2 bg-[#FAFAFC] dark:bg-[#18181b] border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar text-[11px] sm:text-[12px]">
+            <div className="flex items-center gap-2 shrink-0">
+              {state.staff.map((member) => {
+                const isSelected = state.calendarView.selectedProviderId === member.id;
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => {
+                      const nextId = isSelected ? "all" : member.id;
+                      onUpdateState((prev) => ({
+                        ...prev,
+                        calendarView: {
+                          ...prev.calendarView,
+                          selectedProviderId: nextId,
+                        },
+                      }));
+                      setProviderId(member.id);
+                    }}
+                    title={`Filtrar agenda por ${member.fullName}`}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition cursor-pointer shrink-0 ${
+                      isSelected
+                        ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-xs"
+                        : "bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#323238]"
+                    }`}
+                  >
+                    <span
+                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold text-[#1C1C1E]"
+                      style={{ backgroundColor: member.avatarColor }}
+                    >
+                      {member.initials}
+                    </span>
+                    <span className="font-semibold">
+                      {member.fullName.split(" ")[0]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-3 text-[#6E6E73] dark:text-[#a1a1aa] shrink-0">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-[#E11D8F]" />
+                <span>Tempo ativo</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full border border-dashed border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]" />
+                <span>Pausa/Encaixe</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Main Hourly Grid (Day Mode) */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto relative"
+          >
+            <div
+              style={{ minHeight: `${HOURS.length * HOUR_HEIGHT}px` }}
+              className="relative"
+            >
+              {/* Magenta Current Time Line */}
+              {isViewingToday && currentTime && (
+                <div
+                  className="absolute left-0 right-0 z-20 flex items-center pointer-events-none transition-all duration-300"
+                  style={{
+                    top: `${Math.max(
+                      0,
+                      Math.min(
+                        HOURS.length * HOUR_HEIGHT,
+                        ((currentTime.totalMinutes - START_HOUR * 60) / 60) *
+                          HOUR_HEIGHT
+                      )
+                    )}px`,
+                  }}
+                >
+                  <div className="w-14 sm:w-20 pl-2 sm:pl-3 flex justify-end pr-2">
+                    <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] sm:text-[11px] font-mono font-bold shadow-sm whitespace-nowrap">
+                      {currentTime.formatted}
+                    </span>
+                  </div>
+                  <div className="flex-1 h-[2px] bg-[#E11D8F]" />
+                </div>
+              )}
+
+              {/* Day Column Working Hours Overlays */}
+              {(() => {
+                const workingHours = getDayWorkingHours(
+                  state.settings?.website?.businessHours,
+                  selectedDateISO
+                );
+                return (
+                  <>
+                    {!workingHours.isOpen ? (
+                      <div
+                        className="absolute inset-0 pointer-events-none z-0 left-14 sm:left-20"
+                        style={{
+                          backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
+                          backgroundColor: "rgba(244, 244, 245, 0.65)",
+                        }}
+                      />
+                    ) : (
+                      <>
+                        {workingHours.startMinutes > START_HOUR * 60 && (
+                          <div
+                            className="absolute left-14 sm:left-20 right-0 top-0 pointer-events-none z-0"
+                            style={{
+                              height: `${((workingHours.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                              backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
+                              backgroundColor: "rgba(244, 244, 245, 0.65)",
+                            }}
+                          />
+                        )}
+                        {workingHours.endMinutes <
+                          (START_HOUR + HOURS.length) * 60 && (
+                          <div
+                            className="absolute left-14 sm:left-20 right-0 pointer-events-none z-0"
+                            style={{
+                              top: `${((workingHours.endMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                              height: `${(((START_HOUR + HOURS.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
+                              backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
+                              backgroundColor: "rgba(244, 244, 245, 0.65)",
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Hourly Rows */}
+              {HOURS.map((hour) => {
+                const label = `${String(hour).padStart(2, "0")}:00`;
+                return (
+                  <div
+                    key={hour}
+                    onClick={() => openNewDrawerAtSlot(label, "appointment")}
+                    style={{ height: `${HOUR_HEIGHT}px` }}
+                    className="border-b border-[#EFEFF4] dark:border-[#27272a] flex group hover:bg-[#FAFAFC] dark:hover:bg-[#18181b] cursor-pointer transition"
+                  >
+                    <div className="w-14 sm:w-20 pr-2 sm:pr-3 pt-2 text-right text-[11px] sm:text-[12px] font-mono text-[#8E8E93] dark:text-[#71717a] select-none border-r border-[#EFEFF4] dark:border-[#27272a]">
+                      {formatHour12(hour)}
+                    </div>
+                    <div className="flex-1 relative px-3 sm:px-4 flex items-center">
+                      <span className="opacity-0 group-hover:opacity-100 text-[11px] sm:text-[12px] font-medium text-[#6E56CF] dark:text-[#A494F7] transition">
+                        + Clique para agendar às {label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Day Mode Rendered Appointment & Event Blocks */}
+              {eventsForSelectedDate.map((ev) => {
+                const startMin = parseTimeMinutes(ev.startTime);
+                const endMin = parseTimeMinutes(ev.endTime);
+                const topPx = Math.max(
+                  0,
+                  ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT
+                );
+                const heightPx = Math.max(
+                  46,
+                  ((endMin - startMin) / 60) * HOUR_HEIGHT
+                );
+                const hasProcessingWindow = ev.processingDurationMinutes > 0;
+                const resourcesUsed = state.resources.filter((r) =>
+                  ev.resourceIds.includes(r.id)
+                );
+                const isCompleted = ev.status === "completed";
+                const isPending = ev.status === "pending";
+
+                const isAllProviders =
+                  state.calendarView.selectedProviderId === "all";
+                const hasSimultaneousEvent =
+                  isAllProviders &&
+                  eventsForSelectedDate.some(
+                    (other) =>
+                      other.id !== ev.id &&
+                      Math.max(startMin, parseTimeMinutes(other.startTime)) <
+                        Math.min(endMin, parseTimeMinutes(other.endTime))
+                  );
+                const isSecondary = ev.providerId !== state.staff[0]?.id;
+
+                return (
+                  <div
+                    key={ev.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEvent(ev);
+                    }}
+                    style={{
+                      top: `${topPx}px`,
+                      height: `${heightPx}px`,
+                      ...(hasSimultaneousEvent
+                        ? {
+                            left: isSecondary
+                              ? "calc(3.75rem + 50%)"
+                              : "3.75rem",
+                            width: "calc(50% - 2.25rem)",
+                          }
+                        : {}),
+                    }}
+                    className={`absolute z-10 ${
+                      hasSimultaneousEvent
+                        ? ""
+                        : "left-[3.75rem] sm:left-[5.5rem] right-2 sm:right-4"
+                    } rounded-[12px] p-2.5 sm:p-3 cursor-pointer transition select-none flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
+                      isCompleted
+                        ? "bg-[#E2E8F0] dark:bg-[#27272a] border border-[#94A3B8] dark:border-[#52525b] text-[#1C1C1E] dark:text-zinc-100"
+                        : isPending
+                        ? "bg-[#FEF3C7] dark:bg-[#451a03] border border-[#F59E0B] dark:border-[#b45309] text-[#78350F] dark:text-[#fef3c7]"
+                        : "bg-[#FCE7F3] dark:bg-[#3b1228] border border-[#F472B6] dark:border-[#9d174d] text-[#1C1C1E] dark:text-pink-50"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[12px] sm:text-[13px] font-bold truncate">
+                            {ev.clientName}
+                          </span>
+                          <span className="text-[11px] sm:text-[12px] font-mono opacity-80 shrink-0">
+                            · {ev.startTime} – {ev.endTime}
+                          </span>
+                        </div>
+                        <p className="text-[11px] sm:text-[12px] opacity-80 font-medium truncate mt-0.5">
+                          {ev.serviceNames.join(" + ")} · {ev.providerName}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                        {isCompleted ? (
+                          <FileText className="w-4 h-4 text-[#475569] dark:text-zinc-300" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-[#E11D8F] dark:text-[#f472b6]" />
+                        )}
+                      </div>
+                    </div>
+
+                    {hasProcessingWindow && (
+                      <div className="my-1 px-2.5 py-1 rounded-lg bg-[#F5F3FF] border border-dashed border-[#6E56CF]/50 flex items-center justify-between gap-1 text-[11px] text-[#6E56CF]">
+                        <span className="inline-flex items-center gap-1.5 truncate">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          Pausa ({ev.processingDurationMinutes} min livres p/
+                          encaixe)
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const gapStartHHMM = formatMinutesToHHMM(
+                              startMin + ev.processingStartOffsetMinutes
+                            );
+                            openNewDrawerAtSlot(gapStartHHMM, "appointment");
+                          }}
+                          className="underline font-bold hover:text-[#1C1C1E] shrink-0"
+                        >
+                          + Encaixar
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2 text-[10.5px] sm:text-[11px] pt-1 border-t border-black/5 dark:border-white/5">
+                      <span className="truncate flex-1 min-w-0 opacity-75">
+                        {resourcesUsed.length > 0
+                          ? `Recursos: ${resourcesUsed.map((r) => r.name).join(", ")}`
+                          : ev.addressOrNotes || "1-Toque para Retorno ou Baixa"}
+                      </span>
+                      <span className="font-mono font-bold shrink-0">
+                        {formatBRL(ev.totalCents)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================================
           DRAWER 1: LISTA DE ESPERA (03-3-calendar.png)
@@ -1192,19 +1884,25 @@ export function CalendarView({
 
               {/* Event Type Selector */}
               <div>
-                <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1.5">
-                  Tipo de evento
+                <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
+                  Event type
                 </label>
                 <select
                   value={eventType}
-                  onChange={(e) =>
-                    setEventType(e.target.value as CalendarEventType)
-                  }
-                  className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] text-[14px] font-semibold text-[#1C1C1E] bg-white"
+                  onChange={(e) => {
+                    const newType = e.target.value as CalendarEventType;
+                    setEventType(newType);
+                    if (newType === "personal_block") {
+                      setSelectedServiceIds([]);
+                    } else if (selectedServiceIds.length === 0 && state.services[0]) {
+                      setSelectedServiceIds([state.services[0].id]);
+                    }
+                  }}
+                  className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] text-[14px] font-semibold text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b]"
                 >
-                  <option value="appointment">Agendamento (Appointment)</option>
+                  <option value="appointment">Appointment (Agendamento)</option>
                   <option value="personal_block">
-                    Evento pessoal / Bloqueio
+                    Blocked time / Horário reservado
                   </option>
                   <option value="working_hours">Horário de expediente</option>
                   <option value="waitlist_entry">
@@ -1213,22 +1911,41 @@ export function CalendarView({
                 </select>
               </div>
 
-              {/* Service Provider Card */}
-              <div>
-                <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1.5">
-                  Profissional
-                </label>
-                <select
-                  value={providerId}
-                  onChange={(e) => setProviderId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] text-[14px] font-semibold text-[#1C1C1E] bg-white"
-                >
-                  {state.staff.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.initials} · {st.fullName} ({st.role})
-                    </option>
-                  ))}
-                </select>
+              {/* Date, Start time, End time - 3 Column Layout (Screenshot 1 & 2) */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                <div className="rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
+                  <label className="block text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] mb-1">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={eventDateISO}
+                    onChange={(e) => setEventDateISO(e.target.value)}
+                    className="w-full bg-transparent text-[12.5px] sm:text-[13px] font-medium text-[#1C1C1E] dark:text-white outline-none"
+                  />
+                </div>
+                <div className="rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
+                  <label className="block text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] mb-1">
+                    Start time
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => handleStartTimeChange(e.target.value)}
+                    className="w-full bg-transparent text-[12.5px] sm:text-[13px] font-mono font-medium text-[#1C1C1E] dark:text-white outline-none"
+                  />
+                </div>
+                <div className="rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
+                  <label className="block text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] mb-1">
+                    End time
+                  </label>
+                  <input
+                    type="time"
+                    value={effectiveEndTime}
+                    onChange={(e) => handleEndTimeChange(e.target.value)}
+                    className="w-full bg-transparent text-[12.5px] sm:text-[13px] font-mono font-medium text-[#1C1C1E] dark:text-white outline-none"
+                  />
+                </div>
               </div>
 
               {/* Client Selector + Inline Client Creation */}
@@ -1236,13 +1953,13 @@ export function CalendarView({
                 eventType !== "working_hours" && (
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[12px] font-semibold text-[#6E6E73]">
-                        Cliente
+                      <label className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Client *
                       </label>
                       <button
                         type="button"
                         onClick={() => setShowInlineNewClient((v) => !v)}
-                        className="text-[12px] font-semibold text-[#6E56CF] hover:underline flex items-center gap-1"
+                        className="text-[12px] font-semibold text-[#6E56CF] dark:text-[#a78bfa] hover:underline flex items-center gap-1"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
                         {showInlineNewClient
@@ -1252,13 +1969,13 @@ export function CalendarView({
                     </div>
 
                     {showInlineNewClient ? (
-                      <div className="p-4 rounded-[16px] bg-[#F5F5F7] space-y-2.5">
+                      <div className="p-4 rounded-[16px] bg-[#F5F5F7] dark:bg-[#27272a] space-y-2.5">
                         <input
                           type="text"
                           placeholder="Nome completo do cliente"
                           value={inlineClientName}
                           onChange={(e) => setInlineClientName(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] bg-white text-[13px]"
+                          className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
                         />
                         <div className="grid grid-cols-2 gap-2">
                           <input
@@ -1268,7 +1985,7 @@ export function CalendarView({
                             onChange={(e) =>
                               setInlineClientPhone(e.target.value)
                             }
-                            className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] bg-white text-[13px]"
+                            className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
                           />
                           <input
                             type="email"
@@ -1277,7 +1994,7 @@ export function CalendarView({
                             onChange={(e) =>
                               setInlineClientEmail(e.target.value)
                             }
-                            className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] bg-white text-[13px]"
+                            className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
                           />
                         </div>
                       </div>
@@ -1285,7 +2002,7 @@ export function CalendarView({
                       <select
                         value={clientId}
                         onChange={(e) => setClientId(e.target.value)}
-                        className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] text-[14px] font-medium text-[#1C1C1E] bg-white"
+                        className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] text-[14px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b]"
                       >
                         {state.clients.map((cli) => (
                           <option key={cli.id} value={cli.id}>
@@ -1297,250 +2014,521 @@ export function CalendarView({
                   </div>
                 )}
 
-              {/* Services Multi-Select + Inline Service Creation */}
-              {eventType !== "personal_block" && (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[12px] font-semibold text-[#6E6E73]">
-                      Serviços
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowInlineNewService((v) => !v)}
-                      className="text-[12px] font-semibold text-[#6E56CF] hover:underline flex items-center gap-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      {showInlineNewService
-                        ? "Fechar novo serviço"
-                        : "+ Adicionar novo serviço"}
-                    </button>
-                  </div>
+              {/* Service Provider Card */}
+              <div>
+                <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
+                  Provider *
+                </label>
+                <select
+                  value={providerId}
+                  onChange={(e) => setProviderId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] text-[14px] font-semibold text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b]"
+                >
+                  {state.staff.map((st) => (
+                    <option key={st.id} value={st.id}>
+                      {st.fullName} ({st.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                  {showInlineNewService && (
-                    <div className="p-3.5 mb-2.5 rounded-[14px] bg-[#F5F5F7] space-y-2">
-                      <input
-                        type="text"
-                        placeholder="Nome do novo serviço"
-                        value={inlineServiceName}
-                        onChange={(e) => setInlineServiceName(e.target.value)}
-                        className="w-full px-3 py-2 rounded-[10px] border border-[#E5E5EA] bg-white text-[13px]"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          placeholder="Preço (R$)"
-                          value={inlineServicePriceBRL}
-                          onChange={(e) =>
-                            setInlineServicePriceBRL(e.target.value)
-                          }
-                          className="w-full px-3 py-2 rounded-[10px] border border-[#E5E5EA] bg-white text-[13px] font-mono"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Duração (min)"
-                          value={inlineServiceDurationMin}
-                          onChange={(e) =>
-                            setInlineServiceDurationMin(e.target.value)
-                          }
-                          className="w-full px-3 py-2 rounded-[10px] border border-[#E5E5EA] bg-white text-[13px] font-mono"
-                        />
-                      </div>
+              {/* Services Section with Dropdown Popover + Stack of Added Services (Screenshot 1 & 2) */}
+              {eventType !== "personal_block" && eventType !== "working_hours" && (
+                <div className="space-y-3">
+                  {/* Header: Label + Add + button */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Services *
+                    </label>
+                    <div className="relative">
                       <button
                         type="button"
                         onClick={() => {
-                          if (!inlineServiceName.trim()) return;
-                          const priceCents =
-                            Math.max(
-                              0,
-                              parseInt(inlineServicePriceBRL || "150", 10)
-                            ) * 100;
-                          const durationMinutes = Math.max(
-                            15,
-                            parseInt(inlineServiceDurationMin || "45", 10)
-                          );
-                          const newId = `srv-inline-${Date.now()}`;
-                          onUpdateState((prev) =>
-                            saveCatalogService(prev, {
-                              id: newId,
-                              name: inlineServiceName.trim(),
-                              description: "Criado inline na Agenda.",
-                              category: "Geral",
-                              calendarColor: "#6E56CF",
-                              onlineBookingEnabled: true,
-                              priceType: "fixed",
-                              priceCents,
-                              requireDeposit: true,
-                              depositCents: Math.round(priceCents * 0.3),
-                              durationMinutes,
-                              processingTimeEnabled: false,
-                              processingStartOffsetMinutes: 0,
-                              processingDurationMinutes: 0,
-                              blockTimeEnabled: false,
-                              blockAfterMinutes: 0,
-                              requiredResourceIds: [],
-                              options: [],
-                              addOns: [],
-                            })
-                          );
-                          setSelectedServiceIds((prev) => [...prev, newId]);
-                          setInlineServiceName("");
-                          setShowInlineNewService(false);
+                          setPendingServiceIds([...selectedServiceIds]);
+                          setServicesPopoverOpen((v) => !v);
                         }}
-                        className="w-full py-2 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold"
+                        className="px-3.5 py-1 rounded-full border border-[#0D9488] text-[#0F766E] dark:border-[#14B8A6] dark:text-[#2DD4BF] hover:bg-[#F0FDFA] dark:hover:bg-[#134E4A]/30 text-[12.5px] font-semibold transition flex items-center gap-1"
                       >
-                        Salvar e selecionar serviço
+                        <span>Add +</span>
                       </button>
-                    </div>
-                  )}
 
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {state.services.map((srv) => {
-                      const checked = selectedServiceIds.includes(srv.id);
-                      const resNames = state.resources
-                        .filter((r) => srv.requiredResourceIds.includes(r.id))
-                        .map((r) => r.name);
-                      return (
-                        <label
-                          key={srv.id}
-                          className={`flex items-center justify-between p-3 rounded-[14px] border cursor-pointer transition ${
-                            checked
-                              ? "border-2 border-[#1C1C1E] bg-[#F5F5F7] shadow-sm"
-                              : "border-[#E5E5EA] hover:bg-[#FAFAFC]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() =>
-                                setSelectedServiceIds((prev) =>
-                                  checked
-                                    ? prev.filter((id) => id !== srv.id)
-                                    : [...prev, srv.id]
-                                )
-                              }
-                              className="rounded text-[#6E56CF]"
-                            />
-                            <div>
-                              <p className="text-[13px] font-semibold text-[#1C1C1E]">
-                                {srv.name}
-                              </p>
-                              <p className="text-[11px] text-[#6E6E73]">
-                                {srv.durationMinutes} min
-                                {srv.processingTimeEnabled
-                                  ? ` (inclui ${srv.processingDurationMinutes}m pausa)`
-                                  : ""}
-                                {resNames.length > 0
-                                  ? ` · Recursos: ${resNames.join(", ")}`
-                                  : ""}
-                              </p>
+                      {/* Dropdown Popover (Screenshot 1) */}
+                      {servicesPopoverOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-30"
+                            onClick={() => setServicesPopoverOpen(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-2 w-[min(320px,calc(100vw-3rem))] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-[18px] shadow-2xl p-3 z-40 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                            <div className="flex items-center justify-between px-1 pb-1 border-b border-[#E5E5EA] dark:border-[#27272a]">
+                              <span className="text-[12px] font-bold text-[#1C1C1E] dark:text-white">
+                                Selecionar serviços
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowInlineNewService((v) => !v)}
+                                className="text-[11px] font-semibold text-[#6E56CF] dark:text-[#a78bfa] hover:underline"
+                              >
+                                {showInlineNewService ? "Fechar novo" : "+ Criar novo"}
+                              </button>
+                            </div>
+
+                            {showInlineNewService && (
+                              <div className="p-2.5 rounded-[12px] bg-[#F5F5F7] dark:bg-[#27272a] space-y-2">
+                                <input
+                                  type="text"
+                                  placeholder="Nome do serviço"
+                                  value={inlineServiceName}
+                                  onChange={(e) => setInlineServiceName(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[12px] text-[#1C1C1E] dark:text-white"
+                                />
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  <input
+                                    type="number"
+                                    placeholder="Preço (R$)"
+                                    value={inlineServicePriceBRL}
+                                    onChange={(e) => setInlineServicePriceBRL(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[12px] font-mono text-[#1C1C1E] dark:text-white"
+                                  />
+                                  <input
+                                    type="number"
+                                    placeholder="Duração (min)"
+                                    value={inlineServiceDurationMin}
+                                    onChange={(e) => setInlineServiceDurationMin(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[12px] font-mono text-[#1C1C1E] dark:text-white"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!inlineServiceName.trim()) return;
+                                    const priceCents =
+                                      Math.max(0, parseInt(inlineServicePriceBRL || "150", 10)) * 100;
+                                    const durationMinutes = Math.max(
+                                      15,
+                                      parseInt(inlineServiceDurationMin || "45", 10)
+                                    );
+                                    const newId = `srv-inline-${Date.now()}`;
+                                    onUpdateState((prev) =>
+                                      saveCatalogService(prev, {
+                                        id: newId,
+                                        name: inlineServiceName.trim(),
+                                        description: "Criado inline na Agenda.",
+                                        category: "Geral",
+                                        calendarColor: "#6E56CF",
+                                        onlineBookingEnabled: true,
+                                        priceType: "fixed",
+                                        priceCents,
+                                        requireDeposit: true,
+                                        depositCents: Math.round(priceCents * 0.3),
+                                        durationMinutes,
+                                        processingTimeEnabled: false,
+                                        processingStartOffsetMinutes: 0,
+                                        processingDurationMinutes: 0,
+                                        blockTimeEnabled: false,
+                                        blockAfterMinutes: 0,
+                                        requiredResourceIds: [],
+                                        options: [],
+                                        addOns: [],
+                                      })
+                                    );
+                                    setPendingServiceIds((prev) => [...prev, newId]);
+                                    setInlineServiceName("");
+                                    setShowInlineNewService(false);
+                                  }}
+                                  className="w-full py-1.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[11px] font-semibold"
+                                >
+                                  Salvar e selecionar
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="max-h-52 overflow-y-auto space-y-1 pr-0.5">
+                              {state.services.map((srv) => {
+                                const isChecked = pendingServiceIds.includes(srv.id);
+                                return (
+                                  <div
+                                    key={srv.id}
+                                    onClick={() =>
+                                      setPendingServiceIds((prev) =>
+                                        isChecked
+                                          ? prev.filter((id) => id !== srv.id)
+                                          : [...prev, srv.id]
+                                      )
+                                    }
+                                    className={`p-2.5 rounded-[12px] border cursor-pointer transition flex items-center justify-between ${
+                                      isChecked
+                                        ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]"
+                                        : "border-[#E5E5EA]/60 dark:border-[#27272a] hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/40"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <span
+                                        className="w-1.5 h-6 rounded-full shrink-0"
+                                        style={{
+                                          backgroundColor: srv.calendarColor || "#E11D8F",
+                                        }}
+                                      />
+                                      <div className="min-w-0">
+                                        <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white truncate">
+                                          {srv.name}
+                                        </p>
+                                        <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                                          {srv.durationMinutes} mins · {formatBRL(srv.priceCents)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div
+                                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-2 ${
+                                        isChecked
+                                          ? "border-[#1C1C1E] dark:border-white bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b]"
+                                          : "border-[#D4D4D8] dark:border-[#3F3F46]"
+                                      }`}
+                                    >
+                                      {isChecked && <Check className="w-2.5 h-2.5" />}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="pt-2 border-t border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setServicesPopoverOpen(false)}
+                                className="px-3 py-1.5 rounded-full text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedServiceIds(pendingServiceIds);
+                                  setCustomDurationMinutes(null);
+                                  setCustomEndTime(null);
+                                  setServicesPopoverOpen(false);
+                                }}
+                                disabled={pendingServiceIds.length === 0}
+                                className="px-4 py-1.5 rounded-full text-[12px] font-semibold text-white bg-[#1C1C1E] dark:bg-white dark:text-[#18181b] hover:bg-[#2C2C2E] disabled:opacity-40 disabled:hover:bg-[#1C1C1E] transition"
+                              >
+                                Add {pendingServiceIds.length} service{pendingServiceIds.length === 1 ? "" : "s"}
+                              </button>
                             </div>
                           </div>
-                          <span className="text-[13px] font-mono font-bold text-[#1C1C1E]">
-                            {formatBRL(srv.priceCents)}
-                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Added Services Cards (Screenshot 2) */}
+                  {selectedServicesObjects.length === 0 ? (
+                    <div
+                      onClick={() => {
+                        setPendingServiceIds([...selectedServiceIds]);
+                        setServicesPopoverOpen(true);
+                      }}
+                      className="p-4 rounded-[14px] border border-dashed border-[#D4D4D8] dark:border-[#3F3F46] text-center cursor-pointer hover:bg-[#FAFAFC] dark:hover:bg-[#18181b] transition"
+                    >
+                      <p className="text-[12.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Nenhum serviço selecionado.
+                      </p>
+                      <p className="text-[11.5px] text-[#0D9488] dark:text-[#2DD4BF] font-semibold mt-1">
+                        Clique em Add + para selecionar serviços
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {(() => {
+                        let runningMin = parseTimeMinutes(startTime);
+                        return selectedServicesObjects.map((srv, idx) => {
+                          const srvStartMin = runningMin;
+                          runningMin += srv.durationMinutes;
+                          const srvStartH = Math.floor(srvStartMin / 60);
+                          const srvStartM = srvStartMin % 60;
+                          const timeFormatted12 = formatTime12h(srvStartH, srvStartM);
+                          const isMenuOpen = activeServiceMenuId === srv.id;
+
+                          return (
+                            <div
+                              key={srv.id}
+                              className="p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-between shadow-xs transition hover:border-[#D4D4D8] dark:hover:border-[#3F3F46]"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span
+                                  className="w-1 self-stretch rounded-full shrink-0"
+                                  style={{
+                                    backgroundColor: srv.calendarColor || "#E11D8F",
+                                  }}
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white truncate">
+                                    {srv.name}
+                                  </p>
+                                  <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                                    {timeFormatted12} · {srv.durationMinutes} mins · {formatBRL(srv.priceCents)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Options Menu button */}
+                              <div className="relative shrink-0 ml-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveServiceMenuId((prev) =>
+                                      prev === srv.id ? null : srv.id
+                                    )
+                                  }
+                                  className="p-1.5 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#8E8E93] dark:text-[#a1a1aa]"
+                                >
+                                  <EllipsisVertical className="w-4 h-4" />
+                                </button>
+                                {isMenuOpen && (
+                                  <>
+                                    <div
+                                      className="fixed inset-0 z-30"
+                                      onClick={() => setActiveServiceMenuId(null)}
+                                    />
+                                    <div className="absolute right-0 top-full mt-1 w-44 rounded-[12px] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] shadow-lg z-40 p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                                      {idx > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleMoveService(idx, "up");
+                                            setActiveServiceMenuId(null);
+                                          }}
+                                          className="w-full px-2.5 py-1.5 rounded-[8px] text-left text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                                        >
+                                          Mover para cima
+                                        </button>
+                                      )}
+                                      {idx < selectedServicesObjects.length - 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleMoveService(idx, "down");
+                                            setActiveServiceMenuId(null);
+                                          }}
+                                          className="w-full px-2.5 py-1.5 rounded-[8px] text-left text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                                        >
+                                          Mover para baixo
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          handleRemoveService(srv.id);
+                                          setActiveServiceMenuId(null);
+                                        }}
+                                        className="w-full px-2.5 py-1.5 rounded-[8px] text-left text-[12px] font-medium text-[#DC2626] hover:bg-[#FEE2E2] dark:hover:bg-[#7f1d1d]/30"
+                                      >
+                                        Remover serviço
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+
+                      <p className="text-[11.5px] text-[#8E8E93] dark:text-[#71717a] text-center pt-0.5">
+                        Hold and drag services to reorder
+                      </p>
+
+                      {/* Total Duration dropdown (Screenshot 2) */}
+                      <div className="relative pt-2">
+                        <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
+                          Total duration
                         </label>
-                      );
-                    })}
+                        <button
+                          type="button"
+                          onClick={() => setDurationDropdownOpen((v) => !v)}
+                          className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-between text-[14px] font-semibold text-[#1C1C1E] dark:text-white hover:border-[#1C1C1E] dark:hover:border-white transition"
+                        >
+                          <span>{formatDurationLabel(effectiveDurationMin)}</span>
+                          <ChevronDown
+                            className={`w-4 h-4 text-[#8E8E93] transition-transform ${
+                              durationDropdownOpen ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {durationDropdownOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-30"
+                              onClick={() => setDurationDropdownOpen(false)}
+                            />
+                            <div className="absolute left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-[16px] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] shadow-xl z-40 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                              {getDurationOptions().map((dMin) => {
+                                const isSelected = effectiveDurationMin === dMin;
+                                return (
+                                  <button
+                                    key={dMin}
+                                    type="button"
+                                    onClick={() => handleSelectDuration(dMin)}
+                                    className={`w-full px-3.5 py-2 rounded-[10px] text-left text-[13px] font-medium flex items-center justify-between transition ${
+                                      isSelected
+                                        ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                                        : "text-[#6E6E73] dark:text-[#a1a1aa] hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60 hover:text-[#1C1C1E] dark:hover:text-white"
+                                    }`}
+                                  >
+                                    <span>{formatDurationLabel(dMin)}</span>
+                                    {isSelected && (
+                                      <Check className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Personal Block / Horário Reservado Total Duration Dropdown */}
+              {eventType === "personal_block" && (
+                <div className="space-y-3 pt-1">
+                  <div className="relative">
+                    <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
+                      Total duration (Duração do horário reservado)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setDurationDropdownOpen((v) => !v)}
+                      className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-between text-[14px] font-semibold text-[#1C1C1E] dark:text-white hover:border-[#1C1C1E] dark:hover:border-white transition"
+                    >
+                      <span>{formatDurationLabel(effectiveDurationMin)}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-[#8E8E93] transition-transform ${
+                          durationDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {durationDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30"
+                          onClick={() => setDurationDropdownOpen(false)}
+                        />
+                        <div className="absolute left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-[16px] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] shadow-xl z-40 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                          {getDurationOptions().map((dMin) => {
+                            const isSelected = effectiveDurationMin === dMin;
+                            return (
+                              <button
+                                key={dMin}
+                                type="button"
+                                onClick={() => handleSelectDuration(dMin)}
+                                className={`w-full px-3.5 py-2 rounded-[10px] text-left text-[13px] font-medium flex items-center justify-between transition ${
+                                  isSelected
+                                    ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                                    : "text-[#6E6E73] dark:text-[#a1a1aa] hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60 hover:text-[#1C1C1E] dark:hover:text-white"
+                                }`}
+                              >
+                                <span>{formatDurationLabel(dMin)}</span>
+                                {isSelected && (
+                                  <Check className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Date and Time */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1.5">
-                    Data
-                  </label>
-                  <input
-                    type="date"
-                    value={eventDateISO}
-                    onChange={(e) => setEventDateISO(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-[14px] border border-[#E5E5EA] text-[13px] font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1.5">
-                    Horário ({startTime} – {computedEndTime})
-                  </label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-[14px] border border-[#E5E5EA] text-[13px] font-mono font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Repeat Toggle & Deposit Toggle */}
-              <div className="space-y-3 pt-1">
-                <label className="flex items-center justify-between p-3.5 rounded-[14px] border border-[#E5E5EA] cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <Repeat className="w-4 h-4 text-[#6E6E73]" />
-                    <span className="text-[13px] font-medium text-[#1C1C1E]">
-                      Repetir agendamento (Recorrente)
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isRepeating}
-                    onChange={(e) => setIsRepeating(e.target.checked)}
-                    className="w-4 h-4 accent-[#6E56CF]"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3.5 rounded-[14px] border border-[#E5E5EA] cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <QrCode className="w-4 h-4 text-[#6E56CF]" />
-                    <div>
-                      <p className="text-[13px] font-semibold text-[#1C1C1E]">
-                        Cobrar sinal (Taxa de reserva Pix)
-                      </p>
-                      <p className="text-[11px] text-[#6E6E73]">
-                        Proteção anti-no-show automática
-                      </p>
+              {/* Repeat Toggle & Deposit Toggle (only for appointment) */}
+              {eventType === "appointment" && (
+                <div className="space-y-3 pt-1">
+                  <label className="flex items-center justify-between p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] cursor-pointer">
+                    <div className="flex items-center gap-2.5">
+                      <Repeat className="w-4 h-4 text-[#6E6E73]" />
+                      <span className="text-[13px] font-medium text-[#1C1C1E] dark:text-white">
+                        Repetir agendamento (Recorrente)
+                      </span>
                     </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={collectDeposit}
-                    onChange={(e) => setCollectDeposit(e.target.checked)}
-                    className="w-4 h-4 accent-[#6E56CF]"
-                  />
-                </label>
-              </div>
+                    <input
+                      type="checkbox"
+                      checked={isRepeating}
+                      onChange={(e) => setIsRepeating(e.target.checked)}
+                      className="w-4 h-4 accent-[#6E56CF]"
+                    />
+                  </label>
 
-              {/* Address / Notes */}
+                  <label className="flex items-center justify-between p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] cursor-pointer">
+                    <div className="flex items-center gap-2.5">
+                      <QrCode className="w-4 h-4 text-[#6E56CF]" />
+                      <div>
+                        <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                          Cobrar sinal (Taxa de reserva Pix)
+                        </p>
+                        <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                          Proteção anti-no-show automática
+                        </p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={collectDeposit}
+                      onChange={(e) => setCollectDeposit(e.target.checked)}
+                      className="w-4 h-4 accent-[#6E56CF]"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {/* Address / Notes (Client Notes) */}
               <div>
-                <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1.5">
-                  Endereço ou Observações do Atendimento
+                <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
+                  Client Notes / Observações
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Adicione observações, fórmula ou link..."
+                  placeholder="Adicione observações, fórmula ou instruções..."
                   value={addressOrNotes}
                   onChange={(e) => setAddressOrNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-[14px] border border-[#E5E5EA] text-[13px]"
+                  className="w-full px-3.5 py-2.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
                 />
               </div>
             </div>
 
             {/* Sticky Bottom Bar */}
-            <div className="px-6 py-4 border-t border-[#E5E5EA] bg-[#FAFAFC] flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93]">
-                  Total estimado
-                </p>
-                <p className="text-[20px] font-mono font-bold text-[#1C1C1E]">
-                  {formatBRL(computedTotalCents)}
-                </p>
-              </div>
+            <div className="px-6 py-4 border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] flex items-center justify-between">
+              {eventType !== "personal_block" ? (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                    Total estimado
+                  </p>
+                  <p className="text-[20px] font-mono font-bold text-[#1C1C1E] dark:text-white">
+                    {formatBRL(computedTotalCents)}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                    Tipo
+                  </p>
+                  <p className="text-[14px] font-bold text-[#1C1C1E] dark:text-white">
+                    Horário reservado
+                  </p>
+                </div>
+              )}
               <button
                 onClick={handleCreateEvent}
                 disabled={isSubmittingEvent}
-                className="px-7 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] disabled:opacity-50 text-white text-[14px] font-semibold transition"
+                className="px-7 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 dark:text-[#18181b] disabled:opacity-50 text-white text-[14px] font-semibold transition"
               >
-                {isSubmittingEvent ? "Criando..." : "Criar"}
+                {isSubmittingEvent
+                  ? "Salvando..."
+                  : eventType === "personal_block"
+                  ? "Reservar horário"
+                  : "Book appointment"}
               </button>
             </div>
           </div>
@@ -1548,170 +2536,601 @@ export function CalendarView({
       )}
 
       {/* =====================================================================
-          DRAWER 3: 1-TAP CHECKOUT, RETORNO & WHATSAPP 2-WAY (Selected Event)
+          DRAWER 3: APPOINTMENT DETAILS (Confirmed vs Completed)
          ===================================================================== */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex justify-end">
-          <div className="w-full max-w-[440px] bg-white h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
-            <div className="px-6 py-5 border-b border-[#E5E5EA] flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6E56CF]">
-                  Atendimento · {selectedEvent.dateISO}
-                </span>
-                <h2 className="text-[20px] font-bold text-[#1C1C1E]">
-                  {selectedEvent.clientName}
+      {selectedEvent && (() => {
+        const isCompleted = selectedEvent.status === "completed";
+        const client = state.clients.find((c) => c.id === selectedEvent.clientId);
+        const clientInitials =
+          selectedEvent.clientName
+            .split(" ")
+            .map((n) => n[0])
+            .slice(0, 2)
+            .join("")
+            .toUpperCase() || "CL";
+        const provider = state.staff.find((s) => s.id === selectedEvent.providerId);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex justify-end">
+            <div className="w-full max-w-[420px] bg-white dark:bg-[#18181b] h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
+                <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
+                  {isCompleted ? "Completed Appointment" : "Confirmed appointment"}
                 </h2>
-              </div>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] hover:bg-[#F5F5F7]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {/* Summary Card */}
-              <div className="p-4 rounded-[18px] bg-[#F5F5F7] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-mono font-bold text-[#1C1C1E]">
-                    {selectedEvent.startTime} – {selectedEvent.endTime}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white text-[11px] font-bold text-[#1C1C1E] border border-[#E5E5EA]">
-                    Status: {selectedEvent.status.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-[14px] font-semibold text-[#1C1C1E]">
-                  {selectedEvent.serviceNames.join(" + ")}
-                </p>
-                <p className="text-[12px] text-[#6E6E73]">
-                  Profissional: {selectedEvent.providerName}
-                </p>
-                <div className="pt-2 border-t border-[#E5E5EA] flex items-center justify-between">
-                  <span className="text-[12px] text-[#6E6E73]">
-                    Sinal Pix ({formatBRL(selectedEvent.depositCents)}):{" "}
-                    <strong>
-                      {selectedEvent.depositPaid ? "Pago" : "Pendente"}
-                    </strong>
-                  </span>
-                  <span className="text-[16px] font-mono font-bold text-[#1C1C1E]">
-                    {formatBRL(selectedEvent.totalCents)}
-                  </span>
-                </div>
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* 1-Tap Rebooking (Retorno em 1 Toque) */}
-              <div className="p-4 rounded-[18px] border border-[#E5E5EA] space-y-3">
-                <div className="flex items-center gap-2">
-                  <CalendarPlus className="w-4 h-4 text-[#6E56CF]" />
-                  <h3 className="text-[14px] font-bold text-[#1C1C1E]">
-                    Reagendamento de Retorno em 1 Toque
-                  </h3>
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Client Profile Card */}
+                <div className="p-4 rounded-[16px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#27272a]/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full bg-pink-100 dark:bg-pink-950/60 border border-pink-200 dark:border-pink-800 text-[#DB2777] dark:text-pink-300 flex items-center justify-center text-[14px] font-bold shrink-0">
+                      {clientInitials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-bold text-[#1C1C1E] dark:text-white truncate">
+                        {selectedEvent.clientName}
+                      </p>
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] truncate">
+                        {client?.visitsCount ? `${client.visitsCount} agendamento` : "1 agendamento"}
+                        {client?.phone ? ` · ${client.phone}` : ""}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[12px] text-[#6E6E73]">
-                  Garanta a retenção agendando o próximo retorno imediatamente:
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[15, 30, 45].map((days) => (
-                    <button
-                      key={days}
-                      onClick={() => {
-                        onUpdateState((prev) =>
-                          rebookAppointmentOneTap(prev, selectedEvent.id, days)
+
+                {/* Service Details Card */}
+                <div className="p-4 rounded-[16px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[15px] font-bold text-[#1C1C1E] dark:text-white">
+                        {selectedEvent.serviceNames.join(" + ")}
+                      </p>
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                        {selectedEvent.activeDurationMinutes || 35}min · {selectedEvent.startTime} – {selectedEvent.endTime}
+                      </p>
+                    </div>
+                    <span className="text-[16px] font-mono font-bold text-[#1C1C1E] dark:text-white shrink-0">
+                      {formatBRL(selectedEvent.totalCents)}
+                    </span>
+                  </div>
+
+                  {/* Provider Selector / Badge */}
+                  <div className="pt-2 border-t border-[#F5F5F7] dark:border-[#27272a] flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Profissional:
+                    </span>
+                    {(() => {
+                      const matchedStaff =
+                        state.staff.find((s) => s.id === selectedEvent.providerId) ||
+                        state.staff.find(
+                          (s) =>
+                            s.fullName.trim().toLowerCase() ===
+                            (selectedEvent.providerName || "").trim().toLowerCase()
+                        ) ||
+                        state.staff.find(
+                          (s) =>
+                            s.firstName.trim().toLowerCase() ===
+                            (selectedEvent.providerName || "").trim().toLowerCase()
                         );
-                        setSelectedEvent(null);
-                      }}
-                      className="py-2 px-3 rounded-full bg-[#F5F5F7] hover:bg-[#1C1C1E] hover:text-white text-[12px] font-bold text-[#1C1C1E] transition"
-                    >
-                      +{days} dias
-                    </button>
-                  ))}
+                      const currentSelectValue = matchedStaff?.id ?? selectedEvent.providerId;
+
+                      return (
+                        <select
+                          value={currentSelectValue}
+                          onChange={(e) => {
+                            const newProvId = e.target.value;
+                            const newProv = state.staff.find((s) => s.id === newProvId);
+                            if (!newProv) return;
+                            onUpdateState((prev) => ({
+                              ...prev,
+                              calendarEvents: prev.calendarEvents.map((evt) =>
+                                evt.id === selectedEvent.id
+                                  ? {
+                                      ...evt,
+                                      providerId: newProv.id,
+                                      providerName: newProv.fullName,
+                                    }
+                                  : evt
+                              ),
+                              lastToastMessage: `Agendamento transferido para ${newProv.fullName}.`,
+                            }));
+                            setSelectedEvent((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    providerId: newProv.id,
+                                    providerName: newProv.fullName,
+                                  }
+                                : null
+                            );
+                          }}
+                          className="text-[12px] font-semibold px-3 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer"
+                        >
+                          {state.staff.map((st) => (
+                            <option key={st.id} value={st.id}>
+                              {st.initials} · {st.fullName}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Payment Breakdown Card (When Completed) */}
+                {isCompleted && (
+                  <div className="p-4 rounded-[16px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F8FAFC] dark:bg-[#1e293b]/30 space-y-2">
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="text-[#6E6E73] dark:text-[#94a3b8]">Pagamento</span>
+                      <span className="font-semibold text-[#1C1C1E] dark:text-white">Pix / Dinheiro</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[14px] font-bold border-t border-[#E2E8F0] dark:border-[#334155] pt-2">
+                      <span className="text-[#1C1C1E] dark:text-white">Total</span>
+                      <span className="font-mono text-[16px] text-[#1C1C1E] dark:text-white">
+                        {formatBRL(selectedEvent.totalCents)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Retention & Tools (Retorno em 1 Toque + WhatsApp) */}
+                <div className="pt-2 space-y-2.5">
+                  <div className="p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] space-y-2">
+                    <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa]">
+                      <CalendarPlus className="w-3.5 h-3.5 text-[#6E56CF]" />
+                      <span>Reagendamento de retorno</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[15, 30, 45].map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => {
+                            onUpdateState((prev) =>
+                              rebookAppointmentOneTap(prev, selectedEvent.id, days)
+                            );
+                            setSelectedEvent(null);
+                          }}
+                          className="py-1.5 px-2 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] hover:bg-[#1C1C1E] hover:text-white text-[11px] font-semibold text-[#1C1C1E] dark:text-white transition"
+                        >
+                          +{days} dias
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] space-y-2.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                        <MessageSquare className="w-3.5 h-3.5 text-[#16A34A]" />
+                        <span>Automação WhatsApp 2-Way</span>
+                      </div>
+                      {selectedEvent.whatsappClientReply === "1_confirmed" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[11px] font-medium text-[#1C1C1E] dark:text-white">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                          Confirmado (1)
+                        </span>
+                      ) : selectedEvent.whatsappClientReply === "2_reschedule" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[11px] font-medium text-[#1C1C1E] dark:text-white">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                          Reagendamento (2)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[11px] font-medium text-[#71717A] dark:text-[#a1a1aa]">
+                          <span className="w-2 h-2 rounded-full bg-zinc-400 ring-2 ring-zinc-400/20" />
+                          Aguardando
+                        </span>
+                      )}
+                    </div>
+
+                    {selectedEvent.whatsappClientReply === "1_confirmed" ? (
+                      <div className="space-y-2">
+                        <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                          Cliente confirmou presença no horário combinado via WhatsApp.
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReschedule(selectedEvent)}
+                            className="flex-1 py-1.5 px-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#3F3F46] text-[#1C1C1E] dark:text-white text-[11.5px] font-semibold transition"
+                          >
+                            Reagendar
+                          </button>
+                          {client?.phone && (
+                            <a
+                              href={`https://wa.me/55${client.phone.replace(/\D/g, "")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="py-1.5 px-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] hover:bg-[#F5F5F7] text-[#1C1C1E] dark:text-white text-[11.5px] font-medium transition flex items-center gap-1"
+                            >
+                              <MessageSquare className="w-3 h-3 text-[#16A34A]" />
+                              <span>Conversar</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ) : selectedEvent.whatsappClientReply === "2_reschedule" ? (
+                      <div className="space-y-2">
+                        <p className="text-[11.5px] text-amber-700 dark:text-amber-400 font-medium">
+                          Cliente solicitou reagendamento de horário via WhatsApp.
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateState((prev) =>
+                                processWhatsappInboundReply(
+                                  prev,
+                                  selectedEvent.id,
+                                  "1_confirmed"
+                                )
+                              );
+                              setSelectedEvent((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      status: "confirmed",
+                                      whatsappReminderSent: true,
+                                      whatsappClientReply: "1_confirmed",
+                                    }
+                                  : null
+                              );
+                            }}
+                            className="py-1.5 px-2 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] hover:bg-[#F5F5F7] text-[#1C1C1E] dark:text-white text-[11px] font-semibold transition"
+                          >
+                            Manter Atual
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReschedule(selectedEvent)}
+                            className="py-1.5 px-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] hover:bg-black text-[11px] font-semibold transition shadow-xs"
+                          >
+                            Escolher Horário (2)
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                          Lembrete interativo. Escolha a resposta do cliente:
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateState((prev) =>
+                                processWhatsappInboundReply(
+                                  prev,
+                                  selectedEvent.id,
+                                  "1_confirmed"
+                                )
+                              );
+                              setSelectedEvent((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      status: "confirmed",
+                                      whatsappReminderSent: true,
+                                      whatsappClientReply: "1_confirmed",
+                                    }
+                                  : null
+                              );
+                            }}
+                            className="py-1.5 px-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition shadow-xs"
+                          >
+                            Confirmou (1)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReschedule(selectedEvent)}
+                            className="py-1.5 px-2 rounded-full bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-semibold transition shadow-xs"
+                          >
+                            Reagendar (2)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* WhatsApp 2-Way Sync Simulator */}
-              <div className="p-4 rounded-[18px] border border-[#E5E5EA] space-y-3">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-[#16A34A]" />
-                  <h3 className="text-[14px] font-bold text-[#1C1C1E]">
-                    Automação WhatsApp 2-Way Sync
-                  </h3>
-                </div>
-                <p className="text-[12px] text-[#6E6E73]">
-                  Simule a resposta do cliente no WhatsApp para atualizar o card em tempo real:
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      onUpdateState((prev) =>
-                        processWhatsappInboundReply(
-                          prev,
-                          selectedEvent.id,
-                          "1_confirmed"
-                        )
-                      );
-                      setSelectedEvent(null);
-                    }}
-                    className="py-2.5 px-3 rounded-full bg-[#16A34A] text-white text-[12px] font-bold shadow-sm hover:opacity-95 transition"
-                  >
-                    Respondeu &ldquo;1 Confirmar&rdquo;
-                  </button>
-                  <button
-                    onClick={() => {
-                      onUpdateState((prev) =>
-                        processWhatsappInboundReply(
-                          prev,
-                          selectedEvent.id,
-                          "2_reschedule"
-                        )
-                      );
-                      setSelectedEvent(null);
-                    }}
-                    className="py-2.5 px-3 rounded-full bg-[#D97706] text-white text-[12px] font-bold shadow-sm hover:opacity-95 transition"
-                  >
-                    Respondeu &ldquo;2 Reagendar&rdquo;
-                  </button>
-                </div>
-              </div>
-            </div>
+              {/* Sticky Footer */}
+              <div className="p-4 border-t border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ev = selectedEvent;
+                    setSelectedEvent(null);
+                    openNewDrawerAtSlot(ev.startTime, ev.eventType, ev.dateISO, ev.providerId);
+                  }}
+                  className="px-5 py-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-semibold transition"
+                >
+                  Editar
+                </button>
 
-            {/* Bottom 1-Tap Checkout Action */}
-            <div className="p-6 border-t border-[#E5E5EA] bg-[#FAFAFC] space-y-2.5">
-              <button
-                onClick={() => {
-                  onUpdateState((prev) =>
-                    executeQuickSaleCheckout(prev, {
-                      appointmentId: selectedEvent.id,
-                      clientId:
-                        selectedEvent.clientId ?? prev.clients[0]?.id ?? "",
-                      providerId: selectedEvent.providerId,
-                      itemsSummary: selectedEvent.serviceNames.join(" + "),
-                      amountCents: selectedEvent.totalCents,
-                      tipCents: 0,
-                      paymentMethod: "Pix",
-                    })
-                  );
-                  setSelectedEvent(null);
-                }}
-                className="w-full py-3.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[14px] font-semibold flex items-center justify-center gap-2 transition"
-              >
-                <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
-                <span>Dar Baixa 1-Toque (Pix {formatBRL(selectedEvent.totalCents)})</span>
-              </button>
-              <button
-                onClick={() => {
-                  const ev = selectedEvent;
-                  setSelectedEvent(null);
-                  onOpenQuickSale(ev);
-                }}
-                className="w-full py-2.5 rounded-full border border-[#E5E5EA] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13px] font-semibold transition"
-              >
-                Abrir no PDV (Incluir Gorjeta, Pacote ou Vale-Presente)
-              </button>
+                {!isCompleted ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateState((prev) => ({
+                        ...prev,
+                        calendarEvents: prev.calendarEvents.map((e) =>
+                          e.id === selectedEvent.id
+                            ? {
+                                ...e,
+                                status: "completed",
+                                depositPaid: true,
+                              }
+                            : e
+                        ),
+                      }));
+                      setSelectedEvent((prev) =>
+                        prev ? { ...prev, status: "completed", depositPaid: true } : null
+                      );
+                    }}
+                    className="flex-1 py-3 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13.5px] font-semibold transition shadow-sm flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
+                    <span>Checkout {formatBRL(selectedEvent.totalCents)}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      alert(`Comprovante de ${selectedEvent.clientName} enviado com sucesso!`);
+                      setSelectedEvent(null);
+                    }}
+                    className="flex-1 py-3 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13.5px] font-semibold transition shadow-sm flex items-center justify-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Enviar comprovante</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* =====================================================================
+          MODAL: REAGENDAMENTO DE ATENDIMENTO (Mecânica Completa)
+         ===================================================================== */}
+      {rescheduleEvent && (() => {
+        const client = state.clients.find((c) => c.id === rescheduleEvent.clientId);
+        const provider =
+          state.staff.find((s) => s.id === rescheduleProviderId) ||
+          state.staff.find(
+            (s) =>
+              s.fullName.trim().toLowerCase() ===
+              rescheduleProviderId.trim().toLowerCase()
+          ) ||
+          state.staff[0];
+        const todayISO = getTodayDateISO();
+        const tomorrowISO = addDaysToDateISO(todayISO, 1);
+        const plus2DaysISO = addDaysToDateISO(todayISO, 2);
+        const plus7DaysISO = addDaysToDateISO(todayISO, 7);
+
+        return (
+          <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-[480px] bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
+                <div>
+                  <h2 className="text-[17px] font-bold text-[#1C1C1E] dark:text-white">
+                    Reagendar Atendimento
+                  </h2>
+                  <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                    Defina a nova data e horário para {rescheduleEvent.clientName}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRescheduleEvent(null)}
+                  className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 overflow-y-auto space-y-4">
+                {/* Card Resumo do Atendimento Atual */}
+                <div className="p-3.5 rounded-[14px] bg-[#FAFAFC] dark:bg-[#27272a]/30 border border-[#E5E5EA] dark:border-[#27272a] space-y-1.5">
+                  <div className="flex items-center justify-between text-[13px]">
+                    <span className="font-bold text-[#1C1C1E] dark:text-white">
+                      {rescheduleEvent.clientName}
+                    </span>
+                    <span className="font-mono text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      {formatBRL(rescheduleEvent.totalCents)}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                    {rescheduleEvent.serviceNames.join(" + ")} · {rescheduleDurationMinutes} min
+                  </p>
+                  <div className="pt-1.5 border-t border-[#E5E5EA]/70 dark:border-[#27272a] flex items-center gap-1.5 text-[11px] text-[#8E8E93] dark:text-[#71717a]">
+                    <span>Horário original:</span>
+                    <span className="font-medium text-[#1C1C1E] dark:text-zinc-300">
+                      {formatDateBR(rescheduleEvent.dateISO)} às {rescheduleEvent.startTime} – {rescheduleEvent.endTime} ({rescheduleEvent.providerName})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Seleção de Data com Atalhos Rápidos */}
+                <div className="space-y-2">
+                  <label className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Nova Data
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: "Hoje", val: todayISO },
+                      { label: "Amanhã", val: tomorrowISO },
+                      { label: "+2 dias", val: plus2DaysISO },
+                      { label: "Próx. semana", val: plus7DaysISO },
+                    ].map((shortcut) => {
+                      const isSelected = rescheduleDateISO === shortcut.val;
+                      return (
+                        <button
+                          key={shortcut.label}
+                          type="button"
+                          onClick={() => setRescheduleDateISO(shortcut.val)}
+                          className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition ${
+                            isSelected
+                              ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] shadow-xs"
+                              : "border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#3F3F46]"
+                          }`}
+                        >
+                          {shortcut.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div>
+                    <input
+                      type="date"
+                      value={rescheduleDateISO}
+                      onChange={(e) => setRescheduleDateISO(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3F3F46] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Seleção de Horário de Início */}
+                <div className="space-y-2">
+                  <label className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Novo Horário de Início
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"].map((h) => {
+                      const isSelected = rescheduleStartTime === h;
+                      return (
+                        <button
+                          key={h}
+                          type="button"
+                          onClick={() => setRescheduleStartTime(h)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-mono transition ${
+                            isSelected
+                              ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b]"
+                              : "border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7]"
+                          }`}
+                        >
+                          {h}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="time"
+                      value={rescheduleStartTime}
+                      onChange={(e) => setRescheduleStartTime(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3F3F46] text-[13px] font-mono text-[#1C1C1E] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#1C1C1E]"
+                    />
+                    <div className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] shrink-0 font-medium">
+                      Até <span className="font-mono font-bold text-[#1C1C1E] dark:text-white">{computedRescheduleEndTime}</span> ({rescheduleDurationMinutes} min)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profissional */}
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Profissional Responsável
+                  </label>
+                  <select
+                    value={rescheduleProviderId}
+                    onChange={(e) => setRescheduleProviderId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3F3F46] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#1C1C1E] cursor-pointer"
+                  >
+                    {state.staff.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.initials} · {st.fullName} ({st.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Feedback de Conflito / Disponibilidade */}
+                {rescheduleConflictWarning ? (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2 text-[11.5px] text-amber-900 dark:text-amber-300">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Possível conflito de horário</p>
+                      <p className="mt-0.5 opacity-90">{rescheduleConflictWarning}</p>
+                      <p className="text-[11px] mt-1 opacity-75">
+                        Você pode confirmar para forçar o encaixe na grade ou escolher outro horário.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 rounded-xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] flex items-center gap-2 text-[12px] text-[#1C1C1E] dark:text-zinc-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                    <span>Horário disponível para {provider.fullName}</span>
+                  </div>
+                )}
+
+                {/* Notificação WhatsApp */}
+                <div className="p-3.5 rounded-xl border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#27272a]/20 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rescheduleNotifyWhatsapp}
+                      onChange={(e) => setRescheduleNotifyWhatsapp(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#1C1C1E] focus:ring-0 cursor-pointer"
+                    />
+                    <span className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                      Notificar cliente no WhatsApp sobre a nova data
+                    </span>
+                  </label>
+                  {client?.phone ? (
+                    <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] pl-6">
+                      Envia confirmação interativa para {client.phone} com opção 1 para confirmar.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-[#8E8E93] dark:text-[#71717a] pl-6">
+                      Cliente sem telefone cadastrado. O agendamento será atualizado diretamente na agenda.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-between gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleMarkAwaitingReschedule}
+                  className="text-[11.5px] font-medium text-[#6E6E73] hover:text-[#1C1C1E] dark:text-[#a1a1aa] dark:hover:text-white transition"
+                >
+                  Apenas marcar pendente
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRescheduleEvent(null)}
+                    className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] text-[12.5px] font-medium transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmReschedule(Boolean(rescheduleConflictWarning))}
+                    className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] hover:bg-black dark:hover:bg-zinc-200 text-[12.5px] font-semibold transition shadow-sm"
+                  >
+                    Confirmar Reagendamento
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

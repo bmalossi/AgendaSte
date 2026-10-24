@@ -1,18 +1,63 @@
 {
   "name": "LUVEA · Gestão & Agendamento para Estética",
   "short_name": "LUVEA",
-  "description": "Plataforma de agendamento online, Recepção IA, ponto de venda Pix e gestão de clientes para estética e beleza.",
+  "description": "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix e gestão de clientes para estética e beleza.",
+  "id": "/app",
   "start_url": "/app",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "background_color": "#FFFFFF",
-  "theme_color": "#1C1C1E",
+  "theme_color": "#141416",
+  "lang": "pt-BR",
   "categories": ["business", "productivity", "lifestyle"],
   "icons": [
     {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Minha Agenda",
+      "short_name": "Agenda",
+      "description": "Visualize e gerencie os agendamentos do estúdio",
+      "url": "/app?section=calendar",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Venda Rápida Pix",
+      "short_name": "PDV Pix",
+      "description": "Realize cobranças instantâneas via Pix e cartão",
+      "url": "/app?section=sales",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Recepção IA",
+      "short_name": "Recepção",
+      "description": "Acesse conversas e confirmações no WhatsApp",
+      "url": "/app?section=reception",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

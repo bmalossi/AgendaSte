@@ -34,14 +34,30 @@ export const metadata: Metadata = {
     "Plataforma profissional de agendamento online, Recepção IA, ponto de venda Pix, catálogo inteligente, prontuários e gestão de equipe.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/icon-192.png",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    other: [
+      {
+        rel: "apple-touch-icon-precomposed",
+        url: "/apple-touch-icon.png",
+      },
+    ],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "LUVEA",
+    startupImage: [
+      "/icon-512.png",
+    ],
   },
   formatDetection: {
     telephone: false,
@@ -62,7 +78,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#1C1C1E",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#141416" },
+  ],
 };
 
 export default function RootLayout({
@@ -82,12 +101,24 @@ export default function RootLayout({
             __html: `
               try {
                 var storedTheme = localStorage.getItem('luvea_theme');
-                if (storedTheme === 'dark') {
+                var isDark = storedTheme === 'dark';
+                if (isDark) {
                   document.documentElement.classList.add('dark');
                 } else {
                   document.documentElement.classList.remove('dark');
                 }
+                var targetColor = isDark ? '#141416' : '#FFFFFF';
+                var metaThemes = document.querySelectorAll('meta[name="theme-color"]');
+                metaThemes.forEach(function(m) {
+                  m.setAttribute('content', targetColor);
+                });
               } catch (e) {}
+
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
+                });
+              }
             `,
           }}
         />

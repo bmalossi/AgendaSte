@@ -14,6 +14,8 @@ export interface TVAppointmentDTO {
   id: string;
   startTime: string; // "14:00"
   endTime: string; // "15:30"
+  startsAt?: string; // ISO 8601
+  endsAt?: string; // ISO 8601
   clientName: string; // "Mariana O." (LGPD-safe)
   serviceName: string; // "Corte + Escova"
   status: TVAppointmentStatus;
@@ -223,14 +225,88 @@ export function deriveAppointmentStatus(
 }
 
 /**
- * Filtra agendamentos irrelevantes para a TV pública (remove cancelados e no-shows).
+ * Retorna os limites UTC (ISO) de início e fim do dia para um determinado fuso horário.
+ * Evita vazamento de agendamentos da noite anterior ou corte prematuro causado por offset UTC.
  */
-export function filterTVAppointments<T extends { status: string }>(
-  appointments: T[]
-): T[] {
-  return appointments.filter(
-    (apt) => apt.status !== "canceled" && apt.status !== "no_show"
-  );
+export function getDayBoundsInTimezone(
+  date: Date = new Date(),
+  timezone: string = "America/Sao_Paulo"
+): { startOfDayIso: string; endOfDayIso: string; todayYMD: string } {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const todayYMD = formatter.format(date); // YYYY-MM-DD
+
+  const [year, month, day] = todayYMD.split("-").map(Number);
+  const utcRef = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    timeZoneName: "shortOffset",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(utcRef);
+
+  const tzPart = parts.find((p) => p.type === "timeZoneName")?.value || "GMT";
+  let offsetMinutes = 0;
+  const match = tzPart.match(/([+-])(\d{1,2})(?::?(\d{2}))?/);
+  if (match) {
+    const sign = match[1] === "+" ? 1 : -1;
+    const hours = parseInt(match[2], 10);
+    const mins = match[3] ? parseInt(match[3], 10) : 0;
+    offsetMinutes = sign * (hours * 60 + mins);
+  }
+
+  const localMidnightUtcMs =
+    Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMinutes * 60000;
+  const startOfDay = new Date(localMidnightUtcMs);
+  const endOfDay = new Date(localMidnightUtcMs + 24 * 60 * 60 * 1000 - 1);
+
+  return {
+    startOfDayIso: startOfDay.toISOString(),
+    endOfDayIso: endOfDay.toISOString(),
+    todayYMD,
+  };
+}
+
+/**
+ * Filtra agendamentos para a TV pública:
+ * - Remove cancelados e no-show.
+ * - Quando 'now' é fornecido, remove também agendamentos já concluídos (completed)
+ *   e agendamentos anteriores cujo horário de término já expirou (ends_at <= now).
+ * Mantém estritamente:
+ * 1. Atendimentos em andamento no horário marcado (starts_at <= now < ends_at)
+ * 2. Próximos atendimentos do dia (starts_at > now)
+ */
+export function filterTVAppointments<
+  T extends { status: string; ends_at?: string; starts_at?: string }
+>(appointments: T[], now?: Date): T[] {
+  return appointments.filter((apt) => {
+    // 1. Remove cancelados e no-show sempre
+    if (apt.status === "canceled" || apt.status === "no_show") {
+      return false;
+    }
+
+    // 2. Quando filtrando para exibição ativa em tempo real:
+    if (now) {
+      if (apt.status === "completed") {
+        return false;
+      }
+
+      if (apt.ends_at) {
+        const endsMs = new Date(apt.ends_at).getTime();
+        if (!isNaN(endsMs) && endsMs <= now.getTime()) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
 }
 
 /**
@@ -279,12 +355,15 @@ export function formatTimeInTimezone(
 
 /**
  * Transforma dados brutos do Supabase no contrato oficial TVPollingResponse.
+ * Por padrão filtra agendamentos anteriores expirados e concluídos, mantendo apenas
+ * o atendimento em andamento no horário marcado e os próximos do dia.
  */
 export function buildTVPollingResponse(
   rawAppointments: RawTVAppointment[],
   professionals: RawTVProfessional[],
   org: RawTVOrganization,
-  now: Date = new Date()
+  now: Date = new Date(),
+  options: { filterPast?: boolean } = {}
 ): TVPollingResponse {
   const timezone =
     typeof org.settings?.timezone === "string" && org.settings.timezone.trim()
@@ -294,12 +373,43 @@ export function buildTVPollingResponse(
   const logoUrl =
     typeof org.settings?.logo_url === "string" ? org.settings.logo_url : null;
 
-  const validAppointments = filterTVAppointments(rawAppointments);
+  // Filtra agendamentos anteriores / expirados por padrão
+  const shouldFilterPast = options.filterPast !== false;
+  const validAppointments = filterTVAppointments(
+    rawAppointments,
+    shouldFilterPast ? now : undefined
+  );
+
+  // Deduplica profissionais por ID ou por nome idêntico normalizado (prevenção contra duplicidades)
+  const uniqueProfs: RawTVProfessional[] = [];
+  const seenProfIds = new Set<string>();
+  const seenProfNames = new Set<string>();
+  const profAliasMap = new Map<string, string>(); // duplicateId -> primaryId
+
+  for (const prof of professionals) {
+    const normName = prof.name.trim().toLowerCase();
+    if (!seenProfIds.has(prof.id) && !seenProfNames.has(normName)) {
+      seenProfIds.add(prof.id);
+      seenProfNames.add(normName);
+      profAliasMap.set(prof.id, prof.id);
+      uniqueProfs.push(prof);
+    } else {
+      const primary = uniqueProfs.find(
+        (p) => p.name.trim().toLowerCase() === normName || p.id === prof.id
+      );
+      if (primary) {
+        profAliasMap.set(prof.id, primary.id);
+      }
+    }
+  }
 
   // Mapeia profissionais criando as colunas
-  const profColumns: TVProfessionalColumn[] = professionals.map((prof) => {
+  const profColumns: TVProfessionalColumn[] = uniqueProfs.map((prof) => {
     const profApts = validAppointments
-      .filter((apt) => apt.professional_id === prof.id)
+      .filter((apt) => {
+        const resolvedId = profAliasMap.get(apt.professional_id) || apt.professional_id;
+        return resolvedId === prof.id;
+      })
       .sort(
         (a, b) =>
           new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
@@ -309,6 +419,8 @@ export function buildTVPollingResponse(
           id: apt.id,
           startTime: formatTimeInTimezone(apt.starts_at, timezone),
           endTime: formatTimeInTimezone(apt.ends_at, timezone),
+          startsAt: apt.starts_at,
+          endsAt: apt.ends_at,
           clientName: maskNameLGPD(apt.client_name),
           serviceName: apt.service_name || "Atendimento",
           status: deriveAppointmentStatus(apt, now),

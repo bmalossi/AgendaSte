@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  CheckCircle2,
   X,
   Calendar,
   CreditCard,
@@ -24,8 +23,11 @@ import {
   LogOut,
   Sun,
   Moon,
+  Smartphone,
 } from "lucide-react";
 import { useAppTheme } from "@/lib/theme";
+import { usePWAInstall } from "@/hooks/use-pwa-install";
+import { PWAInstallModal } from "@/components/agendaste/pwa-install-modal";
 import {
   StudioState,
   NavigationSectionId,
@@ -61,6 +63,7 @@ import {
   syncNewAppointmentToSupabase,
   syncAppointmentUpdateToSupabase,
   syncNewClientToSupabase,
+  syncNewStaffToSupabase,
   getCurrentTenantContext,
 } from "@/lib/supabase/agendaste-sync";
 
@@ -76,11 +79,14 @@ export function LuveaApp({
   initialStep?: number;
 }) {
   const { theme, toggleTheme, isDark } = useAppTheme();
+  const pwa = usePWAInstall();
   const [state, setState] = useState<StudioState>(() =>
     createInitialStudioState()
   );
   const [activeSection, setActiveSection] =
     useState<NavigationSectionId>(initialSection);
+  const [settingsTab, setSettingsTab] = useState<string | undefined>(initialTab);
+  const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
   const [bookingSiteOpen, setBookingSiteOpen] = useState(false);
   const [websiteWizardOpen, setWebsiteWizardOpen] = useState(initialWizard);
   const [websiteWizardInitialStep, setWebsiteWizardInitialStep] =
@@ -91,6 +97,13 @@ export function LuveaApp({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [tenantOrgId, setTenantOrgId] = useState<string | null>(null);
+
+  const handleNavigate = (section: NavigationSectionId, tab?: string) => {
+    setActiveSection(section);
+    if (tab) {
+      setSettingsTab(tab);
+    }
+  };
 
   const handleOpenMyBookingSite = () => {
     const isPublished = Boolean(state.settings.website?.websitePublished);
@@ -111,6 +124,10 @@ export function LuveaApp({
       const v = params.get("view") as NavigationSectionId | null;
       if (v) {
         setActiveSection(v);
+      }
+      const tabParam = params.get("tab");
+      if (tabParam) {
+        setSettingsTab(tabParam);
       }
       const wiz = params.get("wizard");
       if (wiz === "true" || wiz === "1") {
@@ -142,6 +159,13 @@ export function LuveaApp({
       if (isSupabaseConfigured() && tenantOrgId) {
         (async () => {
           try {
+            // Sincroniza novos membros da equipe (staff) no Supabase
+            const prevStaffIds = new Set(prev.staff.map((s) => s.id));
+            const newStaffList = next.staff.filter((s) => !prevStaffIds.has(s.id));
+            for (const staffMember of newStaffList) {
+              await syncNewStaffToSupabase(staffMember, tenantOrgId);
+            }
+
             // Sincroniza novos clientes PRIMEIRO para garantir chave estrangeira e evitar duplicidade
             const prevClientIds = new Set(prev.clients.map((c) => c.id));
             const newClients = next.clients.filter((c) => !prevClientIds.has(c.id));
@@ -149,22 +173,26 @@ export function LuveaApp({
               await syncNewClientToSupabase(cli, next.staff[0]?.id, tenantOrgId);
             }
 
-            // Sincroniza agendamentos recém-criados DEPOIS dos clientes já estarem persistidos
+            // Sincroniza agendamentos recém-criados com o ID do profissional REAL (evt.providerId)
             const prevIds = new Set(prev.calendarEvents.map((e) => e.id));
             const newEvents = next.calendarEvents.filter((e) => !prevIds.has(e.id));
             for (const evt of newEvents) {
-              await syncNewAppointmentToSupabase(evt, next.staff[0]?.id, tenantOrgId);
+              await syncNewAppointmentToSupabase(evt, evt.providerId, tenantOrgId);
             }
 
-            // Detecta agendamentos com status alterado
+            // Detecta agendamentos com status, profissional, data ou horário alterado
             for (const evt of next.calendarEvents) {
               const oldEvt = prev.calendarEvents.find((e) => e.id === evt.id);
               if (
                 oldEvt &&
                 (oldEvt.status !== evt.status ||
+                  oldEvt.providerId !== evt.providerId ||
+                  oldEvt.dateISO !== evt.dateISO ||
+                  oldEvt.startTime !== evt.startTime ||
+                  oldEvt.endTime !== evt.endTime ||
                   oldEvt.whatsappClientReply !== evt.whatsappClientReply)
               ) {
-                await syncAppointmentUpdateToSupabase(evt);
+                await syncAppointmentUpdateToSupabase(evt, tenantOrgId);
               }
             }
           } catch (syncErr) {
@@ -834,6 +862,25 @@ export function LuveaApp({
                     </span>
                   </button>
 
+                  {!pwa.isInstalled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        pwa.install();
+                      }}
+                      className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white active:scale-95 transition-transform"
+                    >
+                      <span className="flex items-center gap-3">
+                        <Smartphone className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+                        <span>{pwa.isIOS ? "Instalar no iPhone" : "Instalar no Celular"}</span>
+                      </span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b]">
+                        App
+                      </span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
@@ -853,9 +900,23 @@ export function LuveaApp({
 
             {/* Drawer Bottom Bar */}
             <div className="p-3 border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] text-center">
-              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a]">
-                LUVEA PWA · Luvea Studio
-              </span>
+              {pwa.isInstalled ? (
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                  LUVEA App Instalado · Luvea Studio
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    pwa.install();
+                  }}
+                  className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] hover:text-[#1C1C1E] dark:hover:text-white transition"
+                >
+                  LUVEA PWA · Toque para instalar
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -873,12 +934,57 @@ export function LuveaApp({
       />
 
       {/* Main Content Workspace with safe area padding for bottom navigation */}
-      <main className="flex-1 min-w-0 pb-[calc(5.2rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden bg-white dark:bg-[#09090b]">
+      <main className="flex-1 min-w-0 pb-[calc(5.2rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden bg-white dark:bg-[#09090b] flex flex-col">
+        {/* Top Banner de Avaliação Gratuita (Anti-AI Slop) */}
+        {!trialBannerDismissed &&
+          state.onboarding.subscriptionStatus !== "active" &&
+          state.onboarding.trialDaysLeft <= 3 && (
+            <div
+              className={`px-4 py-2.5 text-[12.5px] font-medium flex items-center justify-between transition-colors border-b shrink-0 ${
+                state.onboarding.trialDaysLeft === 0
+                  ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50 text-rose-900 dark:text-rose-200"
+                  : "bg-[#F5F5F7] dark:bg-[#18181b] border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-[#f4f4f5]"
+              }`}
+            >
+              <div className="flex items-center gap-2 truncate">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    state.onboarding.trialDaysLeft === 0 ? "bg-rose-500" : "bg-amber-500"
+                  }`}
+                />
+                <span className="truncate">
+                  {state.onboarding.trialDaysLeft === 0
+                    ? "Seu teste gratuito de 14 dias expirou. Escolha um plano para manter sua agenda e automações ativas."
+                    : `Restam apenas ${state.onboarding.trialDaysLeft} ${
+                        state.onboarding.trialDaysLeft === 1 ? "dia" : "dias"
+                      } de teste gratuito no Plano ${state.onboarding.planTier || "Gold"}.`}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 ml-4">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate("settings", "subscription")}
+                  className="underline hover:opacity-80 transition font-semibold text-[12.5px]"
+                >
+                  {state.onboarding.trialDaysLeft === 0 ? "Escolher plano" : "Salvar cartão"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrialBannerDismissed(true)}
+                  className="p-1 rounded-md text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white transition"
+                  aria-label="Dispensar aviso"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
         {activeSection === "get_started" && (
           <GetStartedView
             state={state}
             setState={handleUpdateStudioState}
-            onNavigate={(sec) => setActiveSection(sec)}
+            onNavigate={handleNavigate}
             onOpenBookingSite={handleOpenMyBookingSite}
             onOpenWebsiteWizard={(step = 1) => {
               setWebsiteWizardInitialStep(step);
@@ -949,7 +1055,7 @@ export function LuveaApp({
           <SettingsView
             state={state}
             onUpdateState={handleUpdateStudioState}
-            initialTab={initialTab}
+            initialTab={settingsTab || initialTab}
           />
         )}
 
@@ -1106,23 +1212,19 @@ export function LuveaApp({
         onUpdateState={handleUpdateStudioState}
       />
 
-      {/* Floating Bottom-Center Dark Toast Notification matching 05-3-clients-added.png & DESIGN.md §4.4 */}
-      {state.lastToastMessage && (
-        <div className="fixed bottom-[calc(4.8rem+env(safe-area-inset-bottom,0px))] md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-[#1C1C1E] text-white shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-3 max-w-[92vw]">
-          <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
-          <span className="text-[13px] font-semibold truncate">
-            {state.lastToastMessage}
-          </span>
-          <button
-            onClick={() =>
-              setState((prev) => ({ ...prev, lastToastMessage: null }))
-            }
-            className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white shrink-0"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
+      {/* Global PWA Install Modal (Accessible from menu or any view) */}
+      <PWAInstallModal
+        isOpen={pwa.showInstallModal}
+        onClose={pwa.closeInstallModal}
+        isIOS={pwa.isIOS}
+        isAndroid={pwa.isAndroid}
+        isDesktop={pwa.isDesktop}
+        isChromeIOS={pwa.isChromeIOS}
+        isSafari={pwa.isSafari}
+        isInAppBrowser={pwa.isInAppBrowser}
+        hasNativePrompt={pwa.hasNativePrompt}
+        onDirectInstall={pwa.install}
+      />
     </div>
   );
 }

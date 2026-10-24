@@ -17,6 +17,7 @@ import {
   validateAndCreateCalendarEvent,
   bookFromWaitlistEntry,
   rebookAppointmentOneTap,
+  rescheduleCalendarEvent,
   createClientProfile,
   filterClientsByRetention,
   updateClientNotesAndForms,
@@ -353,6 +354,158 @@ describe("Ticket 03 — Agenda Inteligente (Calendar), Salto de Semanas, Trava d
     assert.equal(result2.state.clients.length, initialClientCount + 1);
     assert.equal(result2.createdEvent.clientId, createdClient.id);
   });
+
+  it("creates an appointment for a secondary registered staff member (João) and strictly preserves providerId and providerName without defaulting to Bruno", () => {
+    const initial = createInitialStudioState();
+
+    // 1. Adiciona o profissional "João" na equipe
+    const joaoStaffId = "staff-joao-12345";
+    const stateWithJoao = {
+      ...initial,
+      staff: [
+        ...initial.staff,
+        {
+          id: joaoStaffId,
+          firstName: "João",
+          lastName: "da Silva",
+          fullName: "João da Silva",
+          initials: "JS",
+          role: "Especialista em Mechas",
+          email: "joao@luveastudio.app",
+          phone: "(11) 98888-7777",
+          avatarColor: "#DDD6FE",
+          serviceCommissionPercent: 60,
+          productCommissionPercent: 20,
+          weeklyGoalCents: 500000,
+          bookedThisWeekCents: 0,
+          clockInNotificationsEnabled: false,
+          assignedServiceIds: ["srv-rejuv"],
+        },
+      ],
+    };
+
+    // 2. Cria agendamento especificamente para o João
+    const result = validateAndCreateCalendarEvent(stateWithJoao, {
+      eventType: "appointment",
+      dateISO: "2026-10-24",
+      startTime: "10:00",
+      providerId: joaoStaffId,
+      clientId: "cli-mariana",
+      serviceIds: ["srv-rejuv"],
+      addressOrNotes: "Agendamento VIP com João",
+      isRepeating: false,
+      collectDeposit: false,
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    // 3. Valida que o agendamento pertence a João e NÃO a Bruno
+    assert.equal(result.createdEvent.providerId, joaoStaffId);
+    assert.equal(result.createdEvent.providerName, "João da Silva");
+    assert.notEqual(result.createdEvent.providerId, "staff-bruno");
+    assert.notEqual(result.createdEvent.providerName, "Bruno Fernandes Malossi Silva");
+
+    // 4. Valida persistência no estado retornado
+    const eventInState = result.state.calendarEvents.find(
+      (e) => e.id === result.createdEvent.id
+    );
+    assert.ok(eventInState);
+    assert.equal(eventInState.providerId, joaoStaffId);
+    assert.equal(eventInState.providerName, "João da Silva");
+  });
+
+  it("supports custom adjusted endTime and total duration for appointments and personal blocks (horário reservado)", () => {
+    const initial = createInitialStudioState();
+
+    // 1. Agendamento com duração estendida customizada (serviço base tem 45 min, mas profissional ajusta para 90 min: 14:00 até 15:30)
+    const apptResult = validateAndCreateCalendarEvent(initial, {
+      eventType: "appointment",
+      dateISO: "2026-10-25",
+      startTime: "14:00",
+      endTime: "15:30",
+      providerId: "staff-bruno",
+      clientId: "cli-mariana",
+      serviceIds: ["srv-rejuv"],
+      addressOrNotes: "Atendimento com tempo extra para finalização",
+      isRepeating: false,
+      collectDeposit: false,
+    });
+
+    assert.equal(apptResult.ok, true);
+    if (!apptResult.ok) return;
+
+    assert.equal(apptResult.createdEvent.startTime, "14:00");
+    assert.equal(apptResult.createdEvent.endTime, "15:30");
+    assert.equal(apptResult.createdEvent.activeDurationMinutes, 90);
+
+    // 2. Horário Reservado / Bloqueio pessoal com duração customizada (ex: 11:00 até 12:30, 90 min)
+    const blockResult = validateAndCreateCalendarEvent(apptResult.state, {
+      eventType: "personal_block",
+      dateISO: "2026-10-25",
+      startTime: "11:00",
+      endTime: "12:30",
+      providerId: "staff-bruno",
+      serviceIds: [],
+      addressOrNotes: "Intervalo / Horário reservado de almoço",
+      isRepeating: false,
+      collectDeposit: false,
+    });
+
+    assert.equal(blockResult.ok, true);
+    if (!blockResult.ok) return;
+
+    assert.equal(blockResult.createdEvent.eventType, "personal_block");
+    assert.equal(blockResult.createdEvent.startTime, "11:00");
+    assert.equal(blockResult.createdEvent.endTime, "12:30");
+    assert.equal(blockResult.createdEvent.activeDurationMinutes, 90);
+    assert.equal(blockResult.createdEvent.clientName, "Bloqueio Pessoal");
+  });
+
+  it("reassigning an existing appointment to a secondary staff member (João) updates providerId and providerName cleanly", () => {
+    const initial = createInitialStudioState();
+    const joaoStaffId = "staff-joao-xyz";
+    const stateWithJoao = {
+      ...initial,
+      staff: [
+        ...initial.staff,
+        {
+          id: joaoStaffId,
+          firstName: "João",
+          lastName: "da Silva",
+          fullName: "João da Silva",
+          initials: "JS",
+          role: "Especialista em Cortes",
+          email: "joao@luveastudio.app",
+          phone: "(11) 98888-7777",
+          avatarColor: "#DDD6FE",
+          serviceCommissionPercent: 60,
+          productCommissionPercent: 20,
+          weeklyGoalCents: 500000,
+          bookedThisWeekCents: 0,
+          clockInNotificationsEnabled: false,
+          assignedServiceIds: ["srv-rejuv"],
+        },
+      ],
+    };
+
+    const targetEvent = stateWithJoao.calendarEvents[0];
+    assert.equal(targetEvent.providerId, "staff-bruno");
+
+    const updatedEvents = stateWithJoao.calendarEvents.map((evt) =>
+      evt.id === targetEvent.id
+        ? {
+            ...evt,
+            providerId: joaoStaffId,
+            providerName: "João da Silva",
+          }
+        : evt
+    );
+
+    const reassignedEvent = updatedEvents.find((e) => e.id === targetEvent.id);
+    assert.equal(reassignedEvent?.providerId, joaoStaffId);
+    assert.equal(reassignedEvent?.providerName, "João da Silva");
+  });
 });
 
 describe("Ticket 04 — Clientes (Clients), Drawer 5 Abas, Notas/Fichas e Fotos Auto-organizadas", () => {
@@ -528,6 +681,33 @@ describe("Ticket 06 — Recepção IA (Reception) & WhatsApp 2-Way Sync", () => 
     assert.equal(updatedEvent.status, "confirmed");
     assert.equal(updatedEvent.whatsappClientReply, "1_confirmed");
     assert.match(synced.reception.logs[0].messageText, /1/);
+  });
+
+  it("reschedules an appointment cleanly to a new date, time and professional with proper reception log", () => {
+    const initial = createInitialStudioState();
+    const target = initial.calendarEvents.find((e) => e.id === "evt-1")!;
+    assert.ok(target, "evt-1 deve existir");
+
+    const res = rescheduleCalendarEvent(initial, {
+      eventId: "evt-1",
+      newDateISO: "2026-10-28",
+      newStartTime: "14:00",
+      newEndTime: "16:45",
+      newProviderId: initial.staff[1]?.id ?? "staff-joao",
+      allowConflict: true,
+      notifyNote: "Reagendado a pedido da cliente via WhatsApp",
+      status: "confirmed",
+    });
+
+    assert.equal(res.ok, true);
+    assert.ok(res.updatedEvent);
+    assert.equal(res.updatedEvent.dateISO, "2026-10-28");
+    assert.equal(res.updatedEvent.startTime, "14:00");
+    assert.equal(res.updatedEvent.endTime, "16:45");
+    assert.equal(res.updatedEvent.status, "confirmed");
+    assert.equal(res.updatedEvent.whatsappClientReply, "none");
+    assert.equal(res.state.calendarView.selectedDateISO, "2026-10-28");
+    assert.match(res.state.reception.logs[0].messageText, /Reagendamento confirmado/);
   });
 
   it("allows studio owner to configure their own WhatsApp instance, number and templates", () => {

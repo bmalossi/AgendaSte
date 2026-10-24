@@ -222,7 +222,7 @@ describe("Ticket 01 — Módulo de Domínio Puro LUVEA TV Kiosk", () => {
 
     it("monta a resposta estruturada para o Kiosk com timezone correto e LGPD sanitizado", () => {
       const now = new Date("2026-10-22T17:30:00Z"); // 14:30 em SP -> apt-1 está in_progress
-      const response = buildTVPollingResponse(rawAppointments, professionals, org, now);
+      const response = buildTVPollingResponse(rawAppointments, professionals, org, now, { filterPast: false });
 
       assert.equal(response.organizationName, "Studio Luvea Jardins");
       assert.equal(response.logoUrl, "https://example.com/logo.png");
@@ -259,6 +259,75 @@ describe("Ticket 01 — Módulo de Domínio Puro LUVEA TV Kiosk", () => {
       assert.equal(apt3.startTime, "13:00");
       assert.equal(apt3.endTime, "13:45");
       assert.equal(apt3.status, "completed");
+    });
+
+    it("remove agendamentos anteriores e concluídos por padrão no Kiosk (mantém apenas em andamento e próximos)", () => {
+      const now = new Date("2026-10-22T17:30:00Z"); // 14:30 em SP -> apt-1 está in_progress
+      const response = buildTVPollingResponse(rawAppointments, professionals, org, now);
+
+      // Helena Rostova
+      const helena = response.professionals.find((p) => p.id === "prof-1");
+      assert.ok(helena);
+      assert.equal(helena.appointments.length, 2); // apt-1 (em andamento) e apt-2 (a seguir)
+      assert.equal(helena.appointments[0].status, "in_progress");
+
+      // Gabriel Menezes: apt-3 terminou às 13:45 (anterior a 14:30) e status é completed -> deve ser removido!
+      const gabriel = response.professionals.find((p) => p.id === "prof-2");
+      assert.ok(gabriel);
+      assert.equal(gabriel.appointments.length, 0); // Gabriel está livre no momento
+    });
+
+    it("calcula limites de início e fim do dia com offset UTC exato para o timezone do estúdio", () => {
+      const { getDayBoundsInTimezone } = require("../tv-kiosk.ts");
+      const refDate = new Date("2026-10-23T15:00:00Z");
+      const bounds = getDayBoundsInTimezone(refDate, "America/Sao_Paulo");
+
+      assert.equal(bounds.todayYMD, "2026-10-23");
+      assert.equal(bounds.startOfDayIso, "2026-10-23T03:00:00.000Z");
+      assert.equal(bounds.endOfDayIso, "2026-10-24T02:59:59.999Z");
+    });
+
+    it("deduplica profissionais com o mesmo nome e unifica seus agendamentos sob uma única coluna", () => {
+      const dupProfessionals: RawTVProfessional[] = [
+        { id: "prof-joao-1", name: "João" },
+        { id: "prof-joao-2", name: "João" },
+        { id: "prof-bruno", name: "Bruno" },
+      ];
+      const dupAppointments: RawTVAppointment[] = [
+        {
+          id: "apt-j1",
+          professional_id: "prof-joao-1",
+          client_name: "Cliente A",
+          service_name: "Corte",
+          starts_at: "2026-10-24T18:00:00Z",
+          ends_at: "2026-10-24T19:00:00Z",
+          status: "confirmed",
+        },
+        {
+          id: "apt-j2",
+          professional_id: "prof-joao-2",
+          client_name: "Cliente B",
+          service_name: "Escova",
+          starts_at: "2026-10-24T19:15:00Z",
+          ends_at: "2026-10-24T20:00:00Z",
+          status: "confirmed",
+        },
+      ];
+
+      const now = new Date("2026-10-24T17:00:00Z");
+      const response = buildTVPollingResponse(dupAppointments, dupProfessionals, org, now);
+
+      // Deve ter exatamente 2 profissionais (João e Bruno), sem duplicar João
+      assert.equal(response.professionals.length, 2);
+
+      const joaoCol = response.professionals.find((p) => p.name === "João");
+      assert.ok(joaoCol);
+      // Os agendamentos de ambos os IDs duplicados devem estar sob a coluna de João
+      assert.equal(joaoCol.appointments.length, 2);
+
+      const brunoCol = response.professionals.find((p) => p.name === "Bruno");
+      assert.ok(brunoCol);
+      assert.equal(brunoCol.appointments.length, 0);
     });
   });
 
