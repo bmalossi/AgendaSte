@@ -1061,8 +1061,29 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
       style={{
         transform: `translate(${burnInOffset.x}px, ${burnInOffset.y}px)`,
       }}
-      className={`fixed inset-0 w-screen h-screen ${currentPalette.bgRoot} ${currentConfig.outerPadding} flex flex-col justify-between select-none overflow-hidden transition-colors duration-500 motion-reduce:transition-none`}
+      className={`fixed inset-0 w-screen h-screen ${currentPalette.bgRoot} ${currentConfig.outerPadding} flex flex-col justify-between select-none overflow-hidden transition-colors duration-700 ease-in-out motion-reduce:transition-none`}
     >
+      {/* Atalhos de teclado e acessibilidade para leitores de tela */}
+      <section
+        className="sr-only"
+        aria-label="Atalhos de teclado e acessibilidade do TV Kiosk"
+      >
+        <h2>Instruções e atalhos do Painel LUVEA TV Kiosk</h2>
+        <p>A escala de profissionais sincroniza automaticamente a cada 20 segundos.</p>
+        <ul>
+          <li>Pressione a tecla 1 para selecionar escala de TV de 32 polegadas.</li>
+          <li>Pressione a tecla 2 para selecionar escala de TV de 43 polegadas.</li>
+          <li>Pressione a tecla 3 para selecionar escala de TV de 55 polegadas ou superior.</li>
+          <li>Pressione a tecla T para alternar o modo visual entre Obsidian Escuro, Editorial Claro, Cacau e Âmbar, ou Noir Imperial e Gold.</li>
+        </ul>
+        <a
+          href="#tv-main-board"
+          className="focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-zinc-900 focus:text-white focus:rounded-full focus:border focus:border-white/20 focus:text-xs focus:shadow-xl"
+        >
+          Pular para a grade de atendimentos da equipe
+        </a>
+      </section>
+
       {/* 1. Cabeçalho Limpo Editorial */}
       <header
         className={`w-full flex items-center justify-between ${currentConfig.headerPadding} border-b ${currentPalette.headerBorder} shrink-0`}
@@ -1144,7 +1165,11 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
       )}
 
       {/* 3. Corpo Principal: Grid Cockpit de Profissionais (100% contido, 0px de corte) */}
-      <main className="flex-1 w-full min-h-0 overflow-hidden flex flex-col justify-start">
+      <main
+        id="tv-main-board"
+        tabIndex={-1}
+        className="flex-1 w-full min-h-0 overflow-hidden flex flex-col justify-start outline-none"
+      >
         {!boardData ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-zinc-500 text-sm">
             <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-white animate-spin motion-reduce:animate-none" />

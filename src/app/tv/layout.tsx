@@ -15,7 +15,7 @@ export default function TVLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-screen bg-[#09090B] text-[#EDEDED] antialiased overflow-hidden select-none">
+    <div className="min-h-screen w-screen bg-[#09090B] text-[#EDEDED] antialiased overflow-hidden select-none transition-colors duration-700 ease-in-out motion-reduce:transition-none">
       {children}
     </div>
   );
