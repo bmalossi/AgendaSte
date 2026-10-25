@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { UnpairedView } from "@/components/tv/unpaired-view";
 import { LiveBoardView } from "@/components/tv/live-board-view";
+import { TVOrientationAdvisory } from "@/components/tv/orientation-advisory";
 
 export default function TVKioskPage() {
   const [token, setToken] = useState<string | null>(null);
@@ -51,11 +52,14 @@ export default function TVKioskPage() {
     );
   }
 
-  if (!token) {
-    return <UnpairedView onAuthorized={handleAuthorized} />;
-  }
-
   return (
-    <LiveBoardView token={token} onUnauthorized={handleUnauthorized} />
+    <>
+      <TVOrientationAdvisory />
+      {!token ? (
+        <UnpairedView onAuthorized={handleAuthorized} />
+      ) : (
+        <LiveBoardView token={token} onUnauthorized={handleUnauthorized} />
+      )}
+    </>
   );
 }
