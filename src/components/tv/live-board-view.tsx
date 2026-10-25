@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { CheckCircle2, Calendar } from "lucide-react";
+import { CheckCircle2, Calendar, Volume2, VolumeX } from "lucide-react";
 import {
   TVPollingResponse,
   TVAppointmentDTO,
@@ -369,6 +369,52 @@ const TV_SIZES: Record<TVScreenSize, TVSizeConfig> = {
   },
 };
 
+/**
+ * Reproduz um chime acústico de luxo (E5 + B5) usando a Web Audio API nativa.
+ * Zero dependências de arquivos externos MP3/WAV, zero latência e sem falhas de rede.
+ */
+export function playLuxuryChime() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+
+    const now = ctx.currentTime;
+
+    // Tom fundamental suave: Nota E5 (659.25 Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(659.25, now);
+    gain1.gain.setValueAtTime(0.0001, now);
+    gain1.gain.exponentialRampToValueAtTime(0.12, now + 0.04);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.6);
+
+    // Harmônico quinta perfeita: B5 (987.77 Hz) suave após 90ms
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(987.77, now + 0.09);
+    gain2.gain.setValueAtTime(0.0001, now + 0.09);
+    gain2.gain.exponentialRampToValueAtTime(0.1, now + 0.13);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.09);
+    osc2.stop(now + 0.85);
+  } catch (err) {
+    console.warn("[TV Audio] Falha ao reproduzir chime acústico:", err);
+  }
+}
+
 // Micro-componente isolado para a barra de progresso em tempo real
 // Mantém seu próprio timer de 1s para atualizar o progresso contínuo e tempo restante
 // sem disparar re-render da coluna do profissional a cada segundo.
@@ -469,12 +515,16 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
   column,
   serverOffsetMs,
   isHighlighted,
+  isFocused = false,
+  onFocus,
   cfg,
   palette,
 }: {
   column: TVProfessionalColumn;
   serverOffsetMs: number;
   isHighlighted: boolean;
+  isFocused?: boolean;
+  onFocus?: () => void;
   cfg: TVSizeConfig;
   palette: TVThemePalette;
 }) {
@@ -561,11 +611,18 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
 
   return (
     <section
+      tabIndex={0}
+      onFocus={onFocus}
+      aria-label={`Profissional ${column.name}: ${isInService ? "Em Atendimento" : "Disponível"}`}
       className={`relative flex flex-col justify-between h-full rounded-2xl md:rounded-3xl ${
         cfg.cardPadding
-      } transition-all duration-700 motion-reduce:transition-none overflow-hidden border ${
+      } transition-all duration-700 motion-reduce:transition-none overflow-hidden border outline-none ${
         isInService ? palette.cardActive : palette.cardNormal
-      } ${isHighlighted ? palette.cardBorderHighlight : ""}`}
+      } ${isHighlighted ? palette.cardBorderHighlight : ""} ${
+        isFocused
+          ? "ring-2 ring-white/60 border-white/40 shadow-2xl scale-[1.008]"
+          : "focus-visible:ring-2 focus-visible:ring-white/40"
+      }`}
     >
       {/* 1. TOPO: Avatar com Inicial + Nome + Status */}
       <div
@@ -817,6 +874,32 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
   // 3. Indicador de Sincronização
   const [showSyncBadge, setShowSyncBadge] = useState<boolean>(true);
 
+  // 4. Notificação Sonora (Audio Chime para novos atendimentos)
+  const [audioChimeEnabled, setAudioChimeEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("luvea_tv_chime_v1") === "true";
+      } catch {}
+    }
+    return false;
+  });
+
+  const toggleAudioChime = useCallback(() => {
+    setAudioChimeEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("luvea_tv_chime_v1", String(next));
+      } catch {}
+      if (next) {
+        playLuxuryChime();
+      }
+      return next;
+    });
+  }, []);
+
+  // 5. Navegação Espacial por D-Pad do Controle Remoto
+  const [focusedColIndex, setFocusedColIndex] = useState<number | null>(null);
+
   const handleSelectTvSize = (size: TVScreenSize) => {
     setTvSize(size);
     userSelectedSizeRef.current = true;
@@ -835,29 +918,6 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
 
   const currentConfig = TV_SIZES[tvSize] || TV_SIZES["32"];
   const currentPalette = THEME_CONFIGS[themeMode] || THEME_CONFIGS.dark;
-
-  // Atalhos de teclado / controle remoto
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "1") handleSelectTvSize("32");
-      if (e.key === "2") handleSelectTvSize("43");
-      if (e.key === "3") handleSelectTvSize("55");
-      if (e.key === "t" || e.key === "T") {
-        setThemeMode((prev) => {
-          const list: TVThemeMode[] = ["dark", "light", "warm_brown", "noir_gold"];
-          const nextIdx = (list.indexOf(prev) + 1) % list.length;
-          const nextTheme = list[nextIdx];
-          userSelectedThemeRef.current = true;
-          try {
-            localStorage.setItem("luvea_tv_theme_v3", nextTheme);
-          } catch {}
-          return nextTheme;
-        });
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   const serverTimeOffsetRef = useRef<number>(0);
   const previousAptsRef = useRef<Map<string, string>>(new Map());
@@ -953,6 +1013,15 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
         });
       });
 
+      // Toca chime sonoro editorial suave se o áudio estiver ativado e houve atualização relevante
+      if (
+        audioChimeEnabled &&
+        previousAptsRef.current.size > 0 &&
+        newHighlighted.size > 0
+      ) {
+        playLuxuryChime();
+      }
+
       previousAptsRef.current = currentMap;
 
       if (newHighlighted.size > 0) {
@@ -972,7 +1041,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
       retryCountRef.current += 1;
       setReconnectingSeconds(Math.round(nextDelay));
     }
-  }, [token, onUnauthorized]);
+  }, [token, onUnauthorized, audioChimeEnabled]);
 
   // Executa polling a cada 20 segundos
   useEffect(() => {
@@ -1056,6 +1125,77 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
   const currentColumns: TVProfessionalColumn[] =
     professionalPages[pageIndex] || [];
 
+  // Atalhos de teclado / controle remoto da TV e Navegação Espacial (D-Pad)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Escalas de TV (1=32", 2=43", 3=55"+)
+      if (e.key === "1") handleSelectTvSize("32");
+      if (e.key === "2") handleSelectTvSize("43");
+      if (e.key === "3") handleSelectTvSize("55");
+
+      // 2. Alternador de Tema (T)
+      if (e.key === "t" || e.key === "T") {
+        setThemeMode((prev) => {
+          const list: TVThemeMode[] = ["dark", "light", "warm_brown", "noir_gold"];
+          const nextIdx = (list.indexOf(prev) + 1) % list.length;
+          const nextTheme = list[nextIdx];
+          userSelectedThemeRef.current = true;
+          try {
+            localStorage.setItem("luvea_tv_theme_v3", nextTheme);
+          } catch {}
+          return nextTheme;
+        });
+      }
+
+      // 3. Alternador de Som / Chime (M ou S)
+      if (e.key === "m" || e.key === "M" || e.key === "s" || e.key === "S") {
+        toggleAudioChime();
+      }
+
+      // 4. Navegação Espacial por D-Pad do Controle Remoto (Setas Direita / Esquerda)
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setFocusedColIndex((prev) => {
+          if (prev === null) return 0;
+          if (prev < currentColumns.length - 1) return prev + 1;
+          if (professionalPages.length > 1) {
+            setPageIndex((p) => (p + 1) % professionalPages.length);
+            return 0;
+          }
+          return prev;
+        });
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setFocusedColIndex((prev) => {
+          if (prev === null) return 0;
+          if (prev > 0) return prev - 1;
+          if (professionalPages.length > 1) {
+            setPageIndex((p) => (p - 1 + professionalPages.length) % professionalPages.length);
+            return 0;
+          }
+          return 0;
+        });
+      }
+      if (e.key === "ArrowDown") {
+        setFocusedColIndex(null);
+      }
+      if (e.key === "ArrowUp") {
+        setFocusedColIndex(0);
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        if (focusedColIndex !== null && currentColumns[focusedColIndex]) {
+          const targetCol = currentColumns[focusedColIndex];
+          setHighlightedIds(new Set([targetCol.id]));
+          setTimeout(() => setHighlightedIds(new Set()), 2500);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentColumns, professionalPages.length, focusedColIndex, toggleAudioChime]);
+
   return (
     <div
       style={{
@@ -1075,6 +1215,9 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
           <li>Pressione a tecla 2 para selecionar escala de TV de 43 polegadas.</li>
           <li>Pressione a tecla 3 para selecionar escala de TV de 55 polegadas ou superior.</li>
           <li>Pressione a tecla T para alternar o modo visual entre Obsidian Escuro, Editorial Claro, Cacau e Âmbar, ou Noir Imperial e Gold.</li>
+          <li>Pressione a tecla M ou S para ativar ou desativar o aviso sonoro acústico de novos atendimentos.</li>
+          <li>Use as setas Esquerda e Direita do controle remoto (D-Pad) para navegar entre as colunas da equipe.</li>
+          <li>Pressione Enter ou OK no controle remoto para destacar a coluna selecionada.</li>
         </ul>
         <a
           href="#tv-main-board"
@@ -1193,12 +1336,14 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
               gridTemplateColumns: `repeat(${Math.max(1, currentColumns.length)}, minmax(0, 1fr))`,
             }}
           >
-            {currentColumns.map((col) => (
+            {currentColumns.map((col, idx) => (
               <ProfessionalCockpitColumn
                 key={col.id}
                 column={col}
                 serverOffsetMs={serverOffsetMs}
                 isHighlighted={highlightedIds.has(col.id)}
+                isFocused={focusedColIndex === idx}
+                onFocus={() => setFocusedColIndex(idx)}
                 cfg={currentConfig}
                 palette={currentPalette}
               />
@@ -1293,6 +1438,36 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
               );
             })}
           </div>
+
+          {/* Botão de Som / Chime Notificação Acústica */}
+          <button
+            type="button"
+            onClick={toggleAudioChime}
+            aria-label={
+              audioChimeEnabled
+                ? "Desativar aviso sonoro de novos atendimentos"
+                : "Ativar aviso sonoro de novos atendimentos"
+            }
+            title={
+              audioChimeEnabled
+                ? "Som ativo (Chime para novos atendimentos)"
+                : "Som desativado (Clique para ativar)"
+            }
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10.5px] transition focus-visible:ring-1 focus-visible:ring-white/40 ${
+              audioChimeEnabled
+                ? currentPalette.footerPillActive
+                : `${currentPalette.footerPillContainer} ${currentPalette.footerPillInactive}`
+            }`}
+          >
+            {audioChimeEnabled ? (
+              <Volume2 className="w-3.5 h-3.5" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 opacity-60" />
+            )}
+            <span className="hidden sm:inline font-medium">
+              {audioChimeEnabled ? "Som Ativo" : "Mudo"}
+            </span>
+          </button>
         </div>
 
         {professionalPages.length > 1 && (
