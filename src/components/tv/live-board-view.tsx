@@ -369,20 +369,126 @@ const TV_SIZES: Record<TVScreenSize, TVSizeConfig> = {
   },
 };
 
+// Micro-componente isolado para a barra de progresso em tempo real
+// Mantém seu próprio timer de 1s para atualizar o progresso contínuo e tempo restante
+// sem disparar re-render da coluna do profissional a cada segundo.
+const AppointmentProgressBar = React.memo(function AppointmentProgressBar({
+  inProgressApt,
+  serverOffsetMs,
+  palette,
+}: {
+  inProgressApt: TVAppointmentDTO;
+  serverOffsetMs: number;
+  palette: TVThemePalette;
+}) {
+  const [currentMs, setCurrentMs] = useState<number>(() => Date.now() + serverOffsetMs);
+
+  useEffect(() => {
+    setCurrentMs(Date.now() + serverOffsetMs);
+    const interval = setInterval(() => {
+      setCurrentMs(Date.now() + serverOffsetMs);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [serverOffsetMs]);
+
+  const startsMs = inProgressApt.startsAt
+    ? new Date(inProgressApt.startsAt).getTime()
+    : currentMs - 15 * 60000;
+  const endsMs = inProgressApt.endsAt
+    ? new Date(inProgressApt.endsAt).getTime()
+    : startsMs + 45 * 60000;
+
+  const totalMs = Math.max(60000, endsMs - startsMs);
+  const elapsedMs = Math.max(0, currentMs - startsMs);
+  const remainingMs = Math.max(0, endsMs - currentMs);
+
+  // Progresso contínuo em ponto flutuante (avança suavemente segundo a segundo)
+  const rawPercent = (elapsedMs / totalMs) * 100;
+  const percent = Math.min(100, Math.max(1, rawPercent));
+
+  // Formatação do Tempo Restante para o Profissional
+  const remainingMinutes = Math.ceil(remainingMs / 60000);
+  const isOvertime = currentMs >= endsMs;
+  const overtimeMinutes = Math.floor((currentMs - endsMs) / 60000);
+
+  let remainingText = "";
+  if (isOvertime) {
+    remainingText =
+      overtimeMinutes > 0
+        ? `Tempo esgotado (+${overtimeMinutes} min)`
+        : "Finalizando atendimento";
+  } else if (remainingMinutes >= 60) {
+    const h = Math.floor(remainingMinutes / 60);
+    const m = remainingMinutes % 60;
+    remainingText = m > 0 ? `${h}h ${m} min restantes` : `${h}h restantes`;
+  } else if (remainingMinutes > 1) {
+    remainingText = `${remainingMinutes} min restantes`;
+  } else {
+    remainingText = "Menos de 1 min restante";
+  }
+
+  return (
+    <div className="mt-2 sm:mt-2.5">
+      <div
+        role="progressbar"
+        aria-valuenow={Math.round(percent)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Progresso do atendimento: ${remainingText}`}
+        className={`h-1.5 w-full rounded-full ${palette.progressTrackBg} overflow-hidden`}
+      >
+        <div
+          className={`h-full rounded-full ${
+            isOvertime ? "bg-amber-400" : palette.progressBarBg
+          } transition-all duration-1000 ease-linear motion-reduce:transition-none`}
+          style={{ width: `${percent.toFixed(2)}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between mt-1 sm:mt-1.5">
+        <span
+          className={`text-[10px] sm:text-[11px] font-medium tabular-nums ${
+            isOvertime
+              ? "text-amber-400 font-semibold"
+              : palette.progressElapsedText
+          }`}
+        >
+          {remainingText}
+        </span>
+        <span
+          className={`text-[9.5px] sm:text-[10.5px] font-mono font-semibold tabular-nums opacity-75 ${palette.labelMuted}`}
+        >
+          {Math.round(percent)}%
+        </span>
+      </div>
+    </div>
+  );
+});
+
 // Coluna Cockpit em Tempo Real de cada Profissional
 const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn({
   column,
-  currentServerMs,
+  serverOffsetMs,
   isHighlighted,
   cfg,
   palette,
 }: {
   column: TVProfessionalColumn;
-  currentServerMs: number;
+  serverOffsetMs: number;
   isHighlighted: boolean;
   cfg: TVSizeConfig;
   palette: TVThemePalette;
 }) {
+  // Reavalia status da coluna apenas quando o minuto mudar (para viradas de horário sem churn de CPU)
+  const [minuteTick, setMinuteTick] = useState<number>(() => Math.floor(Date.now() / 60000));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentMinute = Math.floor(Date.now() / 60000);
+      setMinuteTick((prev) => (prev !== currentMinute ? currentMinute : prev));
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Ordena por horário de início
   const sorted = useMemo(() => {
     return [...column.appointments].sort((a, b) => {
@@ -399,6 +505,7 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
     freeTimeText: string;
     isInService: boolean;
   }>(() => {
+    const currentServerMs = Date.now() + serverOffsetMs;
     let inProgress: TVAppointmentDTO | null = null;
     const upcoming: TVAppointmentDTO[] = [];
 
@@ -448,56 +555,9 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
       freeTimeText: freeText,
       isInService: !!inProgress,
     };
-  }, [sorted, currentServerMs]);
+  }, [sorted, minuteTick, serverOffsetMs]);
 
   const initial = column.name.charAt(0).toUpperCase() || "P";
-
-  // Cálculo da barra de progresso do atendimento em andamento
-  const progressMetrics = useMemo(() => {
-    if (!inProgressApt) return null;
-    const startsMs = inProgressApt.startsAt
-      ? new Date(inProgressApt.startsAt).getTime()
-      : currentServerMs - 15 * 60000;
-    const endsMs = inProgressApt.endsAt
-      ? new Date(inProgressApt.endsAt).getTime()
-      : startsMs + 45 * 60000;
-
-    const totalMs = Math.max(60000, endsMs - startsMs);
-    const elapsedMs = Math.max(0, currentServerMs - startsMs);
-    const remainingMs = Math.max(0, endsMs - currentServerMs);
-
-    // Progresso contínuo em ponto flutuante (avança suavemente segundo a segundo)
-    const rawPercent = (elapsedMs / totalMs) * 100;
-    const percent = Math.min(100, Math.max(1, rawPercent));
-
-    // Formatação do Tempo Restante para o Profissional
-    const remainingMinutes = Math.ceil(remainingMs / 60000);
-    const isOvertime = currentServerMs >= endsMs;
-    const overtimeMinutes = Math.floor((currentServerMs - endsMs) / 60000);
-
-    let remainingText = "";
-    if (isOvertime) {
-      remainingText =
-        overtimeMinutes > 0
-          ? `Tempo esgotado (+${overtimeMinutes} min)`
-          : "Finalizando atendimento";
-    } else if (remainingMinutes >= 60) {
-      const h = Math.floor(remainingMinutes / 60);
-      const m = remainingMinutes % 60;
-      remainingText = m > 0 ? `${h}h ${m} min restantes` : `${h}h restantes`;
-    } else if (remainingMinutes > 1) {
-      remainingText = `${remainingMinutes} min restantes`;
-    } else {
-      remainingText = "Menos de 1 min restante";
-    }
-
-    return {
-      percent,
-      remainingText,
-      isOvertime,
-      remainingMinutes,
-    };
-  }, [inProgressApt, currentServerMs]);
 
   return (
     <section
@@ -568,44 +628,12 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
                 {inProgressApt.startTime} – {inProgressApt.endTime}
               </div>
 
-              {/* Barra de Progresso no Horário Agendado */}
-              {progressMetrics && (
-                <div className="mt-2 sm:mt-2.5">
-                  <div
-                    role="progressbar"
-                    aria-valuenow={Math.round(progressMetrics.percent)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`Progresso do atendimento: ${progressMetrics.remainingText}`}
-                    className={`h-1.5 w-full rounded-full ${palette.progressTrackBg} overflow-hidden`}
-                  >
-                    <div
-                      className={`h-full rounded-full ${
-                        progressMetrics.isOvertime
-                          ? "bg-amber-400"
-                          : palette.progressBarBg
-                      } transition-all duration-1000 ease-linear motion-reduce:transition-none`}
-                      style={{ width: `${progressMetrics.percent.toFixed(2)}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between mt-1 sm:mt-1.5">
-                    <span
-                      className={`text-[10px] sm:text-[11px] font-medium tabular-nums ${
-                        progressMetrics.isOvertime
-                          ? "text-amber-400 font-semibold"
-                          : palette.progressElapsedText
-                      }`}
-                    >
-                      {progressMetrics.remainingText}
-                    </span>
-                    <span
-                      className={`text-[9.5px] sm:text-[10.5px] font-mono font-semibold tabular-nums opacity-75 ${palette.labelMuted}`}
-                    >
-                      {Math.round(progressMetrics.percent)}%
-                    </span>
-                  </div>
-                </div>
-              )}
+              {/* Barra de Progresso no Horário Agendado (Micro-componente isolado) */}
+              <AppointmentProgressBar
+                inProgressApt={inProgressApt}
+                serverOffsetMs={serverOffsetMs}
+                palette={palette}
+              />
             </div>
 
             {/* Bloco Próximo Atendimento */}
@@ -745,7 +773,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
   const [reconnectingSeconds, setReconnectingSeconds] = useState<number | null>(null);
   const [clockTime, setClockTime] = useState("");
   const [clockDate, setClockDate] = useState("");
-  const [currentServerMs, setCurrentServerMs] = useState<number>(Date.now());
+  const [serverOffsetMs, setServerOffsetMs] = useState<number>(0);
   const [pageIndex, setPageIndex] = useState(0);
   const [burnInOffset, setBurnInOffset] = useState({ x: 0, y: 0 });
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
@@ -893,7 +921,9 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
       // Sincroniza offset do relógio com base no serverTime
       if (data.serverTime) {
         const serverMs = new Date(data.serverTime).getTime();
-        serverTimeOffsetRef.current = serverMs - Date.now();
+        const offset = serverMs - Date.now();
+        serverTimeOffsetRef.current = offset;
+        setServerOffsetMs(offset);
       }
 
       // Sincroniza configurações remotas de exibição (se usuário não tiver forçado override local)
@@ -959,7 +989,6 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
 
     const updateClock = () => {
       const current = new Date(Date.now() + serverTimeOffsetRef.current);
-      setCurrentServerMs(current.getTime());
 
       try {
         const timeStr = new Intl.DateTimeFormat("pt-BR", {
@@ -1143,7 +1172,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
               <ProfessionalCockpitColumn
                 key={col.id}
                 column={col}
-                currentServerMs={currentServerMs}
+                serverOffsetMs={serverOffsetMs}
                 isHighlighted={highlightedIds.has(col.id)}
                 cfg={currentConfig}
                 palette={currentPalette}
