@@ -503,7 +503,7 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
     <section
       className={`relative flex flex-col justify-between h-full rounded-2xl md:rounded-3xl ${
         cfg.cardPadding
-      } transition-all duration-700 overflow-hidden border ${
+      } transition-all duration-700 motion-reduce:transition-none overflow-hidden border ${
         isInService ? palette.cardActive : palette.cardNormal
       } ${isHighlighted ? palette.cardBorderHighlight : ""}`}
     >
@@ -572,6 +572,11 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
               {progressMetrics && (
                 <div className="mt-2 sm:mt-2.5">
                   <div
+                    role="progressbar"
+                    aria-valuenow={Math.round(progressMetrics.percent)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Progresso do atendimento: ${progressMetrics.remainingText}`}
                     className={`h-1.5 w-full rounded-full ${palette.progressTrackBg} overflow-hidden`}
                   >
                     <div
@@ -579,7 +584,7 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
                         progressMetrics.isOvertime
                           ? "bg-amber-400"
                           : palette.progressBarBg
-                      } transition-all duration-1000 ease-linear`}
+                      } transition-all duration-1000 ease-linear motion-reduce:transition-none`}
                       style={{ width: `${progressMetrics.percent.toFixed(2)}%` }}
                     />
                   </div>
@@ -1027,7 +1032,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
       style={{
         transform: `translate(${burnInOffset.x}px, ${burnInOffset.y}px)`,
       }}
-      className={`fixed inset-0 w-screen h-screen ${currentPalette.bgRoot} ${currentConfig.outerPadding} flex flex-col justify-between select-none overflow-hidden transition-colors duration-500`}
+      className={`fixed inset-0 w-screen h-screen ${currentPalette.bgRoot} ${currentConfig.outerPadding} flex flex-col justify-between select-none overflow-hidden transition-colors duration-500 motion-reduce:transition-none`}
     >
       {/* 1. Cabeçalho Limpo Editorial */}
       <header
@@ -1070,12 +1075,16 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
         <div
           className={`flex items-center justify-end ${currentConfig.sectionPadding} shrink-0`}
         >
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div
+            className="flex items-center gap-1.5 sm:gap-2"
+            role="status"
+            aria-live="polite"
+          >
             {isOnline ? (
               <>
                 <span className="relative flex h-2 w-2">
                   <span
-                    className={`animate-ping absolute inline-flex h-full w-full rounded-full ${currentPalette.syncOnlinePing} opacity-60`}
+                    className={`animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full ${currentPalette.syncOnlinePing} opacity-60`}
                   />
                   <span
                     className={`relative inline-flex rounded-full h-2 w-2 ${currentPalette.syncOnlineDot}`}
@@ -1090,7 +1099,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
             ) : (
               <>
                 <span
-                  className={`w-2 h-2 rounded-full ${currentPalette.syncOfflineDot} animate-pulse`}
+                  className={`w-2 h-2 rounded-full ${currentPalette.syncOfflineDot} animate-pulse motion-reduce:animate-none`}
                 />
                 <span
                   className={`${currentPalette.syncOfflineText} uppercase ${currentConfig.syncBadgeSize} font-bold tracking-wider`}
@@ -1109,7 +1118,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
       <main className="flex-1 w-full min-h-0 overflow-hidden flex flex-col justify-start">
         {!boardData ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-zinc-500 text-sm">
-            <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-white animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-white animate-spin motion-reduce:animate-none" />
             <span className="font-light tracking-wide text-zinc-400">
               Sincronizando agenda do dia...
             </span>
@@ -1125,7 +1134,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
           </div>
         ) : (
           <div
-            className={`grid h-full ${currentConfig.gridGap} transition-opacity duration-500`}
+            className={`grid h-full ${currentConfig.gridGap} transition-opacity duration-500 motion-reduce:transition-none`}
             style={{
               gridTemplateColumns: `repeat(${Math.max(1, currentColumns.length)}, minmax(0, 1fr))`,
             }}
@@ -1237,7 +1246,7 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
             {professionalPages.map((_, idx) => (
               <span
                 key={idx}
-                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none ${
                   idx === pageIndex ? "bg-white w-4" : "bg-white/20"
                 }`}
               />
