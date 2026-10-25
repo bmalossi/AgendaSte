@@ -85,6 +85,7 @@ export interface TVKioskSettings {
   theme: TVThemeMode;
   screenSize: TVScreenSize;
   showSyncBadge: boolean;
+  visibleProfessionalIds?: string[];
 }
 
 const memoryTVSettings = new Map<string, TVKioskSettings>();
@@ -111,6 +112,10 @@ export function setMemoryTVSettings(
       typeof settings.showSyncBadge === "boolean"
         ? settings.showSyncBadge
         : current.showSyncBadge,
+    visibleProfessionalIds:
+      settings.visibleProfessionalIds !== undefined
+        ? settings.visibleProfessionalIds
+        : current.visibleProfessionalIds,
   };
   memoryTVSettings.set(orgId, updated);
   return updated;
@@ -445,8 +450,30 @@ export function buildTVPollingResponse(
     }
   }
 
+  const orgSettings = (org.settings as Record<string, unknown>) || {};
+  const memorySettings = getMemoryTVSettings(org.id);
+
+  // Filtra por profissionais selecionados para exibição na TV (se configurado)
+  const rawVisible =
+    (orgSettings.tv_visible_professional_ids as string[] | undefined) ||
+    memorySettings.visibleProfessionalIds;
+
+  const visibleSet =
+    Array.isArray(rawVisible) && rawVisible.length > 0
+      ? new Set(rawVisible.map((v) => v.toLowerCase().trim()))
+      : null;
+
+  const allowedProfs = visibleSet
+    ? uniqueProfs.filter(
+        (p) =>
+          visibleSet.has(p.id.toLowerCase()) ||
+          visibleSet.has(p.name.toLowerCase().trim()) ||
+          visibleSet.has(p.name.toLowerCase().trim().split(" ")[0])
+      )
+    : uniqueProfs;
+
   // Mapeia profissionais criando as colunas
-  const profColumns: TVProfessionalColumn[] = uniqueProfs.map((prof) => {
+  const profColumns: TVProfessionalColumn[] = allowedProfs.map((prof) => {
     const profApts = validAppointments
       .filter((apt) => {
         const resolvedId = profAliasMap.get(apt.professional_id) || apt.professional_id;
@@ -477,9 +504,6 @@ export function buildTVPollingResponse(
       appointments: profApts,
     };
   });
-
-  const orgSettings = (org.settings as Record<string, unknown>) || {};
-  const memorySettings = getMemoryTVSettings(org.id);
 
   const theme: TVThemeMode =
     (orgSettings.tv_theme as TVThemeMode) ||

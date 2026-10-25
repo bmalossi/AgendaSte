@@ -47,7 +47,8 @@ async function getAuthenticatedUserOrg(request: Request) {
 
 /**
  * GET /api/tv/settings
- * Retorna as configurações de exibição da TV Kiosk da organização do usuário logado.
+ * Retorna as configurações de exibição da TV Kiosk da organização do usuário logado,
+ * incluindo o tema, tamanho de tela, visibilidade do badge e lista de profissionais selecionados.
  */
 export async function GET(request: Request) {
   try {
@@ -57,6 +58,40 @@ export async function GET(request: Request) {
         { error: "Acesso não autorizado." },
         { status: 401 }
       );
+    }
+
+    let allProfessionals: Array<{ id: string; name: string }> = [];
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: profsData } = await supabaseAdmin
+          .from("professionals")
+          .select("id, first_name, last_name, studio_name")
+          .eq("organization_id", auth.organizationId);
+
+        const seenNames = new Set<string>();
+        for (const p of profsData || []) {
+          const rawName =
+            [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
+            p.studio_name ||
+            "Profissional";
+          const norm = rawName.toLowerCase();
+          if (!seenNames.has(norm)) {
+            seenNames.add(norm);
+            allProfessionals.push({ id: p.id, name: rawName });
+          }
+        }
+      } catch (err) {
+        console.warn("[TV Settings GET] Erro ao buscar profissionais:", err);
+      }
+    }
+
+    if (allProfessionals.length === 0) {
+      allProfessionals = [
+        { id: "staff-bruno", name: "Bruno" },
+        { id: "staff-joao", name: "João" },
+        { id: "staff-kleber", name: "Kleber" },
+      ];
     }
 
     if (isSupabaseConfigured()) {
@@ -69,6 +104,10 @@ export async function GET(request: Request) {
 
         if (!error && org?.settings) {
           const s = org.settings as Record<string, unknown>;
+          const visibleIds = Array.isArray(s.tv_visible_professional_ids)
+            ? (s.tv_visible_professional_ids as string[])
+            : allProfessionals.map((p) => p.id);
+
           return NextResponse.json({
             theme: (s.tv_theme as TVThemeMode) || "dark",
             screenSize: (s.tv_screen_size as TVScreenSize) || "32",
@@ -76,6 +115,8 @@ export async function GET(request: Request) {
               typeof s.tv_show_sync_badge === "boolean"
                 ? s.tv_show_sync_badge
                 : true,
+            visibleProfessionalIds: visibleIds,
+            allProfessionals,
           });
         }
       } catch (dbErr) {
@@ -84,7 +125,12 @@ export async function GET(request: Request) {
     }
 
     const mem = getMemoryTVSettings(auth.organizationId);
-    return NextResponse.json(mem);
+    return NextResponse.json({
+      ...mem,
+      visibleProfessionalIds:
+        mem.visibleProfessionalIds || allProfessionals.map((p) => p.id),
+      allProfessionals,
+    });
   } catch (err) {
     console.error("[TV Settings GET] Erro inesperado:", err);
     return NextResponse.json(
@@ -96,7 +142,8 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/tv/settings
- * Atualiza modo de exibição (tema), tamanho de tela e status de sincronização da TV.
+ * Atualiza modo de exibição (tema), tamanho de tela, status de sincronização
+ * e lista de profissionais ativos na TV.
  */
 export async function POST(request: Request) {
   try {
@@ -109,7 +156,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { theme, screenSize, showSyncBadge } = body;
+    const { theme, screenSize, showSyncBadge, visibleProfessionalIds } = body;
 
     const validThemes: TVThemeMode[] = ["dark", "light", "warm_brown", "noir_gold"];
     const validSizes: TVScreenSize[] = ["32", "43", "55"];
@@ -118,6 +165,9 @@ export async function POST(request: Request) {
     const validatedSize = validSizes.includes(screenSize) ? screenSize : undefined;
     const validatedBadge =
       typeof showSyncBadge === "boolean" ? showSyncBadge : undefined;
+    const validatedVisible = Array.isArray(visibleProfessionalIds)
+      ? visibleProfessionalIds.filter((x) => typeof x === "string")
+      : undefined;
 
     if (isSupabaseConfigured()) {
       try {
@@ -133,6 +183,9 @@ export async function POST(request: Request) {
           ...(validatedTheme && { tv_theme: validatedTheme }),
           ...(validatedSize && { tv_screen_size: validatedSize }),
           ...(validatedBadge !== undefined && { tv_show_sync_badge: validatedBadge }),
+          ...(validatedVisible !== undefined && {
+            tv_visible_professional_ids: validatedVisible,
+          }),
         };
 
         await supabaseAdmin
@@ -148,6 +201,9 @@ export async function POST(request: Request) {
       ...(validatedTheme && { theme: validatedTheme }),
       ...(validatedSize && { screenSize: validatedSize }),
       ...(validatedBadge !== undefined && { showSyncBadge: validatedBadge }),
+      ...(validatedVisible !== undefined && {
+        visibleProfessionalIds: validatedVisible,
+      }),
     });
 
     return NextResponse.json({

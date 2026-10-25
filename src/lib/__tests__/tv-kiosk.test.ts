@@ -329,6 +329,27 @@ describe("Ticket 01 — Módulo de Domínio Puro LUVEA TV Kiosk", () => {
       assert.ok(brunoCol);
       assert.equal(brunoCol.appointments.length, 0);
     });
+
+    it("filtra colunas de profissionais respeitando tv_visible_professional_ids", () => {
+      const allProfs: RawTVProfessional[] = [
+        { id: "prof-bruno", name: "Bruno" },
+        { id: "prof-joao", name: "João" },
+        { id: "prof-kleber", name: "Kleber" },
+      ];
+      const orgWithFilter: RawTVOrganization = {
+        id: "org-filter-test",
+        name: "Studio Luvea",
+        settings: {
+          tv_visible_professional_ids: ["prof-bruno", "prof-kleber"],
+        },
+      };
+
+      const response = buildTVPollingResponse([], allProfs, orgWithFilter);
+      assert.equal(response.professionals.length, 2);
+      assert.ok(response.professionals.find((p) => p.id === "prof-bruno"));
+      assert.ok(response.professionals.find((p) => p.id === "prof-kleber"));
+      assert.equal(response.professionals.find((p) => p.id === "prof-joao"), undefined);
+    });
   });
 
   describe("7. Rate Limiting e Gestão de Pareamento em Memória", () => {

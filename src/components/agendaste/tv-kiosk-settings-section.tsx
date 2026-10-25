@@ -7,8 +7,7 @@ import {
   Check,
   RefreshCw,
   Palette,
-  Monitor,
-  Sparkles,
+  Users,
 } from "lucide-react";
 import { TVThemeMode, TVScreenSize } from "@/lib/tv-kiosk";
 
@@ -23,8 +22,15 @@ interface TVDeviceItem {
 
 export function TvKioskSettingsSection({
   initialCode = "",
+  availableStaff = [],
 }: {
   initialCode?: string;
+  availableStaff?: Array<{
+    id: string;
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+  }>;
 }) {
   const [code, setCode] = useState(initialCode);
   const [deviceName, setDeviceName] = useState("Smart TV Recepção");
@@ -44,8 +50,16 @@ export function TvKioskSettingsSection({
   const [tvTheme, setTvTheme] = useState<TVThemeMode>("dark");
   const [tvScreenSize, setTvScreenSize] = useState<TVScreenSize>("32");
   const [showSyncBadge, setShowSyncBadge] = useState<boolean>(true);
+  const [allProfessionals, setAllProfessionals] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [visibleProfessionalIds, setVisibleProfessionalIds] = useState<string[]>(
+    []
+  );
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [settingsSaveFeedback, setSettingsSaveFeedback] = useState<string | null>(null);
+  const [settingsSaveFeedback, setSettingsSaveFeedback] = useState<string | null>(
+    null
+  );
 
   // 1. Busca dispositivos conectados
   const fetchDevices = useCallback(async () => {
@@ -71,7 +85,14 @@ export function TvKioskSettingsSection({
         const data = await res.json();
         if (data.theme) setTvTheme(data.theme);
         if (data.screenSize) setTvScreenSize(data.screenSize);
-        if (typeof data.showSyncBadge === "boolean") setShowSyncBadge(data.showSyncBadge);
+        if (typeof data.showSyncBadge === "boolean")
+          setShowSyncBadge(data.showSyncBadge);
+        if (Array.isArray(data.allProfessionals) && data.allProfessionals.length > 0) {
+          setAllProfessionals(data.allProfessionals);
+        }
+        if (Array.isArray(data.visibleProfessionalIds)) {
+          setVisibleProfessionalIds(data.visibleProfessionalIds);
+        }
       }
     } catch (err) {
       console.warn("[TV Settings] Erro ao carregar configurações:", err);
@@ -83,19 +104,40 @@ export function TvKioskSettingsSection({
     fetchSettings();
   }, [fetchDevices, fetchSettings]);
 
+  // Mescla profissionais passados por prop (do state.staff) com os do backend
+  useEffect(() => {
+    if (availableStaff && availableStaff.length > 0) {
+      setAllProfessionals((prev) => {
+        const map = new Map<string, string>();
+        prev.forEach((p) => map.set(p.id, p.name));
+        availableStaff.forEach((s) => {
+          const name =
+            s.fullName ||
+            [s.firstName, s.lastName].filter(Boolean).join(" ").trim() ||
+            "Profissional";
+          map.set(s.id, name);
+        });
+        return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+      });
+    }
+  }, [availableStaff]);
+
   // Atualização persistente de configurações de TV
   const handleUpdateSettings = async (
     newTheme?: TVThemeMode,
     newSize?: TVScreenSize,
-    newBadge?: boolean
+    newBadge?: boolean,
+    newVisibleIds?: string[]
   ) => {
     const nextTheme = newTheme ?? tvTheme;
     const nextSize = newSize ?? tvScreenSize;
     const nextBadge = newBadge !== undefined ? newBadge : showSyncBadge;
+    const nextVisible = newVisibleIds ?? visibleProfessionalIds;
 
     if (newTheme) setTvTheme(newTheme);
     if (newSize) setTvScreenSize(newSize);
     if (newBadge !== undefined) setShowSyncBadge(newBadge);
+    if (newVisibleIds) setVisibleProfessionalIds(newVisibleIds);
 
     try {
       setIsSavingSettings(true);
@@ -106,6 +148,7 @@ export function TvKioskSettingsSection({
           theme: nextTheme,
           screenSize: nextSize,
           showSyncBadge: nextBadge,
+          visibleProfessionalIds: nextVisible,
         }),
       });
 
@@ -118,6 +161,42 @@ export function TvKioskSettingsSection({
     } finally {
       setIsSavingSettings(false);
     }
+  };
+
+  // Alterna visibilidade de um profissional específico na TV
+  const handleToggleProfessional = (profId: string) => {
+    const isCurrentlyVisible =
+      visibleProfessionalIds.includes(profId) ||
+      visibleProfessionalIds.length === 0;
+
+    let nextList: string[];
+
+    if (isCurrentlyVisible) {
+      // Se era visível e vai ocultar
+      const currentEffectiveList =
+        visibleProfessionalIds.length === 0
+          ? allProfessionals.map((p) => p.id)
+          : visibleProfessionalIds;
+
+      if (currentEffectiveList.length <= 1) {
+        setSettingsSaveFeedback("Ao menos 1 profissional deve ficar ativo na TV");
+        setTimeout(() => setSettingsSaveFeedback(null), 3000);
+        return;
+      }
+      nextList = currentEffectiveList.filter((id) => id !== profId);
+    } else {
+      nextList = [...visibleProfessionalIds, profId];
+    }
+
+    setVisibleProfessionalIds(nextList);
+    handleUpdateSettings(undefined, undefined, undefined, nextList);
+  };
+
+  // Selecionar todos os profissionais para exibição
+  const handleSelectAllProfessionals = () => {
+    const allIds = allProfessionals.map((p) => p.id);
+    setVisibleProfessionalIds(allIds);
+    handleUpdateSettings(undefined, undefined, undefined, allIds);
   };
 
   // 3. Submissão do código para autorizar TV
@@ -471,7 +550,9 @@ export function TvKioskSettingsSection({
               type="button"
               role="switch"
               aria-checked={showSyncBadge}
-              onClick={() => handleUpdateSettings(undefined, undefined, !showSyncBadge)}
+              onClick={() =>
+                handleUpdateSettings(undefined, undefined, !showSyncBadge)
+              }
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                 showSyncBadge
                   ? "bg-[#1C1C1E] dark:bg-white"
@@ -488,7 +569,93 @@ export function TvKioskSettingsSection({
         </div>
       </div>
 
-      {/* Card 2: Formulário de Pareamento de Novo Dispositivo */}
+      {/* Card 2: Profissionais Exibidos na TV (Seleção / Ocultação) */}
+      <div className="bg-[#FBFBFC] dark:bg-[#1c1c20] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#E5E5EA] dark:border-[#27272a] pb-4">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+              <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
+                Profissionais Exibidos na TV
+              </h3>
+            </div>
+            <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa]">
+              Selecione quais profissionais devem ter suas colunas de atendimento visíveis na TV da recepção.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={handleSelectAllProfessionals}
+              className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12px] font-medium transition-colors"
+            >
+              Exibir Todos ({allProfessionals.length})
+            </button>
+          </div>
+        </div>
+
+        {allProfessionals.length === 0 ? (
+          <div className="py-6 text-center text-xs text-[#71717A]">
+            Nenhum profissional cadastrado encontrado.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {allProfessionals.map((prof) => {
+              const isVisible =
+                visibleProfessionalIds.includes(prof.id) ||
+                visibleProfessionalIds.length === 0;
+              const initial = prof.name.trim().charAt(0).toUpperCase() || "P";
+
+              return (
+                <div
+                  key={prof.id}
+                  onClick={() => handleToggleProfessional(prof.id)}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer select-none flex items-center justify-between gap-3 ${
+                    isVisible
+                      ? "border-[#1C1C1E] dark:border-white ring-1 ring-[#1C1C1E]/15 dark:ring-white/20 bg-white dark:bg-[#27272a] shadow-xs"
+                      : "border-[#E5E5EA] dark:border-[#3f3f46] bg-zinc-50/70 dark:bg-[#18181b]/50 opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 truncate">
+                    <div
+                      className={`w-8 h-8 rounded-full border flex items-center justify-center font-semibold text-xs shrink-0 ${
+                        isVisible
+                          ? "bg-[#1C1C1E] text-white border-black dark:bg-white dark:text-black dark:border-white"
+                          : "bg-zinc-200 text-zinc-600 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"
+                      }`}
+                    >
+                      {initial}
+                    </div>
+                    <div className="flex flex-col truncate">
+                      <span className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white truncate">
+                        {prof.name}
+                      </span>
+                      <span className="text-[11px] text-[#71717A] dark:text-[#a1a1aa] mt-0.5">
+                        {isVisible ? "Ativo no Kiosk TV" : "Oculto na TV"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    <div
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                        isVisible
+                          ? "bg-[#1C1C1E] border-[#1C1C1E] text-white dark:bg-white dark:border-white dark:text-black"
+                          : "border-[#D4D4D8] dark:border-zinc-600 bg-white dark:bg-zinc-800"
+                      }`}
+                    >
+                      {isVisible && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Card 3: Formulário de Pareamento de Novo Dispositivo */}
       <div className="bg-[#FBFBFC] dark:bg-[#1c1c20] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl p-6 space-y-6">
         <div>
           <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
@@ -555,7 +722,7 @@ export function TvKioskSettingsSection({
         </form>
       </div>
 
-      {/* Card 3: Lista de TVs Conectadas */}
+      {/* Card 4: Lista de TVs Conectadas */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">

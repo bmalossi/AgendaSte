@@ -2311,7 +2311,10 @@ export function SettingsView({
 
       {topTab === "tv_kiosk" && (
         <div className="bg-white dark:bg-[#18181b] rounded-3xl border border-[#E5E5EA] dark:border-[#27272a] p-6 lg:p-8 space-y-6 shadow-sm">
-          <TvKioskSettingsSection initialCode={initialTvCode} />
+          <TvKioskSettingsSection
+            initialCode={initialTvCode}
+            availableStaff={state.staff}
+          />
         </div>
       )}
 
