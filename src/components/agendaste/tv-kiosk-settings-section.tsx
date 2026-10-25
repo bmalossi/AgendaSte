@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Tv, ExternalLink, Check, RefreshCw, Smartphone } from "lucide-react";
+import {
+  Tv,
+  ExternalLink,
+  Check,
+  RefreshCw,
+  Palette,
+  Monitor,
+  Sparkles,
+} from "lucide-react";
+import { TVThemeMode, TVScreenSize } from "@/lib/tv-kiosk";
 
 interface TVDeviceItem {
   id: string;
@@ -31,6 +40,13 @@ export function TvKioskSettingsSection({
   const [editingName, setEditingName] = useState("");
   const [isUpdatingName, setIsUpdatingName] = useState(false);
 
+  // Configurações de exibição da TV
+  const [tvTheme, setTvTheme] = useState<TVThemeMode>("dark");
+  const [tvScreenSize, setTvScreenSize] = useState<TVScreenSize>("32");
+  const [showSyncBadge, setShowSyncBadge] = useState<boolean>(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSaveFeedback, setSettingsSaveFeedback] = useState<string | null>(null);
+
   // 1. Busca dispositivos conectados
   const fetchDevices = useCallback(async () => {
     try {
@@ -47,11 +63,64 @@ export function TvKioskSettingsSection({
     }
   }, []);
 
+  // 2. Busca configurações da TV
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tv/settings");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.theme) setTvTheme(data.theme);
+        if (data.screenSize) setTvScreenSize(data.screenSize);
+        if (typeof data.showSyncBadge === "boolean") setShowSyncBadge(data.showSyncBadge);
+      }
+    } catch (err) {
+      console.warn("[TV Settings] Erro ao carregar configurações:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDevices();
-  }, [fetchDevices]);
+    fetchSettings();
+  }, [fetchDevices, fetchSettings]);
 
-  // 2. Submissão do código para autorizar TV
+  // Atualização persistente de configurações de TV
+  const handleUpdateSettings = async (
+    newTheme?: TVThemeMode,
+    newSize?: TVScreenSize,
+    newBadge?: boolean
+  ) => {
+    const nextTheme = newTheme ?? tvTheme;
+    const nextSize = newSize ?? tvScreenSize;
+    const nextBadge = newBadge !== undefined ? newBadge : showSyncBadge;
+
+    if (newTheme) setTvTheme(newTheme);
+    if (newSize) setTvScreenSize(newSize);
+    if (newBadge !== undefined) setShowSyncBadge(newBadge);
+
+    try {
+      setIsSavingSettings(true);
+      const res = await fetch("/api/tv/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          theme: nextTheme,
+          screenSize: nextSize,
+          showSyncBadge: nextBadge,
+        }),
+      });
+
+      if (res.ok) {
+        setSettingsSaveFeedback("Alteração salva na TV");
+        setTimeout(() => setSettingsSaveFeedback(null), 2500);
+      }
+    } catch (err) {
+      console.error("[TV Settings] Erro ao salvar configurações:", err);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  // 3. Submissão do código para autorizar TV
   const handleAuthorize = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = code.replace(/\D/g, "").slice(0, 6);
@@ -93,7 +162,7 @@ export function TvKioskSettingsSection({
     }
   };
 
-  // 3. Revogação de acesso
+  // 4. Revogação de acesso
   const handleRevoke = async (id: string) => {
     try {
       const res = await fetch("/api/tv/devices", {
@@ -112,7 +181,7 @@ export function TvKioskSettingsSection({
     }
   };
 
-  // 4. Salvar nome renomeado
+  // 5. Salvar nome renomeado
   const handleSaveName = async (id: string) => {
     if (!editingName.trim()) {
       setEditingId(null);
@@ -169,7 +238,257 @@ export function TvKioskSettingsSection({
         </div>
       </div>
 
-      {/* Card 1: Formulário de Pareamento de Novo Dispositivo */}
+      {/* Card 1: Configurações de Exibição, Temas & Escala da TV */}
+      <div className="bg-[#FBFBFC] dark:bg-[#1c1c20] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E5E5EA] dark:border-[#27272a] pb-4">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Palette className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+              <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
+                Modo de Exibição & Estilo da TV
+              </h3>
+            </div>
+            <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa]">
+              Personalize o tema visual, o tamanho da tela e as informações exibidas na recepção.
+            </p>
+          </div>
+
+          {settingsSaveFeedback && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-medium animate-in fade-in duration-200">
+              <Check className="w-3.5 h-3.5" />
+              <span>{settingsSaveFeedback}</span>
+            </div>
+          )}
+        </div>
+
+        {/* 1.1 Modos Visuais (Temas) */}
+        <div className="space-y-2.5">
+          <label className="block text-[11.5px] font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#a1a1aa]">
+            Tema Visual
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Tema 1: Escuro (Obsidian) */}
+            <button
+              type="button"
+              onClick={() => handleUpdateSettings("dark", undefined, undefined)}
+              className={`p-3.5 rounded-xl text-left border transition-all ${
+                tvTheme === "dark"
+                  ? "border-[#1C1C1E] dark:border-white ring-2 ring-[#1C1C1E]/10 dark:ring-white/20 bg-white dark:bg-[#27272a]"
+                  : "border-[#E5E5EA] dark:border-[#3f3f46] bg-white/60 dark:bg-[#18181b] hover:border-zinc-400"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-[#09090B] border border-white/20 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  </div>
+                  <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Escuro
+                  </span>
+                </div>
+                {tvTheme === "dark" && (
+                  <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                )}
+              </div>
+              <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa] leading-snug">
+                Fundo preto clássico com destaques verde esmeralda.
+              </p>
+            </button>
+
+            {/* Tema 2: Claro (Editorial) */}
+            <button
+              type="button"
+              onClick={() => handleUpdateSettings("light", undefined, undefined)}
+              className={`p-3.5 rounded-xl text-left border transition-all ${
+                tvTheme === "light"
+                  ? "border-[#1C1C1E] dark:border-white ring-2 ring-[#1C1C1E]/10 dark:ring-white/20 bg-white dark:bg-[#27272a]"
+                  : "border-[#E5E5EA] dark:border-[#3f3f46] bg-white/60 dark:bg-[#18181b] hover:border-zinc-400"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-[#F5F6F8] border border-black/20 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                  </div>
+                  <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Claro
+                  </span>
+                </div>
+                {tvTheme === "light" && (
+                  <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                )}
+              </div>
+              <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa] leading-snug">
+                Fundo branco minimalista de alto contraste editorial.
+              </p>
+            </button>
+
+            {/* Tema 3: Marrom (Cacau & Âmbar) */}
+            <button
+              type="button"
+              onClick={() => handleUpdateSettings("warm_brown", undefined, undefined)}
+              className={`p-3.5 rounded-xl text-left border transition-all ${
+                tvTheme === "warm_brown"
+                  ? "border-[#1C1C1E] dark:border-white ring-2 ring-[#1C1C1E]/10 dark:ring-white/20 bg-white dark:bg-[#27272a]"
+                  : "border-[#E5E5EA] dark:border-[#3f3f46] bg-white/60 dark:bg-[#18181b] hover:border-zinc-400"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-[#181311] border border-[#E5A96A]/40 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#E5A96A]" />
+                  </div>
+                  <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Marrom
+                  </span>
+                </div>
+                {tvTheme === "warm_brown" && (
+                  <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                )}
+              </div>
+              <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa] leading-snug">
+                Fundo cacau sofisticado com acentos em âmbar dourado.
+              </p>
+            </button>
+
+            {/* Tema 4: Preto com Dourado (Noir Imperial & Gold) */}
+            <button
+              type="button"
+              onClick={() => handleUpdateSettings("noir_gold", undefined, undefined)}
+              className={`p-3.5 rounded-xl text-left border transition-all ${
+                tvTheme === "noir_gold"
+                  ? "border-[#1C1C1E] dark:border-white ring-2 ring-[#1C1C1E]/10 dark:ring-white/20 bg-white dark:bg-[#27272a]"
+                  : "border-[#E5E5EA] dark:border-[#3f3f46] bg-white/60 dark:bg-[#18181b] hover:border-zinc-400"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-[#050506] border border-[#D4AF37]/50 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                  </div>
+                  <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Noir Gold
+                  </span>
+                </div>
+                {tvTheme === "noir_gold" && (
+                  <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                )}
+              </div>
+              <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa] leading-snug">
+                Preto ônix profundo com acentos ouro imperial luxuoso.
+              </p>
+            </button>
+          </div>
+        </div>
+
+        {/* 1.2 Tamanho Padrão da Tela (32", 43", 55") */}
+        <div className="space-y-2.5 pt-2">
+          <label className="block text-[11.5px] font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#a1a1aa]">
+            Tamanho Padrão da Tela
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => handleUpdateSettings(undefined, "32", undefined)}
+              className={`p-3.5 rounded-xl text-left border transition-all ${
+                tvScreenSize === "32"
+                  ? "border-[#1C1C1E] dark:border-white ring-2 ring-[#1C1C1E]/10 dark:ring-white/20 bg-white dark:bg-[#27272a]"
+                  : "border-[#E5E5EA] dark:border-[#3f3f46] bg-white/60 dark:bg-[#18181b] hover:border-zinc-400"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[13.5px] font-bold text-[#1C1C1E] dark:text-white">
+                  32 Polegadas (HD)
+                </span>
+                {tvScreenSize === "32" && (
+                  <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                )}
+              </div>
+              <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa]">
+                Densidade compacta e margens de segurança para TVs de 32&quot;.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleUpdateSettings(undefined, "43", undefined)}
+              className={`p-3.5 rounded-xl text-left border transition-all ${
+                tvScreenSize === "43"
+                  ? "border-[#1C1C1E] dark:border-white ring-2 ring-[#1C1C1E]/10 dark:ring-white/20 bg-white dark:bg-[#27272a]"
+                  : "border-[#E5E5EA] dark:border-[#3f3f46] bg-white/60 dark:bg-[#18181b] hover:border-zinc-400"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[13.5px] font-bold text-[#1C1C1E] dark:text-white">
+                  43 Polegadas (Full HD)
+                </span>
+                {tvScreenSize === "43" && (
+                  <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                )}
+              </div>
+              <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa]">
+                Equilíbrio e proporção ideal para telas de 40 a 50 polegadas.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleUpdateSettings(undefined, "55", undefined)}
+              className={`p-3.5 rounded-xl text-left border transition-all ${
+                tvScreenSize === "55"
+                  ? "border-[#1C1C1E] dark:border-white ring-2 ring-[#1C1C1E]/10 dark:ring-white/20 bg-white dark:bg-[#27272a]"
+                  : "border-[#E5E5EA] dark:border-[#3f3f46] bg-white/60 dark:bg-[#18181b] hover:border-zinc-400"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[13.5px] font-bold text-[#1C1C1E] dark:text-white">
+                  55+ Polegadas (4K)
+                </span>
+                {tvScreenSize === "55" && (
+                  <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
+                )}
+              </div>
+              <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa]">
+                Tipografia ampla para visualização a distância em telas grandes.
+              </p>
+            </button>
+          </div>
+        </div>
+
+        {/* 1.3 Indicador SINCRONIZADO */}
+        <div className="pt-3 border-t border-[#E5E5EA] dark:border-[#27272a]">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <span className="text-[13px] font-medium text-[#1C1C1E] dark:text-white block">
+                Exibir indicador SINCRONIZADO na TV
+              </span>
+              <p className="text-[12px] text-[#71717A] dark:text-[#a1a1aa]">
+                Mostra o micro-indicador pulsante de status em tempo real no cabeçalho da Smart TV.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showSyncBadge}
+              onClick={() => handleUpdateSettings(undefined, undefined, !showSyncBadge)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                showSyncBadge
+                  ? "bg-[#1C1C1E] dark:bg-white"
+                  : "bg-zinc-200 dark:bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-black shadow-sm ring-0 transition duration-200 ease-in-out ${
+                  showSyncBadge ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Card 2: Formulário de Pareamento de Novo Dispositivo */}
       <div className="bg-[#FBFBFC] dark:bg-[#1c1c20] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl p-6 space-y-6">
         <div>
           <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
@@ -236,7 +555,7 @@ export function TvKioskSettingsSection({
         </form>
       </div>
 
-      {/* Card 2: Lista de TVs Conectadas */}
+      {/* Card 3: Lista de TVs Conectadas */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">

@@ -10,6 +10,9 @@ export type TVAppointmentStatus =
   | "completed"
   | "waiting";
 
+export type TVThemeMode = "dark" | "light" | "warm_brown" | "noir_gold";
+export type TVScreenSize = "32" | "43" | "55";
+
 export interface TVAppointmentDTO {
   id: string;
   startTime: string; // "14:00"
@@ -35,6 +38,9 @@ export interface TVPollingResponse {
   timezone: string;
   professionals: TVProfessionalColumn[];
   serverTime: string; // ISO 8601
+  theme?: TVThemeMode;
+  screenSize?: TVScreenSize;
+  showSyncBadge?: boolean;
 }
 
 export interface RawTVAppointment {
@@ -72,6 +78,42 @@ export interface TVPairingRecord {
   expires_at: string;
   created_at: string;
   updated_at: string;
+}
+
+// Armazenamento em memória para configurações de exibição da TV (Kiosk)
+export interface TVKioskSettings {
+  theme: TVThemeMode;
+  screenSize: TVScreenSize;
+  showSyncBadge: boolean;
+}
+
+const memoryTVSettings = new Map<string, TVKioskSettings>();
+
+export function getMemoryTVSettings(orgId: string): TVKioskSettings {
+  return (
+    memoryTVSettings.get(orgId) || {
+      theme: "dark",
+      screenSize: "32",
+      showSyncBadge: true,
+    }
+  );
+}
+
+export function setMemoryTVSettings(
+  orgId: string,
+  settings: Partial<TVKioskSettings>
+): TVKioskSettings {
+  const current = getMemoryTVSettings(orgId);
+  const updated: TVKioskSettings = {
+    theme: settings.theme || current.theme,
+    screenSize: settings.screenSize || current.screenSize,
+    showSyncBadge:
+      typeof settings.showSyncBadge === "boolean"
+        ? settings.showSyncBadge
+        : current.showSyncBadge,
+  };
+  memoryTVSettings.set(orgId, updated);
+  return updated;
 }
 
 // Armazenamento em memória para ambiente local de desenvolvimento / fallback
@@ -436,11 +478,32 @@ export function buildTVPollingResponse(
     };
   });
 
+  const orgSettings = (org.settings as Record<string, unknown>) || {};
+  const memorySettings = getMemoryTVSettings(org.id);
+
+  const theme: TVThemeMode =
+    (orgSettings.tv_theme as TVThemeMode) ||
+    memorySettings.theme ||
+    "dark";
+
+  const screenSize: TVScreenSize =
+    (orgSettings.tv_screen_size as TVScreenSize) ||
+    memorySettings.screenSize ||
+    "32";
+
+  const showSyncBadge: boolean =
+    typeof orgSettings.tv_show_sync_badge === "boolean"
+      ? (orgSettings.tv_show_sync_badge as boolean)
+      : memorySettings.showSyncBadge !== false;
+
   return {
     organizationName: org.name,
     logoUrl,
     timezone,
     professionals: profColumns,
     serverTime: now.toISOString(),
+    theme,
+    screenSize,
+    showSyncBadge,
   };
 }
