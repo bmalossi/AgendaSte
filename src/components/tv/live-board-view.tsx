@@ -463,11 +463,40 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
       : startsMs + 45 * 60000;
 
     const totalMs = Math.max(60000, endsMs - startsMs);
-    const elapsedMs = Math.max(0, Math.min(totalMs, currentServerMs - startsMs));
-    const percent = Math.min(100, Math.max(2, Math.round((elapsedMs / totalMs) * 100)));
-    const elapsedMinutes = Math.floor(elapsedMs / 60000);
+    const elapsedMs = Math.max(0, currentServerMs - startsMs);
+    const remainingMs = Math.max(0, endsMs - currentServerMs);
 
-    return { percent, elapsedMinutes };
+    // Progresso contínuo em ponto flutuante (avança suavemente segundo a segundo)
+    const rawPercent = (elapsedMs / totalMs) * 100;
+    const percent = Math.min(100, Math.max(1, rawPercent));
+
+    // Formatação do Tempo Restante para o Profissional
+    const remainingMinutes = Math.ceil(remainingMs / 60000);
+    const isOvertime = currentServerMs >= endsMs;
+    const overtimeMinutes = Math.floor((currentServerMs - endsMs) / 60000);
+
+    let remainingText = "";
+    if (isOvertime) {
+      remainingText =
+        overtimeMinutes > 0
+          ? `Tempo esgotado (+${overtimeMinutes} min)`
+          : "Finalizando atendimento";
+    } else if (remainingMinutes >= 60) {
+      const h = Math.floor(remainingMinutes / 60);
+      const m = remainingMinutes % 60;
+      remainingText = m > 0 ? `${h}h ${m} min restantes` : `${h}h restantes`;
+    } else if (remainingMinutes > 1) {
+      remainingText = `${remainingMinutes} min restantes`;
+    } else {
+      remainingText = "Menos de 1 min restante";
+    }
+
+    return {
+      percent,
+      remainingText,
+      isOvertime,
+      remainingMinutes,
+    };
   }, [inProgressApt, currentServerMs]);
 
   return (
@@ -546,17 +575,30 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
                     className={`h-1.5 w-full rounded-full ${palette.progressTrackBg} overflow-hidden`}
                   >
                     <div
-                      className={`h-full rounded-full ${palette.progressBarBg} transition-all duration-1000 ease-out`}
-                      style={{ width: `${progressMetrics.percent}%` }}
+                      className={`h-full rounded-full ${
+                        progressMetrics.isOvertime
+                          ? "bg-amber-400"
+                          : palette.progressBarBg
+                      } transition-all duration-1000 ease-linear`}
+                      style={{ width: `${progressMetrics.percent.toFixed(2)}%` }}
                     />
                   </div>
-                  <span
-                    className={`block mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] font-medium ${palette.progressElapsedText} tabular-nums`}
-                  >
-                    {progressMetrics.elapsedMinutes > 0
-                      ? `${progressMetrics.elapsedMinutes} min decorridos`
-                      : "Iniciando atendimento"}
-                  </span>
+                  <div className="flex items-center justify-between mt-1 sm:mt-1.5">
+                    <span
+                      className={`text-[10px] sm:text-[11px] font-medium tabular-nums ${
+                        progressMetrics.isOvertime
+                          ? "text-amber-400 font-semibold"
+                          : palette.progressElapsedText
+                      }`}
+                    >
+                      {progressMetrics.remainingText}
+                    </span>
+                    <span
+                      className={`text-[9.5px] sm:text-[10.5px] font-mono font-semibold tabular-nums opacity-75 ${palette.labelMuted}`}
+                    >
+                      {Math.round(progressMetrics.percent)}%
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
