@@ -458,6 +458,7 @@ export async function loadStudioStateFromSupabase(
         let metaStartTime = "";
         let metaProviderId = "";
         let metaProviderName = "";
+        let metaArrivedAtReception = false;
 
         if (a.notes && (a.notes.includes("__LUVEA_META__:") || a.notes.includes("__AURA_META__:"))) {
           try {
@@ -475,6 +476,7 @@ export async function loadStudioStateFromSupabase(
               metaStartTime = meta.startTime || "";
               metaProviderId = meta.providerId || "";
               metaProviderName = meta.providerName || "";
+              metaArrivedAtReception = Boolean(meta.arrivedAtReception);
               displayNotes = parts
                 .filter(
                   (p: string) =>
@@ -581,6 +583,7 @@ export async function loadStudioStateFromSupabase(
           calendarColor: "#E11D8F",
           whatsappReminderSent: a.whatsapp_reminder_sent ?? false,
           whatsappClientReply: a.whatsapp_client_reply || "none",
+          arrivedAtReception: metaArrivedAtReception,
         };
       }
     );
@@ -825,6 +828,8 @@ export async function syncNewAppointmentToSupabase(
       providerId: event.providerId,
       providerName: event.providerName,
       addressOrNotes: event.addressOrNotes || "",
+      whatsappClientReply: event.whatsappClientReply || "none",
+      arrivedAtReception: Boolean(event.arrivedAtReception),
     })}`;
     const notesToSave = event.addressOrNotes
       ? `${metaLine}\n${event.addressOrNotes}`
@@ -976,6 +981,8 @@ export async function syncAppointmentUpdateToSupabase(
         providerId: targetProfessionalId || event.providerId,
         providerName: event.providerName,
         addressOrNotes: event.addressOrNotes || "",
+        whatsappClientReply: event.whatsappClientReply || "none",
+        arrivedAtReception: Boolean(event.arrivedAtReception),
       })}`;
       const notesToSave = event.addressOrNotes
         ? `${metaLine}\n${event.addressOrNotes}`
@@ -1001,6 +1008,33 @@ export async function syncAppointmentUpdateToSupabase(
     }
   } catch (err) {
     console.warn("Falha ao atualizar agendamento no Supabase:", err);
+  }
+}
+
+/**
+ * Exclui um agendamento do Supabase
+ */
+export async function syncDeleteAppointmentFromSupabase(
+  eventId: string,
+  organizationId?: string
+) {
+  if (!isSupabaseConfigured()) return;
+  if (isDemoOrMockId(eventId) || !isValidUuid(eventId)) return;
+
+  try {
+    let orgId = organizationId;
+    if (!orgId) {
+      const ctx = await getCurrentTenantContext();
+      orgId = ctx?.organizationId;
+    }
+
+    let query = supabase.from("appointments").delete().eq("id", eventId);
+    if (orgId) {
+      query = query.eq("organization_id", orgId);
+    }
+    await query;
+  } catch (err) {
+    console.warn("Falha ao excluir agendamento no Supabase:", err);
   }
 }
 

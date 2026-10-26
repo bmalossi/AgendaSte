@@ -144,6 +144,7 @@ export async function GET(request: Request) {
             starts_at,
             ends_at,
             status,
+            whatsapp_client_reply,
             notes,
             client:clients(full_name)
           `)
@@ -159,6 +160,8 @@ export async function GET(request: Request) {
         const rawAppointments: RawTVAppointment[] = (aptsData || []).map((a: any) => {
           let clientName = a.client?.full_name || "";
           let serviceName = "";
+          let metaWhatsappReply: string | null = null;
+          let arrivedAtReception = false;
 
           if (Array.isArray(a.service_ids) && a.service_ids.length > 0) {
             const names = a.service_ids
@@ -169,9 +172,8 @@ export async function GET(request: Request) {
             }
           }
 
-          // Se clientName ou serviceName ainda estiverem vazios, tenta extrair de __LUVEA_META__ em a.notes
+          // Extrai metadados complementares (__LUVEA_META__) de a.notes (nome, serviços, confirmação e recepção)
           if (
-            (!clientName || !serviceName) &&
             a.notes &&
             (a.notes.includes("__LUVEA_META__:") || a.notes.includes("__AURA_META__:"))
           ) {
@@ -187,6 +189,12 @@ export async function GET(request: Request) {
                 if (!serviceName && Array.isArray(meta.serviceNames) && meta.serviceNames.length > 0) {
                   serviceName = meta.serviceNames.join(" + ");
                 }
+                if (typeof meta.whatsappClientReply === "string") {
+                  metaWhatsappReply = meta.whatsappClientReply;
+                }
+                if (typeof meta.arrivedAtReception === "boolean") {
+                  arrivedAtReception = meta.arrivedAtReception;
+                }
               }
             } catch {}
           }
@@ -199,6 +207,8 @@ export async function GET(request: Request) {
             starts_at: a.starts_at,
             ends_at: a.ends_at,
             status: a.status,
+            whatsapp_client_reply: a.whatsapp_client_reply || metaWhatsappReply || null,
+            arrived_at_reception: arrivedAtReception,
           };
         });
 

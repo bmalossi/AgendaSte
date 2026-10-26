@@ -5,9 +5,12 @@ import { CheckCircle2, Calendar, Volume2, VolumeX } from "lucide-react";
 import {
   TVPollingResponse,
   TVAppointmentDTO,
+  TVClientPresenceStatus,
   TVProfessionalColumn,
   TVThemeMode,
   TVScreenSize,
+  deriveClientPresenceStatus,
+  maskNameLGPD,
   paginateProfessionals,
 } from "@/lib/tv-kiosk";
 
@@ -510,6 +513,60 @@ const AppointmentProgressBar = React.memo(function AppointmentProgressBar({
   );
 });
 
+// Micro-badge editorial (Anti-AI Slop) para o status de confirmação/presença do próximo cliente
+const NextClientPresenceBadge = React.memo(function NextClientPresenceBadge({
+  presenceStatus = "confirmed",
+  themeId,
+}: {
+  presenceStatus?: TVClientPresenceStatus;
+  themeId: TVThemeMode;
+}) {
+  const isLight = themeId === "light";
+
+  if (presenceStatus === "arrived") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-semibold tracking-normal normal-case border ${
+          isLight
+            ? "bg-emerald-50 border-emerald-200/80 text-emerald-900"
+            : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+        }`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse motion-reduce:animate-none shrink-0" />
+        <span>Na recepção</span>
+      </span>
+    );
+  }
+
+  if (presenceStatus === "waiting") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-medium tracking-normal normal-case border ${
+          isLight
+            ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
+            : "bg-white/[0.04] border-white/[0.1] text-zinc-300"
+        }`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+        <span>Aguardando</span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-medium tracking-normal normal-case border ${
+        isLight
+          ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
+          : "bg-white/[0.04] border-white/[0.1] text-zinc-300"
+      }`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+      <span>Confirmado</span>
+    </span>
+  );
+});
+
 // Coluna Cockpit em Tempo Real de cada Profissional
 const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn({
   column,
@@ -696,13 +753,19 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
             {/* Bloco Próximo Atendimento */}
             <div className="pt-0.5">
               <div
-                className={`flex items-center justify-between ${cfg.labelSize} font-semibold tracking-[0.16em] uppercase ${palette.labelMuted}`}
+                className={`flex items-center justify-between gap-2 ${cfg.labelSize} font-semibold tracking-[0.16em] uppercase ${palette.labelMuted}`}
               >
                 <span>Próximo</span>
                 {nextApt && (
-                  <span className={`font-bold ${palette.nextTimeText} tabular-nums`}>
-                    {nextApt.startTime}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <NextClientPresenceBadge
+                      presenceStatus={nextApt.presenceStatus}
+                      themeId={palette.id}
+                    />
+                    <span className={`font-bold ${palette.nextTimeText} tabular-nums`}>
+                      {nextApt.startTime}
+                    </span>
+                  </div>
                 )}
               </div>
               {nextApt ? (
@@ -747,11 +810,17 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
             <div
               className={`rounded-xl ${palette.timeBoxBg} border ${palette.timeBoxBorder} ${cfg.boxPadding}`}
             >
-              <span
-                className={`${cfg.labelSize} font-semibold tracking-[0.16em] uppercase ${palette.labelMuted} block mb-0.5`}
-              >
-                Próximo Horário
-              </span>
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span
+                  className={`${cfg.labelSize} font-semibold tracking-[0.16em] uppercase ${palette.labelMuted} block`}
+                >
+                  Próximo Horário
+                </span>
+                <NextClientPresenceBadge
+                  presenceStatus={nextApt.presenceStatus}
+                  themeId={palette.id}
+                />
+              </div>
               <div
                 className={`${cfg.timeSize} font-bold ${palette.timeText} tracking-tight tabular-nums`}
               >
@@ -997,18 +1066,46 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
         setShowSyncBadge(data.showSyncBadge);
       }
 
-      // Detecta cards com alteração de status/horário para aplicar highlight sutil
+      // Reconcilia overrides locais imediatos da mesma máquina (BroadcastChannel / localStorage)
+      try {
+        const localOverrideRaw = localStorage.getItem("luvea_tv_events_override_v1");
+        if (localOverrideRaw) {
+          const localEvents = JSON.parse(localOverrideRaw);
+          if (Array.isArray(localEvents) && localEvents.length > 0) {
+            data.professionals.forEach((prof) => {
+              prof.appointments.forEach((apt) => {
+                const matchedLocal = localEvents.find(
+                  (le: any) =>
+                    le.id === apt.id ||
+                    (le.startTime === apt.startTime &&
+                      maskNameLGPD(le.clientName) === apt.clientName)
+                );
+                if (matchedLocal) {
+                  apt.presenceStatus = deriveClientPresenceStatus({
+                    status: matchedLocal.status || "confirmed",
+                    whatsapp_client_reply: matchedLocal.whatsappClientReply,
+                    arrived_at_reception: Boolean(matchedLocal.arrivedAtReception),
+                  });
+                }
+              });
+            });
+          }
+        }
+      } catch {}
+
+      // Detecta cards com alteração de status/horário/presença para aplicar highlight sutil e chime
       const currentMap = new Map<string, string>();
       const newHighlighted = new Set<string>();
 
       data.professionals.forEach((prof) => {
         prof.appointments.forEach((apt) => {
-          const signature = `${apt.status}-${apt.startTime}-${apt.endTime}`;
+          const signature = `${apt.status}-${apt.presenceStatus || "confirmed"}-${apt.startTime}-${apt.endTime}`;
           currentMap.set(apt.id, signature);
 
           const previousSig = previousAptsRef.current.get(apt.id);
           if (previousSig && previousSig !== signature) {
             newHighlighted.add(apt.id);
+            newHighlighted.add(prof.id);
           }
         });
       });
@@ -1043,13 +1140,35 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
     }
   }, [token, onUnauthorized, audioChimeEnabled]);
 
-  // Executa polling a cada 20 segundos
+  // Executa polling a cada 20 segundos + escuta eventos locais instantâneos (BroadcastChannel / storage)
   useEffect(() => {
     syncAppointments();
     const pollInterval = setInterval(() => {
       syncAppointments();
     }, 20000);
-    return () => clearInterval(pollInterval);
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        bc = new BroadcastChannel("luvea_tv_sync");
+        bc.onmessage = () => {
+          syncAppointments();
+        };
+      } catch {}
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "luvea_tv_events_override_v1") {
+        syncAppointments();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("storage", handleStorage);
+      if (bc) bc.close();
+    };
   }, [syncAppointments]);
 
   // 4. Relógio digital sincronizado e data localizada

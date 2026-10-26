@@ -27,6 +27,7 @@ import {
   Settings,
   EllipsisVertical,
   GripVertical,
+  Trash2,
 } from "lucide-react";
 import {
   StudioState,
@@ -42,7 +43,9 @@ import {
   bookFromWaitlistEntry,
   rebookAppointmentOneTap,
   rescheduleCalendarEvent,
+  deleteCalendarEvent,
   processWhatsappInboundReply,
+  toggleAppointmentReceptionArrival,
   executeQuickSaleCheckout,
   saveCatalogService,
   getTodayDateISO,
@@ -56,8 +59,7 @@ interface CalendarViewProps {
   onOpenQuickSale: (prefillAppointment?: CalendarEventItem) => void;
 }
 
-const START_HOUR = 6; // Starts at 6am (06:00) as in luxury salon OS reference
-const HOURS = Array.from({ length: 16 }, (_, idx) => idx + START_HOUR); // 06:00 .. 21:00 (active until 22:00)
+const DEFAULT_START_HOUR = 7; // Default 07:00 (7 AM) as per luxury salon reference
 const HOUR_HEIGHT = 72; // px per hour slot
 
 function formatHour12(hour: number): string {
@@ -119,13 +121,13 @@ function getWeekDays(selectedDateISO: string) {
 
   const labels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const labelsFull = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
+    "Domingo",
+    "Segunda",
+    "Terça",
+    "Quarta",
+    "Quinta",
+    "Sexta",
+    "Sábado",
   ];
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(sunday);
@@ -145,22 +147,22 @@ function getWeekDays(selectedDateISO: string) {
 function formatNavDate(dateISO: string): string {
   const parts = dateISO.split("-").map(Number);
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const months = [
     "Jan",
-    "Feb",
+    "Fev",
     "Mar",
-    "Apr",
-    "May",
+    "Abr",
+    "Mai",
     "Jun",
     "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
+    "Ago",
+    "Set",
+    "Out",
     "Nov",
-    "Dec",
+    "Dez",
   ];
-  return `${days[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  return `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]}, ${d.getFullYear()}`;
 }
 
 function getMonthShort(dateISO: string): string {
@@ -168,17 +170,17 @@ function getMonthShort(dateISO: string): string {
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
   const months = [
     "Jan",
-    "Feb",
+    "Fev",
     "Mar",
-    "Apr",
-    "May",
+    "Abr",
+    "Mai",
     "Jun",
     "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
+    "Ago",
+    "Set",
+    "Out",
     "Nov",
-    "Dec",
+    "Dez",
   ];
   return months[d.getMonth()];
 }
@@ -189,6 +191,11 @@ export function CalendarView({
   onOpenQuickSale,
 }: CalendarViewProps) {
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const [providerFilterDropdownOpen, setProviderFilterDropdownOpen] =
+    useState(false);
+  const [viewModeDropdownOpen, setViewModeDropdownOpen] = useState(false);
+  const [calendarSettingsDrawerOpen, setCalendarSettingsDrawerOpen] =
+    useState(false);
   const [waitlistDrawerOpen, setWaitlistDrawerOpen] = useState(false);
   const [waitlistProviderFilter, setWaitlistProviderFilter] =
     useState<string>("all");
@@ -196,6 +203,18 @@ export function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(
     null
   );
+
+  const visibleStartHour =
+    state.calendarView?.visibleStartHour ?? DEFAULT_START_HOUR;
+  const visibleEndHour = state.calendarView?.visibleEndHour ?? 20;
+  const multiServiceDisplayMode =
+    state.calendarView?.multiServiceDisplayMode ?? "multiple_cards";
+
+  const calendarHours = useMemo(() => {
+    const start = Math.min(visibleStartHour, visibleEndHour);
+    const end = Math.max(visibleStartHour, visibleEndHour);
+    return Array.from({ length: end - start + 1 }, (_, idx) => idx + start);
+  }, [visibleStartHour, visibleEndHour]);
 
   // Mantém selectedEvent sincronizado quando o estado dos agendamentos é atualizado
   useEffect(() => {
@@ -354,6 +373,24 @@ export function CalendarView({
     setRescheduleEvent(null);
   };
 
+  // Delete Appointment Confirmation State
+  const [eventToDelete, setEventToDelete] = useState<CalendarEventItem | null>(null);
+  const [deleteMode, setDeleteMode] = useState<"delete" | "cancel">("delete");
+
+  const handleConfirmDelete = () => {
+    if (!eventToDelete) return;
+    const result = deleteCalendarEvent(state, eventToDelete.id, deleteMode);
+    if (!result.ok) {
+      alert(result.message || "Erro ao excluir agendamento.");
+      return;
+    }
+    onUpdateState(() => result.state);
+    setEventToDelete(null);
+    if (selectedEvent?.id === eventToDelete.id) {
+      setSelectedEvent(null);
+    }
+  };
+
   // New Appointment Form State (03-4-calendar.png)
   const [eventType, setEventType] = useState<CalendarEventType>("appointment");
   const [providerId, setProviderId] = useState<string>(
@@ -454,14 +491,15 @@ export function CalendarView({
       isViewingToday &&
       scrollContainerRef.current
     ) {
-      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+      const topPx =
+        ((currentTime.totalMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT;
       scrollContainerRef.current.scrollTo({
         top: Math.max(0, topPx - 160),
         behavior: "smooth",
       });
       hasAutoScrolledRef.current = true;
     }
-  }, [currentTime, isViewingToday]);
+  }, [currentTime, isViewingToday, visibleStartHour]);
 
   const handleGoToToday = () => {
     const targetISO = currentTime?.todayISO ?? getTodayDateISO();
@@ -473,7 +511,8 @@ export function CalendarView({
       },
     }));
     if (currentTime && scrollContainerRef.current) {
-      const topPx = ((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+      const topPx =
+        ((currentTime.totalMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT;
       scrollContainerRef.current.scrollTo({
         top: Math.max(0, topPx - 160),
         behavior: "smooth",
@@ -539,12 +578,13 @@ export function CalendarView({
   ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const totalMinutes = START_HOUR * 60 + (y / HOUR_HEIGHT) * 60;
+    const totalMinutes = visibleStartHour * 60 + (y / HOUR_HEIGHT) * 60;
     const snappedMinutes = Math.min(
-      (START_HOUR + HOURS.length) * 60,
-      Math.max(START_HOUR * 60, Math.round(totalMinutes / 15) * 15)
+      (visibleStartHour + calendarHours.length) * 60,
+      Math.max(visibleStartHour * 60, Math.round(totalMinutes / 15) * 15)
     );
-    const snappedTopPx = ((snappedMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const snappedTopPx =
+      ((snappedMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT;
 
     const hours = Math.floor(snappedMinutes / 60);
     const minutes = snappedMinutes % 60;
@@ -862,13 +902,248 @@ export function CalendarView({
     );
   };
 
+  const renderViewModeDropdown = () => {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setViewModeDropdownOpen((v) => !v);
+            setProviderFilterDropdownOpen(false);
+            setDatePopoverOpen(false);
+          }}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition shadow-2xs shrink-0"
+          aria-expanded={viewModeDropdownOpen}
+          title="Alterar modo de visualização"
+        >
+          <span>{viewMode === "week" ? "Semana" : "Dia"}</span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa] transition-transform duration-200 ${
+              viewModeDropdownOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {viewModeDropdownOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/5 dark:bg-black/20"
+              onClick={() => setViewModeDropdownOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="absolute left-0 top-full mt-2 w-44 bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                Visualização
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateState((prev) => ({
+                    ...prev,
+                    calendarView: { ...prev.calendarView, mode: "day" },
+                  }));
+                  setViewModeDropdownOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-medium text-left transition ${
+                  viewMode === "day"
+                    ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                    : "text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/50"
+                }`}
+              >
+                <span>Dia</span>
+                {viewMode === "day" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1C1C1E] dark:bg-white" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateState((prev) => ({
+                    ...prev,
+                    calendarView: { ...prev.calendarView, mode: "week" },
+                  }));
+                  setViewModeDropdownOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-medium text-left transition ${
+                  viewMode === "week"
+                    ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
+                    : "text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/50"
+                }`}
+              >
+                <span>Semana</span>
+                {viewMode === "week" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1C1C1E] dark:bg-white" />
+                )}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderProviderFilterDropdown = (alignClass: "left-0" | "right-0" = "right-0") => {
+    const isAll = state.calendarView.selectedProviderId === "all";
+    const currentStaff = state.staff.find(
+      (s) => s.id === state.calendarView.selectedProviderId
+    );
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setProviderFilterDropdownOpen((v) => !v);
+            setViewModeDropdownOpen(false);
+            setDatePopoverOpen(false);
+          }}
+          className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition shadow-2xs shrink-0"
+          aria-expanded={providerFilterDropdownOpen}
+          title="Filtrar agenda por profissional"
+        >
+          <span
+            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-[#1C1C1E] shrink-0"
+            style={{
+              backgroundColor: isAll
+                ? "#E5E5EA"
+                : currentStaff?.avatarColor || "#E5E5EA",
+            }}
+          >
+            {isAll ? "EQ" : currentStaff?.initials || "All"}
+          </span>
+          <span className="truncate max-w-[130px]">
+            {isAll
+              ? `Toda a equipe (${state.staff.length})`
+              : currentStaff?.fullName.split(" ")[0] || "Equipe"}
+          </span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa] shrink-0 transition-transform duration-200 ${
+              providerFilterDropdownOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {providerFilterDropdownOpen && (
+          <>
+            {/* Click outside backdrop */}
+            <div
+              className="fixed inset-0 z-40 bg-black/5 dark:bg-black/20"
+              onClick={() => setProviderFilterDropdownOpen(false)}
+              aria-hidden="true"
+            />
+
+            {/* Dropdown Card */}
+            <div
+              className={`absolute ${alignClass} top-full mt-2 w-64 bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150`}
+            >
+              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                Filtrar por profissional
+              </div>
+
+              {/* Opção Toda a equipe */}
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateState((prev) => ({
+                    ...prev,
+                    calendarView: {
+                      ...prev.calendarView,
+                      selectedProviderId: "all",
+                    },
+                  }));
+                  setProviderFilterDropdownOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition ${
+                  isAll
+                    ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white"
+                    : "hover:bg-[#F5F5F7]/70 dark:hover:bg-[#27272a]/50 text-[#1C1C1E] dark:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-[#E5E5EA] dark:bg-[#3F3F46] flex items-center justify-center text-[#1C1C1E] dark:text-white shrink-0">
+                    <Users className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white leading-tight">
+                      Toda a equipe
+                    </p>
+                    <p className="text-[11px] text-[#8E8E93] dark:text-[#71717a]">
+                      {state.staff.length} profissionais na grade
+                    </p>
+                  </div>
+                </div>
+                {isAll && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+                )}
+              </button>
+
+              <div className="my-1 border-t border-[#F5F5F7] dark:border-[#27272a]" />
+
+              {/* Lista dos membros */}
+              <div className="max-h-[260px] overflow-y-auto space-y-0.5">
+                {state.staff.map((st) => {
+                  const isSelected =
+                    state.calendarView.selectedProviderId === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => {
+                        onUpdateState((prev) => ({
+                          ...prev,
+                          calendarView: {
+                            ...prev.calendarView,
+                            selectedProviderId: st.id,
+                          },
+                        }));
+                        setProviderId(st.id);
+                        setProviderFilterDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition ${
+                        isSelected
+                          ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white"
+                          : "hover:bg-[#F5F5F7]/70 dark:hover:bg-[#27272a]/50 text-[#1C1C1E] dark:text-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-[#1C1C1E] shrink-0"
+                          style={{
+                            backgroundColor: st.avatarColor || "#E5E5EA",
+                          }}
+                        >
+                          {st.initials}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white leading-tight truncate">
+                            {st.fullName}
+                          </p>
+                          <p className="text-[11px] text-[#8E8E93] dark:text-[#71717a] truncate">
+                            {st.role || "Especialista"}
+                          </p>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-[calc(100dvh-53px-calc(4.5rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] bg-white dark:bg-[#09090b] overflow-hidden">
       {/* Top Calendar Header Matching Reference Screenshot (media_1792845742688_c1165d63.png) */}
       <header className="relative z-50 px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]">
         {/* Desktop Header Layout (>= md) */}
         <div className="hidden md:flex items-center justify-between gap-4">
-          {/* Left: Oct + [📅] + < Sat Oct 24, 2026 > */}
+          {/* Left: Out + [📅] + < Sáb, 24 de Out, 2026 > */}
           <div className="relative flex items-center gap-2.5 sm:gap-3">
             <span className="text-[20px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
               {getMonthShort(selectedDateISO)}
@@ -920,84 +1195,37 @@ export function CalendarView({
             {renderDatePopover("left-0 top-full mt-2")}
           </div>
 
-          {/* Right: [⚙] [Week ⌄] [(BS) Bruno ⌄] [Waitlist] [Quick sale] [Add] */}
+          {/* Right: [⚙] [Semana ⌄] [(Avatar) Bruno ⌄] [Lista de espera] [Venda rápida] [+ Agendar] */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {/* Settings Icon */}
             <button
               type="button"
-              title="Configurações da agenda"
-              aria-label="Configurações"
-              className="p-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] transition flex items-center justify-center"
+              onClick={() => {
+                setCalendarSettingsDrawerOpen(true);
+                setProviderFilterDropdownOpen(false);
+                setViewModeDropdownOpen(false);
+                setDatePopoverOpen(false);
+              }}
+              title="Configurações de exibição da agenda"
+              aria-label="Configurações de exibição da agenda"
+              className="p-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer"
             >
               <Settings className="w-4 h-4" />
             </button>
 
-            {/* View Mode Toggle: Week ⌄ / Day ⌄ */}
-            <button
-              type="button"
-              onClick={() =>
-                onUpdateState((prev) => ({
-                  ...prev,
-                  calendarView: {
-                    ...prev.calendarView,
-                    mode: viewMode === "week" ? "day" : "week",
-                  },
-                }))
-              }
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
-            >
-              <span>{viewMode === "week" ? "Week" : "Day"}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
-            </button>
+            {/* View Mode Dropdown: Semana / Dia */}
+            {renderViewModeDropdown()}
 
-            {/* Provider Pill: (BS) Bruno ⌄ */}
-            <div className="relative flex items-center">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition">
-                <span
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-[#1C1C1E] shrink-0"
-                  style={{
-                    backgroundColor:
-                      state.staff.find(
-                        (s) => s.id === state.calendarView.selectedProviderId
-                      )?.avatarColor || "#E5E5EA",
-                  }}
-                >
-                  {state.staff.find(
-                    (s) => s.id === state.calendarView.selectedProviderId
-                  )?.initials || "All"}
-                </span>
-                <select
-                  aria-label="Filtrar por profissional"
-                  value={state.calendarView.selectedProviderId}
-                  onChange={(e) =>
-                    onUpdateState((prev) => ({
-                      ...prev,
-                      calendarView: {
-                        ...prev.calendarView,
-                        selectedProviderId: e.target.value,
-                      },
-                    }))
-                  }
-                  className="bg-transparent text-[13px] font-medium text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer pr-1"
-                >
-                  <option value="all">Equipe ({state.staff.length})</option>
-                  {state.staff.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.fullName.split(" ")[0]}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa] shrink-0 pointer-events-none" />
-              </div>
-            </div>
+            {/* Provider Dropdown: (Avatar) Bruno / Toda a equipe ⌄ */}
+            {renderProviderFilterDropdown("right-0")}
 
-            {/* Waitlist Button */}
+            {/* Botão Lista de espera */}
             <button
               type="button"
               onClick={() => setWaitlistDrawerOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white transition"
             >
-              <span>Waitlist</span>
+              <span>Lista de espera</span>
               {state.waitlist.length > 0 && (
                 <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
                   {state.waitlist.length}
@@ -1005,22 +1233,22 @@ export function CalendarView({
               )}
             </button>
 
-            {/* Quick sale Button */}
+            {/* Botão Venda rápida */}
             <button
               type="button"
               onClick={() => onOpenQuickSale()}
               className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white transition"
             >
-              Quick sale
+              Venda rápida
             </button>
 
-            {/* Add Button */}
+            {/* Botão + Agendar */}
             <button
               type="button"
               onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
               className="px-4 py-1.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition shadow-sm"
             >
-              Add
+              + Agendar
             </button>
           </div>
         </div>
@@ -1074,46 +1302,54 @@ export function CalendarView({
               {renderDatePopover("left-0 top-full mt-2")}
             </div>
 
-            <button
-              type="button"
-              onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
-              className="px-3 py-1.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold shrink-0"
-            >
-              Add
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setCalendarSettingsDrawerOpen(true);
+                  setProviderFilterDropdownOpen(false);
+                  setViewModeDropdownOpen(false);
+                  setDatePopoverOpen(false);
+                }}
+                title="Configurações de exibição da agenda"
+                aria-label="Configurações de exibição da agenda"
+                className="p-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
+                className="px-3 py-1.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold shrink-0"
+              >
+                + Agendar
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-[12px]">
-            <button
-              type="button"
-              onClick={() =>
-                onUpdateState((prev) => ({
-                  ...prev,
-                  calendarView: {
-                    ...prev.calendarView,
-                    mode: viewMode === "week" ? "day" : "week",
-                  },
-                }))
-              }
-              className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[#1C1C1E] shrink-0"
-            >
-              {viewMode === "week" ? "Week" : "Day"} ⌄
-            </button>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-[12px] pb-0.5">
+            {renderViewModeDropdown()}
+            {renderProviderFilterDropdown("left-0")}
 
             <button
               type="button"
               onClick={() => setWaitlistDrawerOpen(true)}
-              className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[#1C1C1E] shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E5EA] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0"
             >
-              Waitlist {state.waitlist.length > 0 && `(${state.waitlist.length})`}
+              <span>Lista de espera</span>
+              {state.waitlist.length > 0 && (
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
+                  {state.waitlist.length}
+                </span>
+              )}
             </button>
 
             <button
               type="button"
               onClick={() => onOpenQuickSale()}
-              className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[#1C1C1E] shrink-0"
+              className="px-3 py-1.5 rounded-full border border-[#E5E5EA] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0"
             >
-              Quick sale
+              Venda rápida
             </button>
           </div>
         </div>
@@ -1178,12 +1414,12 @@ export function CalendarView({
             className="flex-1 overflow-y-auto overflow-x-auto relative"
           >
             <div
-              style={{ minHeight: `${HOURS.length * HOUR_HEIGHT}px` }}
+              style={{ minHeight: `${calendarHours.length * HOUR_HEIGHT}px` }}
               className="flex min-w-[760px] md:min-w-0 relative"
             >
               {/* Time Gutter on the Left */}
               <div className="w-14 sm:w-16 shrink-0 border-r border-[#E5E5EA] dark:border-[#27272a] select-none relative bg-white dark:bg-[#18181b] z-20">
-                {HOURS.map((hour) => (
+                {calendarHours.map((hour) => (
                   <div
                     key={hour}
                     style={{ height: `${HOUR_HEIGHT}px` }}
@@ -1198,7 +1434,7 @@ export function CalendarView({
                   <div
                     className="absolute right-1 -translate-y-1/2 z-30 pointer-events-none"
                     style={{
-                      top: `${((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                      top: `${((currentTime.totalMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
                     }}
                   >
                     <span className="px-1.5 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] font-mono font-bold shadow-xs whitespace-nowrap">
@@ -1215,7 +1451,7 @@ export function CalendarView({
                   <div
                     className="absolute left-0 right-0 h-[2px] bg-[#E11D8F] z-20 pointer-events-none transition-all duration-300"
                     style={{
-                      top: `${((currentTime.totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                      top: `${((currentTime.totalMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
                     }}
                   />
                 )}
@@ -1246,7 +1482,7 @@ export function CalendarView({
                       className="relative border-r border-[#E5E5EA] dark:border-[#27272a] select-none cursor-pointer"
                     >
                       {/* Background Hour Rows */}
-                      {HOURS.map((hour) => (
+                      {calendarHours.map((hour) => (
                         <div
                           key={hour}
                           style={{ height: `${HOUR_HEIGHT}px` }}
@@ -1267,11 +1503,11 @@ export function CalendarView({
                       ) : (
                         <>
                           {/* Top hatched area: Before working hours (e.g. before 8am) */}
-                          {workingHours.startMinutes > START_HOUR * 60 && (
+                          {workingHours.startMinutes > visibleStartHour * 60 && (
                             <div
                               className="absolute left-0 right-0 top-0 pointer-events-none z-0"
                               style={{
-                                height: `${((workingHours.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                                height: `${((workingHours.startMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
                                 backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
                                 backgroundColor: "rgba(244, 244, 245, 0.65)",
                               }}
@@ -1279,12 +1515,12 @@ export function CalendarView({
                           )}
                           {/* Bottom hatched area: After working hours (e.g. after 5pm) */}
                           {workingHours.endMinutes <
-                            (START_HOUR + HOURS.length) * 60 && (
+                            (visibleStartHour + calendarHours.length) * 60 && (
                             <div
                               className="absolute left-0 right-0 pointer-events-none z-0"
                               style={{
-                                top: `${((workingHours.endMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
-                                height: `${(((START_HOUR + HOURS.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
+                                top: `${((workingHours.endMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
+                                height: `${(((visibleStartHour + calendarHours.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
                                 backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
                                 backgroundColor: "rgba(244, 244, 245, 0.65)",
                               }}
@@ -1315,7 +1551,7 @@ export function CalendarView({
                         const endMin = parseTimeMinutes(ev.endTime);
                         const topPx = Math.max(
                           0,
-                          ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT
+                          ((startMin - visibleStartHour * 60) / 60) * HOUR_HEIGHT
                         );
                         const heightPx = Math.max(
                           38,
@@ -1324,7 +1560,12 @@ export function CalendarView({
                         const isCompleted = ev.status === "completed";
                         const isPending = ev.status === "pending";
 
-                        if (ev.serviceNames.length > 1 && heightPx >= 68) {
+                        const shouldSplitServices =
+                          multiServiceDisplayMode === "multiple_cards" &&
+                          ev.serviceNames.length > 1 &&
+                          heightPx >= 68;
+
+                        if (shouldSplitServices) {
                           const totalEvtMin = Math.max(15, endMin - startMin);
                           let runningSliceMin = startMin;
                           const numSrv = ev.serviceNames.length;
@@ -1489,7 +1730,7 @@ export function CalendarView({
             className="flex-1 overflow-y-auto relative"
           >
             <div
-              style={{ minHeight: `${HOURS.length * HOUR_HEIGHT}px` }}
+              style={{ minHeight: `${calendarHours.length * HOUR_HEIGHT}px` }}
               className="relative"
             >
               {/* Magenta Current Time Line */}
@@ -1500,8 +1741,8 @@ export function CalendarView({
                     top: `${Math.max(
                       0,
                       Math.min(
-                        HOURS.length * HOUR_HEIGHT,
-                        ((currentTime.totalMinutes - START_HOUR * 60) / 60) *
+                        calendarHours.length * HOUR_HEIGHT,
+                        ((currentTime.totalMinutes - visibleStartHour * 60) / 60) *
                           HOUR_HEIGHT
                       )
                     )}px`,
@@ -1534,23 +1775,23 @@ export function CalendarView({
                       />
                     ) : (
                       <>
-                        {workingHours.startMinutes > START_HOUR * 60 && (
+                        {workingHours.startMinutes > visibleStartHour * 60 && (
                           <div
                             className="absolute left-14 sm:left-20 right-0 top-0 pointer-events-none z-0"
                             style={{
-                              height: `${((workingHours.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
+                              height: `${((workingHours.startMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
                               backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
                               backgroundColor: "rgba(244, 244, 245, 0.65)",
                             }}
                           />
                         )}
                         {workingHours.endMinutes <
-                          (START_HOUR + HOURS.length) * 60 && (
+                          (visibleStartHour + calendarHours.length) * 60 && (
                           <div
                             className="absolute left-14 sm:left-20 right-0 pointer-events-none z-0"
                             style={{
-                              top: `${((workingHours.endMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px`,
-                              height: `${(((START_HOUR + HOURS.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
+                              top: `${((workingHours.endMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
+                              height: `${(((visibleStartHour + calendarHours.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
                               backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
                               backgroundColor: "rgba(244, 244, 245, 0.65)",
                             }}
@@ -1563,7 +1804,7 @@ export function CalendarView({
               })()}
 
               {/* Hourly Rows */}
-              {HOURS.map((hour) => {
+              {calendarHours.map((hour) => {
                 const label = `${String(hour).padStart(2, "0")}:00`;
                 return (
                   <div
@@ -1590,7 +1831,7 @@ export function CalendarView({
                 const endMin = parseTimeMinutes(ev.endTime);
                 const topPx = Math.max(
                   0,
-                  ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT
+                  ((startMin - visibleStartHour * 60) / 60) * HOUR_HEIGHT
                 );
                 const heightPx = Math.max(
                   46,
@@ -2555,15 +2796,37 @@ export function CalendarView({
             <div className="w-full max-w-[420px] bg-white dark:bg-[#18181b] h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
               {/* Header */}
               <div className="px-6 py-5 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
-                <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
-                  {isCompleted ? "Completed Appointment" : "Confirmed appointment"}
-                </h2>
-                <button
-                  onClick={() => setSelectedEvent(null)}
-                  className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
+                    {isCompleted ? "Completed Appointment" : "Confirmed appointment"}
+                  </h2>
+                  {isCompleted && (
+                    <span className="inline-flex items-center gap-1.5 text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      Atendimento realizado
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEventToDelete(selectedEvent);
+                      setDeleteMode("delete");
+                    }}
+                    title="Excluir agendamento"
+                    aria-label="Excluir agendamento"
+                    className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedEvent(null)}
+                    className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Body */}
@@ -2707,6 +2970,66 @@ export function CalendarView({
                     </div>
                   </div>
 
+                  {!isCompleted && (
+                    <div className="p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              selectedEvent.arrivedAtReception
+                                ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                                : "bg-zinc-400 ring-2 ring-zinc-400/20"
+                            }`}
+                          />
+                          <span className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                            Presença na recepção
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5 truncate">
+                          {selectedEvent.arrivedAtReception
+                            ? "Sinalizado como Na recepção no painel da TV"
+                            : "Sinaliza chegada na coluna do profissional na TV"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextArrived = !Boolean(
+                            selectedEvent.arrivedAtReception
+                          );
+                          onUpdateState((prev) =>
+                            toggleAppointmentReceptionArrival(
+                              prev,
+                              selectedEvent.id,
+                              nextArrived
+                            )
+                          );
+                          setSelectedEvent((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  arrivedAtReception: nextArrived,
+                                  status:
+                                    nextArrived && prev.status === "pending"
+                                      ? "confirmed"
+                                      : prev.status,
+                                }
+                              : null
+                          );
+                        }}
+                        className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold transition shrink-0 ${
+                          selectedEvent.arrivedAtReception
+                            ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] hover:bg-[#2C2C2E]"
+                            : "border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#3F3F46]"
+                        }`}
+                      >
+                        {selectedEvent.arrivedAtReception
+                          ? "Na recepção"
+                          : "Marcar na recepção"}
+                      </button>
+                    </div>
+                  )}
+
                   <div className="p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] space-y-2.5">
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
@@ -2843,7 +3166,20 @@ export function CalendarView({
               </div>
 
               {/* Sticky Footer */}
-              <div className="p-4 border-t border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center gap-2.5">
+              <div className="p-4 border-t border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEventToDelete(selectedEvent);
+                    setDeleteMode("delete");
+                  }}
+                  className="p-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:border-rose-300 dark:hover:border-rose-800 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/60 dark:hover:bg-rose-950/20 transition shrink-0"
+                  title="Excluir agendamento"
+                  aria-label="Excluir agendamento"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -2851,7 +3187,7 @@ export function CalendarView({
                     setSelectedEvent(null);
                     openNewDrawerAtSlot(ev.startTime, ev.eventType, ev.dateISO, ev.providerId);
                   }}
-                  className="px-5 py-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-semibold transition"
+                  className="px-4 py-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-semibold transition"
                 >
                   Editar
                 </button>
@@ -2894,6 +3230,153 @@ export function CalendarView({
                     <span>Enviar comprovante</span>
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* =====================================================================
+          MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE AGENDAMENTO (Anti-AI Slop)
+         ===================================================================== */}
+      {eventToDelete && (() => {
+        const isCompletedEvent = eventToDelete.status === "completed";
+
+        return (
+          <div className="fixed inset-0 z-[80] bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-[440px] bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+              {/* Header */}
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[17px] font-bold text-[#1C1C1E] dark:text-white leading-tight">
+                    Excluir Agendamento
+                  </h3>
+                  <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1">
+                    Esta ação afetará o agendamento de {eventToDelete.clientName}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEventToDelete(null)}
+                  className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Event Summary Card */}
+              <div className="p-3.5 rounded-[14px] bg-[#FAFAFC] dark:bg-[#27272a]/30 border border-[#E5E5EA] dark:border-[#27272a] space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-bold text-[#1C1C1E] dark:text-white truncate">
+                    {eventToDelete.clientName}
+                  </span>
+                  <span className="font-mono text-[12px] font-bold text-[#1C1C1E] dark:text-white shrink-0">
+                    {formatBRL(eventToDelete.totalCents)}
+                  </span>
+                </div>
+                <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] truncate">
+                  {eventToDelete.serviceNames.join(" + ")} · {eventToDelete.providerName}
+                </p>
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#E5E5EA]/70 dark:border-[#27272a] text-[11.5px]">
+                  <span className="text-[#6E6E73] dark:text-[#a1a1aa]">
+                    {formatDateBR(eventToDelete.dateISO)} às {eventToDelete.startTime} – {eventToDelete.endTime}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[10.5px] font-medium text-[#1C1C1E] dark:text-zinc-200">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isCompletedEvent
+                          ? "bg-slate-400"
+                          : eventToDelete.status === "confirmed"
+                          ? "bg-emerald-500"
+                          : "bg-amber-500"
+                      }`}
+                    />
+                    {isCompletedEvent
+                      ? "Realizado"
+                      : eventToDelete.status === "confirmed"
+                      ? "Confirmado"
+                      : "Pendente"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mode Options */}
+              <div className="space-y-2">
+                <label className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                  Escolha como deseja prosseguir:
+                </label>
+                <div className="space-y-2">
+                  <label
+                    onClick={() => setDeleteMode("delete")}
+                    className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition ${
+                      deleteMode === "delete"
+                        ? "bg-[#FAFAFC] dark:bg-[#27272a]/50 border-[#1C1C1E] dark:border-white ring-1 ring-[#1C1C1E] dark:ring-white"
+                        : "border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deleteMode"
+                      checked={deleteMode === "delete"}
+                      onChange={() => setDeleteMode("delete")}
+                      className="mt-0.5 text-[#1C1C1E] focus:ring-0 cursor-pointer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                        Excluir definitivamente da agenda
+                      </p>
+                      <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                        Remove completamente o agendamento da grade e libera o horário do profissional.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label
+                    onClick={() => setDeleteMode("cancel")}
+                    className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition ${
+                      deleteMode === "cancel"
+                        ? "bg-[#FAFAFC] dark:bg-[#27272a]/50 border-[#1C1C1E] dark:border-white ring-1 ring-[#1C1C1E] dark:ring-white"
+                        : "border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deleteMode"
+                      checked={deleteMode === "cancel"}
+                      onChange={() => setDeleteMode("cancel")}
+                      className="mt-0.5 text-[#1C1C1E] focus:ring-0 cursor-pointer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                        Apenas marcar como cancelado
+                      </p>
+                      <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                        Desocupa o horário da agenda mantendo o registro no histórico de cancelamentos do estúdio.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setEventToDelete(null)}
+                  className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] text-[12.5px] font-medium transition"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[12.5px] font-semibold transition shadow-sm"
+                >
+                  {deleteMode === "delete" ? "Excluir definitivamente" : "Confirmar cancelamento"}
+                </button>
               </div>
             </div>
           </div>
@@ -3131,6 +3614,238 @@ export function CalendarView({
           </div>
         );
       })()}
+
+      {/* =====================================================================
+          DRAWER 4: CONFIGURAÇÕES DE EXIBIÇÃO DA AGENDA (media_1793017669411_09e3485d.png)
+         ===================================================================== */}
+      {calendarSettingsDrawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex justify-end animate-in fade-in duration-150"
+          onClick={() => setCalendarSettingsDrawerOpen(false)}
+        >
+          <div
+            className="w-full max-w-[420px] bg-white dark:bg-[#18181b] h-full shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200 border-l border-[#E5E5EA] dark:border-[#27272a]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              {/* Drawer Header */}
+              <div className="px-6 py-5 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
+                <h2 className="text-[17px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+                  Configurações de exibição da agenda
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setCalendarSettingsDrawerOpen(false)}
+                  title="Fechar"
+                  aria-label="Fechar configurações"
+                  className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Drawer Content */}
+              <div className="p-6 space-y-6">
+                {/* Seção 1: Agendamentos com múltiplos serviços */}
+                <div>
+                  <h3 className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white mb-3">
+                    Agendamentos com múltiplos serviços
+                  </h3>
+                  <div className="space-y-2.5">
+                    {/* Card 1: Card único */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateState((prev) => ({
+                          ...prev,
+                          calendarView: {
+                            ...prev.calendarView,
+                            multiServiceDisplayMode: "single_card",
+                          },
+                        }))
+                      }
+                      className={`w-full p-4 rounded-2xl border text-left transition flex items-start gap-3.5 cursor-pointer ${
+                        multiServiceDisplayMode === "single_card"
+                          ? "border-[#1C1C1E] dark:border-white bg-[#F9F9FB] dark:bg-[#27272a]/70 shadow-2xs"
+                          : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/40"
+                      }`}
+                    >
+                      <div
+                        className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${
+                          multiServiceDisplayMode === "single_card"
+                            ? "border-[#1C1C1E] dark:border-white"
+                            : "border-[#D4D4D8] dark:border-[#52525b]"
+                        }`}
+                      >
+                        {multiServiceDisplayMode === "single_card" && (
+                          <div className="w-2 h-2 rounded-full bg-[#1C1C1E] dark:bg-white" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white leading-tight">
+                          Card único
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-normal">
+                          Mostra todos os serviços de um agendamento em um único card na agenda.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Card 2: Múltiplos cards */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateState((prev) => ({
+                          ...prev,
+                          calendarView: {
+                            ...prev.calendarView,
+                            multiServiceDisplayMode: "multiple_cards",
+                          },
+                        }))
+                      }
+                      className={`w-full p-4 rounded-2xl border text-left transition flex items-start gap-3.5 cursor-pointer ${
+                        multiServiceDisplayMode === "multiple_cards"
+                          ? "border-[#1C1C1E] dark:border-white bg-[#F9F9FB] dark:bg-[#27272a]/70 shadow-2xs"
+                          : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/40"
+                      }`}
+                    >
+                      <div
+                        className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${
+                          multiServiceDisplayMode === "multiple_cards"
+                            ? "border-[#1C1C1E] dark:border-white"
+                            : "border-[#D4D4D8] dark:border-[#52525b]"
+                        }`}
+                      >
+                        {multiServiceDisplayMode === "multiple_cards" && (
+                          <div className="w-2 h-2 rounded-full bg-[#1C1C1E] dark:bg-white" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white leading-tight">
+                          Múltiplos cards
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-normal">
+                          Mostra todos os serviços de um agendamento como cards separados na agenda.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Seção 2: Horários visíveis */}
+                <div>
+                  <h3 className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Horários visíveis
+                  </h3>
+                  <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5 mb-3.5">
+                    Escolha quais horários ficam visíveis na sua agenda.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Início (Start) */}
+                    <div className="relative rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition shadow-2xs">
+                      <label className="block text-[11px] font-medium text-[#8E8E93] dark:text-[#71717a]">
+                        Início
+                      </label>
+                      <div className="relative flex items-center justify-between mt-0.5">
+                        <select
+                          aria-label="Horário inicial visível"
+                          value={visibleStartHour}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            onUpdateState((prev) => ({
+                              ...prev,
+                              calendarView: {
+                                ...prev.calendarView,
+                                visibleStartHour: val,
+                                visibleEndHour:
+                                  val >= visibleEndHour
+                                    ? Math.min(23, val + 4)
+                                    : visibleEndHour,
+                              },
+                            }));
+                          }}
+                          className="w-full bg-transparent text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer appearance-none pr-5"
+                        >
+                          {[5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
+                            <option key={h} value={h} className="dark:bg-[#18181b]">
+                              {formatHour12(h).toUpperCase()} ({String(h).padStart(2, "0")}:00)
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-[#8E8E93] dark:text-[#71717a] pointer-events-none absolute right-0" />
+                      </div>
+                    </div>
+
+                    {/* Fim (End) */}
+                    <div className="relative rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition shadow-2xs">
+                      <label className="block text-[11px] font-medium text-[#8E8E93] dark:text-[#71717a]">
+                        Fim
+                      </label>
+                      <div className="relative flex items-center justify-between mt-0.5">
+                        <select
+                          aria-label="Horário final visível"
+                          value={visibleEndHour}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            onUpdateState((prev) => ({
+                              ...prev,
+                              calendarView: {
+                                ...prev.calendarView,
+                                visibleEndHour: val,
+                                visibleStartHour:
+                                  val <= visibleStartHour
+                                    ? Math.max(5, val - 4)
+                                    : visibleStartHour,
+                              },
+                            }));
+                          }}
+                          className="w-full bg-transparent text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer appearance-none pr-5"
+                        >
+                          {[16, 17, 18, 19, 20, 21, 22, 23].map((h) => (
+                            <option key={h} value={h} className="dark:bg-[#18181b]">
+                              {formatHour12(h).toUpperCase()} ({String(h).padStart(2, "0")}:00)
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-[#8E8E93] dark:text-[#71717a] pointer-events-none absolute right-0" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-6 border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateState((prev) => ({
+                    ...prev,
+                    calendarView: {
+                      ...prev.calendarView,
+                      visibleStartHour: 7,
+                      visibleEndHour: 20,
+                      multiServiceDisplayMode: "multiple_cards",
+                    },
+                  }))
+                }
+                className="text-[12.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition cursor-pointer"
+              >
+                Restaurar padrões
+              </button>
+              <button
+                type="button"
+                onClick={() => setCalendarSettingsDrawerOpen(false)}
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition shadow-sm cursor-pointer"
+              >
+                Concluído
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -225,6 +225,7 @@ export interface CalendarEventItem {
   calendarColor: string;
   whatsappReminderSent: boolean;
   whatsappClientReply: "1_confirmed" | "2_reschedule" | "none";
+  arrivedAtReception?: boolean;
 }
 
 export interface WaitlistEntryItem {
@@ -627,6 +628,9 @@ export interface StudioState {
     selectedDateISO: string;
     mode: "day" | "week";
     selectedProviderId: string | "all";
+    multiServiceDisplayMode?: "single_card" | "multiple_cards";
+    visibleStartHour?: number;
+    visibleEndHour?: number;
   };
   services: ServiceCatalogItem[];
   suggestedServices: SuggestedServiceTemplate[];
@@ -879,6 +883,9 @@ export function createInitialStudioState(): StudioState {
       selectedDateISO: getTodayDateISO(),
       mode: "day",
       selectedProviderId: "staff-bruno",
+      multiServiceDisplayMode: "multiple_cards",
+      visibleStartHour: 7,
+      visibleEndHour: 20,
     },
     resources: [
       {
@@ -2929,6 +2936,74 @@ export function rescheduleCalendarEvent(
   };
 }
 
+export function deleteCalendarEvent(
+  state: StudioState,
+  eventId: string,
+  mode: "delete" | "cancel" = "delete"
+): {
+  ok: boolean;
+  message?: string;
+  state: StudioState;
+  deletedEvent?: CalendarEventItem;
+} {
+  const target = state.calendarEvents.find((e) => e.id === eventId);
+  if (!target) {
+    return {
+      ok: false,
+      message: "Agendamento não encontrado na agenda.",
+      state,
+    };
+  }
+
+  const updatedEvents =
+    mode === "cancel"
+      ? state.calendarEvents.map((e) =>
+          e.id === eventId
+            ? {
+                ...e,
+                status: "canceled" as const,
+                whatsappClientReply: "none" as const,
+              }
+            : e
+        )
+      : state.calendarEvents.filter((e) => e.id !== eventId);
+
+  const client = state.clients.find((c) => c.id === target.clientId);
+
+  const newLog: ReceptionAiLog = {
+    id: `rec-log-${Date.now()}`,
+    timestampLabel: "Agora mesmo",
+    clientName: target.clientName,
+    clientPhone: client?.phone || "(11) 99888-7766",
+    direction: "outbound",
+    channel: "WhatsApp 2-Way",
+    messageText:
+      mode === "cancel"
+        ? `Agendamento cancelado: ${target.serviceNames.join(" + ")} de ${target.clientName} em ${formatDateBR(target.dateISO)} às ${target.startTime}.`
+        : `Agendamento excluído da grade: ${target.serviceNames.join(" + ")} de ${target.clientName} em ${formatDateBR(target.dateISO)} às ${target.startTime}.`,
+    outcomeBadge: mode === "cancel" ? "Agendamento Cancelado" : "Excluído da Agenda",
+  };
+
+  const nextState: StudioState = {
+    ...state,
+    calendarEvents: updatedEvents,
+    reception: {
+      ...state.reception,
+      logs: [newLog, ...state.reception.logs],
+    },
+    lastToastMessage:
+      mode === "cancel"
+        ? `Agendamento de ${target.clientName} marcado como cancelado.`
+        : `Agendamento de ${target.clientName} excluído com sucesso.`,
+  };
+
+  return {
+    ok: true,
+    state: nextState,
+    deletedEvent: target,
+  };
+}
+
 // =============================================================================
 // TICKET 04 — CLIENTES (CLIENTS), NOTAS/FICHAS E FOTOS AUTO-ORGANIZADAS
 // =============================================================================
@@ -3456,6 +3531,40 @@ export function processWhatsappInboundReply(
       reply === "1_confirmed"
         ? `WhatsApp 2-Way: ${targetEvent.clientName} respondeu "1" e confirmou presença!`
         : `WhatsApp 2-Way: ${targetEvent.clientName} respondeu "2" solicitando reagendamento.`,
+  };
+}
+
+export function toggleAppointmentReceptionArrival(
+  state: StudioState,
+  eventId: string,
+  arrived?: boolean
+): StudioState {
+  const targetEvent = state.calendarEvents.find((e) => e.id === eventId);
+  if (!targetEvent) return state;
+
+  const nextArrived =
+    typeof arrived === "boolean"
+      ? arrived
+      : !Boolean(targetEvent.arrivedAtReception);
+
+  const updatedEvents = state.calendarEvents.map((e) => {
+    if (e.id !== eventId) return e;
+    return {
+      ...e,
+      arrivedAtReception: nextArrived,
+      status:
+        nextArrived && e.status === "pending"
+          ? ("confirmed" as const)
+          : e.status,
+    };
+  });
+
+  return {
+    ...state,
+    calendarEvents: updatedEvents,
+    lastToastMessage: nextArrived
+      ? `Check-in realizado: ${targetEvent.clientName} está na recepção.`
+      : `Status de recepção removido para ${targetEvent.clientName}.`,
   };
 }
 

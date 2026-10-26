@@ -10,6 +10,8 @@ export type TVAppointmentStatus =
   | "completed"
   | "waiting";
 
+export type TVClientPresenceStatus = "waiting" | "confirmed" | "arrived";
+
 export type TVThemeMode = "dark" | "light" | "warm_brown" | "noir_gold";
 export type TVScreenSize = "32" | "43" | "55";
 
@@ -22,6 +24,7 @@ export interface TVAppointmentDTO {
   clientName: string; // "Mariana O." (LGPD-safe)
   serviceName: string; // "Corte + Escova"
   status: TVAppointmentStatus;
+  presenceStatus?: TVClientPresenceStatus;
   professionalId: string;
   professionalName: string;
 }
@@ -51,6 +54,8 @@ export interface RawTVAppointment {
   starts_at: string;
   ends_at: string;
   status: string;
+  whatsapp_client_reply?: string | null;
+  arrived_at_reception?: boolean;
 }
 
 export interface RawTVProfessional {
@@ -269,6 +274,32 @@ export function deriveAppointmentStatus(
   }
 
   return "next";
+}
+
+/**
+ * Deriva o status de presença e confirmação do cliente para exibição no TV Kiosk:
+ * - "arrived" ("Na recepção"): quando o check-in na recepção foi acionado
+ * - "confirmed" ("Confirmado"): quando o cliente confirmou via WhatsApp (1_confirmed) ou o agendamento está confirmado
+ * - "waiting" ("Aguardando"): quando o agendamento ainda está pendente de confirmação
+ */
+export function deriveClientPresenceStatus(appointment: {
+  status: string;
+  whatsapp_client_reply?: string | null;
+  arrived_at_reception?: boolean;
+}): TVClientPresenceStatus {
+  if (appointment.arrived_at_reception === true) {
+    return "arrived";
+  }
+
+  if (appointment.whatsapp_client_reply === "1_confirmed") {
+    return "confirmed";
+  }
+
+  if (appointment.status === "pending") {
+    return "waiting";
+  }
+
+  return "confirmed";
 }
 
 /**
@@ -493,6 +524,7 @@ export function buildTVPollingResponse(
           clientName: maskNameLGPD(apt.client_name),
           serviceName: apt.service_name || "Atendimento",
           status: deriveAppointmentStatus(apt, now),
+          presenceStatus: deriveClientPresenceStatus(apt),
           professionalId: prof.id,
           professionalName: prof.name,
         };

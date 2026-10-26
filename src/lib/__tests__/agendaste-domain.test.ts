@@ -18,6 +18,7 @@ import {
   bookFromWaitlistEntry,
   rebookAppointmentOneTap,
   rescheduleCalendarEvent,
+  deleteCalendarEvent,
   createClientProfile,
   filterClientsByRetention,
   updateClientNotesAndForms,
@@ -29,6 +30,7 @@ import {
   formatDateBR,
   getTodayDateISO,
   processWhatsappInboundReply,
+  toggleAppointmentReceptionArrival,
   calculatePayrollSummary,
   toggleTimeclockAction,
   generateMarketingDraftAI,
@@ -710,6 +712,41 @@ describe("Ticket 06 — Recepção IA (Reception) & WhatsApp 2-Way Sync", () => 
     assert.match(res.state.reception.logs[0].messageText, /Reagendamento confirmado/);
   });
 
+  it("deletes a completed appointment cleanly from the calendar state and records a reception log", () => {
+    let state = createInitialStudioState();
+    // Marca o agendamento como completed ("agendamento realizado")
+    state = {
+      ...state,
+      calendarEvents: state.calendarEvents.map((e) =>
+        e.id === "evt-1" ? { ...e, status: "completed" as const } : e
+      ),
+    };
+
+    assert.equal(
+      state.calendarEvents.find((e) => e.id === "evt-1")?.status,
+      "completed"
+    );
+
+    // Executa a exclusão definitiva
+    const deleteRes = deleteCalendarEvent(state, "evt-1", "delete");
+    assert.equal(deleteRes.ok, true);
+    assert.equal(
+      deleteRes.state.calendarEvents.some((e) => e.id === "evt-1"),
+      false
+    );
+    assert.match(deleteRes.state.reception.logs[0].messageText, /excluído/i);
+    assert.equal(deleteRes.state.reception.logs[0].outcomeBadge, "Excluído da Agenda");
+
+    // Testa também o modo cancelar
+    const cancelRes = deleteCalendarEvent(state, "evt-1", "cancel");
+    assert.equal(cancelRes.ok, true);
+    assert.equal(
+      cancelRes.state.calendarEvents.find((e) => e.id === "evt-1")?.status,
+      "canceled"
+    );
+    assert.equal(cancelRes.state.reception.logs[0].outcomeBadge, "Agendamento Cancelado");
+  });
+
   it("allows studio owner to configure their own WhatsApp instance, number and templates", () => {
     let state = createInitialStudioState();
     assert.equal(state.reception.userConfig?.connected, true);
@@ -1141,6 +1178,40 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
         postJson.instanceName === "agendaste_5513978276520",
       `Nome da instância inesperado: ${postJson.instanceName}`
     );
+  });
+
+  it("toggleAppointmentReceptionArrival marks a client as arrived at reception in 1 tap, promoting pending to confirmed, and allows toggling off (Ticket 02)", () => {
+    const initial = createInitialStudioState();
+    const targetEvent = initial.calendarEvents[0];
+    assert.ok(targetEvent);
+
+    // Força status inicial pending para validar promoção automática ao fazer check-in na recepção
+    const stateWithPending = {
+      ...initial,
+      calendarEvents: initial.calendarEvents.map((e, idx) =>
+        idx === 0 ? { ...e, status: "pending" as const, arrivedAtReception: false } : e
+      ),
+    };
+
+    const afterArrival = toggleAppointmentReceptionArrival(
+      stateWithPending,
+      targetEvent.id
+    );
+    const updated1 = afterArrival.calendarEvents.find((e) => e.id === targetEvent.id);
+    assert.ok(updated1);
+    assert.equal(updated1.arrivedAtReception, true);
+    assert.equal(updated1.status, "confirmed");
+    assert.ok(afterArrival.lastToastMessage?.includes("na recepção"));
+
+    // Segundo toque desmarca a presença na recepção mantendo o agendamento confirmado
+    const afterUndo = toggleAppointmentReceptionArrival(
+      afterArrival,
+      targetEvent.id
+    );
+    const updated2 = afterUndo.calendarEvents.find((e) => e.id === targetEvent.id);
+    assert.ok(updated2);
+    assert.equal(updated2.arrivedAtReception, false);
+    assert.equal(updated2.status, "confirmed");
   });
 });
 

@@ -62,6 +62,7 @@ import {
   loadStudioStateFromSupabase,
   syncNewAppointmentToSupabase,
   syncAppointmentUpdateToSupabase,
+  syncDeleteAppointmentFromSupabase,
   syncNewClientToSupabase,
   syncNewStaffToSupabase,
   getCurrentTenantContext,
@@ -151,6 +152,15 @@ export function LuveaApp({
           ? `luvea_studio_state_v1_${currentUser.id}`
           : "luvea_studio_state_dev_offline";
         localStorage.setItem(cacheKey, JSON.stringify(next));
+        localStorage.setItem(
+          "luvea_tv_events_override_v1",
+          JSON.stringify(next.calendarEvents)
+        );
+        if (typeof BroadcastChannel !== "undefined") {
+          const bc = new BroadcastChannel("luvea_tv_sync");
+          bc.postMessage({ type: "CALENDAR_EVENTS_UPDATED" });
+          bc.close();
+        }
       } catch (err) {
         console.warn("Erro ao salvar no localStorage:", err);
       }
@@ -180,6 +190,13 @@ export function LuveaApp({
               await syncNewAppointmentToSupabase(evt, evt.providerId, tenantOrgId);
             }
 
+            // Sincroniza agendamentos excluídos no Supabase
+            const nextIds = new Set(next.calendarEvents.map((e) => e.id));
+            const deletedEvents = prev.calendarEvents.filter((e) => !nextIds.has(e.id));
+            for (const evt of deletedEvents) {
+              await syncDeleteAppointmentFromSupabase(evt.id, tenantOrgId);
+            }
+
             // Detecta agendamentos com status, profissional, data ou horário alterado
             for (const evt of next.calendarEvents) {
               const oldEvt = prev.calendarEvents.find((e) => e.id === evt.id);
@@ -190,7 +207,8 @@ export function LuveaApp({
                   oldEvt.dateISO !== evt.dateISO ||
                   oldEvt.startTime !== evt.startTime ||
                   oldEvt.endTime !== evt.endTime ||
-                  oldEvt.whatsappClientReply !== evt.whatsappClientReply)
+                  oldEvt.whatsappClientReply !== evt.whatsappClientReply ||
+                  oldEvt.arrivedAtReception !== evt.arrivedAtReception)
               ) {
                 await syncAppointmentUpdateToSupabase(evt, tenantOrgId);
               }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   maskNameLGPD,
   deriveAppointmentStatus,
+  deriveClientPresenceStatus,
   generatePairingCode,
   filterTVAppointments,
   buildTVPollingResponse,
@@ -574,6 +575,113 @@ describe("Ticket 01 — Módulo de Domínio Puro LUVEA TV Kiosk", () => {
         })
       );
       assert.equal(resAptsRevoked.status, 401);
+    });
+  });
+
+  describe("11. Status de Confirmação do Próximo Cliente na TV (Ticket 01)", () => {
+    it("deriveClientPresenceStatus retorna 'waiting' para agendamentos pending e 'confirmed' para confirmados ou 1_confirmed", () => {
+      assert.equal(
+        deriveClientPresenceStatus({ status: "pending" }),
+        "waiting"
+      );
+      assert.equal(
+        deriveClientPresenceStatus({ status: "confirmed" }),
+        "confirmed"
+      );
+      assert.equal(
+        deriveClientPresenceStatus({
+          status: "pending",
+          whatsapp_client_reply: "1_confirmed",
+        }),
+        "confirmed"
+      );
+    });
+
+    it("buildTVPollingResponse inclui presenceStatus em cada TVAppointmentDTO preservando mascaramento LGPD", () => {
+      const org: RawTVOrganization = {
+        id: "org-presence",
+        name: "Studio Luvea Jardins",
+        settings: { timezone: "America/Sao_Paulo" },
+      };
+      const professionals: RawTVProfessional[] = [
+        { id: "prof-1", name: "Helena Rostova" },
+      ];
+      const rawAppointments: RawTVAppointment[] = [
+        {
+          id: "apt-confirmed",
+          professional_id: "prof-1",
+          client_name: "Fernanda da Costa",
+          service_name: "Escova Modelada",
+          starts_at: "2026-10-22T18:00:00Z",
+          ends_at: "2026-10-22T19:00:00Z",
+          status: "confirmed",
+        },
+        {
+          id: "apt-waiting",
+          professional_id: "prof-1",
+          client_name: "Beatriz dos Santos",
+          service_name: "Hidratação",
+          starts_at: "2026-10-22T19:30:00Z",
+          ends_at: "2026-10-22T20:30:00Z",
+          status: "pending",
+        },
+      ];
+
+      const now = new Date("2026-10-22T17:00:00Z");
+      const response = buildTVPollingResponse(rawAppointments, professionals, org, now);
+      const apts = response.professionals[0].appointments;
+
+      assert.equal(apts.length, 2);
+      assert.equal(apts[0].clientName, "Fernanda C.");
+      assert.equal(apts[0].presenceStatus, "confirmed");
+      assert.equal(apts[1].clientName, "Beatriz S.");
+      assert.equal(apts[1].presenceStatus, "waiting");
+    });
+
+    it("prioriza arrived_at_reception retornando 'arrived' ('Na recepção') acima de waiting e confirmed (Ticket 02)", () => {
+      assert.equal(
+        deriveClientPresenceStatus({
+          status: "pending",
+          arrived_at_reception: true,
+        }),
+        "arrived"
+      );
+      assert.equal(
+        deriveClientPresenceStatus({
+          status: "confirmed",
+          arrived_at_reception: true,
+        }),
+        "arrived"
+      );
+
+      const org: RawTVOrganization = {
+        id: "org-arrived",
+        name: "Studio Luvea Jardins",
+        settings: { timezone: "America/Sao_Paulo" },
+      };
+      const professionals: RawTVProfessional[] = [
+        { id: "prof-1", name: "Helena Rostova" },
+      ];
+      const rawAppointments: RawTVAppointment[] = [
+        {
+          id: "apt-arrived",
+          professional_id: "prof-1",
+          client_name: "Camila de Andrade",
+          service_name: "Coloração",
+          starts_at: "2026-10-22T18:00:00Z",
+          ends_at: "2026-10-22T19:00:00Z",
+          status: "confirmed",
+          arrived_at_reception: true,
+        },
+      ];
+
+      const response = buildTVPollingResponse(
+        rawAppointments,
+        professionals,
+        org,
+        new Date("2026-10-22T17:00:00Z")
+      );
+      assert.equal(response.professionals[0].appointments[0].presenceStatus, "arrived");
     });
   });
 });
