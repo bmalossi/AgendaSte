@@ -522,15 +522,14 @@ const NextClientPresenceBadge = React.memo(function NextClientPresenceBadge({
   themeId: TVThemeMode;
 }) {
   const isLight = themeId === "light";
+  const baseSurface = isLight
+    ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
+    : "bg-white/[0.04] border-white/[0.1] text-zinc-200";
 
   if (presenceStatus === "arrived") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-semibold tracking-normal normal-case border ${
-          isLight
-            ? "bg-emerald-50 border-emerald-200/80 text-emerald-900"
-            : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-        }`}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-semibold tracking-normal normal-case border ${baseSurface}`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse motion-reduce:animate-none shrink-0" />
         <span>Na recepção</span>
@@ -541,11 +540,7 @@ const NextClientPresenceBadge = React.memo(function NextClientPresenceBadge({
   if (presenceStatus === "waiting") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-medium tracking-normal normal-case border ${
-          isLight
-            ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
-            : "bg-white/[0.04] border-white/[0.1] text-zinc-300"
-        }`}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-medium tracking-normal normal-case border ${baseSurface}`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
         <span>Aguardando</span>
@@ -555,11 +550,7 @@ const NextClientPresenceBadge = React.memo(function NextClientPresenceBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-medium tracking-normal normal-case border ${
-        isLight
-          ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
-          : "bg-white/[0.04] border-white/[0.1] text-zinc-300"
-      }`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-medium tracking-normal normal-case border ${baseSurface}`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
       <span>Confirmado</span>
@@ -1096,25 +1087,36 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
       // Detecta cards com alteração de status/horário/presença para aplicar highlight sutil e chime
       const currentMap = new Map<string, string>();
       const newHighlighted = new Set<string>();
+      let shouldTriggerChime = false;
 
       data.professionals.forEach((prof) => {
         prof.appointments.forEach((apt) => {
-          const signature = `${apt.status}-${apt.presenceStatus || "confirmed"}-${apt.startTime}-${apt.endTime}`;
+          const presence = apt.presenceStatus || "confirmed";
+          const signature = `${apt.status}|${presence}|${apt.startTime}|${apt.endTime}`;
           currentMap.set(apt.id, signature);
 
           const previousSig = previousAptsRef.current.get(apt.id);
           if (previousSig && previousSig !== signature) {
             newHighlighted.add(apt.id);
             newHighlighted.add(prof.id);
+
+            const [prevStatus, prevPresence] = previousSig.split("|");
+            // Chime toca exclusivamente na entrada em 'in_progress' ou na entrada em 'arrived' (Na recepção)
+            if (
+              (prevStatus !== "in_progress" && apt.status === "in_progress") ||
+              (prevPresence !== "arrived" && presence === "arrived")
+            ) {
+              shouldTriggerChime = true;
+            }
           }
         });
       });
 
-      // Toca chime sonoro editorial suave se o áudio estiver ativado e houve atualização relevante
+      // Toca chime sonoro editorial suave se o áudio estiver ativado e houve transição de entrada relevante
       if (
         audioChimeEnabled &&
         previousAptsRef.current.size > 0 &&
-        newHighlighted.size > 0
+        shouldTriggerChime
       ) {
         playLuxuryChime();
       }

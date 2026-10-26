@@ -2987,8 +2987,8 @@ export function CalendarView({
                         </div>
                         <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5 truncate">
                           {selectedEvent.arrivedAtReception
-                            ? "Sinalizado como Na recepção no painel da TV"
-                            : "Sinaliza chegada na coluna do profissional na TV"}
+                            ? "Sinalizado como Na recepção no TV Kiosk"
+                            : "Sinaliza chegada na coluna do profissional no TV Kiosk"}
                         </p>
                       </div>
                       <button
