@@ -5,6 +5,7 @@ import {
   buildTVPollingResponse,
   getAllMemoryPairings,
   getDayBoundsInTimezone,
+  TV_OVERTIME_GRACE_MS,
   RawTVAppointment,
   RawTVProfessional,
   RawTVOrganization,
@@ -131,9 +132,13 @@ export async function GET(request: Request) {
         const dayBounds = getDayBoundsInTimezone(now, timezone);
 
         // 5. Busca agendamentos ativos para a TV:
-        // - ends_at >= now (não expirados: no horário marcado em andamento ou futuros)
+        // - ends_at >= now - TV_OVERTIME_GRACE_MS (inclui janela de 10 min p/ alerta de atraso)
         // - starts_at <= dayBounds.endOfDayIso (pertencentes a hoje no fuso do estúdio)
         // - status in ['confirmed', 'pending'] (exclui cancelados, no_show e concluídos)
+        const overtimeCutoffIso = new Date(
+          now.getTime() - TV_OVERTIME_GRACE_MS
+        ).toISOString();
+
         const { data: aptsData, error: aptsErr } = await supabaseAdmin
           .from("appointments")
           .select(`
@@ -149,7 +154,7 @@ export async function GET(request: Request) {
             client:clients(full_name)
           `)
           .eq("organization_id", org.id)
-          .gte("ends_at", now.toISOString())
+          .gte("ends_at", overtimeCutoffIso)
           .lte("starts_at", dayBounds.endOfDayIso)
           .in("status", ["confirmed", "pending"]);
 

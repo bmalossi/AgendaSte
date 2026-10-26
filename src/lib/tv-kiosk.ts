@@ -352,12 +352,19 @@ export function getDayBoundsInTimezone(
 }
 
 /**
+ * Janela de tolerância pós-término (10 minutos) para exibir o alerta de
+ * "Horário esgotado / Em atraso" no TV Kiosk antes de encerrar a exibição na tela.
+ */
+export const TV_OVERTIME_GRACE_MS = 10 * 60 * 1000;
+
+/**
  * Filtra agendamentos para a TV pública:
  * - Remove cancelados e no-show.
  * - Quando 'now' é fornecido, remove também agendamentos já concluídos (completed)
- *   e agendamentos anteriores cujo horário de término já expirou (ends_at <= now).
+ *   e agendamentos anteriores cujo horário de término já expirou além da janela
+ *   de tolerância de atraso (ends_at + TV_OVERTIME_GRACE_MS <= now).
  * Mantém estritamente:
- * 1. Atendimentos em andamento no horário marcado (starts_at <= now < ends_at)
+ * 1. Atendimentos em andamento ou recém-esgotados na janela de tolerância (10 min)
  * 2. Próximos atendimentos do dia (starts_at > now)
  */
 export function filterTVAppointments<
@@ -377,7 +384,7 @@ export function filterTVAppointments<
 
       if (apt.ends_at) {
         const endsMs = new Date(apt.ends_at).getTime();
-        if (!isNaN(endsMs) && endsMs <= now.getTime()) {
+        if (!isNaN(endsMs) && endsMs + TV_OVERTIME_GRACE_MS <= now.getTime()) {
           return false;
         }
       }

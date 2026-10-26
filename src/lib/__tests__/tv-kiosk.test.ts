@@ -683,5 +683,46 @@ describe("Ticket 01 — Módulo de Domínio Puro LUVEA TV Kiosk", () => {
       );
       assert.equal(response.professionals[0].appointments[0].presenceStatus, "arrived");
     });
+
+    it("mantém agendamento não concluído por até 10 min pós-término com status 'delayed' para alerta de atraso no Card Hero", () => {
+      const org: RawTVOrganization = {
+        id: "org-overtime",
+        name: "Studio Luvea Jardins",
+        settings: { timezone: "America/Sao_Paulo" },
+      };
+      const professionals: RawTVProfessional[] = [
+        { id: "prof-1", name: "Bruno" },
+      ];
+      const rawAppointments: RawTVAppointment[] = [
+        {
+          id: "apt-overtime",
+          professional_id: "prof-1",
+          client_name: "Teste Cliente",
+          service_name: "Corte Masculino",
+          starts_at: "2026-10-22T14:00:00Z",
+          ends_at: "2026-10-22T14:45:00Z",
+          status: "confirmed",
+        },
+      ];
+
+      // 4 minutos após ends_at (dentro da tolerância de 10 min) -> permanece com status 'delayed'
+      const resWithinGrace = buildTVPollingResponse(
+        rawAppointments,
+        professionals,
+        org,
+        new Date("2026-10-22T14:49:00Z")
+      );
+      assert.equal(resWithinGrace.professionals[0].appointments.length, 1);
+      assert.equal(resWithinGrace.professionals[0].appointments[0].status, "delayed");
+
+      // 11 minutos após ends_at (fora da tolerância de 10 min) -> removido automaticamente
+      const resAfterGrace = buildTVPollingResponse(
+        rawAppointments,
+        professionals,
+        org,
+        new Date("2026-10-22T14:56:00Z")
+      );
+      assert.equal(resAfterGrace.professionals[0].appointments.length, 0);
+    });
   });
 });

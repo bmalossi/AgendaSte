@@ -9,6 +9,7 @@ import {
   TVProfessionalColumn,
   TVThemeMode,
   TVScreenSize,
+  TV_OVERTIME_GRACE_MS,
   deriveClientPresenceStatus,
   maskNameLGPD,
   paginateProfessionals,
@@ -282,6 +283,10 @@ interface TVSizeConfig {
   labelSize: string;
   clientNameSize: string;
   serviceTextSize: string;
+  heroCardPadding: string;
+  heroTimeSize: string;
+  nextClientNameSize: string;
+  nextServiceTextSize: string;
   boxPadding: string;
   timeSize: string;
   freeTitleSize: string;
@@ -308,8 +313,12 @@ const TV_SIZES: Record<TVScreenSize, TVSizeConfig> = {
     profNameSize: "text-[16px] sm:text-[17px]",
     profStatusSize: "text-[9px]",
     labelSize: "text-[9px]",
-    clientNameSize: "text-[16px] sm:text-[17.5px]",
-    serviceTextSize: "text-[11.5px]",
+    clientNameSize: "text-[21px] sm:text-[23px]",
+    serviceTextSize: "text-[13px] sm:text-[13.5px]",
+    heroCardPadding: "p-3 sm:p-3.5",
+    heroTimeSize: "text-[13px] sm:text-[14px]",
+    nextClientNameSize: "text-[14.5px] sm:text-[15.5px]",
+    nextServiceTextSize: "text-[11.5px]",
     boxPadding: "p-2 sm:p-2.5 my-1.5 sm:my-2",
     timeSize: "text-[15.5px] sm:text-[16.5px]",
     freeTitleSize: "text-[15.5px] sm:text-[16.5px]",
@@ -334,8 +343,12 @@ const TV_SIZES: Record<TVScreenSize, TVSizeConfig> = {
     profNameSize: "text-[18px] sm:text-[20px]",
     profStatusSize: "text-[10px]",
     labelSize: "text-[10px]",
-    clientNameSize: "text-[19px] sm:text-[21px]",
-    serviceTextSize: "text-[13px]",
+    clientNameSize: "text-[25px] sm:text-[28px]",
+    serviceTextSize: "text-[14.5px] sm:text-[15.5px]",
+    heroCardPadding: "p-4 sm:p-5",
+    heroTimeSize: "text-[15px] sm:text-[16.5px]",
+    nextClientNameSize: "text-[16.5px] sm:text-[17.5px]",
+    nextServiceTextSize: "text-[12.5px]",
     boxPadding: "p-3 my-2.5 sm:my-3",
     timeSize: "text-[18px] sm:text-[20px]",
     freeTitleSize: "text-[18px] sm:text-[19px]",
@@ -360,8 +373,12 @@ const TV_SIZES: Record<TVScreenSize, TVSizeConfig> = {
     profNameSize: "text-[21px] sm:text-[23px]",
     profStatusSize: "text-[11px]",
     labelSize: "text-[11px]",
-    clientNameSize: "text-[22px] sm:text-[24px]",
-    serviceTextSize: "text-[14px]",
+    clientNameSize: "text-[29px] sm:text-[33px]",
+    serviceTextSize: "text-[16.5px] sm:text-[18px]",
+    heroCardPadding: "p-5 sm:p-6",
+    heroTimeSize: "text-[17px] sm:text-[19px]",
+    nextClientNameSize: "text-[18.5px] sm:text-[20px]",
+    nextServiceTextSize: "text-[13.5px] sm:text-[14px]",
     boxPadding: "p-3.5 my-3 sm:my-3.5",
     timeSize: "text-[20px] sm:text-[22px]",
     freeTitleSize: "text-[20px] sm:text-[22px]",
@@ -418,6 +435,8 @@ export function playLuxuryChime() {
   }
 }
 
+export type TVActiveServicePhase = "active" | "ending_soon" | "overtime";
+
 // Micro-componente isolado para a barra de progresso em tempo real
 // Mantém seu próprio timer de 1s para atualizar o progresso contínuo e tempo restante
 // sem disparar re-render da coluna do profissional a cada segundo.
@@ -425,10 +444,12 @@ const AppointmentProgressBar = React.memo(function AppointmentProgressBar({
   inProgressApt,
   serverOffsetMs,
   palette,
+  onPhaseChange,
 }: {
   inProgressApt: TVAppointmentDTO;
   serverOffsetMs: number;
   palette: TVThemePalette;
+  onPhaseChange?: (phase: TVActiveServicePhase) => void;
 }) {
   const [currentMs, setCurrentMs] = useState<number>(() => Date.now() + serverOffsetMs);
 
@@ -455,10 +476,21 @@ const AppointmentProgressBar = React.memo(function AppointmentProgressBar({
   const rawPercent = (elapsedMs / totalMs) * 100;
   const percent = Math.min(100, Math.max(1, rawPercent));
 
-  // Formatação do Tempo Restante para o Profissional
+  // Formatação do Tempo Restante e Fase do Atendimento (Normal -> Reta Final -> Horário Esgotado)
   const remainingMinutes = Math.ceil(remainingMs / 60000);
-  const isOvertime = currentMs >= endsMs;
-  const overtimeMinutes = Math.floor((currentMs - endsMs) / 60000);
+  const isOvertime = currentMs >= endsMs || inProgressApt.status === "delayed";
+  const isEndingSoon = !isOvertime && remainingMinutes <= 5;
+  const phase: TVActiveServicePhase = isOvertime
+    ? "overtime"
+    : isEndingSoon
+    ? "ending_soon"
+    : "active";
+
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
+
+  const overtimeMinutes = Math.max(0, Math.floor((currentMs - endsMs) / 60000));
 
   let remainingText = "";
   if (isOvertime) {
@@ -470,14 +502,22 @@ const AppointmentProgressBar = React.memo(function AppointmentProgressBar({
     const h = Math.floor(remainingMinutes / 60);
     const m = remainingMinutes % 60;
     remainingText = m > 0 ? `${h}h ${m} min restantes` : `${h}h restantes`;
+  } else if (isEndingSoon) {
+    remainingText =
+      remainingMinutes > 1
+        ? `Reta final · ${remainingMinutes} min restantes`
+        : "Reta final · menos de 1 min";
   } else if (remainingMinutes > 1) {
     remainingText = `${remainingMinutes} min restantes`;
   } else {
     remainingText = "Menos de 1 min restante";
   }
 
+  const isLight = palette.id === "light";
+  const isWarningPhase = isOvertime || isEndingSoon;
+
   return (
-    <div className="mt-2 sm:mt-2.5">
+    <div>
       <div
         role="progressbar"
         aria-valuenow={Math.round(percent)}
@@ -488,26 +528,128 @@ const AppointmentProgressBar = React.memo(function AppointmentProgressBar({
       >
         <div
           className={`h-full rounded-full ${
-            isOvertime ? "bg-amber-400" : palette.progressBarBg
+            isWarningPhase
+              ? isLight
+                ? "bg-amber-500"
+                : "bg-amber-400"
+              : palette.progressBarBg
           } transition-all duration-1000 ease-linear motion-reduce:transition-none`}
           style={{ width: `${percent.toFixed(2)}%` }}
         />
       </div>
-      <div className="flex items-center justify-between mt-1 sm:mt-1.5">
+      <div className="flex items-center justify-between mt-1.5">
         <span
-          className={`text-[10px] sm:text-[11px] font-medium tabular-nums ${
-            isOvertime
-              ? "text-amber-400 font-semibold"
+          className={`text-[10.5px] sm:text-[11.5px] font-medium tabular-nums ${
+            isWarningPhase
+              ? isLight
+                ? "text-amber-700 font-semibold"
+                : "text-amber-400 font-semibold"
               : palette.progressElapsedText
           }`}
         >
           {remainingText}
         </span>
         <span
-          className={`text-[9.5px] sm:text-[10.5px] font-mono font-semibold tabular-nums opacity-75 ${palette.labelMuted}`}
+          className={`text-[10px] sm:text-[11px] font-mono font-semibold tabular-nums opacity-80 ${palette.labelMuted}`}
         >
           {Math.round(percent)}%
         </span>
+      </div>
+    </div>
+  );
+});
+
+// Card Hero Unificado para o Atendimento Atual (Cliente em escala Hero + Serviço + Horário + Progresso)
+const ActiveAppointmentHeroCard = React.memo(function ActiveAppointmentHeroCard({
+  inProgressApt,
+  serverOffsetMs,
+  cfg,
+  palette,
+}: {
+  inProgressApt: TVAppointmentDTO;
+  serverOffsetMs: number;
+  cfg: TVSizeConfig;
+  palette: TVThemePalette;
+}) {
+  const [phase, setPhase] = useState<TVActiveServicePhase>(() =>
+    inProgressApt.status === "delayed" ? "overtime" : "active"
+  );
+
+  const isLight = palette.id === "light";
+  const isOvertime = phase === "overtime";
+  const isEndingSoon = phase === "ending_soon";
+
+  const surfaceClasses = isOvertime
+    ? isLight
+      ? "bg-amber-50/70 border-amber-500/45 ring-1 ring-amber-500/20"
+      : "bg-amber-500/[0.04] border-amber-500/40 ring-1 ring-amber-500/20"
+    : `${palette.timeBoxBg} ${palette.timeBoxBorder}`;
+
+  const dotClasses = isOvertime
+    ? "bg-amber-400 ring-2 ring-amber-400/25 animate-pulse motion-reduce:animate-none"
+    : isEndingSoon
+    ? "bg-amber-400 ring-2 ring-amber-400/20"
+    : `${palette.syncOnlineDot} animate-pulse motion-reduce:animate-none`;
+
+  const badgeTextClasses =
+    isOvertime || isEndingSoon
+      ? isLight
+        ? "text-amber-700"
+        : "text-amber-400"
+      : palette.profStatusActive;
+
+  const badgeLabel = isOvertime
+    ? "Horário esgotado"
+    : isEndingSoon
+    ? "Reta final"
+    : "Atendimento agora";
+
+  return (
+    <div
+      className={`flex-1 flex flex-col justify-between rounded-2xl border transition-colors duration-500 min-h-0 ${cfg.heroCardPadding} ${surfaceClasses}`}
+    >
+      {/* 1. Topo do Card Hero: Micro-indicador de Status + Horário Agendado */}
+      <div
+        className={`flex items-center justify-between gap-2 pb-2 sm:pb-2.5 border-b ${palette.cardHeaderDivider} shrink-0`}
+      >
+        <div className="inline-flex items-center gap-2 min-w-0">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${dotClasses}`} />
+          <span
+            className={`${cfg.labelSize} font-bold tracking-[0.14em] uppercase truncate ${badgeTextClasses}`}
+          >
+            {badgeLabel}
+          </span>
+        </div>
+
+        <span
+          className={`${cfg.heroTimeSize} font-mono font-bold ${palette.timeText} tracking-tight tabular-nums shrink-0`}
+        >
+          {inProgressApt.startTime} – {inProgressApt.endTime}
+        </span>
+      </div>
+
+      {/* 2. Centro Hero: Nome do Cliente Atual em Destaque + Serviço */}
+      <div className="my-auto py-2 sm:py-3 min-w-0">
+        <h4
+          className={`${cfg.clientNameSize} font-bold ${palette.clientNameText} tracking-tight leading-tight truncate`}
+        >
+          {inProgressApt.clientName}
+        </h4>
+        <p
+          className={`${cfg.serviceTextSize} ${palette.serviceText} font-medium mt-1 sm:mt-1.5 truncate`}
+        >
+          {inProgressApt.serviceName}
+        </p>
+      </div>
+
+      {/* 3. Base do Card Hero: Barra de Progresso e Alerta de Tempo Restante */}
+      <div className={`pt-2 sm:pt-2.5 border-t ${palette.cardHeaderDivider} shrink-0`}>
+        <AppointmentProgressBar
+          inProgressApt={inProgressApt}
+          serverOffsetMs={serverOffsetMs}
+          palette={palette}
+          onPhaseChange={setPhase}
+        />
       </div>
     </div>
   );
@@ -596,7 +738,7 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
     });
   }, [column.appointments]);
 
-  // Identifica agendamento em andamento e próximos
+  // Identifica agendamento em andamento (incluindo janela de atraso de 10 min) e próximos
   const { inProgressApt, nextApt, freeTimeText, isInService } = useMemo<{
     inProgressApt: TVAppointmentDTO | null;
     nextApt: TVAppointmentDTO | null;
@@ -605,15 +747,17 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
   }>(() => {
     const currentServerMs = Date.now() + serverOffsetMs;
     let inProgress: TVAppointmentDTO | null = null;
+    let delayedCandidate: TVAppointmentDTO | null = null;
     const upcoming: TVAppointmentDTO[] = [];
 
+    // Passo 1: Prioriza agendamento dentro da janela regular ativa (startsMs <= now < endsMs)
+    // e identifica candidato recém-esgotado (dentro de TV_OVERTIME_GRACE_MS) caso nenhum novo tenha iniciado.
     for (const apt of sorted) {
       if (apt.status === "completed") continue;
 
       const startsMs = apt.startsAt ? new Date(apt.startsAt).getTime() : 0;
       const endsMs = apt.endsAt ? new Date(apt.endsAt).getTime() : startsMs + 45 * 60000;
 
-      // Atendimento em andamento: marcado explicitamente como in_progress OU horário atual dentro da janela
       if (
         apt.status === "in_progress" ||
         (currentServerMs >= startsMs && currentServerMs < endsMs)
@@ -624,12 +768,25 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
         }
       }
 
-      // Se já terminou antes do horário atual, não é próximo
+      if (
+        currentServerMs >= endsMs &&
+        (apt.status === "delayed" || currentServerMs < endsMs + TV_OVERTIME_GRACE_MS)
+      ) {
+        delayedCandidate = apt;
+        continue;
+      }
+
       if (endsMs <= currentServerMs) {
         continue;
       }
 
       upcoming.push(apt);
+    }
+
+    // Passo 2: Se nenhum novo atendimento assumiu a cadeira no horário regular,
+    // mantém o atendimento em atraso (overtime) visível no Card Hero com alerta âmbar.
+    if (!inProgress && delayedCandidate) {
+      inProgress = delayedCandidate;
     }
 
     const next = upcoming[0] || null;
@@ -698,51 +855,21 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
       </div>
 
       {/* 2. CORPO CENTRAL E INFORMAÇÕES DO ATENDIMENTO */}
-      <div className="flex-1 flex flex-col justify-between py-2 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col justify-between py-2.5 min-h-0 overflow-hidden">
         {inProgressApt ? (
-          /* CASO 1: EM ATENDIMENTO */
+          /* CASO 1: EM ATENDIMENTO — Card Hero Unificado + Rodapé Próximo */
           <div className="flex flex-col justify-between h-full min-h-0">
-            <div className="space-y-0.5">
-              <span
-                className={`${cfg.labelSize} font-semibold tracking-[0.16em] uppercase ${palette.labelMuted} block`}
-              >
-                Cliente Atual
-              </span>
-              <h4
-                className={`${cfg.clientNameSize} font-bold ${palette.clientNameText} tracking-tight leading-snug truncate`}
-              >
-                {inProgressApt.clientName}
-              </h4>
-              <p className={`${cfg.serviceTextSize} ${palette.serviceText} font-normal truncate`}>
-                {inProgressApt.serviceName}
-              </p>
-            </div>
+            <ActiveAppointmentHeroCard
+              inProgressApt={inProgressApt}
+              serverOffsetMs={serverOffsetMs}
+              cfg={cfg}
+              palette={palette}
+            />
 
-            {/* Caixa de Horário com Barra de Progresso */}
+            {/* Bloco Próximo Atendimento (ancorado na base da coluna em escala secundária) */}
             <div
-              className={`rounded-xl ${palette.timeBoxBg} border ${palette.timeBoxBorder} ${cfg.boxPadding}`}
+              className={`mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t ${palette.cardHeaderDivider} shrink-0`}
             >
-              <span
-                className={`${cfg.labelSize} font-semibold tracking-[0.16em] uppercase ${palette.labelMuted} block mb-0.5`}
-              >
-                Horário
-              </span>
-              <div
-                className={`${cfg.timeSize} font-bold ${palette.timeText} tracking-tight tabular-nums`}
-              >
-                {inProgressApt.startTime} – {inProgressApt.endTime}
-              </div>
-
-              {/* Barra de Progresso no Horário Agendado (Micro-componente isolado) */}
-              <AppointmentProgressBar
-                inProgressApt={inProgressApt}
-                serverOffsetMs={serverOffsetMs}
-                palette={palette}
-              />
-            </div>
-
-            {/* Bloco Próximo Atendimento */}
-            <div className="pt-0.5">
               <div
                 className={`flex items-center justify-between gap-2 ${cfg.labelSize} font-semibold tracking-[0.16em] uppercase ${palette.labelMuted}`}
               >
@@ -753,28 +880,30 @@ const ProfessionalCockpitColumn = React.memo(function ProfessionalCockpitColumn(
                       presenceStatus={nextApt.presenceStatus}
                       themeId={palette.id}
                     />
-                    <span className={`font-bold ${palette.nextTimeText} tabular-nums`}>
+                    <span className={`font-mono font-bold ${palette.nextTimeText} tabular-nums`}>
                       {nextApt.startTime}
                     </span>
                   </div>
                 )}
               </div>
               {nextApt ? (
-                <div className="mt-0.5 space-y-0.5">
+                <div className="mt-1 space-y-0.5">
                   <h5
-                    className={`${cfg.profNameSize} font-semibold ${palette.nextClientText} tracking-tight truncate`}
+                    className={`${cfg.nextClientNameSize} font-semibold ${palette.nextClientText} tracking-tight truncate`}
                   >
                     {nextApt.clientName}
                   </h5>
                   <p
-                    className={`${cfg.serviceTextSize} ${palette.nextServiceText} font-normal truncate`}
+                    className={`${cfg.nextServiceTextSize} ${palette.nextServiceText} font-normal truncate`}
                   >
                     {nextApt.serviceName}
                   </p>
                 </div>
               ) : (
-                <div className="mt-0.5">
-                  <h5 className={`${cfg.serviceTextSize} font-medium ${palette.labelMuted} tracking-tight`}>
+                <div className="mt-1">
+                  <h5
+                    className={`${cfg.nextServiceTextSize} font-medium ${palette.labelMuted} tracking-tight`}
+                  >
                     Nenhum cliente agendado
                   </h5>
                   <p className={`${cfg.labelSize} ${palette.labelMuted} opacity-80 font-normal`}>
