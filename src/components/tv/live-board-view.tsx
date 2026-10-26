@@ -663,10 +663,19 @@ const NextClientPresenceBadge = React.memo(function NextClientPresenceBadge({
   presenceStatus?: TVClientPresenceStatus;
   themeId: TVThemeMode;
 }) {
-  const isLight = themeId === "light";
-  const baseSurface = isLight
-    ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]"
-    : "bg-white/[0.04] border-white/[0.1] text-zinc-200";
+  const baseSurface = useMemo(() => {
+    switch (themeId) {
+      case "light":
+        return "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E]";
+      case "warm_brown":
+        return "bg-[#221915]/80 border-[#3D2C24] text-[#F5EDE8]";
+      case "noir_gold":
+        return "bg-[#11100E]/80 border-[#362F22] text-[#FAF6EE]";
+      case "dark":
+      default:
+        return "bg-white/[0.04] border-white/[0.1] text-zinc-200";
+    }
+  }, [themeId]);
 
   if (presenceStatus === "arrived") {
     return (
@@ -1721,12 +1730,27 @@ export function LiveBoardView({ token, onUnauthorized }: LiveBoardViewProps) {
         </div>
 
         {professionalPages.length > 1 && (
-          <div className="flex items-center gap-1">
+          <div
+            role="status"
+            aria-live="polite"
+            aria-label={`Página ${pageIndex + 1} de ${professionalPages.length} da equipe`}
+            className="flex items-center gap-1.5"
+          >
+            <span className="sr-only">
+              Página {pageIndex + 1} de {professionalPages.length}
+            </span>
             {professionalPages.map((_, idx) => (
               <span
                 key={idx}
-                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none ${
-                  idx === pageIndex ? "bg-white w-4" : "bg-white/20"
+                aria-hidden="true"
+                className={`h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none ${
+                  idx === pageIndex
+                    ? currentPalette.id === "light"
+                      ? "bg-[#1C1C1E] w-4"
+                      : "bg-white w-4"
+                    : currentPalette.id === "light"
+                    ? "bg-black/20 w-1.5"
+                    : "bg-white/20 w-1.5"
                 }`}
               />
             ))}
