@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Calendar,
@@ -64,6 +65,7 @@ import {
   syncAppointmentUpdateToSupabase,
   syncDeleteAppointmentFromSupabase,
   syncNewClientToSupabase,
+  syncClientUpdateToSupabase,
   syncNewStaffToSupabase,
   getCurrentTenantContext,
 } from "@/lib/supabase/agendaste-sync";
@@ -96,8 +98,32 @@ export function LuveaApp({
   const [quickSalePrefill, setQuickSalePrefill] =
     useState<CalendarEventItem | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [tenantOrgId, setTenantOrgId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Bloqueia scroll do body e adiciona handler do Escape quando o menu mobile estiver aberto
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
 
   const handleNavigate = (section: NavigationSectionId, tab?: string) => {
     setActiveSection(section);
@@ -183,6 +209,19 @@ export function LuveaApp({
               await syncNewClientToSupabase(cli, next.staff[0]?.id, tenantOrgId);
             }
 
+            // Sincroniza atualizações em clientes existentes (fotos auto-organizadas, anamnese, lembretes)
+            for (const cli of next.clients) {
+              const oldCli = prev.clients.find((c) => c.id === cli.id);
+              if (
+                oldCli &&
+                (oldCli.autoSortedPhotos !== cli.autoSortedPhotos ||
+                  oldCli.notesAndForms !== cli.notesAndForms ||
+                  oldCli.sendAutomaticReminders !== cli.sendAutomaticReminders)
+              ) {
+                await syncClientUpdateToSupabase(cli, tenantOrgId);
+              }
+            }
+
             // Sincroniza agendamentos recém-criados com o ID do profissional REAL (evt.providerId)
             const prevIds = new Set(prev.calendarEvents.map((e) => e.id));
             const newEvents = next.calendarEvents.filter((e) => !prevIds.has(e.id));
@@ -218,12 +257,13 @@ export function LuveaApp({
           }
         })();
 
-        // Sincroniza dados da organização e site de agendamento quando alterados no wizard
+        // Sincroniza dados da organização, estoque e site de agendamento quando alterados
         if (
           next.settings.business.bookingSlug !== prev.settings.business.bookingSlug ||
           next.settings.business.businessName !== prev.settings.business.businessName ||
           next.settings.website?.websitePublished !== prev.settings.website?.websitePublished ||
-          next.settings.website?.theme !== prev.settings.website?.theme
+          next.settings.website?.theme !== prev.settings.website?.theme ||
+          next.inventory !== prev.inventory
         ) {
           supabase
             .from("organizations")
@@ -234,6 +274,7 @@ export function LuveaApp({
                 website: next.settings.website,
                 websitePublished: next.settings.website?.websitePublished,
                 onboardingSteps: next.onboarding.steps,
+                inventory: next.inventory,
               },
             })
             .eq("id", tenantOrgId)
@@ -488,18 +529,21 @@ export function LuveaApp({
         </div>
       </header>
 
-      {/* Mobile Offcanvas Drawer (<768px): Full Studio Navigation */}
-      {mobileMenuOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-start animate-in fade-in duration-150"
-          onClick={() => setMobileMenuOpen(false)}
-        >
+      {/* Mobile Offcanvas Drawer (<768px): Full Studio Navigation (Portal to body at z-[100]) */}
+      {mounted &&
+        mobileMenuOpen &&
+        createPortal(
           <div
-            className="w-[85%] max-w-[320px] bg-white dark:bg-[#18181b] h-full shadow-2xl flex flex-col justify-between animate-in slide-in-from-left duration-200 select-none"
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu principal"
+            className="md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex justify-start animate-in fade-in duration-150"
+            onClick={() => setMobileMenuOpen(false)}
           >
+            <div
+              className="w-[85%] max-w-[320px] bg-white dark:bg-[#18181b] h-full h-[100dvh] shadow-2xl flex flex-col justify-between animate-in slide-in-from-left duration-200 select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
             {/* Drawer Header */}
             <div className="p-4 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between gap-3 bg-[#FAF9F6] dark:bg-[#18181b]">
               <div className="flex items-center gap-3 min-w-0">
@@ -916,8 +960,8 @@ export function LuveaApp({
               </div>
             </div>
 
-            {/* Drawer Bottom Bar */}
-            <div className="p-3 border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] text-center">
+            {/* Drawer Bottom Bar with safe area padding */}
+            <div className="p-3 border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] text-center pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
               {pwa.isInstalled ? (
                 <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
@@ -937,7 +981,8 @@ export function LuveaApp({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Left Collapsible LUVEA Sidebar (Desktop/Tablet >=768px) */}
@@ -989,10 +1034,10 @@ export function LuveaApp({
                 <button
                   type="button"
                   onClick={() => setTrialBannerDismissed(true)}
-                  className="p-1 rounded-md text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white transition"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition"
                   aria-label="Dispensar aviso"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>

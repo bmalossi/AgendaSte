@@ -22,6 +22,7 @@ import {
   Trash2,
   Maximize2,
   ExternalLink,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   StudioState,
@@ -32,7 +33,11 @@ import {
   filterClientsByRetention,
   updateClientNotesAndForms,
   uploadAutoSortedClientPhoto,
+  resolvePhotoLabelForGroup,
+  swapClientPhotoGroupOrder,
+  toggleClientPhotoLabel,
   deleteClientPhoto,
+  deleteCalendarEvent,
   importStudioMigrationData,
   generateUuid,
 } from "@/lib/agendaste-store";
@@ -112,6 +117,11 @@ export function ClientsView({
     setAllergiesDraft(client.notesAndForms.allergies);
     setFormulasDraft(client.notesAndForms.formulasAndPreferences);
     setBirthdayDraft(client.notesAndForms.birthday);
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setTimeout(() => {
+        document.getElementById("client-profile-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    }
   };
 
   const filteredClients = filterClientsByRetention(
@@ -222,7 +232,7 @@ export function ClientsView({
               <Sparkles className="w-3.5 h-3.5 text-[#E11D8F]" />
               Apresentando Notas e Fichas
             </span>
-            <h2 className="font-display text-[40px] leading-[1.08] text-[#1C1C1E]">
+            <h2 className="font-display text-[28px] sm:text-[36px] lg:text-[40px] leading-[1.12] sm:leading-[1.08] text-[#1C1C1E]">
               Seus clientes no piloto automático
             </h2>
             <p className="text-[15px] text-[#6E6E73] max-w-xl">
@@ -415,28 +425,28 @@ export function ClientsView({
 
         {/* Right Client Profile Drawer (05-3-clients-added.png, 05-3-notes.png, 05-3-photos.png) */}
         {selectedClient && (
-          <div className="lg:col-span-5 bg-white rounded-[24px] border border-[#E5E5EA] shadow-gg-card overflow-hidden">
+          <div id="client-profile-card" className="lg:col-span-5 bg-white rounded-[24px] border border-[#E5E5EA] shadow-gg-card overflow-hidden scroll-mt-20">
             {/* Profile Top Header */}
-            <div className="p-6 border-b border-[#EFEFF4] space-y-4">
-              <div className="flex items-start justify-between gap-3">
+            <div className="p-5 sm:p-6 border-b border-[#EFEFF4] space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="flex items-center gap-3.5">
                   <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center text-[18px] font-bold text-[#1C1C1E]"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-[16px] sm:text-[18px] font-bold text-[#1C1C1E] shrink-0"
                     style={{ backgroundColor: selectedClient.avatarColor }}
                   >
                     {selectedClient.fullName.slice(0, 1).toUpperCase()}
                   </div>
-                  <div>
-                    <h2 className="text-[20px] font-bold text-[#1C1C1E]">
+                  <div className="min-w-0">
+                    <h2 className="text-[18px] sm:text-[20px] font-bold text-[#1C1C1E] truncate">
                       {selectedClient.fullName}
                     </h2>
-                    <p className="text-[12px] text-[#6E6E73]">
+                    <p className="text-[12px] text-[#6E6E73] truncate">
                       Cliente desde {formatDateBR(selectedClient.createdAtISO)}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end">
                   <button
                     onClick={() =>
                       onNavigateToCalendarWithClient?.(selectedClient.id)
@@ -461,7 +471,7 @@ export function ClientsView({
               </div>
 
               {/* Contact Info + Send Automatic Reminders Toggle */}
-              <div className="grid grid-cols-2 gap-3 pt-2 text-[12px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-[12px]">
                 <div className="p-3 rounded-[14px] bg-[#F5F5F7]">
                   <span className="text-[#8E8E93] block">E-mail</span>
                   <span className="font-semibold text-[#1C1C1E] truncate block">
@@ -627,19 +637,40 @@ export function ClientsView({
                       .map((ev) => (
                         <div
                           key={ev.id}
-                          className="p-4 rounded-[16px] border border-[#E5E5EA] flex items-center justify-between"
+                          className="p-4 rounded-[16px] border border-[#E5E5EA] flex items-center justify-between gap-3"
                         >
-                          <div>
-                            <p className="text-[13px] font-bold text-[#1C1C1E]">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-bold text-[#1C1C1E] truncate">
                               {ev.serviceNames.join(" + ")}
                             </p>
-                            <p className="text-[12px] text-[#6E6E73]">
+                            <p className="text-[12px] text-[#6E6E73] mt-0.5">
                               {formatDateBR(ev.dateISO)} · {ev.startTime} – {ev.endTime}
                             </p>
                           </div>
-                          <span className="font-mono text-[13px] font-bold text-[#1C1C1E]">
-                            {formatBRL(ev.totalCents)}
-                          </span>
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <span className="font-mono text-[13px] font-bold text-[#1C1C1E]">
+                              {formatBRL(ev.totalCents)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    `Deseja realmente excluir o agendamento de ${ev.clientName} (${formatDateBR(ev.dateISO)} às ${ev.startTime})?`
+                                  )
+                                ) {
+                                  onUpdateState((prev) =>
+                                    deleteCalendarEvent(prev, ev.id, "delete").state
+                                  );
+                                }
+                              }}
+                              title="Excluir agendamento"
+                              aria-label="Excluir agendamento"
+                              className="w-7 h-7 rounded-full border border-transparent hover:border-[#E5E5EA] hover:bg-rose-50 text-[#8E8E93] hover:text-rose-600 flex items-center justify-center transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))
                   )}
@@ -718,7 +749,7 @@ export function ClientsView({
                       Suas fotos de clientes, auto-organizadas
                     </h4>
                     <p className="text-[12px] text-[#6E6E73]">
-                      Tire fotos na agenda ou importe da sua galeria. Nós organizamos e rotulamos por agendamento automaticamente.
+                      Envie as fotos do atendimento. Agrupamos pelo serviço agendado e rotulamos automaticamente em <strong>Antes</strong> e <strong>Depois</strong> pela ordem cronológica.
                     </p>
                     <div className="flex flex-col gap-2 pt-1">
                       <label
@@ -731,56 +762,88 @@ export function ClientsView({
                         {isUploadingPhoto ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin text-white" />
-                            <span>Enviando foto...</span>
+                            <span>Organizando fotos...</span>
                           </>
                         ) : (
                           <>
                             <Upload className="w-4 h-4 text-white" />
-                            <span>+ Enviar foto do dispositivo</span>
+                            <span>+ Enviar fotos (Antes &amp; Depois)</span>
                           </>
                         )}
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           disabled={isUploadingPhoto}
                           className="hidden"
                           onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
+                            const fileList = e.target.files;
+                            if (!fileList || fileList.length === 0) return;
+                            // Ordena cronologicamente pela data de captura do arquivo (mais antiga = Antes, mais recente = Depois)
+                            const files = Array.from(fileList).sort(
+                              (a, b) => a.lastModified - b.lastModified
+                            );
                             setIsUploadingPhoto(true);
                             try {
-                              const formData = new FormData();
-                              formData.append("file", file);
-                              formData.append("folder", "clientes");
+                              for (const file of files) {
+                                const formData = new FormData();
+                                formData.append("file", file);
+                                formData.append("folder", "clientes");
 
-                              const res = await fetch("/api/upload", {
-                                method: "POST",
-                                body: formData,
-                              });
-                              const data = await res.json();
+                                try {
+                                  const res = await fetch("/api/upload", {
+                                    method: "POST",
+                                    body: formData,
+                                  });
+                                  const data = await res.json();
 
-                              if (res.ok && data.success && data.url) {
-                                onUpdateState((prev) =>
-                                  uploadAutoSortedClientPhoto(prev, selectedClient.id, {
-                                    photoUrl: data.url,
-                                    beforeLabel: "Antes",
-                                    afterLabel: `Depois · ${file.name}`,
-                                  })
-                                );
-                              } else {
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                  if (typeof reader.result === "string") {
+                                  if (res.ok && data.success && data.url) {
                                     onUpdateState((prev) =>
-                                      uploadAutoSortedClientPhoto(prev, selectedClient.id, {
-                                        photoUrl: reader.result as string,
-                                        beforeLabel: "Antes",
-                                        afterLabel: `Depois · ${file.name}`,
-                                      })
+                                      uploadAutoSortedClientPhoto(
+                                        prev,
+                                        selectedClient.id,
+                                        {
+                                          photoUrl: data.url,
+                                          beforeLabel: "Antes",
+                                          afterLabel: "Depois",
+                                          fileName: file.name,
+                                        }
+                                      )
                                     );
+                                    continue;
                                   }
-                                };
-                                reader.readAsDataURL(file);
+                                } catch {
+                                  // Fallback local DataURL abaixo
+                                }
+
+                                const dataUrl = await new Promise<string | null>(
+                                  (resolve) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () =>
+                                      resolve(
+                                        typeof reader.result === "string"
+                                          ? reader.result
+                                          : null
+                                      );
+                                    reader.onerror = () => resolve(null);
+                                    reader.readAsDataURL(file);
+                                  }
+                                );
+
+                                if (dataUrl) {
+                                  onUpdateState((prev) =>
+                                    uploadAutoSortedClientPhoto(
+                                      prev,
+                                      selectedClient.id,
+                                      {
+                                        photoUrl: dataUrl,
+                                        beforeLabel: "Antes",
+                                        afterLabel: "Depois",
+                                        fileName: file.name,
+                                      }
+                                    )
+                                  );
+                                }
                               }
                             } catch (err) {
                               console.warn("Erro no upload da foto do cliente:", err);
@@ -795,21 +858,29 @@ export function ClientsView({
                       {isUploadingPhoto && (
                         <div className="p-2.5 rounded-[12px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center gap-2 text-[11.5px] text-[#6E56CF] animate-pulse">
                           <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                          <span>Salvando imagem na nuvem com segurança...</span>
+                          <span>Salvando e rotulando fotos na nuvem...</span>
                         </div>
                       )}
 
                       <button
                         type="button"
                         onClick={() =>
-                          onUpdateState((prev) =>
-                            uploadAutoSortedClientPhoto(prev, selectedClient.id, {
-                              photoUrl:
-                                "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80",
-                              beforeLabel: "Antes",
-                              afterLabel: "Depois · Finalização Gloss",
-                            })
-                          )
+                          onUpdateState((prev) => {
+                            const hasOne =
+                              (selectedClient.autoSortedPhotos[0]?.photoUrls
+                                .length ?? 0) >= 1;
+                            return uploadAutoSortedClientPhoto(
+                              prev,
+                              selectedClient.id,
+                              {
+                                photoUrl: hasOne
+                                  ? "https://images.unsplash.com/photo-1560869713-7d0a29430803?w=600&auto=format&fit=crop&q=80"
+                                  : "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80",
+                                beforeLabel: "Antes",
+                                afterLabel: "Depois",
+                              }
+                            );
+                          })
                         }
                         className="w-full py-2 rounded-full border border-[#D1D1D6] bg-white text-[11.5px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
                       >
@@ -837,71 +908,130 @@ export function ClientsView({
                         key={grp.id}
                         className="p-4 rounded-[16px] border border-[#E5E5EA] space-y-3 bg-white"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[13px] font-bold text-[#1C1C1E]">
-                            {grp.serviceName}
-                          </span>
-                          <span className="text-[11px] font-mono text-[#6E56CF] font-bold">
-                            {formatDateBR(grp.appointmentDateISO)}
-                          </span>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="text-[13px] font-bold text-[#1C1C1E] block truncate">
+                              {grp.serviceName}
+                            </span>
+                            <p className="text-[11px] text-[#6E6E73]">
+                              {grp.notes}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {grp.photoUrls.length >= 2 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onUpdateState((prev) =>
+                                    swapClientPhotoGroupOrder(
+                                      prev,
+                                      selectedClient.id,
+                                      grp.id
+                                    )
+                                  )
+                                }
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11px] font-medium text-[#1C1C1E] transition active:scale-95"
+                                title="Inverter a ordem entre Antes e Depois"
+                              >
+                                <ArrowLeftRight className="w-3 h-3 text-[#6E6E73]" />
+                                <span>Inverter ordem</span>
+                              </button>
+                            )}
+                            <span className="text-[11px] font-mono text-[#6E56CF] font-bold">
+                              {formatDateBR(grp.appointmentDateISO)}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-[11px] text-[#6E6E73]">{grp.notes}</p>
 
                         {/* Photos Grid Thumbnails */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
-                          {grp.photoUrls.map((url, idx) => (
-                            <div
-                              key={`${url}-${idx}`}
-                              className="group relative aspect-square rounded-[12px] overflow-hidden border border-[#E5E5EA] bg-[#F5F5F7] shadow-sm hover:shadow-md transition cursor-pointer"
-                              onClick={() =>
-                                setPreviewPhoto({
-                                  url,
-                                  title: `${grp.serviceName} · ${selectedClient.fullName}`,
-                                  date: formatDateBR(grp.appointmentDateISO),
-                                  notes: grp.notes,
-                                })
-                              }
-                            >
-                              <img
-                                src={url}
-                                alt={grp.serviceName}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                loading="lazy"
-                              />
+                          {grp.photoUrls.map((url, idx) => {
+                            const photoLabel = resolvePhotoLabelForGroup(grp, idx);
+                            const isAfter =
+                              photoLabel.toLowerCase().startsWith("depois") ||
+                              photoLabel.toLowerCase().startsWith("resultado");
+                            return (
+                              <div
+                                key={`${url}-${idx}`}
+                                className="group relative aspect-square rounded-[12px] overflow-hidden border border-[#E5E5EA] bg-[#F5F5F7] shadow-sm hover:shadow-md transition cursor-pointer"
+                                onClick={() =>
+                                  setPreviewPhoto({
+                                    url,
+                                    title: `${photoLabel} · ${grp.serviceName} (${selectedClient.fullName})`,
+                                    date: formatDateBR(grp.appointmentDateISO),
+                                    notes: grp.notes,
+                                  })
+                                }
+                              >
+                                <img
+                                  src={url}
+                                  alt={`${photoLabel} - ${grp.serviceName}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                  loading="lazy"
+                                />
 
-                              {/* Hover Overlay with Quick Action Buttons */}
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                                <div className="flex justify-end gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (confirm("Excluir esta foto da cliente?")) {
+                                {/* Quick Action Overlay (Clean on mobile, full controls on hover) */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20 lg:group-hover:bg-black/30 transition-colors flex flex-col justify-between p-2 pointer-events-none">
+                                  <div className="flex justify-end gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm("Excluir esta foto da cliente?")) {
+                                          onUpdateState((prev) =>
+                                            deleteClientPhoto(
+                                              prev,
+                                              selectedClient.id,
+                                              url
+                                            )
+                                          );
+                                        }
+                                      }}
+                                      className="w-7 h-7 rounded-full bg-black/55 hover:bg-black/80 backdrop-blur-xs text-white/90 hover:text-white flex items-center justify-center transition shadow-xs pointer-events-auto"
+                                      title="Excluir foto"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+
+                                  <div className="hidden lg:flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="px-2.5 py-1 rounded-full bg-white/95 text-[#1C1C1E] text-[10.5px] font-bold shadow-sm flex items-center gap-1">
+                                      <Maximize2 className="w-3 h-3" />
+                                      <span>Abrir foto</span>
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center justify-between gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         onUpdateState((prev) =>
-                                          deleteClientPhoto(prev, selectedClient.id, url)
+                                          toggleClientPhotoLabel(
+                                            prev,
+                                            selectedClient.id,
+                                            grp.id,
+                                            idx
+                                          )
                                         );
-                                      }
-                                    }}
-                                    className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition shadow-sm"
-                                    title="Excluir foto"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                      }}
+                                      title="Toque para alternar a etiqueta (Antes / Depois / Durante)"
+                                      className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 backdrop-blur-xs border border-white/15 text-[11px] font-semibold text-white transition active:scale-95 max-w-full truncate"
+                                    >
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                          isAfter
+                                            ? "bg-emerald-400 ring-2 ring-emerald-400/25"
+                                            : "bg-zinc-300"
+                                        }`}
+                                      />
+                                      <span className="truncate">{photoLabel}</span>
+                                    </button>
+                                  </div>
                                 </div>
-
-                                <div className="flex items-center justify-center">
-                                  <span className="px-2.5 py-1 rounded-full bg-white/95 text-[#1C1C1E] text-[10.5px] font-bold shadow-sm flex items-center gap-1">
-                                    <Maximize2 className="w-3 h-3" />
-                                    <span>Abrir foto</span>
-                                  </span>
-                                </div>
-
-                                <span className="text-[10px] text-white font-semibold truncate bg-black/60 px-1.5 py-0.5 rounded">
-                                  {grp.beforeLabel || grp.afterLabel || `Foto ${idx + 1}`}
-                                </span>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     ))
@@ -1016,7 +1146,7 @@ export function ClientsView({
                   className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
                     Telefone / WhatsApp

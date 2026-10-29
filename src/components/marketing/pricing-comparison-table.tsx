@@ -93,13 +93,13 @@ export function PricingComparisonTable() {
       {/* 1. BENEFÍCIOS EXCLUSIVOS DO PRODUTO */}
       <section className="space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-800 text-[11px] font-semibold font-mono uppercase tracking-wider">
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-zinc-100 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] text-zinc-800 dark:text-zinc-200 text-[11px] font-semibold font-mono uppercase tracking-wider">
             <span>Vantagens Competitivas</span>
           </div>
-          <h2 className="font-serif text-3xl sm:text-4xl font-normal text-[#18181B] tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-normal text-[#18181B] dark:text-white tracking-tight">
             Benefícios que você não encontra em outro lugar
           </h2>
-          <p className="text-sm sm:text-base text-zinc-600 font-sans leading-relaxed">
+          <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 font-sans leading-relaxed">
             Feito para quem vive do negócio no Brasil, com foco em segurança
             financeira e zero burocracia.
           </p>

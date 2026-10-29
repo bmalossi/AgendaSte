@@ -15,6 +15,14 @@ const config: Config = {
         display: ["var(--font-serif)", "Georgia", "Cambria", "serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
+      spacing: {
+        "13": "3.25rem",
+        "18": "4.5rem",
+        "22": "5.5rem",
+      },
+      backdropBlur: {
+        "xs": "2px",
+      },
       backgroundImage: {
         "gg-hero-gradient":
           "linear-gradient(135deg, #F3F0FF 0%, #EDE7FE 55%, #FCE7F3 100%)",
@@ -54,6 +62,8 @@ const config: Config = {
         },
       },
       boxShadow: {
+        "2xs": "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
+        xs: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
         gg: "0 4px 20px -2px rgba(24, 24, 27, 0.06), 0 1px 3px -1px rgba(24, 24, 27, 0.04)",
         "gg-card":
           "0 4px 20px -2px rgba(24, 24, 27, 0.06), 0 1px 3px -1px rgba(24, 24, 27, 0.04)",

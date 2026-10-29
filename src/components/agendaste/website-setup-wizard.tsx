@@ -31,6 +31,7 @@ import {
   getBookingSiteUrl,
 } from "@/lib/agendaste-store";
 import { LuveaWordmark } from "@/components/luvea-logo";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 interface WebsiteSetupWizardProps {
   state: StudioState;
@@ -727,19 +728,16 @@ export function WebsiteSetupWizard({
                       <label className="text-[11px] font-medium text-zinc-700">
                         Estado (UF)
                       </label>
-                      <select
+                      <DropdownSelect
                         value={ufState}
-                        onChange={(e) => setUfState(e.target.value)}
-                        className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs text-zinc-900 bg-white"
-                      >
-                        {["SP", "RJ", "MG", "RS", "PR", "SC", "BA", "PE", "CE", "DF", "GO", "ES"].map(
-                          (uf) => (
-                            <option key={uf} value={uf}>
-                              {uf}
-                            </option>
-                          )
+                        onChange={(val) => setUfState(val)}
+                        options={["SP", "RJ", "MG", "RS", "PR", "SC", "BA", "PE", "CE", "DF", "GO", "ES"].map(
+                          (uf) => ({
+                            value: uf,
+                            label: uf,
+                          })
                         )}
-                      </select>
+                      />
                     </div>
                   </div>
                 )}
@@ -1241,16 +1239,16 @@ export function WebsiteSetupWizard({
                   <label className="text-[11px] font-medium text-zinc-700">
                     Tipo de Chave Pix
                   </label>
-                  <select
+                  <DropdownSelect
                     value={pixKeyType}
-                    onChange={(e: any) => setPixKeyType(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs text-zinc-900 bg-white"
-                  >
-                    <option value="email">E-mail</option>
-                    <option value="cpf_cnpj">CPF / CNPJ</option>
-                    <option value="phone">Celular</option>
-                    <option value="random">Chave Aleatória (EVP)</option>
-                  </select>
+                    onChange={(val) => setPixKeyType(val)}
+                    options={[
+                      { value: "email", label: "E-mail" },
+                      { value: "cpf_cnpj", label: "CPF / CNPJ" },
+                      { value: "phone", label: "Celular" },
+                      { value: "random", label: "Chave Aleatória (EVP)" },
+                    ]}
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -1376,7 +1374,7 @@ export function WebsiteSetupWizard({
 
       {/* Footer Navigation Bar */}
       {step !== 4 && (
-        <footer className="w-full border-t border-zinc-200 px-6 sm:px-10 py-4 bg-white flex flex-col gap-3">
+        <footer className="w-full border-t border-zinc-200 px-6 sm:px-10 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white flex flex-col gap-3">
           {/* Progress Indicators */}
           <div className="w-full flex items-center justify-between gap-3">
             <div className="flex items-center gap-1 sm:gap-1.5 flex-1 max-w-[200px] sm:max-w-[400px]">

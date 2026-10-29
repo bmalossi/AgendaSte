@@ -52,6 +52,7 @@ import {
   addDaysToDateISO,
   checkCalendarSlotConflict,
 } from "@/lib/agendaste-store";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 interface CalendarViewProps {
   state: StudioState;
@@ -1138,9 +1139,9 @@ export function CalendarView({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-53px-calc(4.5rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] bg-white dark:bg-[#09090b] overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col h-[calc(100dvh-53px-calc(5.2rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] max-h-full bg-white dark:bg-[#09090b] overflow-hidden">
       {/* Top Calendar Header Matching Reference Screenshot (media_1792845742688_c1165d63.png) */}
-      <header className="relative z-50 px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]">
+      <header className="relative z-20 px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]">
         {/* Desktop Header Layout (>= md) */}
         <div className="hidden md:flex items-center justify-between gap-4">
           {/* Left: Out + [📅] + < Sáb, 24 de Out, 2026 > */}
@@ -1265,25 +1266,25 @@ export function CalendarView({
                 onClick={() => setDatePopoverOpen((v) => !v)}
                 title="Abrir calendário"
                 aria-label="Abrir calendário"
-                className="p-1 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white"
+                className="w-9 h-9 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white flex items-center justify-center hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
-                <CalendarIcon className="w-3.5 h-3.5" />
+                <CalendarIcon className="w-4 h-4" />
               </button>
-              <div className="flex items-center rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[12px]">
+              <div className="flex items-center h-9 rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[12px]">
                 <button
                   type="button"
                   onClick={handleNavigatePrev}
                   title="Retroceder"
                   aria-label="Retroceder"
-                  className="px-2 py-1 text-[#6E6E73] dark:text-[#a1a1aa] rounded-l-full"
+                  className="h-full px-3 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-l-full flex items-center justify-center"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setDatePopoverOpen((v) => !v)}
                   title="Selecionar data"
-                  className="px-2.5 py-1 font-semibold text-[#1C1C1E] dark:text-white whitespace-nowrap"
+                  className="h-full px-3 font-semibold text-[#1C1C1E] dark:text-white whitespace-nowrap flex items-center"
                 >
                   {formatNavDate(selectedDateISO)}
                 </button>
@@ -1292,9 +1293,9 @@ export function CalendarView({
                   onClick={handleNavigateNext}
                   title="Avançar"
                   aria-label="Avançar"
-                  className="px-2 py-1 text-[#6E6E73] dark:text-[#a1a1aa] rounded-r-full"
+                  className="h-full px-3 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-r-full flex items-center justify-center"
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
@@ -1302,7 +1303,7 @@ export function CalendarView({
               {renderDatePopover("left-0 top-full mt-2")}
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -1313,14 +1314,14 @@ export function CalendarView({
                 }}
                 title="Configurações de exibição da agenda"
                 aria-label="Configurações de exibição da agenda"
-                className="p-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer"
+                className="w-9 h-9 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer"
               >
-                <Settings className="w-3.5 h-3.5" />
+                <Settings className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
-                className="px-3 py-1.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold shrink-0"
+                className="h-9 px-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12px] font-semibold shrink-0 flex items-center"
               >
                 + Agendar
               </button>
@@ -1334,7 +1335,7 @@ export function CalendarView({
             <button
               type="button"
               onClick={() => setWaitlistDrawerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E5EA] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0"
+              className="flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0"
             >
               <span>Lista de espera</span>
               {state.waitlist.length > 0 && (
@@ -1357,14 +1358,15 @@ export function CalendarView({
 
       {/* Week Mode Full 7-Day Matrix or Day Mode View */}
       {viewMode === "week" ? (
-        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#09090b]">
-          {/* 7-Day Header Strip */}
-          <div className="flex border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] sticky top-0 z-30 overflow-x-auto no-scrollbar">
-            {/* Time gutter spacer */}
-            <div className="w-14 sm:w-16 shrink-0 border-r border-[#E5E5EA] dark:border-[#27272a]" />
+        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#09090b] overflow-x-auto">
+          <div className="flex-1 flex flex-col min-w-[760px] md:min-w-0 min-h-0">
+            {/* 7-Day Header Strip */}
+            <div className="flex border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] shrink-0 sticky top-0 z-30">
+              {/* Time gutter spacer */}
+              <div className="w-14 sm:w-16 shrink-0 border-r border-[#E5E5EA] dark:border-[#27272a]" />
 
-            {/* 7 Day Columns Header */}
-            <div className="grid grid-cols-7 flex-1 min-w-[700px] md:min-w-0">
+              {/* 7 Day Columns Header */}
+              <div className="grid grid-cols-7 flex-1">
               {getWeekDays(selectedDateISO).map((wd) => {
                 const isToday =
                   currentTime ? wd.dateISO === currentTime.todayISO : false;
@@ -1411,11 +1413,11 @@ export function CalendarView({
           {/* Scrollable Matrix */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto overflow-x-auto relative"
+            className="flex-1 overflow-y-auto relative"
           >
             <div
               style={{ minHeight: `${calendarHours.length * HOUR_HEIGHT}px` }}
-              className="flex min-w-[760px] md:min-w-0 relative"
+              className="flex relative"
             >
               {/* Time Gutter on the Left */}
               <div className="w-14 sm:w-16 shrink-0 border-r border-[#E5E5EA] dark:border-[#27272a] select-none relative bg-white dark:bg-[#18181b] z-20">
@@ -1669,6 +1671,7 @@ export function CalendarView({
             </div>
           </div>
         </div>
+      </div>
       ) : (
         /* Day Mode Single Day Timeline */
         <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#09090b]">
@@ -1988,19 +1991,19 @@ export function CalendarView({
                 <span className="px-3 py-1 rounded-full bg-[#F5F5F7] text-[12px] font-semibold text-[#1C1C1E]">
                   Hoje · Outubro 2026
                 </span>
-                <select
-                  aria-label="Filtrar lista de espera por profissional"
+                <DropdownSelect
+                  variant="inline"
+                  align="right"
                   value={waitlistProviderFilter}
-                  onChange={(e) => setWaitlistProviderFilter(e.target.value)}
-                  className="px-3 py-1 rounded-full border border-[#E5E5EA] text-[12px] font-medium text-[#1C1C1E] bg-white"
-                >
-                  <option value="all">Todos profissionais</option>
-                  {state.staff.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.fullName}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setWaitlistProviderFilter(val)}
+                  options={[
+                    { value: "all", label: "Todos profissionais" },
+                    ...state.staff.map((st) => ({
+                      value: st.id,
+                      label: st.fullName,
+                    })),
+                  ]}
+                />
               </div>
             </div>
 
@@ -2126,12 +2129,12 @@ export function CalendarView({
               {/* Event Type Selector */}
               <div>
                 <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
-                  Event type
+                  Tipo de Evento
                 </label>
-                <select
+                <DropdownSelect
                   value={eventType}
-                  onChange={(e) => {
-                    const newType = e.target.value as CalendarEventType;
+                  onChange={(val) => {
+                    const newType = val as CalendarEventType;
                     setEventType(newType);
                     if (newType === "personal_block") {
                       setSelectedServiceIds([]);
@@ -2139,22 +2142,18 @@ export function CalendarView({
                       setSelectedServiceIds([state.services[0].id]);
                     }
                   }}
-                  className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] text-[14px] font-semibold text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b]"
-                >
-                  <option value="appointment">Appointment (Agendamento)</option>
-                  <option value="personal_block">
-                    Blocked time / Horário reservado
-                  </option>
-                  <option value="working_hours">Horário de expediente</option>
-                  <option value="waitlist_entry">
-                    Entrada na lista de espera
-                  </option>
-                </select>
+                  options={[
+                    { value: "appointment", label: "Agendamento de Serviço" },
+                    { value: "personal_block", label: "Horário reservado / Bloqueio" },
+                    { value: "working_hours", label: "Horário de expediente" },
+                    { value: "waitlist_entry", label: "Entrada na lista de espera" },
+                  ]}
+                />
               </div>
 
               {/* Date, Start time, End time - 3 Column Layout (Screenshot 1 & 2) */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                <div className="rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
+                <div className="col-span-2 sm:col-span-1 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
                   <label className="block text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] mb-1">
                     Date *
                   </label>
@@ -2218,7 +2217,7 @@ export function CalendarView({
                           onChange={(e) => setInlineClientName(e.target.value)}
                           className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
                         />
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <input
                             type="text"
                             placeholder="WhatsApp (11) 9..."
@@ -2240,17 +2239,16 @@ export function CalendarView({
                         </div>
                       </div>
                     ) : (
-                      <select
+                      <DropdownSelect
                         value={clientId}
-                        onChange={(e) => setClientId(e.target.value)}
-                        className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] text-[14px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b]"
-                      >
-                        {state.clients.map((cli) => (
-                          <option key={cli.id} value={cli.id}>
-                            {cli.fullName} ({cli.phone})
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => setClientId(val)}
+                        placeholder="Selecione o cliente..."
+                        options={state.clients.map((cli) => ({
+                          value: cli.id,
+                          label: cli.fullName,
+                          sublabel: cli.phone || undefined,
+                        }))}
+                      />
                     )}
                   </div>
                 )}
@@ -2258,19 +2256,18 @@ export function CalendarView({
               {/* Service Provider Card */}
               <div>
                 <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
-                  Provider *
+                  Profissional *
                 </label>
-                <select
+                <DropdownSelect
                   value={providerId}
-                  onChange={(e) => setProviderId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] text-[14px] font-semibold text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b]"
-                >
-                  {state.staff.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.fullName} ({st.role})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setProviderId(val)}
+                  placeholder="Selecione o profissional..."
+                  options={state.staff.map((st) => ({
+                    value: st.id,
+                    label: st.fullName,
+                    sublabel: st.role,
+                  }))}
+                />
               </div>
 
               {/* Services Section with Dropdown Popover + Stack of Added Services (Screenshot 1 & 2) */}
@@ -2740,7 +2737,7 @@ export function CalendarView({
             </div>
 
             {/* Sticky Bottom Bar */}
-            <div className="px-6 py-4 border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] flex items-center justify-between">
+            <div className="px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] flex items-center justify-between">
               {eventType !== "personal_block" ? (
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
@@ -2886,10 +2883,10 @@ export function CalendarView({
                       const currentSelectValue = matchedStaff?.id ?? selectedEvent.providerId;
 
                       return (
-                        <select
+                        <DropdownSelect
+                          variant="pill"
                           value={currentSelectValue}
-                          onChange={(e) => {
-                            const newProvId = e.target.value;
+                          onChange={(newProvId) => {
                             const newProv = state.staff.find((s) => s.id === newProvId);
                             if (!newProv) return;
                             onUpdateState((prev) => ({
@@ -2915,14 +2912,12 @@ export function CalendarView({
                                 : null
                             );
                           }}
-                          className="text-[12px] font-semibold px-3 py-1.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer"
-                        >
-                          {state.staff.map((st) => (
-                            <option key={st.id} value={st.id}>
-                              {st.initials} · {st.fullName}
-                            </option>
-                          ))}
-                        </select>
+                          options={state.staff.map((st) => ({
+                            value: st.id,
+                            label: `${st.initials} · ${st.fullName}`,
+                            sublabel: st.role,
+                          }))}
+                        />
                       );
                     })()}
                   </div>
@@ -3166,7 +3161,7 @@ export function CalendarView({
               </div>
 
               {/* Sticky Footer */}
-              <div className="p-4 border-t border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center gap-2">
+              <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -3527,17 +3522,15 @@ export function CalendarView({
                   <label className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
                     Profissional Responsável
                   </label>
-                  <select
+                  <DropdownSelect
                     value={rescheduleProviderId}
-                    onChange={(e) => setRescheduleProviderId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3F3F46] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#1C1C1E] cursor-pointer"
-                  >
-                    {state.staff.map((st) => (
-                      <option key={st.id} value={st.id}>
-                        {st.initials} · {st.fullName} ({st.role})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setRescheduleProviderId(val)}
+                    options={state.staff.map((st) => ({
+                      value: st.id,
+                      label: `${st.initials} · ${st.fullName}`,
+                      sublabel: st.role,
+                    }))}
+                  />
                 </div>
 
                 {/* Feedback de Conflito / Disponibilidade */}
@@ -3743,73 +3736,55 @@ export function CalendarView({
 
                   <div className="grid grid-cols-2 gap-3">
                     {/* Início (Start) */}
-                    <div className="relative rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition shadow-2xs">
-                      <label className="block text-[11px] font-medium text-[#8E8E93] dark:text-[#71717a]">
-                        Início
-                      </label>
-                      <div className="relative flex items-center justify-between mt-0.5">
-                        <select
-                          aria-label="Horário inicial visível"
-                          value={visibleStartHour}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            onUpdateState((prev) => ({
-                              ...prev,
-                              calendarView: {
-                                ...prev.calendarView,
-                                visibleStartHour: val,
-                                visibleEndHour:
-                                  val >= visibleEndHour
-                                    ? Math.min(23, val + 4)
-                                    : visibleEndHour,
-                              },
-                            }));
-                          }}
-                          className="w-full bg-transparent text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer appearance-none pr-5"
-                        >
-                          {[5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
-                            <option key={h} value={h} className="dark:bg-[#18181b]">
-                              {formatHour12(h).toUpperCase()} ({String(h).padStart(2, "0")}:00)
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-[#8E8E93] dark:text-[#71717a] pointer-events-none absolute right-0" />
-                      </div>
+                    <div>
+                      <DropdownSelect
+                        label="Início"
+                        value={visibleStartHour}
+                        onChange={(val) => {
+                          const numVal = Number(val);
+                          onUpdateState((prev) => ({
+                            ...prev,
+                            calendarView: {
+                              ...prev.calendarView,
+                              visibleStartHour: numVal,
+                              visibleEndHour:
+                                numVal >= visibleEndHour
+                                  ? Math.min(23, numVal + 4)
+                                  : visibleEndHour,
+                            },
+                          }));
+                        }}
+                        options={[5, 6, 7, 8, 9, 10, 11, 12].map((h) => ({
+                          value: h,
+                          label: `${formatHour12(h).toUpperCase()} (${String(h).padStart(2, "0")}:00)`,
+                        }))}
+                      />
                     </div>
 
                     {/* Fim (End) */}
-                    <div className="relative rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition shadow-2xs">
-                      <label className="block text-[11px] font-medium text-[#8E8E93] dark:text-[#71717a]">
-                        Fim
-                      </label>
-                      <div className="relative flex items-center justify-between mt-0.5">
-                        <select
-                          aria-label="Horário final visível"
-                          value={visibleEndHour}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            onUpdateState((prev) => ({
-                              ...prev,
-                              calendarView: {
-                                ...prev.calendarView,
-                                visibleEndHour: val,
-                                visibleStartHour:
-                                  val <= visibleStartHour
-                                    ? Math.max(5, val - 4)
-                                    : visibleStartHour,
-                              },
-                            }));
-                          }}
-                          className="w-full bg-transparent text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white focus:outline-none cursor-pointer appearance-none pr-5"
-                        >
-                          {[16, 17, 18, 19, 20, 21, 22, 23].map((h) => (
-                            <option key={h} value={h} className="dark:bg-[#18181b]">
-                              {formatHour12(h).toUpperCase()} ({String(h).padStart(2, "0")}:00)
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-[#8E8E93] dark:text-[#71717a] pointer-events-none absolute right-0" />
-                      </div>
+                    <div>
+                      <DropdownSelect
+                        label="Fim"
+                        value={visibleEndHour}
+                        onChange={(val) => {
+                          const numVal = Number(val);
+                          onUpdateState((prev) => ({
+                            ...prev,
+                            calendarView: {
+                              ...prev.calendarView,
+                              visibleEndHour: numVal,
+                              visibleStartHour:
+                                numVal <= visibleStartHour
+                                  ? Math.max(5, numVal - 4)
+                                  : visibleStartHour,
+                            },
+                          }));
+                        }}
+                        options={[16, 17, 18, 19, 20, 21, 22, 23].map((h) => ({
+                          value: h,
+                          label: `${formatHour12(h).toUpperCase()} (${String(h).padStart(2, "0")}:00)`,
+                        }))}
+                      />
                     </div>
                   </div>
                 </div>

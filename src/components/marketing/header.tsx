@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   Menu,
@@ -35,6 +36,11 @@ export function MarketingHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileHowOpen, setMobileHowOpen] = useState(false);
   const [mobileBusinessOpen, setMobileBusinessOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navRef = useRef<HTMLElement>(null);
   const howTriggerRef = useRef<HTMLButtonElement>(null);
@@ -91,9 +97,10 @@ export function MarketingHeader() {
   const loginUrl = getLoginUrl();
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-200/80 dark:border-[#27272a] transition-all">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 sm:h-20">
+    <>
+      <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-200/80 dark:border-[#27272a] transition-all">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Brand Logo — Wordmark de alta-costura (LUVEA) */}
           <div className="flex items-center gap-8">
             <Link
@@ -361,134 +368,170 @@ export function MarketingHeader() {
           </div>
         </div>
       </div>
+    </header>
 
-      {/* Mobile Full-Screen / Sliding Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-18 bottom-0 bg-white dark:bg-[#09090b] z-50 overflow-y-auto border-t border-zinc-200 dark:border-[#27272a] px-6 py-6 space-y-6">
-          <div className="space-y-4">
-            {/* Como funciona (Mobile Accordion) */}
-            <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
+    {/* Mobile Full-Screen Navigation Overlay (Portal to body to escape all parent stacking contexts) */}
+    {mounted &&
+      mobileMenuOpen &&
+      createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu de navegação"
+          className="lg:hidden fixed inset-0 z-[100] w-full h-[100dvh] bg-white dark:bg-[#09090b] flex flex-col"
+        >
+          {/* Top Bar inside Overlay: Logo, ThemeToggle & Close Button */}
+          <div className="flex items-center justify-between h-16 px-4 sm:px-6 border-b border-zinc-200 dark:border-[#27272a] bg-white dark:bg-[#09090b] shrink-0">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center py-1 focus:outline-none"
+              aria-label="LUVEA - Início"
+            >
+              <LuveaWordmark className="text-[20px] sm:text-[22px] dark:text-white" />
+            </Link>
+
+            <div className="flex items-center gap-2">
+              <ThemeToggle variant="icon" />
               <button
                 type="button"
-                onClick={() => setMobileHowOpen(!mobileHowOpen)}
-                className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B] dark:text-white"
-              >
-                <span>Como funciona</span>
-                <ChevronDown
-                  className={`w-5 h-5 text-zinc-500 dark:text-[#71717a] transition-transform ${
-                    mobileHowOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {mobileHowOpen && (
-                <div className="pl-3 pt-2 space-y-3">
-                  {HOW_IT_WORKS_MENU.map((cat) => (
-                    <div key={cat.id} className="space-y-1">
-                      <p className="text-[12px] font-semibold text-zinc-800 dark:text-[#a1a1aa] uppercase tracking-wide font-mono">
-                        {cat.label}
-                      </p>
-                      {cat.items.map((item) => (
-                        <Link
-                          key={item.title}
-                          href={item.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block py-1 text-[13px] text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
-                        >
-                          {item.title}
-                        </Link>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Negócios (Mobile Accordion) */}
-            <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
-              <button
-                type="button"
-                onClick={() => setMobileBusinessOpen(!mobileBusinessOpen)}
-                className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B] dark:text-white"
-              >
-                <span>Negócios</span>
-                <ChevronDown
-                  className={`w-5 h-5 text-zinc-500 dark:text-[#71717a] transition-transform ${
-                    mobileBusinessOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {mobileBusinessOpen && (
-                <div className="pl-3 pt-2 space-y-3">
-                  {BUSINESS_MENU.map((col) => (
-                    <div key={col.id} className="space-y-1">
-                      <p className="text-[12px] font-semibold text-zinc-800 dark:text-[#a1a1aa] uppercase tracking-wide font-mono">
-                        {col.label}
-                      </p>
-                      {col.items.map((item) => (
-                        <Link
-                          key={item.title}
-                          href={item.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block py-1 text-[13px] text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
-                        >
-                          {item.title}
-                        </Link>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Preços (Mobile Direct Link) */}
-            <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
-              <Link
-                href="/precos"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 font-serif text-xl text-[#18181B] dark:text-white"
+                aria-label="Fechar menu"
+                className="p-2.5 rounded-xl text-zinc-700 dark:text-[#a1a1aa] hover:bg-zinc-100 dark:hover:bg-[#18181b] focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition-colors"
               >
-                Preços
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable Drawer Body (natural flow, no negative scroll clipping) */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] space-y-6">
+            <div className="space-y-4">
+              {/* Como funciona (Mobile Accordion) */}
+              <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
+                <button
+                  type="button"
+                  onClick={() => setMobileHowOpen(!mobileHowOpen)}
+                  className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B] dark:text-white"
+                >
+                  <span>Como funciona</span>
+                  <ChevronDown
+                    className={`w-5 h-5 text-zinc-500 dark:text-[#71717a] transition-transform ${
+                      mobileHowOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {mobileHowOpen && (
+                  <div className="pl-3 pt-2 space-y-3">
+                    {HOW_IT_WORKS_MENU.map((cat) => (
+                      <div key={cat.id} className="space-y-1">
+                        <p className="text-[12px] font-semibold text-zinc-800 dark:text-[#a1a1aa] uppercase tracking-wide font-mono">
+                          {cat.label}
+                        </p>
+                        {cat.items.map((item) => (
+                          <Link
+                            key={item.title}
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="block py-1 text-[13px] text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
+                          >
+                            {item.title}
+                          </Link>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Negócios (Mobile Accordion) */}
+              <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
+                <button
+                  type="button"
+                  onClick={() => setMobileBusinessOpen(!mobileBusinessOpen)}
+                  className="w-full flex items-center justify-between text-left py-2 font-serif text-xl text-[#18181B] dark:text-white"
+                >
+                  <span>Negócios</span>
+                  <ChevronDown
+                    className={`w-5 h-5 text-zinc-500 dark:text-[#71717a] transition-transform ${
+                      mobileBusinessOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {mobileBusinessOpen && (
+                  <div className="pl-3 pt-2 space-y-3">
+                    {BUSINESS_MENU.map((col) => (
+                      <div key={col.id} className="space-y-1">
+                        <p className="text-[12px] font-semibold text-zinc-800 dark:text-[#a1a1aa] uppercase tracking-wide font-mono">
+                          {col.label}
+                        </p>
+                        {col.items.map((item) => (
+                          <Link
+                            key={item.title}
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="block py-1 text-[13px] text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
+                          >
+                            {item.title}
+                          </Link>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Preços (Mobile Direct Link) */}
+              <div className="border-b border-zinc-100 dark:border-[#27272a] pb-3">
+                <Link
+                  href="/precos"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 font-serif text-xl text-[#18181B] dark:text-white"
+                >
+                  Preços
+                </Link>
+              </div>
+            </div>
+
+            {/* Alternador de tema dentro do menu móvel */}
+            <div className="pt-2 border-b border-zinc-100 dark:border-[#27272a] pb-4">
+              <ThemeToggle variant="row" />
+            </div>
+
+            {/* Mobile Action Buttons */}
+            <div className="pt-2 space-y-3">
+              <Link
+                href={primaryCtaUrl}
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[14px] font-semibold shadow-sm active:scale-[0.99] transition-all"
+              >
+                <span>Começar teste grátis (14 dias)</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              <a
+                href={demoWhatsAppUrl}
+                onClick={() => setMobileMenuOpen(false)}
+                target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
+                rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white active:scale-[0.99] transition-all"
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Agendar demonstração via WhatsApp</span>
+              </a>
+
+              <Link
+                href={loginUrl}
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full block text-center py-2.5 text-[14px] font-semibold text-zinc-700 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white transition-colors"
+              >
+                Já sou cliente · Entrar
               </Link>
             </div>
           </div>
-
-          {/* Alternador de tema dentro do menu móvel */}
-          <div className="pt-2 border-b border-zinc-100 dark:border-[#27272a] pb-4">
-            <ThemeToggle variant="row" />
-          </div>
-
-          {/* Mobile Bottom Action Buttons */}
-          <div className="pt-2 space-y-3">
-            <Link
-              href={primaryCtaUrl}
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[14px] font-semibold shadow-sm"
-            >
-              <span>Começar teste grátis (14 dias)</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-
-            <a
-              href={demoWhatsAppUrl}
-              onClick={() => setMobileMenuOpen(false)}
-              target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
-              rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white"
-            >
-              <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Agendar demonstração via WhatsApp</span>
-            </a>
-
-            <Link
-              href={loginUrl}
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full block text-center py-2 text-[13.5px] font-semibold text-zinc-600 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white"
-            >
-              Já sou cliente · Entrar
-            </Link>
-          </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </header>
+    </>
   );
 }

@@ -411,6 +411,11 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                             setSelectedStaffId(member.id);
                             setIsAddingStaff(false);
                             setIsDrawerOpen(true);
+                            if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                              setTimeout(() => {
+                                document.getElementById("staff-details-drawer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }, 50);
+                            }
                           }}
                           className={`cursor-pointer transition ${
                             isSelected
@@ -525,7 +530,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
 
         {/* Right Drawer: Staff Details Slide-Over (matching media_1792793967595_d578ece1.png) */}
         {isDrawerOpen && (
-          <aside className="w-full lg:w-[400px] xl:w-[420px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#E5E5EA] bg-white flex flex-col h-full sticky top-0 max-h-screen shadow-[-4px_0_16px_rgba(0,0,0,0.02)]">
+          <aside id="staff-details-drawer" className="w-full lg:w-[400px] xl:w-[420px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#E5E5EA] bg-white flex flex-col lg:h-full lg:sticky lg:top-0 lg:max-h-screen shadow-[-4px_0_16px_rgba(0,0,0,0.02)] scroll-mt-16">
             {/* Drawer Header */}
             <div className="p-4 border-b border-[#EFEFF4] flex items-center justify-between">
               <h2 className="text-[15px] font-bold text-[#1C1C1E]">
@@ -1024,7 +1029,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
             </div>
 
             {/* Sticky Drawer Footer with Save Action */}
-            <div className="p-4 border-t border-[#EFEFF4] bg-white">
+            <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#EFEFF4] bg-white">
               <button
                 type="button"
                 onClick={handleSaveStaffDrawer}
@@ -1061,7 +1066,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
         {/* Editorial Hero Card matching 06-5-commissions.png */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
-            <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+            <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
               Gerencie comissões com facilidade
             </h1>
             <p className="text-[15px] text-[#6E6E73] max-w-xl">
@@ -1258,7 +1263,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
         {/* Editorial Hero matching 06-5-payroll.png */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
-            <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+            <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
               Pague sua equipe em minutos, não em horas
             </h1>
             <p className="text-[15px] text-[#6E6E73] max-w-xl">
@@ -1361,7 +1366,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
       {/* Editorial Hero + Live Dark Timeclock Widget (06-5-time-tracking.png) */}
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
-          <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+          <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
             Controle de ponto simplificado
           </h1>
           <p className="text-[15px] text-[#6E6E73] max-w-xl">

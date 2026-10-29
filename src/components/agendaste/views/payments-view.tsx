@@ -48,8 +48,10 @@ import {
   issueGiftCard,
   createClientProfile,
   saveCatalogService,
+  resolveProductIntendedUse,
   generateUuid,
 } from "@/lib/agendaste-store";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 interface PaymentsViewProps {
   section:
@@ -268,15 +270,15 @@ export function PaymentsView({
       return (
         <div className="min-h-screen bg-[#FAFAFC] pb-24">
           {/* Top Full-Page Header (04-2-1-invoices.png) */}
-          <div className="px-8 py-5 bg-white border-b border-[#E5E5EA] flex items-center justify-between sticky top-0 z-20">
+          <div className="px-4 sm:px-8 py-3.5 sm:py-5 bg-white border-b border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsCreatingInvoice(false)}
-                className="w-9 h-9 rounded-full border border-[#E5E5EA] flex items-center justify-center hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full border border-[#E5E5EA] flex items-center justify-center hover:bg-[#F5F5F7] shrink-0"
               >
                 <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
               </button>
-              <h1 className="text-[22px] font-bold text-[#1C1C1E]">
+              <h1 className="text-[18px] sm:text-[22px] font-bold text-[#1C1C1E] truncate">
                 Nova fatura (New invoice)
               </h1>
             </div>
@@ -284,7 +286,7 @@ export function PaymentsView({
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setIsCreatingInvoice(false)}
-                className="px-5 py-2.5 rounded-full border border-[#E5E5EA] bg-white text-[13px] font-semibold text-[#1C1C1E]"
+                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-[#E5E5EA] bg-white text-[12.5px] sm:text-[13px] font-semibold text-[#1C1C1E]"
               >
                 Cancelar
               </button>
@@ -304,7 +306,7 @@ export function PaymentsView({
                   );
                   setIsCreatingInvoice(false);
                 }}
-                className="px-6 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] sm:text-[13px] font-semibold transition truncate"
               >
                 Enviar fatura ({formatBRL(totalInvoiceCents)})
               </button>
@@ -312,13 +314,13 @@ export function PaymentsView({
           </div>
 
           {/* Two-Column Builder Layout matching 04-2-1-invoices.png */}
-          <div className="w-full px-6 lg:px-8 xl:px-10 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
             {/* Left Anchor Nav */}
-            <div className="lg:col-span-3 space-y-1">
-              <div className="px-4 py-2.5 rounded-[12px] bg-[#1C1C1E] text-white font-semibold text-[13px] shadow-sm">
+            <div className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto no-scrollbar pb-2 lg:pb-0">
+              <div className="px-4 py-2 sm:py-2.5 rounded-[12px] bg-[#1C1C1E] text-white font-semibold text-[13px] shadow-sm whitespace-nowrap shrink-0">
                 Detalhes básicos
               </div>
-              <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px]">
+              <div className="px-4 py-2 sm:py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px] whitespace-nowrap shrink-0 hover:bg-[#F5F5F7]">
                 Itens da fatura
               </div>
             </div>
@@ -348,34 +350,32 @@ export function PaymentsView({
                     <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
                       Profissional responsável
                     </label>
-                    <select
+                    <DropdownSelect
                       value={invProviderId}
-                      onChange={(e) => setInvProviderId(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] bg-white"
-                    >
-                      {state.staff.map((st) => (
-                        <option key={st.id} value={st.id}>
-                          {st.fullName}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setInvProviderId(val)}
+                      options={state.staff.map((st) => ({
+                        value: st.id,
+                        label: st.fullName,
+                        sublabel: st.role,
+                      }))}
+                      placeholder="Selecione o profissional..."
+                    />
                   </div>
 
                   <div>
                     <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
                       Cliente destinatário
                     </label>
-                    <select
+                    <DropdownSelect
                       value={invClientId}
-                      onChange={(e) => setInvClientId(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] bg-white"
-                    >
-                      {state.clients.map((cli) => (
-                        <option key={cli.id} value={cli.id}>
-                          {cli.fullName} ({cli.email})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setInvClientId(val)}
+                      options={state.clients.map((cli) => ({
+                        value: cli.id,
+                        label: cli.fullName,
+                        sublabel: cli.email || cli.phone || undefined,
+                      }))}
+                      placeholder="Selecione o cliente..."
+                    />
                   </div>
                 </div>
 
@@ -532,7 +532,7 @@ export function PaymentsView({
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-[#27272a] border border-[#DDD6FE] dark:border-[#3f3f46] text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
               Apresentando Faturas
             </span>
-            <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E] dark:text-white">
+            <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E] dark:text-white">
               Simplifique solicitações de pagamento personalizadas com faturas
             </h1>
             <p className="text-[15px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-xl">
@@ -643,7 +643,7 @@ export function PaymentsView({
             <Gift className="w-3.5 h-3.5 text-[#E11D8F]" />
             Vale-Presentes Digitais
           </span>
-          <h1 className="font-display text-[40px] leading-[1.08] text-[#1C1C1E] dark:text-white">
+          <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[40px] leading-[1.12] sm:leading-[1.08] text-[#1C1C1E] dark:text-white">
             Aumente seu faturamento antecipado com Vale-Presentes personalizados
           </h1>
           <p className="text-[15px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-xl">
@@ -1183,6 +1183,10 @@ export function QuickSaleDrawer({
       customItemName.trim() ||
       "Venda Rápida PDV";
 
+    const soldProducts = selectedCartItems
+      .filter((it) => it.type === "product")
+      .map((it) => ({ productId: it.id, quantity: 1 }));
+
     onUpdateState((prev) =>
       executeQuickSaleCheckout(prev, {
         appointmentId: prefillAppointment?.id,
@@ -1195,6 +1199,7 @@ export function QuickSaleDrawer({
         appointmentTime: attendanceTime,
         paymentMethod,
         status: isPixPartial ? "Sinal Pago" : "Pago",
+        soldProducts,
         redeemPackageId:
           paymentMethod === "Pacote"
             ? selectedClient?.packages[0]?.packageId
@@ -1468,30 +1473,25 @@ export function QuickSaleDrawer({
                     <span>Cadastrar novo cliente...</span>
                   </button>
                 </div>
-                <select
+                <DropdownSelect
                   value={clientId}
-                  onChange={(e) => {
-                    if (e.target.value === "__NEW_CLIENT__") {
+                  onChange={(val) => setClientId(val)}
+                  placeholder="Selecione o cliente..."
+                  options={state.clients.map((c) => ({
+                    value: c.id,
+                    label: c.fullName,
+                    sublabel: c.phone || undefined,
+                  }))}
+                  actionItem={{
+                    label: "+ Cadastrar novo cliente...",
+                    onClick: () => {
                       setNewClientName("");
                       setNewClientPhone("");
                       setNewClientEmail("");
                       setShowAddClientModal(true);
-                    } else {
-                      setClientId(e.target.value);
-                    }
+                    },
                   }}
-                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] bg-white font-medium text-[#1C1C1E] focus:outline-none focus:border-[#6E56CF]"
-                >
-                  <option value="">Selecione o cliente...</option>
-                  <option value="__NEW_CLIENT__" className="text-[#6E56CF] font-semibold">
-                    + Cadastrar novo cliente...
-                  </option>
-                  {state.clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.fullName} {c.phone ? `(${c.phone})` : ""}
-                    </option>
-                  ))}
-                </select>
+                />
 
                 {/* Card de resumo do cliente selecionado */}
                 {selectedClient && (
@@ -1523,17 +1523,16 @@ export function QuickSaleDrawer({
                 <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1.5">
                   Profissional Responsável *
                 </label>
-                <select
+                <DropdownSelect
                   value={providerId}
-                  onChange={(e) => setProviderId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] bg-white font-medium text-[#1C1C1E] focus:outline-none focus:border-[#6E56CF]"
-                >
-                  {state.staff.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.fullName} ({s.role})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setProviderId(val)}
+                  placeholder="Selecione o profissional..."
+                  options={state.staff.map((s) => ({
+                    value: s.id,
+                    label: s.fullName,
+                    sublabel: s.role,
+                  }))}
+                />
               </div>
 
               {/* Data e Horário do Atendimento */}
@@ -1765,10 +1764,16 @@ export function QuickSaleDrawer({
                     </div>
 
                     {state.inventory
-                      .filter((p) =>
-                        p.name.toLowerCase().includes(cartSearchQuery.toLowerCase()) ||
-                        p.category.toLowerCase().includes(cartSearchQuery.toLowerCase())
-                      )
+                      .filter((p) => {
+                        const use = resolveProductIntendedUse(p);
+                        if (use === "service") return false;
+                        const q = cartSearchQuery.toLowerCase();
+                        return (
+                          p.name.toLowerCase().includes(q) ||
+                          (p.brand || "").toLowerCase().includes(q) ||
+                          (p.productCategory || p.category).toLowerCase().includes(q)
+                        );
+                      })
                       .map((p) => {
                         const isSelected = selectedCartItems.some((it) => it.id === p.id);
                         return (
@@ -1781,7 +1786,7 @@ export function QuickSaleDrawer({
                                 name: p.name,
                                 priceCents: p.priceCents,
                                 calendarColor: "#059669",
-                                subtitle: `Estoque: ${p.stockQuantity} un · ${p.category}`,
+                                subtitle: `Estoque: ${p.stockQuantity} un · ${p.brand || p.productCategory || p.category}`,
                               })
                             }
                             className={`p-3 rounded-[14px] border transition cursor-pointer flex items-center justify-between ${
@@ -1791,30 +1796,38 @@ export function QuickSaleDrawer({
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-lg bg-[#F5F5F7] text-[#1C1C1E] flex items-center justify-center shrink-0">
-                                <svg
-                                  className="w-4 h-4"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M10 2h4" />
-                                  <path d="M12 2v3" />
-                                  <path d="M9 5h6" />
-                                  <rect x="7" y="9" width="10" height="13" rx="2" />
-                                  <path d="M10 5v4" />
-                                  <path d="M14 5v4" />
-                                </svg>
-                              </div>
+                              {p.imageUrl ? (
+                                <img
+                                  src={p.imageUrl}
+                                  alt={p.name}
+                                  className="w-9 h-9 rounded-lg object-cover border border-[#E5E5EA] shrink-0"
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-lg bg-[#F5F5F7] text-[#1C1C1E] flex items-center justify-center shrink-0">
+                                  <svg
+                                    className="w-4 h-4"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M10 2h4" />
+                                    <path d="M12 2v3" />
+                                    <path d="M9 5h6" />
+                                    <rect x="7" y="9" width="10" height="13" rx="2" />
+                                    <path d="M10 5v4" />
+                                    <path d="M14 5v4" />
+                                  </svg>
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <p className="text-[13.5px] font-semibold text-[#1C1C1E] truncate">
                                   {p.name}
                                 </p>
                                 <p className="text-[12px] text-[#6E6E73]">
-                                  Estoque: {p.stockQuantity} un · {formatBRL(p.priceCents)}
+                                  {p.brand ? `${p.brand} · ` : ""}Estoque: {p.stockQuantity} un · {formatBRL(p.priceCents)}
                                 </p>
                               </div>
                             </div>
@@ -2557,7 +2570,7 @@ export function QuickSaleDrawer({
         </div>
 
         {/* Modal Bottom Action Bar / Footer */}
-        <div className="p-4 sm:p-5 border-t border-[#E5E5EA] bg-[#FAFAFC] flex items-center justify-between shrink-0">
+        <div className="p-4 sm:p-5 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#E5E5EA] bg-[#FAFAFC] flex items-center justify-between shrink-0">
           {/* Botão Voltar / Cancelar */}
           {step === 1 ? (
             <button
@@ -2814,17 +2827,17 @@ export function QuickSaleDrawer({
                   <label className="block text-[11.5px] font-semibold text-[#6E6E73] mb-1">
                     Categoria
                   </label>
-                  <select
+                  <DropdownSelect
                     value={newServiceCategory}
-                    onChange={(e) => setNewServiceCategory(e.target.value)}
-                    className="w-full px-3 py-2 rounded-[10px] border border-[#E5E5EA] text-[13px] outline-none focus:border-[#6E56CF] bg-white"
-                  >
-                    <option value="Cabelo">Cabelo</option>
-                    <option value="Estética">Estética</option>
-                    <option value="Manicure">Manicure</option>
-                    <option value="Sobrancelhas">Sobrancelhas</option>
-                    <option value="Massagem">Massagem</option>
-                  </select>
+                    onChange={(val) => setNewServiceCategory(val)}
+                    options={[
+                      { value: "Cabelo", label: "Cabelo" },
+                      { value: "Estética", label: "Estética" },
+                      { value: "Manicure", label: "Manicure" },
+                      { value: "Sobrancelhas", label: "Sobrancelhas" },
+                      { value: "Massagem", label: "Massagem" },
+                    ]}
+                  />
                 </div>
               </div>
 

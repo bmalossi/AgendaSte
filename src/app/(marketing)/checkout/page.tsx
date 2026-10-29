@@ -248,23 +248,24 @@ function CheckoutContent() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFC] dark:bg-[#09090b] text-[#1C1C1E] dark:text-[#f4f4f5] selection:bg-[#1C1C1E] dark:selection:bg-[#27272a] selection:text-white transition-colors">
-      {/* Top Simple Header */}
-      <header className="border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#09090b]/95 backdrop-blur-md sticky top-0 z-40 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center group py-1" aria-label="LUVEA - Início">
-            <LuveaWordmark className="text-[20px] group-hover:opacity-80 transition-opacity dark:text-white" />
+      {/* Checkout Sub-bar (Breadcrumbs & Security Badge) */}
+      <div className="border-b border-[#E5E5EA] dark:border-[#27272a] bg-zinc-50/70 dark:bg-[#18181b]/70 py-3 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <Link
+            href="/precos"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Voltar para planos</span>
           </Link>
 
-          <div className="flex items-center gap-4">
-            <ThemeToggle variant="pill" />
-            <div className="flex items-center gap-2 text-xs font-mono text-[#6E6E73] dark:text-[#a1a1aa]">
-              <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Ambiente Seguro &amp; Criptografado</span>
-              <span className="sm:hidden">Seguro</span>
-            </div>
+          <div className="flex items-center gap-2 text-xs font-mono text-[#6E6E73] dark:text-[#a1a1aa]">
+            <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden sm:inline">Ambiente Seguro &amp; Criptografado</span>
+            <span className="sm:hidden">Ambiente Seguro</span>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">

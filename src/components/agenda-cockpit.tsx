@@ -13,6 +13,7 @@ import {
 } from "@/lib/mock-data";
 import { formatBRL, cn } from "@/lib/utils";
 import { ActionButton, StatusIndicator } from "@/components/ui/primitives";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 type ActiveTab = "agenda" | "whatsapp" | "antinoshow" | "financeiro";
 type StatusFilter = "all" | AppointmentStatus;
@@ -846,26 +847,29 @@ export function AgendaCockpit() {
                     className="mt-1 w-full min-h-[38px] border border-line bg-canvas-elevated px-3 py-1.5 text-sm text-ink"
                   />
                 </label>
-                <label className="block">
-                  <span className="font-mono text-xs font-semibold text-ink-secondary">
+                <div className="block">
+                  <span className="block font-mono text-xs font-semibold text-ink-secondary mb-1">
                     PROTOCOLO
                   </span>
-                  <select
+                  <DropdownSelect
                     value={quickService}
-                    onChange={(e) => setQuickService(e.target.value)}
-                    className="mt-1 w-full min-h-[38px] border border-line bg-canvas-elevated px-2.5 py-1.5 text-sm text-ink"
-                  >
-                    <option value="Avaliação + Toxina Botulínica">
-                      Avaliação + Toxina (R$ 450)
-                    </option>
-                    <option value="Limpeza Ultrassônica + LED">
-                      Limpeza + LED (R$ 340)
-                    </option>
-                    <option value="Sessão Drenagem Pós-Op">
-                      Drenagem Pós-Op (R$ 280)
-                    </option>
-                  </select>
-                </label>
+                    onChange={(val) => setQuickService(val)}
+                    options={[
+                      {
+                        value: "Avaliação + Toxina Botulínica",
+                        label: "Avaliação + Toxina (R$ 450)",
+                      },
+                      {
+                        value: "Limpeza Ultrassônica + LED",
+                        label: "Limpeza + LED (R$ 340)",
+                      },
+                      {
+                        value: "Sessão Drenagem Pós-Op",
+                        label: "Drenagem Pós-Op (R$ 280)",
+                      },
+                    ]}
+                  />
+                </div>
                 <div className="flex items-end gap-2">
                   <label className="block flex-1">
                     <span className="font-mono text-xs font-semibold text-ink-secondary">

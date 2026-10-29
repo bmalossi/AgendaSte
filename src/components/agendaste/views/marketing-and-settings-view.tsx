@@ -43,6 +43,10 @@ import {
   Download,
   Maximize2,
   ExternalLink,
+  Search,
+  Minus,
+  Upload,
+  ChevronRight,
 } from "lucide-react";
 import {
   StudioState,
@@ -51,13 +55,23 @@ import {
   ClinicalChartPhotoItem,
   ClinicalChartProductUsage,
   ClinicalChartMarkupPin,
+  InventoryProductItem,
+  InventoryIntendedUse,
   formatBRL,
+  formatBRLCurrencyString,
+  parseCurrencyToCents,
   generateMarketingDraftAI,
   sendMarketingCampaign,
   updateStudioSettings,
   filterClientsByRetention,
+  resolveProductIntendedUse,
+  saveInventoryProduct,
+  deleteInventoryProduct,
+  adjustInventoryStock,
+  importStarterInventoryProducts,
 } from "@/lib/agendaste-store";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 // =============================================================================
 // 1. MARKETING VIEW (07-1-marketing.png & 07-1-1-marketing.png)
@@ -123,7 +137,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
       {/* Editorial Hero Card matching 07-1-marketing.png */}
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
-          <h2 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+          <h2 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
             Alcance mais clientes com o Marketing LUVEA
           </h2>
           <p className="text-[15px] text-[#6E6E73] max-w-xl">
@@ -241,15 +255,15 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
       {/* Split-Screen New Campaign Modal matching 07-1-1-marketing.png */}
       {campaignModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[26px] max-w-[1040px] w-full max-h-[90vh] overflow-hidden border border-[#E5E5EA] shadow-gg-modal grid grid-cols-1 lg:grid-cols-12">
+          <div className="bg-white rounded-[26px] max-w-[1040px] w-full max-h-[90dvh] overflow-y-auto lg:overflow-hidden border border-[#E5E5EA] shadow-gg-modal grid grid-cols-1 lg:grid-cols-12">
             {/* Left Builder Pane */}
-            <div className="lg:col-span-7 p-6 lg:p-8 overflow-y-auto space-y-5 border-r border-[#EFEFF4]">
-              <div className="flex items-center justify-between">
+            <div className="lg:col-span-7 p-5 sm:p-6 lg:p-8 lg:overflow-y-auto space-y-5 border-b lg:border-b-0 lg:border-r border-[#EFEFF4]">
+              <div className="flex items-start sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-[22px] font-bold text-[#1C1C1E]">
+                  <h2 className="text-[20px] sm:text-[22px] font-bold text-[#1C1C1E]">
                     Nova campanha (New campaign)
                   </h2>
-                  <div className="flex items-center gap-2 mt-1.5 text-[11px] font-bold">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2 text-[11px] font-bold">
                     <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white">
                       1. Canal &amp; Segmento
                     </span>
@@ -263,50 +277,53 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
                 </div>
                 <button
                   onClick={() => setCampaignModalOpen(false)}
-                  className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center"
+                  className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center shrink-0"
                 >
                   <X className="w-4 h-4 text-[#1C1C1E]" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
                     Canal de Disparo
                   </label>
-                  <select
+                  <DropdownSelect
                     value={channel}
-                    onChange={(e) =>
-                      setChannel(e.target.value as "email" | "text")
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[13px] font-semibold bg-white"
-                  >
-                    <option value="text">Mensagem / WhatsApp</option>
-                    <option value="email">E-mail Marketing</option>
-                  </select>
+                    onChange={(val) => setChannel(val as "email" | "text")}
+                    options={[
+                      { value: "text", label: "Mensagem / WhatsApp" },
+                      { value: "email", label: "E-mail Marketing" },
+                    ]}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
                     Segmento de Clientes
                   </label>
-                  <select
+                  <DropdownSelect
                     value={audienceSegment}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setAudienceSegment(
-                        e.target.value as MarketingCampaignItem["audienceSegment"]
+                        val as MarketingCampaignItem["audienceSegment"]
                       )
                     }
-                    className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[13px] font-semibold bg-white"
-                  >
-                    <option value="absent_45d">
-                      Ausentes há 30/45+ dias ({absentClientsCount})
-                    </option>
-                    <option value="all">
-                      Todos os clientes ({state.clients.length})
-                    </option>
-                    <option value="vip">Clientes VIP &amp; Assinantes</option>
-                  </select>
+                    options={[
+                      {
+                        value: "absent_45d",
+                        label: `Ausentes há 30/45+ dias (${absentClientsCount})`,
+                      },
+                      {
+                        value: "all",
+                        label: `Todos os clientes (${state.clients.length})`,
+                      },
+                      {
+                        value: "vip",
+                        label: "Clientes VIP & Assinantes",
+                      },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -559,7 +576,6 @@ function renderReportCardIcon(id: ReportCardId) {
 
 function InsightsAnalyticsSection({ state }: { state: StudioState }) {
   const [periodId, setPeriodId] = useState<AnalyticsPeriodId>("this_month");
-  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null);
@@ -730,43 +746,17 @@ function InsightsAnalyticsSection({ state }: { state: StudioState }) {
           Análises
         </h1>
 
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setPeriodMenuOpen((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-full border border-[#1C1C1E] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
-          >
-            <Calendar className="w-3.5 h-3.5 text-[#1C1C1E]" />
-            <span>{selectedPeriod.label}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E]" />
-          </button>
-
-          {periodMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 rounded-[12px] border border-[#E5E5EA] bg-white py-1.5 shadow-lg z-20">
-              {ANALYTICS_PERIOD_OPTIONS.map((option) => {
-                const active = option.id === periodId;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => {
-                      setPeriodId(option.id);
-                      setPeriodMenuOpen(false);
-                    }}
-                    className={`w-full px-3.5 py-2 text-left text-[13px] flex items-center justify-between transition-colors ${
-                      active
-                        ? "bg-[#F2F2F7] font-semibold text-[#1C1C1E]"
-                        : "text-[#3A3A3C] hover:bg-[#F9F9FB]"
-                    }`}
-                  >
-                    <span>{option.label}</span>
-                    {active && <Check className="w-3.5 h-3.5 text-[#1C1C1E]" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <DropdownSelect
+          variant="pill"
+          align="right"
+          icon={<Calendar className="w-3.5 h-3.5 text-[#1C1C1E]" />}
+          value={periodId}
+          onChange={(val) => setPeriodId(val as AnalyticsPeriodId)}
+          options={ANALYTICS_PERIOD_OPTIONS.map((opt) => ({
+            value: opt.id,
+            label: opt.label,
+          }))}
+        />
       </div>
 
       {/* Ask Anything AI Search Bar */}
@@ -971,13 +961,14 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
         ];
       case "retail_sales":
         return [
-          ["SKU", "Produto", "Categoria", "Estoque Atual", "Preço Venda", "Custo Unitário"],
+          ["SKU / Código de Barras", "Produto", "Marca", "Categoria", "Estoque Atual", "Preço de Revenda", "Seu Custo"],
           ...state.inventory
-            .filter((item) => item.category === "Revenda (Retail)")
+            .filter((item) => resolveProductIntendedUse(item) !== "service")
             .map((item) => [
-              item.sku,
+              item.barcode || item.sku,
               item.name,
-              item.category,
+              item.brand || "-",
+              item.productCategory || item.category,
               String(item.stockQuantity),
               formatBRL(item.priceCents),
               formatBRL(item.costCents),
@@ -1010,16 +1001,41 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
         ];
       case "inventory":
         return [
-          ["SKU", "Produto", "Categoria", "Quantidade em Estoque", "Alerta Mínimo", "Preço", "Custo"],
-          ...state.inventory.map((item) => [
-            item.sku,
-            item.name,
-            item.category,
-            String(item.stockQuantity),
-            String(item.minStockAlert),
-            formatBRL(item.priceCents),
-            formatBRL(item.costCents),
-          ]),
+          [
+            "Código de Barras / SKU",
+            "Produto",
+            "Marca",
+            "Uso Pretendido",
+            "Categoria",
+            "Quantidade em Estoque",
+            "Nível de Estoque Baixo",
+            "Status de Reposição",
+            "Preço de Revenda",
+            "Seu Custo",
+          ],
+          ...state.inventory.map((item) => {
+            const use = resolveProductIntendedUse(item);
+            const useLabel =
+              use === "both"
+                ? "Ambos"
+                : use === "service"
+                ? "Para serviços"
+                : "Para revenda";
+            const isLow =
+              item.minStockAlert > 0 && item.stockQuantity <= item.minStockAlert;
+            return [
+              item.barcode || item.sku,
+              item.name,
+              item.brand || "-",
+              useLabel,
+              item.productCategory || item.category,
+              String(item.stockQuantity),
+              String(item.minStockAlert),
+              isLow ? "Estoque baixo (Repor)" : "Normal",
+              use === "service" ? "Uso interno" : formatBRL(item.priceCents),
+              formatBRL(item.costCents),
+            ];
+          }),
         ];
       case "transaction_detail":
         return [
@@ -1167,6 +1183,11 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
                 onClick={() => {
                   setSelectedReportId(card.id);
                   setFeedbackBanner(null);
+                  if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                    setTimeout(() => {
+                      document.getElementById("report-config-aside")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 50);
+                  }
                 }}
                 className={`w-full text-left rounded-[14px] p-4 flex items-center justify-between gap-4 transition-all ${
                   isSelected
@@ -1207,7 +1228,7 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
 
       {/* Right Docked Report Configuration Drawer */}
       {selectedReport && (
-        <aside className="w-full lg:w-[350px] xl:w-[380px] bg-white dark:bg-[#18181b] border-t lg:border-t-0 lg:border-l border-[#E5E5EA] dark:border-[#27272a] flex flex-col justify-between shrink-0">
+        <aside id="report-config-aside" className="w-full lg:w-[350px] xl:w-[380px] bg-white dark:bg-[#18181b] border-t lg:border-t-0 lg:border-l border-[#E5E5EA] dark:border-[#27272a] flex flex-col justify-between shrink-0 scroll-mt-16">
           <div className="p-6 space-y-6">
             {/* Drawer Header */}
             <div className="flex items-center justify-between gap-3">
@@ -1244,24 +1265,22 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
               <label className="block text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                 Profissional
               </label>
-              <div className="relative">
-                <select
-                  value={selectedStaffId}
-                  onChange={(e) => setSelectedStaffId(e.target.value)}
-                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
-                >
-                  <option value="owner">{ownerFullName} (você)</option>
-                  <option value="all">
-                    Toda a equipe ({state.staff.length} profissionais)
-                  </option>
-                  {state.staff.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.fullName} — {member.role}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-              </div>
+              <DropdownSelect
+                value={selectedStaffId}
+                onChange={(val) => setSelectedStaffId(val)}
+                options={[
+                  { value: "owner", label: `${ownerFullName} (você)` },
+                  {
+                    value: "all",
+                    label: `Toda a equipe (${state.staff.length} profissionais)`,
+                  },
+                  ...state.staff.map((member) => ({
+                    value: member.id,
+                    label: member.fullName,
+                    sublabel: member.role,
+                  })),
+                ]}
+              />
             </div>
 
             {/* Dates Selector */}
@@ -1269,20 +1288,17 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
               <label className="block text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                 Datas
               </label>
-              <div className="relative">
-                <select
-                  value={dateRangePreset}
-                  onChange={(e) => handleDatePresetChange(e.target.value)}
-                  className="w-full appearance-none rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 pr-9 text-[13.5px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
-                >
-                  <option value="month_to_date">Mês até a data</option>
-                  <option value="last_month">Mês passado</option>
-                  <option value="last_30_days">Últimos 30 dias</option>
-                  <option value="this_year">Este ano</option>
-                  <option value="custom">Personalizado</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-              </div>
+              <DropdownSelect
+                value={dateRangePreset}
+                onChange={(val) => handleDatePresetChange(val)}
+                options={[
+                  { value: "month_to_date", label: "Mês até a data" },
+                  { value: "last_month", label: "Mês passado" },
+                  { value: "last_30_days", label: "Últimos 30 dias" },
+                  { value: "this_year", label: "Este ano" },
+                  { value: "custom", label: "Personalizado" },
+                ]}
+              />
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="rounded-[10px] border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3 py-1.5">
@@ -1760,19 +1776,19 @@ function ClinicalChartsSection({
     return (
       <div className="w-full min-h-[calc(100vh-56px)] bg-white flex flex-col">
         {/* Top Sticky Header Bar */}
-        <div className="w-full border-b border-[#EFEFF4] bg-white px-6 lg:px-10 py-3.5 flex items-center justify-between gap-4 sticky top-0 z-20">
+        <div className="w-full border-b border-[#EFEFF4] bg-white px-4 sm:px-6 lg:px-10 py-3 sm:py-3.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
           <button
             type="button"
             onClick={() => setActiveChartId(null)}
             className="inline-flex items-center gap-2.5 text-[#1C1C1E] hover:opacity-75 transition-opacity"
           >
             <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
-            <span className="text-[16px] font-semibold tracking-tight">
+            <span className="text-[15px] sm:text-[16px] font-semibold tracking-tight">
               Entradas de prontuário
             </span>
           </button>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
             <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6E6E73]">
               <CheckCircle2 className="w-4 h-4 text-[#6E6E73]" />
               <span>Salvo</span>
@@ -1835,7 +1851,7 @@ function ClinicalChartsSection({
                   <div className="w-14 h-14 rounded-full bg-[#F6C6EA] flex items-center justify-center text-[#9D174D] shrink-0">
                     <User className="w-6 h-6" />
                   </div>
-                  <h1 className="font-serif text-[38px] leading-none text-[#1C1C1E] tracking-tight">
+                  <h1 className="font-serif text-[28px] sm:text-[38px] leading-none text-[#1C1C1E] tracking-tight">
                     {activeChart.clientName}
                   </h1>
                 </div>
@@ -1846,8 +1862,9 @@ function ClinicalChartsSection({
                     {activeChart.providerName}
                   </span>
                   {activeChart.status === "completed" ? (
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#9EE37D] text-[#1C1C1E] text-[11.5px] font-semibold">
-                      Concluído
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11.5px] font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                      <span>Concluído</span>
                     </span>
                   ) : (
                     <span className="px-2.5 py-0.5 rounded-full bg-[#E5E5EA] text-[#1C1C1E] text-[11.5px] font-semibold">
@@ -1865,38 +1882,26 @@ function ClinicalChartsSection({
               {/* Stacked Form Controls */}
               <div className="space-y-3">
                 {/* Client Field */}
-                <div className="rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors">
-                  <label className="block text-[11.5px] text-[#6E6E73]">
-                    Cliente
-                  </label>
-                  <div className="relative flex items-center gap-2 mt-1">
-                    <span className="w-5 h-5 rounded-full bg-[#ECEEF0] text-[#1C1C1E] text-[10px] font-bold flex items-center justify-center shrink-0">
-                      {getInitials(activeChart.clientName)}
-                    </span>
-                    <select
-                      value={activeChart.clientId}
-                      onChange={(e) => {
-                        const found = state.clients.find(
-                          (c) => c.id === e.target.value
-                        );
-                        if (found) {
-                          updateChartById(activeChart.id, (c) => ({
-                            ...c,
-                            clientId: found.id,
-                            clientName: found.fullName,
-                          }));
-                        }
-                      }}
-                      className="w-full appearance-none bg-transparent pr-6 text-[13.5px] font-medium text-[#1C1C1E] focus:outline-none"
-                    >
-                      {state.clients.map((cli) => (
-                        <option key={cli.id} value={cli.id}>
-                          {cli.fullName}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-0" />
-                  </div>
+                <div>
+                  <DropdownSelect
+                    label="Cliente"
+                    value={activeChart.clientId}
+                    onChange={(val) => {
+                      const found = state.clients.find((c) => c.id === val);
+                      if (found) {
+                        updateChartById(activeChart.id, (c) => ({
+                          ...c,
+                          clientId: found.id,
+                          clientName: found.fullName,
+                        }));
+                      }
+                    }}
+                    options={state.clients.map((cli) => ({
+                      value: cli.id,
+                      label: cli.fullName,
+                      sublabel: cli.phone || undefined,
+                    }))}
+                  />
                 </div>
 
                 {/* Chart Name Field */}
@@ -2024,11 +2029,11 @@ function ClinicalChartsSection({
                       />
                     </div>
                     {/* Floating Solid Pill Top-Right */}
-                    <span className="absolute -right-6 top-6 z-20 px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
+                    <span className="absolute -right-2 sm:-right-6 top-6 z-20 px-2.5 sm:px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[10.5px] sm:text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
                       + Organizando fotos...
                     </span>
                     {/* Floating Solid Pill Bottom-Left */}
-                    <span className="absolute -left-10 bottom-3 z-20 px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
+                    <span className="absolute -left-2 sm:-left-10 bottom-3 z-20 px-2.5 sm:px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[10.5px] sm:text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
                       + Gerando documentação...
                     </span>
                   </div>
@@ -2132,7 +2137,7 @@ function ClinicalChartsSection({
                                   }));
                                 }
                               }}
-                              className="px-2.5 py-1 rounded-[6px] border border-[#FCA5A5] bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[11.5px] font-medium text-[#B91C1C] inline-flex items-center gap-1 transition-colors"
+                              className="px-3 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] hover:text-rose-600 inline-flex items-center gap-1 transition-colors shadow-2xs"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               Excluir
@@ -2303,18 +2308,21 @@ function ClinicalChartsSection({
                       <label className="block text-[11.5px] text-[#6E6E73] mb-1">
                         Selecionar do estoque
                       </label>
-                      <select
+                      <DropdownSelect
                         value={selectedInventoryId}
-                        onChange={(e) => setSelectedInventoryId(e.target.value)}
-                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
-                      >
-                        {state.inventory.map((inv) => (
-                          <option key={inv.id} value={inv.id}>
-                            {inv.name} ({inv.sku})
-                          </option>
-                        ))}
-                        <option value="custom">Outro produto / fórmula manual</option>
-                      </select>
+                        onChange={(val) => setSelectedInventoryId(val)}
+                        options={[
+                          ...state.inventory.map((inv) => ({
+                            value: inv.id,
+                            label: inv.name,
+                            sublabel: inv.sku,
+                          })),
+                          {
+                            value: "custom",
+                            label: "Outro produto / fórmula manual",
+                          },
+                        ]}
+                      />
                     </div>
 
                     <div>
@@ -2413,33 +2421,29 @@ function ClinicalChartsSection({
               </h2>
 
               {/* Select Template */}
-              <div className="rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors">
-                <label className="block text-[11.5px] text-[#6E6E73]">
-                  Selecionar modelo
-                </label>
-                <div className="relative mt-0.5">
-                  <select
-                    value={activeChart.templateType}
-                    onChange={(e) =>
-                      updateChartById(activeChart.id, (c) => ({
-                        ...c,
-                        templateType: e.target
-                          .value as ClinicalChartEntry["templateType"],
-                      }))
-                    }
-                    className="w-full appearance-none bg-transparent pr-6 text-[13.5px] font-medium text-[#1C1C1E] focus:outline-none"
-                  >
-                    <option value="soap">Nota SOAP</option>
-                    <option value="aesthetic_anamnesis">
-                      Anamnese Estética &amp; Capilar
-                    </option>
-                    <option value="injectables">
-                      Protocolo de Injetáveis &amp; Harmonização
-                    </option>
-                    <option value="free_note">Nota Livre de Evolução</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-[#1C1C1E] pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" />
-                </div>
+              <div>
+                <DropdownSelect
+                  label="Selecionar modelo"
+                  value={activeChart.templateType}
+                  onChange={(val) =>
+                    updateChartById(activeChart.id, (c) => ({
+                      ...c,
+                      templateType: val as ClinicalChartEntry["templateType"],
+                    }))
+                  }
+                  options={[
+                    { value: "soap", label: "Nota SOAP" },
+                    {
+                      value: "aesthetic_anamnesis",
+                      label: "Anamnese Estética & Capilar",
+                    },
+                    {
+                      value: "injectables",
+                      label: "Protocolo de Injetáveis & Harmonização",
+                    },
+                    { value: "free_note", label: "Nota Livre de Evolução" },
+                  ]}
+                />
               </div>
 
               {/* SOAP note name */}
@@ -2671,56 +2675,49 @@ function ClinicalChartsSection({
       {/* Filter Pills Row */}
       <div className="flex flex-wrap items-center gap-2.5">
         {/* Client Filter Pill */}
-        <div className="relative inline-flex items-center">
-          <select
-            value={filterClientId}
-            onChange={(e) => setFilterClientId(e.target.value)}
-            className="appearance-none rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] pl-3.5 pr-8 py-1.5 text-[12.5px] font-medium text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E] cursor-pointer"
-          >
-            <option value="all">Cliente</option>
-            {state.clients.map((cli) => (
-              <option key={cli.id} value={cli.id}>
-                {cli.fullName}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E] pointer-events-none absolute right-3" />
-        </div>
+        <DropdownSelect
+          variant="inline"
+          value={filterClientId}
+          onChange={(val) => setFilterClientId(val)}
+          placeholder="Cliente"
+          options={[
+            { value: "all", label: "Cliente" },
+            ...state.clients.map((cli) => ({
+              value: cli.id,
+              label: cli.fullName,
+            })),
+          ]}
+        />
 
         {/* Provider Filter Pill */}
-        <div className="relative inline-flex items-center">
-          <select
-            value={filterProviderId}
-            onChange={(e) => setFilterProviderId(e.target.value)}
-            className="appearance-none rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] pl-3.5 pr-8 py-1.5 text-[12.5px] font-medium text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E] cursor-pointer"
-          >
-            <option value="all">Profissional</option>
-            {state.staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.fullName}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E] pointer-events-none absolute right-3" />
-        </div>
+        <DropdownSelect
+          variant="inline"
+          value={filterProviderId}
+          onChange={(val) => setFilterProviderId(val)}
+          placeholder="Profissional"
+          options={[
+            { value: "all", label: "Profissional" },
+            ...state.staff.map((member) => ({
+              value: member.id,
+              label: member.fullName,
+            })),
+          ]}
+        />
 
         {/* Status Filter Pill */}
-        <div className="relative inline-flex items-center">
-          <select
-            value={filterStatus}
-            onChange={(e) =>
-              setFilterStatus(
-                e.target.value as "all" | "created" | "completed"
-              )
-            }
-            className="appearance-none rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] pl-3.5 pr-8 py-1.5 text-[12.5px] font-medium text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E] cursor-pointer"
-          >
-            <option value="all">Todos os status</option>
-            <option value="completed">Concluído</option>
-            <option value="created">Criado</option>
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-[#1C1C1E] pointer-events-none absolute right-3" />
-        </div>
+        <DropdownSelect
+          variant="inline"
+          value={filterStatus}
+          onChange={(val) =>
+            setFilterStatus(val as "all" | "created" | "completed")
+          }
+          placeholder="Todos os status"
+          options={[
+            { value: "all", label: "Todos os status" },
+            { value: "completed", label: "Concluído" },
+            { value: "created", label: "Criado" },
+          ]}
+        />
       </div>
 
       {/* Charts Table */}
@@ -2798,11 +2795,12 @@ function ClinicalChartsSection({
                   {/* Status */}
                   <td className="py-3.5 px-3">
                     {chart.status === "completed" ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-[#9EE37D] text-[#1C1C1E]">
-                        Concluído
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                        <span>Concluído</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-[#E5E5EA] text-[#1C1C1E]">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-medium bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73]">
                         Criado
                       </span>
                     )}
@@ -2895,6 +2893,1176 @@ function ClinicalChartsSection({
   );
 }
 
+// =============================================================================
+// ESTOQUE (INVENTORY — ESTADO VAZIO, TABELA, FILTROS & GAVETA LATERAL PT-BR)
+// =============================================================================
+
+function formatCentsToBRLInput(cents: number): string {
+  if (!cents || cents <= 0) return "";
+  return formatBRLCurrencyString(String(cents / 100));
+}
+
+const INVENTORY_CATEGORY_SUGGESTIONS = [
+  "Cabelo",
+  "Pele & Estética",
+  "Unhas",
+  "Barba",
+  "Maquiagem",
+  "Corporal",
+  "Sobrancelhas & Cílios",
+  "Insumos & Descartáveis",
+];
+
+function InventorySection({
+  state,
+  onUpdateState,
+}: {
+  state: StudioState;
+  onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilterTab, setActiveFilterTab] = useState<
+    "all" | "retail" | "service" | "low_stock"
+  >("all");
+  const [forceEmptyPreview, setForceEmptyPreview] = useState(false);
+
+  // Right-side Drawer State (null = closed, "add" = Adicionar produto, "edit" = Editar produto)
+  const [drawerMode, setDrawerMode] = useState<"add" | "edit" | null>(null);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+
+  // Form Fields
+  const [intendedUse, setIntendedUse] = useState<InventoryIntendedUse>("both");
+  const [brandName, setBrandName] = useState("");
+  const [productName, setProductName] = useState("");
+  const [yourCostInput, setYourCostInput] = useState("");
+  const [retailPriceInput, setRetailPriceInput] = useState("");
+  const [inventoryQuantityInput, setInventoryQuantityInput] = useState("");
+  const [lowQuantityLevelInput, setLowQuantityLevelInput] = useState("");
+  const [productCategory, setProductCategory] = useState("");
+  const [barcode, setBarcode] = useState("");
+  const [size, setSize] = useState("");
+  const [color, setColor] = useState("");
+  const [productDescription, setProductDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const imageFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const openAddDrawer = () => {
+    setDrawerMode("add");
+    setEditingProductId(null);
+    setIntendedUse("both");
+    setBrandName("");
+    setProductName("");
+    setYourCostInput("");
+    setRetailPriceInput("");
+    setInventoryQuantityInput("");
+    setLowQuantityLevelInput("");
+    setProductCategory("");
+    setBarcode("");
+    setSize("");
+    setColor("");
+    setProductDescription("");
+    setImageUrl("");
+    setFormError(null);
+  };
+
+  const openEditDrawer = (item: InventoryProductItem) => {
+    const resolvedUse = resolveProductIntendedUse(item);
+    setDrawerMode("edit");
+    setEditingProductId(item.id);
+    setIntendedUse(resolvedUse);
+    setBrandName(item.brand || "");
+    setProductName(item.name || "");
+    setYourCostInput(formatCentsToBRLInput(item.costCents));
+    setRetailPriceInput(
+      resolvedUse === "service" ? "" : formatCentsToBRLInput(item.priceCents)
+    );
+    setInventoryQuantityInput(String(item.stockQuantity ?? 0));
+    setLowQuantityLevelInput(String(item.minStockAlert ?? 0));
+    setProductCategory(item.productCategory || "Cabelo");
+    setBarcode(item.barcode || item.sku || "");
+    setSize(item.size || "");
+    setColor(item.color || "");
+    setProductDescription(item.description || "");
+    setImageUrl(item.imageUrl || "");
+    setFormError(null);
+  };
+
+  const closeDrawer = () => {
+    setDrawerMode(null);
+    setEditingProductId(null);
+    setFormError(null);
+  };
+
+  const handleImageFileSelect = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "estoque");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success && data?.url) {
+        setImageUrl(data.url);
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            setImageUrl(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setImageUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleSaveProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productName.trim()) {
+      setFormError("Informe o nome do produto para salvar.");
+      return;
+    }
+
+    const costCents = parseCurrencyToCents(yourCostInput);
+    const priceCents =
+      intendedUse === "service" ? 0 : parseCurrencyToCents(retailPriceInput);
+    const stockQuantity = Math.max(
+      0,
+      parseInt(inventoryQuantityInput || "0", 10) || 0
+    );
+    const minStockAlert = Math.max(
+      0,
+      parseInt(lowQuantityLevelInput || "0", 10) || 0
+    );
+
+    onUpdateState((prev) =>
+      saveInventoryProduct(prev, {
+        id: drawerMode === "edit" && editingProductId ? editingProductId : undefined,
+        name: productName.trim(),
+        brand: brandName.trim(),
+        intendedUse,
+        costCents,
+        priceCents,
+        stockQuantity,
+        minStockAlert,
+        productCategory: productCategory.trim() || "Cabelo",
+        barcode: barcode.trim(),
+        size: size.trim(),
+        color: color.trim(),
+        description: productDescription.trim(),
+        imageUrl,
+      })
+    );
+
+    setForceEmptyPreview(false);
+    closeDrawer();
+  };
+
+  const handleDeleteCurrentProduct = () => {
+    if (!editingProductId) return;
+    onUpdateState((prev) => deleteInventoryProduct(prev, editingProductId));
+    closeDrawer();
+  };
+
+  const items = forceEmptyPreview ? [] : state.inventory;
+  const isEmptyState = items.length === 0;
+
+  const lowStockCount = items.filter(
+    (item) => item.minStockAlert > 0 && item.stockQuantity <= item.minStockAlert
+  ).length;
+
+  const filteredItems = items.filter((item) => {
+    const use = resolveProductIntendedUse(item);
+    if (activeFilterTab === "retail" && use === "service") return false;
+    if (activeFilterTab === "service" && use === "retail") return false;
+    if (
+      activeFilterTab === "low_stock" &&
+      !(item.minStockAlert > 0 && item.stockQuantity <= item.minStockAlert)
+    ) {
+      return false;
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      item.name.toLowerCase().includes(q) ||
+      (item.brand || "").toLowerCase().includes(q) ||
+      (item.productCategory || item.category).toLowerCase().includes(q) ||
+      (item.barcode || item.sku || "").toLowerCase().includes(q)
+    );
+  });
+
+  const intendedUseHelperText =
+    intendedUse === "both"
+      ? "Disponível para clientes no checkout e uso interno em serviços."
+      : intendedUse === "retail"
+      ? "Disponível para clientes no checkout."
+      : "Disponível para uso interno em serviços.";
+
+  return (
+    <div className="w-full min-h-[calc(100vh-56px)] bg-white dark:bg-[#09090b] flex flex-col lg:flex-row relative">
+      {/* ===================================================================== */}
+      {/* COLUNA PRINCIPAL (ESQUERDA / CENTRO): ESTADO VAZIO OU TABELA DE ESTOQUE */}
+      {/* ===================================================================== */}
+      <div className="flex-1 min-w-0 px-6 lg:px-10 xl:px-12 py-7 flex flex-col">
+        {isEmptyState ? (
+          /* ================================================================= */
+          /* ESTADO 1: HERO DE ESTOQUE VAZIO (media_1793215310977_87210196.png) */
+          /* ================================================================= */
+          <>
+            <div className="flex items-center justify-between gap-4">
+              <h1 className="text-[22px] font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
+                Estoque
+              </h1>
+              {forceEmptyPreview && state.inventory.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setForceEmptyPreview(false)}
+                  className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] transition"
+                >
+                  Voltar para lista ({state.inventory.length})
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 flex items-center justify-center py-8 lg:py-12">
+              <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+                {/* Card Ilustrado Lavanda à Esquerda */}
+                <div className="lg:col-span-6 flex justify-center">
+                  <div className="w-full max-w-[390px] aspect-square rounded-[24px] bg-gradient-to-b from-[#9E94FF] via-[#B8B0FF] to-[#E2DFFF] p-6 sm:p-9 flex items-center justify-center shadow-sm">
+                    {/* Mockup Escuro "Adicionar ao carrinho" */}
+                    <div className="w-full rounded-[20px] bg-[#141416] text-white p-4 sm:p-5 shadow-2xl border border-white/10 space-y-3.5">
+                      <p className="text-[14px] font-semibold text-white tracking-tight">
+                        Adicionar ao carrinho
+                      </p>
+
+                      {/* Mini Abas */}
+                      <div className="flex items-center gap-1.5 text-[10.5px] text-white/70 overflow-hidden">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full shrink-0">
+                          <Calendar className="w-3 h-3 opacity-70" />
+                          <span>Serviços</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-[#141416] font-semibold shrink-0 shadow-2xs">
+                          <Package className="w-3 h-3" />
+                          <span>Produtos</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full shrink-0">
+                          <span>Pacotes</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full shrink-0">
+                          <span>Assinaturas</span>
+                        </span>
+                      </div>
+
+                      {/* 3 Linhas de Produtos Ilustrativos */}
+                      <div className="space-y-2">
+                        <div className="rounded-[12px] bg-[#242428] px-3 py-2.5 flex items-center gap-3 border border-white/5">
+                          <span className="w-0.5 h-7 rounded-full bg-[#F59E0B] shrink-0" />
+                          <div className="w-8 h-8 rounded-[8px] bg-gradient-to-br from-[#D97706] to-[#FBBF24] shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[11.5px] font-semibold text-white truncate">
+                              Pacote Facial Mensal
+                            </p>
+                            <p className="text-[10.5px] text-white/60">
+                              R$ 120,00
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-[12px] bg-[#242428] px-3 py-2.5 flex items-center gap-3 border border-white/5">
+                          <span className="w-0.5 h-7 rounded-full bg-[#818CF8] shrink-0" />
+                          <div className="w-8 h-8 rounded-[8px] bg-gradient-to-br from-[#CBD5E1] to-[#94A3B8] shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[11.5px] font-semibold text-white truncate">
+                              Sérum Esfoliante
+                            </p>
+                            <p className="text-[10.5px] text-white/60">
+                              R$ 85,00
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-[12px] bg-[#242428] px-3 py-2.5 flex items-center gap-3 border border-white/5">
+                          <span className="w-0.5 h-7 rounded-full bg-[#FBBF24] shrink-0" />
+                          <div className="w-8 h-8 rounded-[8px] bg-gradient-to-br from-[#FDE68A] to-[#D97706] shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[11.5px] font-semibold text-white truncate">
+                              Sérum Refinador Glass Skin
+                            </p>
+                            <p className="text-[10.5px] text-white/60">
+                              R$ 49,00
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Copy Editorial & CTA à Direita */}
+                <div className="lg:col-span-6 space-y-5">
+                  <h2 className="font-serif text-[32px] sm:text-[40px] leading-[1.08] text-[#1C1C1E] dark:text-white tracking-tight">
+                    Controle e gerencie seu estoque
+                  </h2>
+
+                  <div className="space-y-3 text-[14.5px] text-[#3A3A3C] dark:text-[#d4d4d8]">
+                    <p>
+                      Quantidades atualizadas automaticamente a cada venda
+                    </p>
+                    <p>
+                      Nunca fique sem produtos com alertas de estoque baixo
+                    </p>
+                    <p>
+                      Controle produtos de revenda no checkout e uso interno nos serviços
+                    </p>
+                  </div>
+
+                  <div className="pt-1 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={openAddDrawer}
+                      className="px-7 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[14px] font-semibold transition"
+                    >
+                      Adicionar produtos
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* ================================================================= */
+          /* ESTADO 2: LISTA DE ESTOQUE POPULADA (media_1793215622438_13d49ad3) */
+          /* ================================================================= */
+          <div className="space-y-5">
+            {/* Top Bar: Título + Busca + Botão Adicionar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+              <h1 className="text-[22px] font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
+                Estoque
+              </h1>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-[290px] md:w-[320px]">
+                  <Search className="w-4 h-4 text-[#8E8E93] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nome do produto ou marca"
+                    className="w-full pl-9 pr-4 py-2 rounded-full border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={openAddDrawer}
+                  className="px-5 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[13px] font-semibold transition shrink-0"
+                >
+                  Adicionar
+                </button>
+              </div>
+            </div>
+
+            {/* Faixa Superior de 4 Cartões de Recursos (Idêntico ao print) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+              {/* Card 1: Sem controle manual */}
+              <button
+                type="button"
+                onClick={openAddDrawer}
+                className="text-left rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#18181b] hover:border-[#C7C7CC] dark:hover:border-[#3f3f46] overflow-hidden flex items-stretch transition group"
+              >
+                <div className="w-16 sm:w-[70px] bg-gradient-to-b from-[#9E94FF] to-[#D6D1FF] flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-7 h-7 text-white/90"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  >
+                    <path d="M8 3h8l-1 13a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2L8 3Z" />
+                    <path d="M10 18v3h4v-3" />
+                  </svg>
+                </div>
+                <div className="p-3 flex-1 flex items-center justify-between gap-2 min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white leading-snug">
+                      Sem controle manual
+                    </p>
+                    <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-snug mt-0.5 line-clamp-2">
+                      Venda e seu estoque atualiza automaticamente a cada pedido.
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[#1C1C1E] dark:text-white shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </button>
+
+              {/* Card 2: Adição em massa de produtos */}
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateState((prev) => importStarterInventoryProducts(prev))
+                }
+                className="text-left rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#18181b] hover:border-[#C7C7CC] dark:hover:border-[#3f3f46] overflow-hidden flex items-stretch transition"
+              >
+                <div className="w-16 sm:w-[70px] bg-gradient-to-b from-[#D8B4E2] to-[#F3E8FF] flex items-center justify-center shrink-0">
+                  <Package className="w-6 h-6 text-[#581C87]/80" />
+                </div>
+                <div className="p-3 flex-1 flex flex-col justify-center items-start gap-1.5 min-w-0">
+                  <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white leading-snug">
+                    Adição em massa de produtos
+                  </p>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E5C158]/40 dark:bg-[#E5C158]/20 text-[#5C4408] dark:text-[#FDE68A] text-[10.5px] font-semibold">
+                    Importar catálogo base
+                  </span>
+                </div>
+              </button>
+
+              {/* Card 3: Leitura de código de barras */}
+              <button
+                type="button"
+                onClick={() => {
+                  searchInputRef.current?.focus();
+                }}
+                className="text-left rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#18181b] hover:border-[#C7C7CC] dark:hover:border-[#3f3f46] overflow-hidden flex items-stretch transition"
+              >
+                <div className="w-16 sm:w-[70px] bg-gradient-to-b from-[#F9A8D4] to-[#FCE7F3] flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-6 h-6 text-[#831843]/80"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  >
+                    <path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14M21 5v14" />
+                  </svg>
+                </div>
+                <div className="p-3 flex-1 flex flex-col justify-center items-start gap-1.5 min-w-0">
+                  <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white leading-snug">
+                    Leitura de código de barras
+                  </p>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E5C158]/40 dark:bg-[#E5C158]/20 text-[#5C4408] dark:text-[#FDE68A] text-[10.5px] font-semibold">
+                    Disponível no celular
+                  </span>
+                </div>
+              </button>
+
+              {/* Card 4: Compare preços e economize / Alerta de estoque baixo */}
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveFilterTab((prev) =>
+                    prev === "low_stock" ? "all" : "low_stock"
+                  )
+                }
+                className="text-left rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#18181b] hover:border-[#C7C7CC] dark:hover:border-[#3f3f46] overflow-hidden flex items-stretch transition"
+              >
+                <div className="w-16 sm:w-[70px] bg-gradient-to-b from-[#EDE9FE] to-[#DDD6FE] flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-6 h-6 text-[#4C1D95]/80" />
+                </div>
+                <div className="p-3 flex-1 flex flex-col justify-center items-start gap-1.5 min-w-0">
+                  <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white leading-snug truncate w-full">
+                    Compare preços e economize
+                  </p>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E5C158]/40 dark:bg-[#E5C158]/20 text-[#5C4408] dark:text-[#FDE68A] text-[10.5px] font-semibold">
+                    {lowStockCount > 0
+                      ? `${lowStockCount} com estoque baixo`
+                      : "Disponível no celular"}
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            {/* Abas de Filtro em Pílulas: Todos (N), Para revenda, Para serviços */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveFilterTab("all")}
+                  className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${
+                    activeFilterTab === "all"
+                      ? "bg-[#1C1C1E] text-white dark:bg-white dark:text-[#09090b] font-semibold"
+                      : "bg-white dark:bg-[#18181b] border border-[#D1D1D6] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                  }`}
+                >
+                  Todos ({items.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveFilterTab("retail")}
+                  className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${
+                    activeFilterTab === "retail"
+                      ? "bg-[#1C1C1E] text-white dark:bg-white dark:text-[#09090b] font-semibold"
+                      : "bg-white dark:bg-[#18181b] border border-[#D1D1D6] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                  }`}
+                >
+                  Para revenda
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveFilterTab("service")}
+                  className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${
+                    activeFilterTab === "service"
+                      ? "bg-[#1C1C1E] text-white dark:bg-white dark:text-[#09090b] font-semibold"
+                      : "bg-white dark:bg-[#18181b] border border-[#D1D1D6] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                  }`}
+                >
+                  Para serviços
+                </button>
+
+                {lowStockCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveFilterTab((prev) =>
+                        prev === "low_stock" ? "all" : "low_stock"
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition ${
+                      activeFilterTab === "low_stock"
+                        ? "bg-[#1C1C1E] text-white dark:bg-white dark:text-[#09090b] font-semibold"
+                        : "bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                    <span>Estoque baixo ({lowStockCount})</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Tabela de Produtos (Product, Brand, Category, Retail Price, Quantity) */}
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-[#E5E5EA] dark:border-[#27272a] text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+                    <th className="py-3 px-3 font-medium w-[36%]">Produto</th>
+                    <th className="py-3 px-3 font-medium">Marca</th>
+                    <th className="py-3 px-3 font-medium">Categoria</th>
+                    <th className="py-3 px-3 font-medium">Preço de revenda</th>
+                    <th className="py-3 px-3 font-medium">Quantidade</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13.5px] text-[#1C1C1E] dark:text-white">
+                  {filteredItems.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-10 text-center text-[13.5px] text-[#6E6E73] dark:text-[#a1a1aa]"
+                      >
+                        Nenhum produto encontrado para este filtro.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredItems.map((item) => {
+                      const isSelected =
+                        drawerMode === "edit" && editingProductId === item.id;
+                      const use = resolveProductIntendedUse(item);
+                      const isLowStock =
+                        item.minStockAlert > 0 &&
+                        item.stockQuantity <= item.minStockAlert;
+
+                      return (
+                        <tr
+                          key={item.id}
+                          onClick={() => openEditDrawer(item)}
+                          className={`transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-[#EFF3F0] dark:bg-[#27272a]/80"
+                              : "hover:bg-[#F5F6F7] dark:hover:bg-[#18181b]"
+                          }`}
+                        >
+                          {/* Coluna 1: Produto (Foto + Nome) */}
+                          <td className="py-3.5 px-3">
+                            <div className="flex items-center gap-4 min-w-0">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.name}
+                                  className="w-11 h-11 rounded-[10px] object-cover border border-[#E5E5EA] dark:border-[#3f3f46] shrink-0"
+                                />
+                              ) : (
+                                <div className="w-11 h-11 rounded-[10px] bg-gradient-to-br from-[#6D48C5] via-[#9B6EF3] to-[#C8A8F8] flex items-center justify-center shrink-0 shadow-2xs">
+                                  <svg
+                                    className="w-5 h-5 text-white"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                  >
+                                    <rect
+                                      x="9"
+                                      y="2"
+                                      width="6"
+                                      height="3"
+                                      rx="1"
+                                    />
+                                    <path d="M10 5v2h4V5" />
+                                    <rect
+                                      x="7"
+                                      y="7"
+                                      width="10"
+                                      height="15"
+                                      rx="2.5"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+
+                              <div className="min-w-0">
+                                <p className="font-semibold text-[#1C1C1E] dark:text-white truncate">
+                                  {item.name}
+                                </p>
+                                {isLowStock && (
+                                  <span className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[11px] font-medium text-[#1C1C1E] dark:text-white">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                                    <span>Estoque baixo</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Coluna 2: Marca */}
+                          <td className="py-3.5 px-3 text-[#1C1C1E] dark:text-[#d4d4d8]">
+                            {item.brand || "—"}
+                          </td>
+
+                          {/* Coluna 3: Categoria */}
+                          <td className="py-3.5 px-3 text-[#1C1C1E] dark:text-[#d4d4d8]">
+                            {item.productCategory ||
+                              (use === "service" ? "Uso interno" : "Cabelo")}
+                          </td>
+
+                          {/* Coluna 4: Preço de revenda */}
+                          <td className="py-3.5 px-3 text-[#1C1C1E] dark:text-white tabular-nums">
+                            {use === "service" ? (
+                              <span className="text-[#6E6E73] dark:text-[#a1a1aa] text-[12.5px]">
+                                Uso em serviços
+                              </span>
+                            ) : (
+                              formatBRL(item.priceCents)
+                            )}
+                          </td>
+
+                          {/* Coluna 5: Quantidade Stepper [-] [ N ] [+] */}
+                          <td
+                            className="py-3.5 px-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                aria-label={`Diminuir quantidade de ${item.name}`}
+                                onClick={() => {
+                                  onUpdateState((prev) =>
+                                    adjustInventoryStock(prev, item.id, -1, "delta")
+                                  );
+                                  if (
+                                    drawerMode === "edit" &&
+                                    editingProductId === item.id
+                                  ) {
+                                    setInventoryQuantityInput(
+                                      String(Math.max(0, item.stockQuantity - 1))
+                                    );
+                                  }
+                                }}
+                                className="w-6 h-6 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white transition"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+
+                              <input
+                                type="number"
+                                min={0}
+                                aria-label={`Quantidade em estoque de ${item.name}`}
+                                value={item.stockQuantity}
+                                onChange={(e) => {
+                                  const nextVal = Math.max(
+                                    0,
+                                    parseInt(e.target.value || "0", 10) || 0
+                                  );
+                                  onUpdateState((prev) =>
+                                    adjustInventoryStock(
+                                      prev,
+                                      item.id,
+                                      nextVal,
+                                      "exact"
+                                    )
+                                  );
+                                  if (
+                                    drawerMode === "edit" &&
+                                    editingProductId === item.id
+                                  ) {
+                                    setInventoryQuantityInput(String(nextVal));
+                                  }
+                                }}
+                                className="w-12 h-9 rounded-[8px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-center text-[13px] font-medium text-[#1C1C1E] dark:text-white tabular-nums focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+
+                              <button
+                                type="button"
+                                aria-label={`Aumentar quantidade de ${item.name}`}
+                                onClick={() => {
+                                  onUpdateState((prev) =>
+                                    adjustInventoryStock(prev, item.id, 1, "delta")
+                                  );
+                                  if (
+                                    drawerMode === "edit" &&
+                                    editingProductId === item.id
+                                  ) {
+                                    setInventoryQuantityInput(
+                                      String(item.stockQuantity + 1)
+                                    );
+                                  }
+                                }}
+                                className="w-6 h-6 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white transition"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ===================================================================== */}
+      {/* GAVETA LATERAL DIREITA: ADICIONAR PRODUTO / EDITAR PRODUTO            */}
+      {/* ===================================================================== */}
+      {drawerMode !== null && (
+        <>
+          {/* Backdrop apenas no mobile (< lg) */}
+          <div
+            className="fixed inset-0 z-[80] bg-black/40 backdrop-blur-[1px] lg:hidden"
+            onClick={closeDrawer}
+          />
+
+          <aside className="fixed inset-y-0 right-0 z-[90] w-full max-w-[400px] lg:static lg:z-auto lg:w-[360px] xl:w-[390px] bg-white dark:bg-[#18181b] border-l border-[#E5E5EA] dark:border-[#27272a] flex flex-col justify-between shrink-0 lg:min-h-[calc(100vh-56px)] shadow-2xl lg:shadow-none">
+            <form
+              onSubmit={handleSaveProduct}
+              className="flex flex-col h-full max-h-screen lg:max-h-[calc(100vh-56px)] justify-between"
+            >
+              {/* Cabeçalho Fixo da Gaveta */}
+              <div className="px-6 pt-5 pb-4 flex items-center justify-between gap-3 border-b border-[#EFEFF4] dark:border-[#27272a] shrink-0">
+                <h2 className="text-[17px] font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
+                  {drawerMode === "edit"
+                    ? "Editar produto"
+                    : "Adicionar produto"}
+                </h2>
+
+                <div className="flex items-center gap-2">
+                  {drawerMode === "edit" && editingProductId && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteCurrentProduct}
+                      aria-label="Excluir produto"
+                      title="Excluir produto"
+                      className="p-1.5 rounded-full text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    aria-label="Fechar painel de produto"
+                    className="p-1.5 rounded-full text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Corpo Rolável do Formulário */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                {/* 1. Upload de Imagem do Produto */}
+                <div className="rounded-[14px] border border-dashed border-[#D1D1D6] dark:border-[#3f3f46] p-5 flex flex-col items-center justify-center gap-3.5 bg-[#FAFAFC]/60 dark:bg-[#121214]">
+                  <input
+                    ref={imageFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileSelect}
+                    className="hidden"
+                  />
+
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt={productName || "Imagem do produto"}
+                      className="w-[116px] h-[116px] rounded-[16px] object-cover shadow-xs border border-[#E5E5EA] dark:border-[#27272a]"
+                    />
+                  ) : (
+                    /* Ilustração do Frasco Cosmético (idêntica ao print Add product) */
+                    <div className="w-[116px] h-[116px] rounded-[16px] bg-gradient-to-br from-[#5B3E96] via-[#8B63DA] to-[#C8A8F8] flex items-center justify-center shadow-xs relative overflow-hidden">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.28),transparent_55%)]" />
+                      <svg
+                        className="w-16 h-16 text-white/95 relative z-10"
+                        viewBox="0 0 64 64"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="27" y="8" width="10" height="5" rx="1.5" />
+                        <rect x="28.5" y="13" width="7" height="4" />
+                        <path d="M23 21c0-2.2 1.8-4 4-4h10c2.2 0 4 1.8 4 4v31c0 2.2-1.8 4-4 4H27c-2.2 0-4-1.8-4-4V21Z" />
+                        <path d="M23 24h18" />
+                      </svg>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={isUploadingImage}
+                    onClick={() => imageFileInputRef.current?.click()}
+                    className="px-3.5 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[12px] font-semibold inline-flex items-center gap-1.5 transition disabled:opacity-60"
+                  >
+                    {isUploadingImage ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    <span>
+                      {isUploadingImage ? "Enviando..." : "Substituir imagem"}
+                    </span>
+                  </button>
+                </div>
+
+                {/* 2. Uso pretendido deste produto (3 Abas: Ambos, Para revenda, Para serviços) */}
+                <div className="space-y-2.5">
+                  <label className="block text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Uso pretendido deste produto
+                  </label>
+
+                  <div className="rounded-full bg-[#EFEFF4] dark:bg-[#27272a] p-1 grid grid-cols-3 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setIntendedUse("both")}
+                      className={`py-1.5 px-2 rounded-full text-[12px] transition ${
+                        intendedUse === "both"
+                          ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white font-semibold shadow-2xs"
+                          : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white font-medium"
+                      }`}
+                    >
+                      Ambos
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIntendedUse("retail")}
+                      className={`py-1.5 px-2 rounded-full text-[12px] transition ${
+                        intendedUse === "retail"
+                          ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white font-semibold shadow-2xs"
+                          : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white font-medium"
+                      }`}
+                    >
+                      Para revenda
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIntendedUse("service")}
+                      className={`py-1.5 px-2 rounded-full text-[12px] transition ${
+                        intendedUse === "service"
+                          ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white font-semibold shadow-2xs"
+                          : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white font-medium"
+                      }`}
+                    >
+                      Para serviços
+                    </button>
+                  </div>
+
+                  <div className="flex items-start gap-1.5 text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] pt-0.5">
+                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[#6E6E73] dark:text-[#a1a1aa]" />
+                    <span>{intendedUseHelperText}</span>
+                  </div>
+                </div>
+
+                {/* 3. Detalhes do produto (Product details) */}
+                <div className="space-y-3">
+                  <h3 className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Detalhes do produto
+                  </h3>
+
+                  {/* Nome da marca (Brand name) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Nome da marca
+                    </label>
+                    <input
+                      type="text"
+                      value={brandName}
+                      onChange={(e) => setBrandName(e.target.value)}
+                      placeholder="Nome da marca"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5"
+                    />
+                  </div>
+
+                  {/* Nome do produto (Product name) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Nome do produto
+                    </label>
+                    <input
+                      type="text"
+                      value={productName}
+                      onChange={(e) => {
+                        setProductName(e.target.value);
+                        if (formError) setFormError(null);
+                      }}
+                      placeholder="Nome do produto"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5"
+                    />
+                  </div>
+
+                  {/* Seu custo (Your cost) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Seu custo
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={yourCostInput}
+                      onChange={(e) => setYourCostInput(e.target.value)}
+                      onBlur={() => {
+                        if (yourCostInput.trim()) {
+                          setYourCostInput(formatBRLCurrencyString(yourCostInput));
+                        }
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      placeholder="R$ 0,00"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5 tabular-nums"
+                    />
+                  </div>
+
+                  {/* Preço de revenda (Retail price — oculto em "Para serviços") */}
+                  {(intendedUse === "both" || intendedUse === "retail") && (
+                    <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                      <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Preço de revenda
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={retailPriceInput}
+                        onChange={(e) => setRetailPriceInput(e.target.value)}
+                        onBlur={() => {
+                          if (retailPriceInput.trim()) {
+                            setRetailPriceInput(formatBRLCurrencyString(retailPriceInput));
+                          }
+                        }}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        placeholder="R$ 0,00"
+                        className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5 tabular-nums"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Quantidade (Quantity) */}
+                <div className="space-y-3">
+                  <h3 className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Quantidade
+                  </h3>
+
+                  {/* Quantidade em estoque (Inventory quantity) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Quantidade em estoque
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={inventoryQuantityInput}
+                      onChange={(e) =>
+                        setInventoryQuantityInput(e.target.value)
+                      }
+                      placeholder="0"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5 tabular-nums"
+                    />
+                  </div>
+
+                  {/* Nível de estoque baixo (Low quantity level) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Nível de estoque baixo
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={lowQuantityLevelInput}
+                      onChange={(e) => setLowQuantityLevelInput(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5 tabular-nums"
+                    />
+                  </div>
+
+                  <div className="space-y-2 text-[11.5px] leading-relaxed text-[#6E6E73] dark:text-[#a1a1aa] pt-0.5">
+                    <p>
+                      Rastrearemos automaticamente as alterações de quantidade
+                      quando você vender produtos no checkout. Atualize este
+                      campo ao receber novo estoque.
+                    </p>
+                    <p>
+                      O nível de estoque baixo é a quantidade que você deseja
+                      manter no seu estoque antes de fazer um novo pedido.
+                      Adicionaremos isso aos seus relatórios.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 5. Detalhes avançados (Advanced details) */}
+                <div className="space-y-3">
+                  <h3 className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                    Detalhes avançados
+                  </h3>
+
+                  {/* Categoria do produto (Product category) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Categoria do produto
+                    </label>
+                    <input
+                      type="text"
+                      list="luvea-inventory-categories"
+                      value={productCategory}
+                      onChange={(e) => setProductCategory(e.target.value)}
+                      placeholder="Ex.: Cabelo, Pele & Estética, Unhas"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5"
+                    />
+                    <datalist id="luvea-inventory-categories">
+                      {INVENTORY_CATEGORY_SUGGESTIONS.map((cat) => (
+                        <option key={cat} value={cat} />
+                      ))}
+                    </datalist>
+                  </div>
+
+                  {/* Código de barras (Barcode) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Código de barras
+                    </label>
+                    <input
+                      type="text"
+                      value={barcode}
+                      onChange={(e) => setBarcode(e.target.value)}
+                      placeholder="Código de barras (EAN / SKU)"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5"
+                    />
+                  </div>
+
+                  {/* Tamanho (Size) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Tamanho
+                    </label>
+                    <input
+                      type="text"
+                      value={size}
+                      onChange={(e) => setSize(e.target.value)}
+                      placeholder="Ex.: 250ml, 50g, 1kg"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5"
+                    />
+                  </div>
+
+                  {/* Cor (Color) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Cor
+                    </label>
+                    <input
+                      type="text"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                      placeholder="Cor"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5"
+                    />
+                  </div>
+
+                  {/* Descrição do produto (Product description) */}
+                  <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
+                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Descrição do produto
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={productDescription}
+                      onChange={(e) => setProductDescription(e.target.value)}
+                      placeholder="Descrição do produto"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5 resize-none"
+                    />
+                  </div>
+                </div>
+
+                {formError && (
+                  <p className="text-[12px] font-medium text-rose-600 dark:text-rose-400">
+                    {formError}
+                  </p>
+                )}
+              </div>
+
+              {/* Rodapé Fixo com Botão Salvar */}
+              <div className="p-4 border-t border-[#EFEFF4] dark:border-[#27272a] bg-white dark:bg-[#18181b] shrink-0">
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[13.5px] font-semibold transition"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </aside>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ComplementarySectionView({
   section,
   state,
@@ -2920,44 +4088,7 @@ export function ComplementarySectionView({
 
   if (section === "inventory") {
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-        <h1 className="text-[28px] font-bold text-[#1C1C1E]">
-          Estoque (Inventory — Retail &amp; Backbar)
-        </h1>
-        <div className="bg-white rounded-[20px] border border-[#E5E5EA] shadow-gg-card overflow-hidden">
-          <div className="divide-y divide-[#EFEFF4]">
-            {state.inventory.map((item) => (
-              <div
-                key={item.id}
-                className="p-5 flex items-center justify-between gap-4"
-              >
-                <div>
-                  <p className="text-[15px] font-bold text-[#1C1C1E]">
-                    {item.name}
-                  </p>
-                  <p className="text-[12px] text-[#6E6E73]">
-                    SKU: {item.sku} · {item.category}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span
-                    className={`px-3 py-1 rounded-full text-[12px] font-bold text-white shadow-sm ${
-                      item.stockQuantity <= item.minStockAlert
-                        ? "bg-[#D97706]"
-                        : "bg-[#16A34A]"
-                    }`}
-                  >
-                    {item.stockQuantity} unid. em estoque
-                  </span>
-                  <span className="font-mono font-bold text-[#1C1C1E]">
-                    {formatBRL(item.priceCents)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <InventorySection state={state} onUpdateState={onUpdateState} />
     );
   }
 
@@ -2974,7 +4105,7 @@ export function ComplementarySectionView({
         <span className="inline-block px-3 py-1 rounded-full bg-white/80 text-[12px] font-semibold text-[#6E56CF]">
           Indique e ganhe R$ 150
         </span>
-        <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+        <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
           Convide outros profissionais de beleza e ganhem créditos na assinatura
         </h1>
         <p className="text-[15px] text-[#6E6E73] max-w-xl">

@@ -51,16 +51,16 @@ export default function PoliticaDePrivacidadePage() {
   ];
 
   return (
-    <div className="py-12 sm:py-20 bg-stone-50/50">
+    <div className="py-12 sm:py-20 bg-stone-50/50 dark:bg-[#09090b]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* Document Header */}
-        <div className="space-y-4 border-b border-zinc-200 pb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-zinc-200 bg-white text-zinc-700 text-[11px] font-mono uppercase tracking-wider">
-            <Lock className="w-3.5 h-3.5 text-zinc-700" />
+        <div className="space-y-4 border-b border-zinc-200 dark:border-[#27272a] pb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-zinc-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-zinc-700 dark:text-zinc-300 text-[11px] font-mono uppercase tracking-wider">
+            <Lock className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
             <span>Conformidade LGPD (Lei nº 13.709/2018) · Versão {config.versaoDocumento}</span>
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-5xl font-normal text-[#18181B] tracking-tight">
+          <h1 className="font-serif text-3xl sm:text-5xl font-normal text-[#18181B] dark:text-white tracking-tight">
             Política de Privacidade da LUVEA
           </h1>
 
@@ -105,27 +105,27 @@ export default function PoliticaDePrivacidadePage() {
           {/* Sticky Table of Contents */}
           <nav
             aria-label="Sumário da Política de Privacidade"
-            className="lg:col-span-4 sticky top-24 rounded-2xl p-5 bg-white border border-zinc-200 shadow-2xs space-y-3"
+            className="lg:col-span-4 lg:sticky lg:top-24 rounded-2xl p-5 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] shadow-sm space-y-3"
           >
-            <p className="font-mono text-[11px] uppercase tracking-wider font-semibold text-zinc-500">
+            <p className="font-mono text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">
               Sumário de Privacidade
             </p>
-            <ul className="space-y-1.5 text-xs font-sans text-zinc-600">
+            <ul className="space-y-1.5 text-xs font-sans text-zinc-600 dark:text-zinc-300">
               {sections.map((sec) => (
                 <li key={sec.id}>
                   <a
                     href={`#${sec.id}`}
-                    className="block py-1 hover:text-black hover:underline transition-colors"
+                    className="block py-1 hover:text-black dark:hover:text-white hover:underline transition-colors"
                   >
                     {sec.title}
                   </a>
                 </li>
               ))}
             </ul>
-            <div className="pt-3 border-t border-zinc-100">
+            <div className="pt-3 border-t border-zinc-100 dark:border-[#27272a]">
               <Link
                 href="/termos-de-uso"
-                className="text-xs font-semibold text-zinc-900 hover:underline inline-flex items-center gap-1"
+                className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:underline inline-flex items-center gap-1"
               >
                 <span>Ver Termos de Uso da Plataforma</span>
                 <ArrowRight className="w-3 h-3" />
@@ -134,7 +134,7 @@ export default function PoliticaDePrivacidadePage() {
           </nav>
 
           {/* Policy Clauses Content */}
-          <main className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-10 border border-zinc-200 shadow-2xs space-y-10 text-zinc-800 text-sm sm:text-[14.5px] leading-relaxed font-sans">
+          <main className="lg:col-span-8 bg-white dark:bg-[#18181b] rounded-3xl p-6 sm:p-10 border border-zinc-200 dark:border-[#27272a] shadow-sm space-y-10 text-zinc-800 dark:text-zinc-300 text-sm sm:text-[14.5px] leading-relaxed font-sans">
             {/* Cláusula 1 */}
             <section id="priv-1" className="space-y-3 scroll-mt-28">
               <h2 className="font-serif text-2xl font-normal text-[#18181B] border-b border-zinc-100 pb-2">

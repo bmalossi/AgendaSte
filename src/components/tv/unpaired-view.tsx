@@ -236,14 +236,14 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
                       code.slice(0, 3).split("").map((digit, i) => (
                         <span
                           key={i}
-                          className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.12] flex items-center justify-center text-3xl md:text-4xl font-light tabular-nums text-white shadow-inner"
+                          className="w-11 h-14 sm:w-14 sm:h-18 md:w-16 md:h-20 rounded-xl sm:rounded-2xl bg-[#09090C] border border-white/[0.12] flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-light tabular-nums text-white shadow-inner"
                         >
                           {digit}
                         </span>
                       ))
                     ) : (
                       [0, 1, 2].map((i) => (
-                        <span key={i} className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.06] animate-pulse" />
+                        <span key={i} className="w-11 h-14 sm:w-14 sm:h-18 md:w-16 md:h-20 rounded-xl sm:rounded-2xl bg-[#09090C] border border-white/[0.06] animate-pulse" />
                       ))
                     )}
                   </div>
@@ -253,14 +253,14 @@ export function UnpairedView({ onAuthorized }: UnpairedViewProps) {
                       code.slice(3, 6).split("").map((digit, i) => (
                         <span
                           key={i + 3}
-                          className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.12] flex items-center justify-center text-3xl md:text-4xl font-light tabular-nums text-white shadow-inner"
+                          className="w-11 h-14 sm:w-14 sm:h-18 md:w-16 md:h-20 rounded-xl sm:rounded-2xl bg-[#09090C] border border-white/[0.12] flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-light tabular-nums text-white shadow-inner"
                         >
                           {digit}
                         </span>
                       ))
                     ) : (
                       [3, 4, 5].map((i) => (
-                        <span key={i} className="w-13 h-18 md:w-16 md:h-22 rounded-2xl bg-[#09090C] border border-white/[0.06] animate-pulse" />
+                        <span key={i} className="w-11 h-14 sm:w-14 sm:h-18 md:w-16 md:h-20 rounded-xl sm:rounded-2xl bg-[#09090C] border border-white/[0.06] animate-pulse" />
                       ))
                     )}
                   </div>

@@ -40,6 +40,7 @@ import {
 import { useAppTheme } from "@/lib/theme";
 import { PLANS_CATALOG } from "@/lib/marketing-content";
 import { TvKioskSettingsSection } from "@/components/agendaste/tv-kiosk-settings-section";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 import type {
   StudioState,
   WebsiteBookingSetupConfig,
@@ -1028,19 +1029,21 @@ export function SettingsView({
                           : "Você recebe cada pedido para aprovar manualmente antes de confirmar."}
                       </p>
                     </div>
-                    <select
-                      value={bookingControls.autoApproveMode}
-                      onChange={(e) =>
-                        setBookingControls({
-                          ...bookingControls,
-                          autoApproveMode: e.target.value as "always" | "manual",
-                        })
-                      }
-                      className="px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] bg-white w-48 shrink-0"
-                    >
-                      <option value="always">Sempre automática</option>
-                      <option value="manual">Aprovação manual</option>
-                    </select>
+                    <div className="w-52 shrink-0">
+                      <DropdownSelect
+                        value={bookingControls.autoApproveMode}
+                        onChange={(val) =>
+                          setBookingControls({
+                            ...bookingControls,
+                            autoApproveMode: val as "always" | "manual",
+                          })
+                        }
+                        options={[
+                          { value: "always", label: "Sempre automática" },
+                          { value: "manual", label: "Aprovação manual" },
+                        ]}
+                      />
+                    </div>
                   </div>
 
                   {/* Antecedência Mínima */}
@@ -1051,23 +1054,25 @@ export function SettingsView({
                         Tempo mínimo de aviso prévio que o cliente precisa cumprir para marcar um horário.
                       </p>
                     </div>
-                    <select
-                      value={bookingControls.bookingWindowHours}
-                      onChange={(e) =>
-                        setBookingControls({
-                          ...bookingControls,
-                          bookingWindowHours: parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] bg-white w-36 shrink-0"
-                    >
-                      <option value={1}>1 hora</option>
-                      <option value={2}>2 horas</option>
-                      <option value={4}>4 horas</option>
-                      <option value={12}>12 horas</option>
-                      <option value={24}>24 horas</option>
-                      <option value={48}>48 horas</option>
-                    </select>
+                    <div className="w-40 shrink-0">
+                      <DropdownSelect
+                        value={bookingControls.bookingWindowHours}
+                        onChange={(val) =>
+                          setBookingControls({
+                            ...bookingControls,
+                            bookingWindowHours: Number(val),
+                          })
+                        }
+                        options={[
+                          { value: 1, label: "1 hora" },
+                          { value: 2, label: "2 horas" },
+                          { value: 4, label: "4 horas" },
+                          { value: 12, label: "12 horas" },
+                          { value: 24, label: "24 horas" },
+                          { value: 48, label: "48 horas" },
+                        ]}
+                      />
+                    </div>
                   </div>
 
                   {/* Incrementos de Horário */}
@@ -1078,21 +1083,23 @@ export function SettingsView({
                         Controla os blocos de horário disponíveis para seleção na agenda e no site.
                       </p>
                     </div>
-                    <select
-                      value={bookingControls.bookingIncrementsMinutes}
-                      onChange={(e) =>
-                        setBookingControls({
-                          ...bookingControls,
-                          bookingIncrementsMinutes: parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] bg-white w-36 shrink-0"
-                    >
-                      <option value={15}>15 minutos</option>
-                      <option value={30}>30 minutos</option>
-                      <option value={45}>45 minutos</option>
-                      <option value={60}>60 minutos</option>
-                    </select>
+                    <div className="w-40 shrink-0">
+                      <DropdownSelect
+                        value={bookingControls.bookingIncrementsMinutes}
+                        onChange={(val) =>
+                          setBookingControls({
+                            ...bookingControls,
+                            bookingIncrementsMinutes: Number(val),
+                          })
+                        }
+                        options={[
+                          { value: 15, label: "15 minutos" },
+                          { value: 30, label: "30 minutos" },
+                          { value: 45, label: "45 minutos" },
+                          { value: 60, label: "60 minutos" },
+                        ]}
+                      />
+                    </div>
                   </div>
 
                   {/* Preenchimento Inteligente de Lacunas */}
@@ -1134,38 +1141,38 @@ export function SettingsView({
                           <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">
                             Tolerância de Janela
                           </label>
-                          <select
+                          <DropdownSelect
                             value={bookingControls.maxGapMinutes}
-                            onChange={(e) =>
+                            onChange={(val) =>
                               setBookingControls({
                                 ...bookingControls,
-                                maxGapMinutes: parseInt(e.target.value, 10),
+                                maxGapMinutes: Number(val),
                               })
                             }
-                            className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] bg-white"
-                          >
-                            <option value={15}>Até 15 minutos</option>
-                            <option value={30}>Até 30 minutos</option>
-                            <option value={45}>Até 45 minutos</option>
-                          </select>
+                            options={[
+                              { value: 15, label: "Até 15 minutos" },
+                              { value: 30, label: "Até 30 minutos" },
+                              { value: 45, label: "Até 45 minutos" },
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">
                             Escopo de Profissionais
                           </label>
-                          <select
+                          <DropdownSelect
                             value={bookingControls.gapProviderScope}
-                            onChange={(e) =>
+                            onChange={(val) =>
                               setBookingControls({
                                 ...bookingControls,
-                                gapProviderScope: e.target.value as "all" | "selected",
+                                gapProviderScope: val as "all" | "selected",
                               })
                             }
-                            className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] bg-white"
-                          >
-                            <option value="all">Todos os profissionais</option>
-                            <option value="selected">Profissionais selecionados</option>
-                          </select>
+                            options={[
+                              { value: "all", label: "Todos os profissionais" },
+                              { value: "selected", label: "Profissionais selecionados" },
+                            ]}
+                          />
                         </div>
                       </div>
                     )}
@@ -1179,20 +1186,22 @@ export function SettingsView({
                         Exige sinal via Pix ou pré-autorização de cartão para confirmar o horário do cliente.
                       </p>
                     </div>
-                    <select
-                      value={bookingControls.requireCardOnFile}
-                      onChange={(e) =>
-                        setBookingControls({
-                          ...bookingControls,
-                          requireCardOnFile: e.target.value as "all" | "new_clients" | "none",
-                        })
-                      }
-                      className="px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] bg-white w-48 shrink-0"
-                    >
-                      <option value="all">Todos os clientes</option>
-                      <option value="new_clients">Apenas novos clientes</option>
-                      <option value="none">Desativado</option>
-                    </select>
+                    <div className="w-52 shrink-0">
+                      <DropdownSelect
+                        value={bookingControls.requireCardOnFile}
+                        onChange={(val) =>
+                          setBookingControls({
+                            ...bookingControls,
+                            requireCardOnFile: val as "all" | "new_clients" | "none",
+                          })
+                        }
+                        options={[
+                          { value: "all", label: "Todos os clientes" },
+                          { value: "new_clients", label: "Apenas novos clientes" },
+                          { value: "none", label: "Desativado" },
+                        ]}
+                      />
+                    </div>
                   </div>
 
                   {/* Agendamento Futuro Máximo */}
@@ -1203,22 +1212,24 @@ export function SettingsView({
                         Limita a quantidade de meses futuros em que os clientes podem marcar horários a partir de hoje.
                       </p>
                     </div>
-                    <select
-                      value={bookingControls.advanceBookingMonths}
-                      onChange={(e) =>
-                        setBookingControls({
-                          ...bookingControls,
-                          advanceBookingMonths: parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] bg-white w-36 shrink-0"
-                    >
-                      <option value={1}>1 mês</option>
-                      <option value={2}>2 meses</option>
-                      <option value={3}>3 meses</option>
-                      <option value={6}>6 meses</option>
-                      <option value={12}>12 meses</option>
-                    </select>
+                    <div className="w-40 shrink-0">
+                      <DropdownSelect
+                        value={bookingControls.advanceBookingMonths}
+                        onChange={(val) =>
+                          setBookingControls({
+                            ...bookingControls,
+                            advanceBookingMonths: Number(val),
+                          })
+                        }
+                        options={[
+                          { value: 1, label: "1 mês" },
+                          { value: 2, label: "2 meses" },
+                          { value: 3, label: "3 meses" },
+                          { value: 6, label: "6 meses" },
+                          { value: 12, label: "12 meses" },
+                        ]}
+                      />
+                    </div>
                   </div>
 
                   {/* Tempo de Processamento */}
@@ -1382,29 +1393,27 @@ export function SettingsView({
                       </div>
 
                       <div>
-                        <label className="block text-[12px] font-medium text-[#1C1C1E]">
+                        <label className="block text-[12px] font-medium text-[#1C1C1E] mb-1">
                           Prazo Limite para Cancelar sem Taxa
                         </label>
-                        <div className="pt-1">
-                          <select
-                            value={bookingControls.cancellations.windowHours}
-                            onChange={(e) =>
-                              setBookingControls({
-                                ...bookingControls,
-                                cancellations: {
-                                  ...bookingControls.cancellations,
-                                  windowHours: parseInt(e.target.value, 10),
-                                },
-                              })
-                            }
-                            className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[13px] font-medium text-[#1C1C1E] bg-white"
-                          >
-                            <option value={12}>Até 12 horas antes</option>
-                            <option value={24}>Até 24 horas antes</option>
-                            <option value={48}>Até 48 horas antes</option>
-                            <option value={72}>Até 72 horas antes</option>
-                          </select>
-                        </div>
+                        <DropdownSelect
+                          value={bookingControls.cancellations.windowHours}
+                          onChange={(val) =>
+                            setBookingControls({
+                              ...bookingControls,
+                              cancellations: {
+                                ...bookingControls.cancellations,
+                                windowHours: Number(val),
+                              },
+                            })
+                          }
+                          options={[
+                            { value: 12, label: "Até 12 horas antes" },
+                            { value: 24, label: "Até 24 horas antes" },
+                            { value: 48, label: "Até 48 horas antes" },
+                            { value: 72, label: "Até 72 horas antes" },
+                          ]}
+                        />
                       </div>
                     </div>
                   </div>

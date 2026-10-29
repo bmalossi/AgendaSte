@@ -32,6 +32,7 @@ import {
 import { PublicBookingWebsite } from "@/components/agendaste/public-booking-website";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
 import { usePWAInstall } from "@/hooks/use-pwa-install";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 interface GetStartedProps {
   state: StudioState;
@@ -184,7 +185,7 @@ export function GetStartedView({
               </div>
               <div className="pt-3 flex items-center justify-between">
                 {isWebsitePublished && isStep1Done ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <a
                       href={bookingSiteUrl}
                       target="_blank"
@@ -394,13 +395,13 @@ export function GetStartedView({
 
           <div className="border border-[#E5E7EB] dark:border-[#27272a] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#27272a] bg-white dark:bg-[#18181b]">
             {/* PWA Mobile App Card (Anti-AI Slop & Multi-Platform) */}
-            <div className="p-4 flex items-center justify-between gap-4">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-9 h-9 rounded-lg bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] flex items-center justify-center font-bold text-sm shrink-0">
                   L
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[13.5px] font-semibold text-[#18181B] dark:text-white">
                       {pwa.isInstalled
                         ? "App LUVEA Mobile Instalado"
@@ -437,7 +438,7 @@ export function GetStartedView({
               )}
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-[#27272a] text-zinc-700 dark:text-[#a1a1aa] flex items-center justify-center shrink-0">
                   <Bell className="w-4 h-4" />
@@ -461,7 +462,7 @@ export function GetStartedView({
               </button>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-[#27272a] text-zinc-700 dark:text-[#a1a1aa] flex items-center justify-center shrink-0">
                   <Shield className="w-4 h-4" />
@@ -765,7 +766,7 @@ export function PublicBookingSiteModal({
                         <span className="font-medium text-zinc-800">
                           {add.name} (+{add.durationMinutes} min)
                         </span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono font-semibold">
                             +{formatBRL(add.priceCents)}
                           </span>
@@ -789,7 +790,7 @@ export function PublicBookingSiteModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
                   Data
@@ -805,17 +806,17 @@ export function PublicBookingSiteModal({
                 <label className="block text-[12px] font-semibold text-zinc-700 mb-1">
                   Horário disponível
                 </label>
-                <select
+                <DropdownSelect
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 text-[13px]"
-                >
-                  <option value="09:00">09:00</option>
-                  <option value="10:30">10:30 (Encaixe Pausa)</option>
-                  <option value="14:00">14:00</option>
-                  <option value="15:00">15:00</option>
-                  <option value="16:30">16:30</option>
-                </select>
+                  onChange={(val) => setStartTime(val)}
+                  options={[
+                    { value: "09:00", label: "09:00" },
+                    { value: "10:30", label: "10:30 (Encaixe Pausa)" },
+                    { value: "14:00", label: "14:00" },
+                    { value: "15:00", label: "15:00" },
+                    { value: "16:30", label: "16:30" },
+                  ]}
+                />
               </div>
             </div>
           </div>
@@ -838,7 +839,7 @@ export function PublicBookingSiteModal({
                   className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-white text-[13px]"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[11.5px] font-medium text-zinc-600 mb-1">
                     WhatsApp *
@@ -869,17 +870,15 @@ export function PublicBookingSiteModal({
                 <label className="block text-[11.5px] font-medium text-zinc-600 mb-1">
                   Profissional (Provider)
                 </label>
-                <select
+                <DropdownSelect
                   value={selectedProviderId}
-                  onChange={(e) => setSelectedProviderId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-white text-[13px]"
-                >
-                  {state.staff.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.fullName}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedProviderId(val)}
+                  options={state.staff.map((st) => ({
+                    value: st.id,
+                    label: st.fullName,
+                    sublabel: st.role,
+                  }))}
+                />
               </div>
 
               {selectedService?.requireDeposit && (
@@ -999,7 +998,7 @@ export function ReceptionView({
     <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#09090b]">
       {/* Top 3-step progress bar identical to 02-reception-ia.png */}
       <div className="w-full px-6 lg:px-8 xl:px-10 pt-6">
-        <div className="flex items-start justify-between gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6">
           <div className="grid grid-cols-3 gap-3 flex-1 max-w-[780px]">
             <button
               type="button"
@@ -1119,7 +1118,7 @@ export function ReceptionView({
             </p>
 
             {/* Editorial Serif Headline */}
-            <h1 className="font-serif text-[44px] leading-tight text-[#18181B] dark:text-white mt-6 mb-8 tracking-tight">
+            <h1 className="font-serif text-[32px] sm:text-[44px] leading-tight text-[#18181B] dark:text-white mt-6 mb-8 tracking-tight">
               Apresentando a Recepção
             </h1>
 
@@ -1172,11 +1171,11 @@ export function ReceptionView({
             <span className="text-[12px] text-zinc-600 dark:text-[#a1a1aa]">
               Experimente a Recepção em ação
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setStep("setup")}
-                className="px-6 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors"
+                className="w-full sm:w-auto text-center px-6 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors"
               >
                 Pular para configuração
               </button>
@@ -1190,7 +1189,7 @@ export function ReceptionView({
                       "Demo da Recepção IA: 'Olá! Aqui é a Recepção da Luvea Studio. Posso agendar seu horário hoje às 15h?'",
                   }));
                 }}
-                className="px-10 py-3 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13.5px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors inline-flex items-center gap-2"
+                className="w-full sm:w-auto justify-center px-8 sm:px-10 py-3 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13.5px] font-semibold hover:bg-black dark:hover:bg-zinc-200 transition-colors inline-flex items-center gap-2"
               >
                 <Phone className="w-4 h-4" />
                 <span>Testar demo da Recepção</span>
@@ -1303,7 +1302,7 @@ export function ReceptionView({
                 Agenda.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() =>
@@ -1336,7 +1335,7 @@ export function ReceptionView({
                 className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
               >
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[13px] font-bold text-[#18181B] dark:text-white">
                       {log.clientName}
                     </span>

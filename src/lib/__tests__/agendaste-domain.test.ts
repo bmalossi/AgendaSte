@@ -40,6 +40,12 @@ import {
   disconnectUserWhatsApp,
   formatWhatsAppMessage,
   isValidUuid,
+  saveInventoryProduct,
+  deleteInventoryProduct,
+  adjustInventoryStock,
+  resolveProductIntendedUse,
+  formatBRLCurrencyString,
+  parseCurrencyToCents,
 } from "../agendaste-store.ts";
 
 describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Online (Luvea Studio)", () => {
@@ -1212,6 +1218,121 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     assert.ok(updated2);
     assert.equal(updated2.arrivedAtReception, false);
     assert.equal(updated2.status, "confirmed");
+  });
+
+  it("manages Inventory products across 'both', 'retail', and 'service' tabs, adjusts stock live, and deducts stock at checkout (Ticket 09)", () => {
+    const initial = createInitialStudioState();
+
+    // 1. Cria produto na aba "Ambos" (For both)
+    const afterBoth = saveInventoryProduct(initial, {
+      name: "Óleo Reparador Luxe",
+      brand: "Kérastase",
+      intendedUse: "both",
+      costCents: 9000,
+      priceCents: 22000,
+      stockQuantity: 5,
+      minStockAlert: 2,
+      productCategory: "Cabelo",
+      barcode: "7890001112223",
+      size: "100ml",
+      color: "Dourado",
+      description: "Óleo capilar nutritivo para finalização e revenda.",
+    });
+    const createdBoth = afterBoth.inventory[0];
+    assert.equal(createdBoth.name, "Óleo Reparador Luxe");
+    assert.equal(createdBoth.brand, "Kérastase");
+    assert.equal(resolveProductIntendedUse(createdBoth), "both");
+    assert.equal(createdBoth.priceCents, 22000);
+    assert.equal(createdBoth.costCents, 9000);
+    assert.equal(createdBoth.stockQuantity, 5);
+    assert.equal(createdBoth.minStockAlert, 2);
+
+    // 2. Cria produto na aba "Para serviços" (For services — sem preço de revenda)
+    const afterService = saveInventoryProduct(afterBoth, {
+      name: "Oxidante Creme 20 Volumes",
+      brand: "Wella",
+      intendedUse: "service",
+      costCents: 4500,
+      priceCents: 9900, // Deve ser zerado pois 'service' não tem preço de revenda
+      stockQuantity: 10,
+      minStockAlert: 3,
+      productCategory: "Cabelo",
+      barcode: "7890001119999",
+      size: "1L",
+      color: "Branco",
+      description: "Uso exclusivo interno em colorações.",
+    });
+    const createdService = afterService.inventory[0];
+    assert.equal(resolveProductIntendedUse(createdService), "service");
+    assert.equal(createdService.priceCents, 0);
+    assert.equal(createdService.category, "Uso Profissional (Backbar)");
+
+    // 3. Ajusta estoque inline (-3 unidades no Óleo Reparador -> cai de 5 para 2, disparando alerta de estoque baixo)
+    const afterAdjust = adjustInventoryStock(
+      afterService,
+      createdBoth.id,
+      -3,
+      "delta"
+    );
+    const adjustedBoth = afterAdjust.inventory.find(
+      (i) => i.id === createdBoth.id
+    );
+    assert.ok(adjustedBoth);
+    assert.equal(adjustedBoth.stockQuantity, 2);
+    assert.ok(afterAdjust.lastToastMessage?.includes("Alerta de estoque baixo"));
+
+    // 4. Venda Rápida no Checkout abate automaticamente a quantidade em estoque
+    const afterCheckout = executeQuickSaleCheckout(afterAdjust, {
+      clientId: afterAdjust.clients[0].id,
+      providerId: afterAdjust.staff[0].id,
+      itemsSummary: "Óleo Reparador Luxe",
+      amountCents: 22000,
+      paymentMethod: "Pix",
+      soldProducts: [{ productId: createdBoth.id, quantity: 1 }],
+    });
+    const afterSaleProduct = afterCheckout.inventory.find(
+      (i) => i.id === createdBoth.id
+    );
+    assert.ok(afterSaleProduct);
+    assert.equal(afterSaleProduct.stockQuantity, 1);
+
+    // 5. Exclui o produto de serviços
+    const afterDelete = deleteInventoryProduct(
+      afterCheckout,
+      createdService.id
+    );
+    assert.equal(
+      afterDelete.inventory.some((i) => i.id === createdService.id),
+      false
+    );
+  });
+
+  it("formats raw integer and decimal currency inputs automatically into Brazilian Real (R$ X,XX)", () => {
+    // Digitar "5" deve preencher automaticamente como "R$ 5,00"
+    assert.equal(formatBRLCurrencyString("5"), "R$ 5,00");
+    assert.equal(parseCurrencyToCents("5"), 500);
+
+    // Digitar "50" -> "R$ 50,00"
+    assert.equal(formatBRLCurrencyString("50"), "R$ 50,00");
+    assert.equal(parseCurrencyToCents("50"), 5000);
+
+    // Digitar "1250" -> "R$ 1.250,00"
+    assert.equal(formatBRLCurrencyString("1250"), "R$ 1.250,00");
+    assert.equal(parseCurrencyToCents("1250"), 125000);
+
+    // Digitar decimais com vírgula ou ponto: "5,5" -> "R$ 5,50" e "5.99" -> "R$ 5,99"
+    assert.equal(formatBRLCurrencyString("5,5"), "R$ 5,50");
+    assert.equal(parseCurrencyToCents("5,5"), 550);
+    assert.equal(formatBRLCurrencyString("5.99"), "R$ 5,99");
+    assert.equal(parseCurrencyToCents("5.99"), 599);
+
+    // Já formatado "R$ 5,00" permanece "R$ 5,00" e converte para 500 centavos
+    assert.equal(formatBRLCurrencyString("R$ 5,00"), "R$ 5,00");
+    assert.equal(parseCurrencyToCents("R$ 5,00"), 500);
+
+    // Vazio retorna ""
+    assert.equal(formatBRLCurrencyString(""), "");
+    assert.equal(parseCurrencyToCents(""), 0);
   });
 });
 

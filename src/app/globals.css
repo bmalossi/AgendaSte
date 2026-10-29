@@ -376,3 +376,10 @@
   padding: 6px;
   border-radius: 12px;
 }
+
+@layer utilities {
+  .outline-hidden {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}

@@ -155,6 +155,7 @@ export interface ClientPhotoGroup {
   beforeLabel?: string;
   afterLabel?: string;
   photoUrls: string[];
+  photoLabels?: string[];
   notes: string;
 }
 
@@ -344,15 +345,28 @@ export interface MarketingCampaignItem {
   sentAtISO: string;
 }
 
+export type InventoryIntendedUse = "both" | "retail" | "service";
+
 export interface InventoryProductItem {
   id: string;
   name: string;
+  brand?: string;
+  intendedUse?: InventoryIntendedUse;
   sku: string;
-  category: "Revenda (Retail)" | "Uso Profissional (Backbar)";
+  barcode?: string;
+  category:
+    | "Revenda (Retail)"
+    | "Uso Profissional (Backbar)"
+    | "Ambos (Revenda & Serviços)";
+  productCategory?: string;
   stockQuantity: number;
   minStockAlert: number;
   priceCents: number;
   costCents: number;
+  size?: string;
+  color?: string;
+  description?: string;
+  imageUrl?: string;
 }
 
 export interface ClinicalChartMarkupPin {
@@ -725,6 +739,76 @@ export function formatBRL(cents: number): string {
     style: "currency",
     currency: "BRL",
   });
+}
+
+/**
+ * Converte qualquer entrada monetária (ex: "5", "50", "5,5", "5.99", "1.250,00", "R$ 5,00")
+ * em formato padrão brasileiro "R$ X,XX". Se o usuário digitar apenas "5", formata automaticamente para "R$ 5,00".
+ */
+export function formatBRLCurrencyString(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  const cleaned = raw.replace(/[^\d.,]/g, "").trim();
+  if (!cleaned) return "";
+
+  let num = 0;
+  if (cleaned.includes(",")) {
+    const parts = cleaned.split(",");
+    const intPart = parts[0].replace(/\./g, "");
+    const decPart = parts.slice(1).join("").padEnd(2, "0").slice(0, 2);
+    num = parseFloat(`${intPart || "0"}.${decPart}`);
+  } else if (cleaned.includes(".")) {
+    const parts = cleaned.split(".");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      const intPart = parts[0];
+      const decPart = parts[1].padEnd(2, "0").slice(0, 2);
+      num = parseFloat(`${intPart || "0"}.${decPart}`);
+    } else {
+      num = parseFloat(cleaned.replace(/\./g, ""));
+    }
+  } else {
+    num = parseInt(cleaned, 10);
+  }
+
+  if (Number.isNaN(num) || num < 0) return "";
+
+  return `R$ ${num.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/**
+ * Converte strings formatadas ou valores brutos (ex: "5", "50", "R$ 5,00", "R$ 1.250,50")
+ * para centavos inteiros (ex: "5" -> 500 centavos, "R$ 5,00" -> 500 centavos).
+ */
+export function parseCurrencyToCents(raw: string): number {
+  if (!raw || typeof raw !== "string") return 0;
+  const cleaned = raw.replace(/[^\d.,]/g, "").trim();
+  if (!cleaned) return 0;
+
+  if (cleaned.includes(",")) {
+    const parts = cleaned.split(",");
+    const intPart = parts[0].replace(/\./g, "");
+    const decPart = parts.slice(1).join("").padEnd(2, "0").slice(0, 2);
+    const num = parseFloat(`${intPart || "0"}.${decPart}`);
+    return Number.isNaN(num) ? 0 : Math.max(0, Math.round(num * 100));
+  }
+
+  if (cleaned.includes(".")) {
+    const parts = cleaned.split(".");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      const intPart = parts[0];
+      const decPart = parts[1].padEnd(2, "0").slice(0, 2);
+      const num = parseFloat(`${intPart || "0"}.${decPart}`);
+      return Number.isNaN(num) ? 0 : Math.max(0, Math.round(num * 100));
+    } else {
+      const num = parseFloat(cleaned.replace(/\./g, ""));
+      return Number.isNaN(num) ? 0 : Math.max(0, Math.round(num * 100));
+    }
+  }
+
+  const num = parseInt(cleaned, 10);
+  return Number.isNaN(num) ? 0 : Math.max(0, num * 100);
 }
 
 export function addWeeksToDateISO(dateISO: string, weeksToAdd: number): string {
@@ -1392,32 +1476,62 @@ export function createInitialStudioState(): StudioState {
       {
         id: "inv-prod-1",
         name: "Máscara Reconstrutora K-Pak Professional 500ml",
+        brand: "Joico K-Pak",
+        intendedUse: "both",
         sku: "KPAK-500",
+        barcode: "7891234560012",
         category: "Revenda (Retail)",
+        productCategory: "Cabelo",
         stockQuantity: 14,
         minStockAlert: 5,
         priceCents: 18900,
         costCents: 9500,
+        size: "500ml",
+        color: "Dourado",
+        description:
+          "Máscara de reconstrução profunda com complexo de queratina bio-avançada para fios danificados.",
+        imageUrl:
+          "https://images.unsplash.com/photo-1608248597359-0e6d526a6828?auto=format&fit=crop&w=400&q=80",
       },
       {
         id: "inv-prod-2",
         name: "Sérum Vitamina C 20% Luvea Derm 30ml",
+        brand: "Luvea Derm",
+        intendedUse: "retail",
         sku: "LUVEA-VITC",
+        barcode: "7891234560029",
         category: "Revenda (Retail)",
+        productCategory: "Pele & Estética",
         stockQuantity: 4,
         minStockAlert: 6,
         priceCents: 16500,
         costCents: 7200,
+        size: "30ml",
+        color: "Âmbar",
+        description:
+          "Sérum antioxidante de alta potência com Vitamina C pura estabilizada e Ácido Ferúlico para home care.",
+        imageUrl:
+          "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=400&q=80",
       },
       {
         id: "inv-prod-3",
         name: "Pó Descolorante Plex Free Dust 1kg",
+        brand: "Wella BlondorPlex",
+        intendedUse: "service",
         sku: "BACK-PLEX",
+        barcode: "7891234560036",
         category: "Uso Profissional (Backbar)",
+        productCategory: "Cabelo",
         stockQuantity: 8,
         minStockAlert: 3,
         priceCents: 21000,
         costCents: 14000,
+        size: "1kg",
+        color: "Azul Ultra",
+        description:
+          "Pó descolorante de uso exclusivo em bancada com tecnologia reconstrutora de pontes.",
+        imageUrl:
+          "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=400&q=80",
       },
     ],
     clinicalCharts: [
@@ -1520,6 +1634,7 @@ export function createEmptyTenantStudioState(meta?: {
     waitlist: [],
     invoices: [],
     salesHistory: [],
+    inventory: [],
     timeTracking: {
       enabled: false,
       firstBreakTypeEnabled: false,
@@ -3104,6 +3219,51 @@ export function updateClientNotesAndForms(
   };
 }
 
+function detectPhotoRoleFromFileName(fileName?: string): string | undefined {
+  if (!fileName) return undefined;
+  if (/(?:^|[\s_\-.])(depois|after|final|resultado)(?:$|[\s_\-.])/i.test(fileName)) {
+    return "Depois";
+  }
+  if (/(?:^|[\s_\-.])(antes|before|inicial)(?:$|[\s_\-.])/i.test(fileName)) {
+    return "Antes";
+  }
+  if (/(?:^|[\s_\-.])(durante|etapa|processo)(?:$|[\s_\-.])/i.test(fileName)) {
+    return "Durante";
+  }
+  return undefined;
+}
+
+export function resolvePhotoLabelForGroup(
+  grp: ClientPhotoGroup,
+  idx: number
+): string {
+  const explicit = grp.photoLabels?.[idx];
+  if (
+    explicit &&
+    !/\.(jpe?g|png|webp|heic|gif)$/i.test(explicit) &&
+    !/whatsapp|img_|dsc_|screenshot/i.test(explicit)
+  ) {
+    return explicit;
+  }
+
+  if (idx === 0) {
+    return grp.beforeLabel || "Antes";
+  }
+
+  if (idx === 1) {
+    if (
+      grp.afterLabel &&
+      !/\.(jpe?g|png|webp|heic|gif)$/i.test(grp.afterLabel) &&
+      !/whatsapp|img_|dsc_|screenshot/i.test(grp.afterLabel)
+    ) {
+      return grp.afterLabel;
+    }
+    return "Depois";
+  }
+
+  return `Depois · Ângulo ${idx}`;
+}
+
 export function uploadAutoSortedClientPhoto(
   state: StudioState,
   clientId: string,
@@ -3113,14 +3273,25 @@ export function uploadAutoSortedClientPhoto(
     serviceName?: string;
     beforeLabel?: string;
     afterLabel?: string;
+    fileName?: string;
+    explicitRole?: "Antes" | "Depois" | "Durante";
   }
 ): StudioState {
   const client = state.clients.find((c) => c.id === clientId);
   if (!client) return state;
 
-  const latestAppointment = state.calendarEvents.find(
-    (e) => e.clientId === clientId && e.eventType === "appointment"
-  );
+  const clientAppointments = state.calendarEvents
+    .filter(
+      (e) =>
+        e.eventType === "appointment" &&
+        e.status !== "canceled" &&
+        (e.clientId === clientId ||
+          e.clientName.trim().toLowerCase() ===
+            client.fullName.trim().toLowerCase())
+    )
+    .sort((a, b) => b.dateISO.localeCompare(a.dateISO));
+
+  const latestAppointment = clientAppointments[0];
   const dateISO =
     input.appointmentDateISO ??
     latestAppointment?.dateISO ??
@@ -3134,28 +3305,70 @@ export function uploadAutoSortedClientPhoto(
     (g) => g.appointmentDateISO === dateISO
   );
 
+  const detectedRole =
+    input.explicitRole ?? detectPhotoRoleFromFileName(input.fileName);
+  const cleanAfterInput =
+    input.afterLabel &&
+    !/\.(jpe?g|png|webp|heic|gif)$/i.test(input.afterLabel) &&
+    !/whatsapp|img_|dsc_|screenshot/i.test(input.afterLabel)
+      ? input.afterLabel
+      : "Depois";
+
   let updatedGroups: ClientPhotoGroup[];
   if (existingGroup) {
+    const currentLabels = existingGroup.photoUrls.map((_, i) =>
+      resolvePhotoLabelForGroup(existingGroup, i)
+    );
+    const newIdx = existingGroup.photoUrls.length;
+
+    let nextUrls: string[];
+    let nextLabels: string[];
+
+    if (
+      existingGroup.photoUrls.length === 1 &&
+      detectedRole === "Antes" &&
+      currentLabels[0].startsWith("Antes")
+    ) {
+      // Se a nova foto foi explicitamente nomeada "Antes", posiciona como 1ª ("Antes") e promove a anterior para "Depois"
+      nextUrls = [input.photoUrl, existingGroup.photoUrls[0]];
+      nextLabels = ["Antes", cleanAfterInput];
+    } else {
+      const autoLabel =
+        detectedRole ??
+        (newIdx === 0
+          ? input.beforeLabel ?? "Antes"
+          : newIdx === 1
+          ? currentLabels[0]?.startsWith("Depois")
+            ? "Antes"
+            : cleanAfterInput
+          : `Depois · Ângulo ${newIdx}`);
+      nextUrls = [...existingGroup.photoUrls, input.photoUrl];
+      nextLabels = [...currentLabels, autoLabel];
+    }
+
     updatedGroups = client.autoSortedPhotos.map((g) =>
       g.id === existingGroup.id
         ? {
             ...g,
-            photoUrls: [...g.photoUrls, input.photoUrl],
-            beforeLabel: input.beforeLabel ?? g.beforeLabel,
-            afterLabel: input.afterLabel ?? g.afterLabel,
+            photoUrls: nextUrls,
+            photoLabels: nextLabels,
+            beforeLabel: input.beforeLabel ?? g.beforeLabel ?? "Antes",
+            afterLabel: cleanAfterInput,
           }
         : g
     );
   } else {
+    const firstLabel = detectedRole ?? input.beforeLabel ?? "Antes";
     updatedGroups = [
       {
-        id: `ph-grp-${Date.now()}`,
+        id: `ph-grp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         appointmentId: latestAppointment?.id,
         appointmentDateISO: dateISO,
         serviceName,
         beforeLabel: input.beforeLabel ?? "Antes",
-        afterLabel: input.afterLabel ?? "Depois",
+        afterLabel: cleanAfterInput,
         photoUrls: [input.photoUrl],
+        photoLabels: [firstLabel],
         notes: "Auto-organizada e rotulada pelo agendamento.",
       },
       ...client.autoSortedPhotos,
@@ -3167,7 +3380,88 @@ export function uploadAutoSortedClientPhoto(
     clients: state.clients.map((c) =>
       c.id === clientId ? { ...c, autoSortedPhotos: updatedGroups } : c
     ),
-    lastToastMessage: `Foto de ${client.fullName} adicionada com sucesso!`,
+    lastToastMessage: `Foto de ${client.fullName} auto-organizada com sucesso!`,
+  };
+}
+
+export function swapClientPhotoGroupOrder(
+  state: StudioState,
+  clientId: string,
+  groupId: string
+): StudioState {
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client) return state;
+
+  const updatedGroups = client.autoSortedPhotos.map((grp) => {
+    if (grp.id !== groupId || grp.photoUrls.length < 2) return grp;
+    const nextUrls = [...grp.photoUrls];
+    // Troca as 2 primeiras fotos (Antes <-> Depois)
+    const temp = nextUrls[0];
+    nextUrls[0] = nextUrls[1];
+    nextUrls[1] = temp;
+
+    const nextLabels = nextUrls.map((_, idx) =>
+      idx === 0
+        ? grp.beforeLabel || "Antes"
+        : idx === 1
+        ? grp.afterLabel &&
+          !/\.(jpe?g|png|webp|heic|gif)$/i.test(grp.afterLabel)
+          ? grp.afterLabel
+          : "Depois"
+        : grp.photoLabels?.[idx] || `Depois · Ângulo ${idx}`
+    );
+
+    return {
+      ...grp,
+      photoUrls: nextUrls,
+      photoLabels: nextLabels,
+    };
+  });
+
+  return {
+    ...state,
+    clients: state.clients.map((c) =>
+      c.id === clientId ? { ...c, autoSortedPhotos: updatedGroups } : c
+    ),
+    lastToastMessage: "Ordem Antes & Depois invertida!",
+  };
+}
+
+export function toggleClientPhotoLabel(
+  state: StudioState,
+  clientId: string,
+  groupId: string,
+  photoIndex: number
+): StudioState {
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client) return state;
+
+  const roles = ["Antes", "Depois", "Durante", "Resultado"];
+  let chosenRole = "Antes";
+
+  const updatedGroups = client.autoSortedPhotos.map((grp) => {
+    if (grp.id !== groupId) return grp;
+    const currentLabels = grp.photoUrls.map((_, i) =>
+      resolvePhotoLabelForGroup(grp, i)
+    );
+    const current = currentLabels[photoIndex] || "Antes";
+    const baseCurrent = roles.find((r) => current.startsWith(r)) || "Antes";
+    const nextIdx = (roles.indexOf(baseCurrent) + 1) % roles.length;
+    chosenRole = roles[nextIdx];
+    currentLabels[photoIndex] = chosenRole;
+
+    return {
+      ...grp,
+      photoLabels: currentLabels,
+    };
+  });
+
+  return {
+    ...state,
+    clients: state.clients.map((c) =>
+      c.id === clientId ? { ...c, autoSortedPhotos: updatedGroups } : c
+    ),
+    lastToastMessage: `Etiqueta alterada para "${chosenRole}"`,
   };
 }
 
@@ -3180,10 +3474,19 @@ export function deleteClientPhoto(
   if (!client) return state;
 
   const updatedGroups = client.autoSortedPhotos
-    .map((grp) => ({
-      ...grp,
-      photoUrls: grp.photoUrls.filter((url) => url !== photoUrl),
-    }))
+    .map((grp) => {
+      const removeIdx = grp.photoUrls.indexOf(photoUrl);
+      if (removeIdx === -1) return grp;
+      const nextUrls = grp.photoUrls.filter((_, i) => i !== removeIdx);
+      const nextLabels = nextUrls.map((_, i) =>
+        i === 0 ? "Antes" : i === 1 ? "Depois" : `Depois · Ângulo ${i}`
+      );
+      return {
+        ...grp,
+        photoUrls: nextUrls,
+        photoLabels: nextLabels,
+      };
+    })
     .filter((grp) => grp.photoUrls.length > 0);
 
   return {
@@ -3287,6 +3590,7 @@ export function executeQuickSaleCheckout(
     appointmentTimeLabel?: string;
     redeemPackageId?: string;
     redeemGiftCardId?: string;
+    soldProducts?: { productId: string; quantity?: number }[];
   }
 ): StudioState {
   const client =
@@ -3426,6 +3730,39 @@ export function executeQuickSaleCheckout(
       : s
   );
 
+  // Rastreamento automático de estoque no checkout (Quick Sale PDV)
+  const explicitSoldMap = new Map<string, number>();
+  if (Array.isArray(input.soldProducts)) {
+    for (const sp of input.soldProducts) {
+      if (sp.productId) {
+        const prevQty = explicitSoldMap.get(sp.productId) ?? 0;
+        explicitSoldMap.set(sp.productId, prevQty + Math.max(1, sp.quantity ?? 1));
+      }
+    }
+  }
+
+  const summaryLower = (input.itemsSummary || "").toLowerCase();
+  const updatedInventory = state.inventory.map((item) => {
+    const explicitQty = explicitSoldMap.get(item.id);
+    if (explicitQty && explicitQty > 0) {
+      return {
+        ...item,
+        stockQuantity: Math.max(0, item.stockQuantity - explicitQty),
+      };
+    }
+    if (
+      explicitSoldMap.size === 0 &&
+      item.name &&
+      summaryLower.includes(item.name.toLowerCase())
+    ) {
+      return {
+        ...item,
+        stockQuantity: Math.max(0, item.stockQuantity - 1),
+      };
+    }
+    return item;
+  });
+
   return {
     ...state,
     calendarView: {
@@ -3436,6 +3773,7 @@ export function executeQuickSaleCheckout(
     giftCards: updatedGiftCards,
     calendarEvents: updatedEvents,
     staff: updatedStaff,
+    inventory: updatedInventory,
     salesHistory: [newSale, ...state.salesHistory],
     onboarding: {
       ...state.onboarding,
@@ -3929,5 +4267,253 @@ export function updateStudioSettings(
       },
     },
     lastToastMessage: "Configurações salvas com sucesso!",
+  };
+}
+
+// =============================================================================
+// TICKET 09 — ESTOQUE (INVENTORY): REVENDA (RETAIL), SERVIÇOS (BACKBAR) & AMBOS
+// =============================================================================
+
+export function resolveProductIntendedUse(
+  item: InventoryProductItem
+): InventoryIntendedUse {
+  if (
+    item.intendedUse === "both" ||
+    item.intendedUse === "retail" ||
+    item.intendedUse === "service"
+  ) {
+    return item.intendedUse;
+  }
+  if (item.category === "Uso Profissional (Backbar)") {
+    return "service";
+  }
+  if (item.category === "Ambos (Revenda & Serviços)") {
+    return "both";
+  }
+  return "retail";
+}
+
+export interface SaveInventoryProductInput {
+  id?: string;
+  name: string;
+  brand?: string;
+  intendedUse: InventoryIntendedUse;
+  costCents: number;
+  priceCents?: number;
+  stockQuantity: number;
+  minStockAlert: number;
+  productCategory?: string;
+  barcode?: string;
+  size?: string;
+  color?: string;
+  description?: string;
+  imageUrl?: string;
+}
+
+export function saveInventoryProduct(
+  state: StudioState,
+  input: SaveInventoryProductInput
+): StudioState {
+  const cleanName = (input.name || "").trim() || "Novo Produto";
+  const cleanBrand = (input.brand || "").trim();
+  const intendedUse: InventoryIntendedUse =
+    input.intendedUse === "both" ||
+    input.intendedUse === "retail" ||
+    input.intendedUse === "service"
+      ? input.intendedUse
+      : "both";
+
+  const category: InventoryProductItem["category"] =
+    intendedUse === "service"
+      ? "Uso Profissional (Backbar)"
+      : "Revenda (Retail)";
+
+  const cleanBarcode = (input.barcode || "").trim();
+  const existingItem = input.id
+    ? state.inventory.find((p) => p.id === input.id)
+    : undefined;
+
+  const sku =
+    cleanBarcode ||
+    existingItem?.sku ||
+    `PRD-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+  const costCents = Math.max(0, Math.round(input.costCents || 0));
+  const priceCents =
+    intendedUse === "service"
+      ? 0
+      : Math.max(0, Math.round(input.priceCents ?? existingItem?.priceCents ?? 0));
+
+  const stockQuantity = Math.max(0, Math.round(input.stockQuantity || 0));
+  const minStockAlert = Math.max(0, Math.round(input.minStockAlert || 0));
+  const productCategory =
+    (input.productCategory || "").trim() ||
+    existingItem?.productCategory ||
+    "Cabelo";
+
+  const savedItem: InventoryProductItem = {
+    id:
+      existingItem?.id ||
+      `prod-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: cleanName,
+    brand: cleanBrand,
+    intendedUse,
+    sku,
+    barcode: cleanBarcode,
+    category,
+    productCategory,
+    stockQuantity,
+    minStockAlert,
+    priceCents,
+    costCents,
+    size: (input.size ?? existingItem?.size ?? "").trim(),
+    color: (input.color ?? existingItem?.color ?? "").trim(),
+    description: (input.description ?? existingItem?.description ?? "").trim(),
+    imageUrl: input.imageUrl ?? existingItem?.imageUrl ?? "",
+  };
+
+  const nextInventory = existingItem
+    ? state.inventory.map((p) => (p.id === existingItem.id ? savedItem : p))
+    : [savedItem, ...state.inventory];
+
+  return {
+    ...state,
+    inventory: nextInventory,
+    lastToastMessage: existingItem
+      ? `Produto "${cleanName}" atualizado com sucesso!`
+      : `Produto "${cleanName}" adicionado ao estoque!`,
+  };
+}
+
+export function deleteInventoryProduct(
+  state: StudioState,
+  productId: string
+): StudioState {
+  const target = state.inventory.find((p) => p.id === productId);
+  if (!target) return state;
+
+  return {
+    ...state,
+    inventory: state.inventory.filter((p) => p.id !== productId),
+    lastToastMessage: `Produto "${target.name}" removido do estoque.`,
+  };
+}
+
+export function adjustInventoryStock(
+  state: StudioState,
+  productId: string,
+  value: number,
+  mode: "delta" | "exact" = "delta"
+): StudioState {
+  const target = state.inventory.find((p) => p.id === productId);
+  if (!target) return state;
+
+  const nextQty = Math.max(
+    0,
+    mode === "exact"
+      ? Math.round(value)
+      : Math.round(target.stockQuantity + value)
+  );
+
+  const updatedInventory = state.inventory.map((item) =>
+    item.id === productId
+      ? {
+          ...item,
+          stockQuantity: nextQty,
+        }
+      : item
+  );
+
+  const isLowStock = target.minStockAlert > 0 && nextQty <= target.minStockAlert;
+
+  return {
+    ...state,
+    inventory: updatedInventory,
+    lastToastMessage: isLowStock
+      ? `Alerta de estoque baixo: "${target.name}" está com ${nextQty} unid. (nível mínimo: ${target.minStockAlert}).`
+      : null,
+  };
+}
+
+export function importStarterInventoryProducts(
+  state: StudioState
+): StudioState {
+  const starterItems: InventoryProductItem[] = [
+    {
+      id: `prod-${Date.now()}-1`,
+      name: "Máscara Reconstrutora K-Pak Professional",
+      brand: "Joico",
+      intendedUse: "both",
+      sku: "7891234560012",
+      barcode: "7891234560012",
+      category: "Revenda (Retail)",
+      productCategory: "Cabelo",
+      stockQuantity: 12,
+      minStockAlert: 4,
+      priceCents: 18900,
+      costCents: 9500,
+      size: "500ml",
+      color: "Dourado",
+      description:
+        "Máscara de reconstrução intensiva para uso em lavatório e revenda home care.",
+      imageUrl:
+        "https://images.unsplash.com/photo-1608248597359-0e6d526a6828?auto=format&fit=crop&w=400&q=80",
+    },
+    {
+      id: `prod-${Date.now()}-2`,
+      name: "Sérum Refinador Glass Skin Vitamina C 20%",
+      brand: "Luvea Derm",
+      intendedUse: "retail",
+      sku: "7891234560029",
+      barcode: "7891234560029",
+      category: "Revenda (Retail)",
+      productCategory: "Pele & Estética",
+      stockQuantity: 6,
+      minStockAlert: 5,
+      priceCents: 16500,
+      costCents: 7200,
+      size: "30ml",
+      color: "Âmbar",
+      description:
+        "Sérum facial iluminador para manutenção pós-procedimento estético.",
+      imageUrl:
+        "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=400&q=80",
+    },
+    {
+      id: `prod-${Date.now()}-3`,
+      name: "Pó Descolorante Plex Free Dust",
+      brand: "Wella Professionals",
+      intendedUse: "service",
+      sku: "7891234560036",
+      barcode: "7891234560036",
+      category: "Uso Profissional (Backbar)",
+      productCategory: "Cabelo",
+      stockQuantity: 8,
+      minStockAlert: 3,
+      priceCents: 0,
+      costCents: 14000,
+      size: "1kg",
+      color: "Azul",
+      description:
+        "Uso exclusivo interno nos serviços de mechas e iluminação.",
+      imageUrl:
+        "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=400&q=80",
+    },
+  ];
+
+  const existingNames = new Set(
+    state.inventory.map((i) => i.name.trim().toLowerCase())
+  );
+  const toAdd = starterItems.filter(
+    (s) => !existingNames.has(s.name.trim().toLowerCase())
+  );
+
+  return {
+    ...state,
+    inventory: [...toAdd, ...state.inventory],
+    lastToastMessage:
+      toAdd.length > 0
+        ? `${toAdd.length} produtos importados para o seu estoque!`
+        : "Os produtos de demonstração já estão no seu estoque.",
   };
 }

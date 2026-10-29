@@ -386,6 +386,23 @@ export async function loadStudioStateFromSupabase(
             )
           : null;
 
+        const localClientMatch = (currentState.clients || []).find(
+          (lc) =>
+            lc.id === c.id ||
+            lc.fullName.trim().toLowerCase() === normalizedName
+        );
+        const cloudPhotos =
+          Array.isArray(c.auto_sorted_photos) && c.auto_sorted_photos.length > 0
+            ? c.auto_sorted_photos
+            : [];
+        const localPhotos =
+          localClientMatch &&
+          !isDemoOrMockId(localClientMatch.id) &&
+          Array.isArray(localClientMatch.autoSortedPhotos) &&
+          localClientMatch.autoSortedPhotos.length > 0
+            ? localClientMatch.autoSortedPhotos
+            : [];
+
         dedupedClients.push({
           id: c.id,
           fullName: c.full_name,
@@ -396,16 +413,12 @@ export async function loadStudioStateFromSupabase(
           lastVisitISO: lastVisit,
           daysSinceLastVisit: daysSince,
           notesAndForms: {
-            anamnesis: c.anamnesis_notes || "",
-            allergies: c.allergies_warnings || "",
-            formulasAndPreferences: c.preferences_notes || "",
-            birthday: c.birthday || "",
+            anamnesis: c.anamnesis_notes || localClientMatch?.notesAndForms?.anamnesis || "",
+            allergies: c.allergies_warnings || localClientMatch?.notesAndForms?.allergies || "",
+            formulasAndPreferences: c.preferences_notes || localClientMatch?.notesAndForms?.formulasAndPreferences || "",
+            birthday: c.birthday || localClientMatch?.notesAndForms?.birthday || "",
           },
-          autoSortedPhotos:
-            Array.isArray(c.auto_sorted_photos) &&
-            c.auto_sorted_photos.length > 0
-              ? c.auto_sorted_photos
-              : [],
+          autoSortedPhotos: cloudPhotos.length > 0 ? cloudPhotos : localPhotos,
           memberships: Array.isArray(c.membership_subscriptions)
             ? c.membership_subscriptions
             : [],
@@ -645,13 +658,25 @@ export async function loadStudioStateFromSupabase(
     }
 
     // 7. Limpeza e Destilação de Dados Fictícios durante Reconciliação
-    // Remove faturas e histórico de vendas de demonstração para contas reais
+    // Remove faturas, vendas e produtos de demonstração para contas reais
     updated.invoices = (currentState.invoices || []).filter(
       (inv) => !isDemoOrMockId(inv.id) && !isDemoEntity(inv.clientName)
     );
     updated.salesHistory = (currentState.salesHistory || []).filter(
       (sale) => !isDemoOrMockId(sale.id) && !isDemoEntity(sale.clientName)
     );
+
+    const orgSettingsInventory = (orgData?.settings as any)?.inventory;
+    const localRealInventory = (currentState.inventory || []).filter(
+      (item) => !isDemoOrMockId(item.id)
+    );
+    if (Array.isArray(orgSettingsInventory) && orgSettingsInventory.length > 0) {
+      const cloudInvIds = new Set(orgSettingsInventory.map((i: any) => i.id));
+      const unsyncedInv = localRealInventory.filter((i) => !cloudInvIds.has(i.id));
+      updated.inventory = [...orgSettingsInventory, ...unsyncedInv];
+    } else {
+      updated.inventory = localRealInventory;
+    }
 
     // Reseta controle de ponto demo se tiver dados fictícios da interface inicial
     if (
@@ -1210,6 +1235,7 @@ export async function syncNewClientToSupabase(
         allergies_warnings: client.notesAndForms?.allergies || "",
         preferences_notes: client.notesAndForms?.formulasAndPreferences || "",
         birthday: client.notesAndForms?.birthday || "",
+        auto_sorted_photos: client.autoSortedPhotos || [],
         send_automatic_reminders: client.sendAutomaticReminders ?? true,
         total_spent_cents: client.totalSpentCents || 0,
         visits_count: client.visitsCount || 1,
@@ -1222,5 +1248,45 @@ export async function syncNewClientToSupabase(
     }
   } catch (err) {
     console.warn("Falha ao persistir cliente no Supabase:", err);
+  }
+}
+
+/**
+ * Atualiza fotos auto-organizadas, notas de anamnese e preferências de um cliente no Supabase
+ */
+export async function syncClientUpdateToSupabase(
+  client: ClientProfile,
+  organizationId?: string
+) {
+  if (!isSupabaseConfigured()) return;
+  if (isDemoOrMockId(client.id) || isDemoEntity(client.fullName)) return;
+
+  try {
+    let orgId = organizationId;
+    if (!orgId) {
+      const ctx = await getCurrentTenantContext();
+      orgId = ctx?.organizationId;
+    }
+
+    if (isValidUuid(client.id)) {
+      let query = supabase
+        .from("clients")
+        .update({
+          anamnesis_notes: client.notesAndForms?.anamnesis || "",
+          allergies_warnings: client.notesAndForms?.allergies || "",
+          preferences_notes: client.notesAndForms?.formulasAndPreferences || "",
+          birthday: client.notesAndForms?.birthday || "",
+          auto_sorted_photos: client.autoSortedPhotos || [],
+          send_automatic_reminders: client.sendAutomaticReminders ?? true,
+        })
+        .eq("id", client.id);
+
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
+      await query;
+    }
+  } catch (err) {
+    console.warn("Falha ao atualizar dados do cliente no Supabase:", err);
   }
 }

@@ -32,6 +32,7 @@ import {
   saveCatalogMembership,
   savePhysicalResource,
 } from "@/lib/agendaste-store";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 interface CatalogViewProps {
   section:
@@ -130,15 +131,15 @@ export function CatalogView({
       return (
         <div className="min-h-screen bg-[#FAFAFC] pb-24">
           {/* Top Bar (06-2-services-add.png) */}
-          <div className="px-8 py-5 bg-white border-b border-[#E5E5EA] flex items-center justify-between sticky top-0 z-20">
+          <div className="px-4 sm:px-8 py-3.5 sm:py-5 bg-white border-b border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsAddingService(false)}
-                className="w-9 h-9 rounded-full border border-[#E5E5EA] flex items-center justify-center hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full border border-[#E5E5EA] flex items-center justify-center hover:bg-[#F5F5F7] shrink-0"
               >
                 <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
               </button>
-              <h1 className="text-[22px] font-bold text-[#1C1C1E]">
+              <h1 className="text-[18px] sm:text-[22px] font-bold text-[#1C1C1E] truncate">
                 Novo serviço (New service)
               </h1>
             </div>
@@ -202,8 +203,8 @@ export function CatalogView({
           </div>
 
           {/* 2-Column Layout matching 06-2-services-add.png & 06-2-services-add-1.png */}
-          <div className="w-full px-6 lg:px-8 xl:px-10 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-3 space-y-1">
+          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+            <div className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto no-scrollbar pb-2 lg:pb-0">
               {[
                 "Detalhes básicos",
                 "Configurações padrão",
@@ -213,10 +214,10 @@ export function CatalogView({
               ].map((item, idx) => (
                 <div
                   key={item}
-                  className={`px-4 py-2.5 rounded-[12px] text-[13px] ${
+                  className={`px-4 py-2 sm:py-2.5 rounded-[12px] text-[13px] whitespace-nowrap shrink-0 ${
                     idx === 0
                       ? "bg-[#1C1C1E] text-white font-semibold shadow-sm"
-                      : "text-[#6E6E73] font-medium"
+                      : "text-[#6E6E73] font-medium hover:bg-[#F5F5F7]"
                   }`}
                 >
                   {item}
@@ -334,19 +335,15 @@ export function CatalogView({
                     <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
                       Tipo de preço
                     </label>
-                    <select
+                    <DropdownSelect
                       value={srvPriceType}
-                      onChange={(e) =>
-                        setSrvPriceType(e.target.value as PriceType)
-                      }
-                      className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] bg-white"
-                    >
-                      <option value="fixed">Preço Fixo (Fixed)</option>
-                      <option value="starting_at">
-                        A partir de (Starting at)
-                      </option>
-                      <option value="hidden">Ocultar preço</option>
-                    </select>
+                      onChange={(val) => setSrvPriceType(val as PriceType)}
+                      options={[
+                        { value: "fixed", label: "Preço Fixo (Fixed)" },
+                        { value: "starting_at", label: "A partir de (Starting at)" },
+                        { value: "hidden", label: "Ocultar preço" },
+                      ]}
+                    />
                   </div>
                   <div>
                     <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
@@ -427,7 +424,7 @@ export function CatalogView({
                   </div>
 
                   {srvProcessingEnabled && (
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       <div>
                         <label className="block text-[11px] font-semibold text-[#6E56CF] mb-1">
                           Iniciar pausa após (minutos de aplicação)
@@ -633,7 +630,7 @@ export function CatalogView({
         {/* Editorial Hero Card (06-1-services.png) */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
-            <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+            <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
               Construa um menu de serviços que se vende sozinho
             </h1>
             <p className="text-[15px] text-[#6E6E73] max-w-xl">
@@ -868,7 +865,7 @@ export function CatalogView({
                 onChange={(e) => setPkgDescription(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[13px]"
               />
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-[#6E6E73] mb-1">
                     Nº de Sessões
@@ -975,7 +972,7 @@ export function CatalogView({
             <span className="inline-block px-3 py-1 rounded-full bg-white/80 text-[12px] font-semibold text-[#1C1C1E]">
               Receita Recorrente Garantida
             </span>
-            <h1 className="font-display text-[40px] leading-[1.08] text-[#1C1C1E]">
+            <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[40px] leading-[1.12] sm:leading-[1.08] text-[#1C1C1E]">
               Crie clubes de assinatura mensal para seus clientes fiéis
             </h1>
             <p className="text-[14px] text-[#6E6E73]">
@@ -1104,7 +1101,7 @@ export function CatalogView({
           <span className="inline-block px-3 py-1 rounded-full bg-white/80 border border-[#DDD6FE] text-[12px] font-semibold text-[#1C1C1E]">
             Apresentando Recursos
           </span>
-          <h1 className="font-display text-[42px] leading-[1.06] text-[#1C1C1E]">
+          <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
             Evite conflitos de salas ou equipamentos compartilhados
           </h1>
           <p className="text-[15px] text-[#6E6E73] max-w-xl">
@@ -1251,16 +1248,14 @@ export function CatalogView({
                 <X className="w-4 h-4 text-[#6E6E73]" />
               </button>
             </div>
-            <select
+            <DropdownSelect
               value={resCategory}
-              onChange={(e) =>
-                setResCategory(e.target.value as ResourceCategory)
-              }
-              className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] bg-white"
-            >
-              <option value="equipment">Equipamento (Aparelho / Laser)</option>
-              <option value="room">Sala / Cabine Física</option>
-            </select>
+              onChange={(val) => setResCategory(val as ResourceCategory)}
+              options={[
+                { value: "equipment", label: "Equipamento (Aparelho / Laser)" },
+                { value: "room", label: "Sala / Cabine Física" },
+              ]}
+            />
             <input
               type="text"
               placeholder="Nome (Ex: Cabine Head Spa 02)"
