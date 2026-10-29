@@ -47,6 +47,9 @@ import {
   Minus,
   Upload,
   ChevronRight,
+  ScanLine,
+  AlertCircle,
+  Lock,
 } from "lucide-react";
 import {
   StudioState,
@@ -65,6 +68,7 @@ import {
   updateStudioSettings,
   filterClientsByRetention,
   resolveProductIntendedUse,
+  findInventoryProductByBarcode,
   saveInventoryProduct,
   deleteInventoryProduct,
   adjustInventoryStock,
@@ -72,6 +76,8 @@ import {
 } from "@/lib/agendaste-store";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
+import { BarcodeScannerModal } from "@/components/ui/barcode-scanner-modal";
+import { useBarcodeScannerListener } from "@/hooks/use-barcode-scanner-listener";
 
 // =============================================================================
 // 1. MARKETING VIEW (07-1-marketing.png & 07-1-1-marketing.png)
@@ -116,10 +122,22 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
       {/* Top Bar matching 07-1-marketing.png */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold text-[#1C1C1E] tracking-tight">
-            Marketing
-          </h1>
-          <p className="text-[13px] text-[#6E6E73]">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[28px] font-bold text-[#1C1C1E] tracking-tight">
+              Marketing
+            </h1>
+            <div className="relative group inline-flex items-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 shadow-2xs select-none">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Em breve</span>
+              </span>
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -bottom-8 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                <span>Em breve</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-[13px] text-[#6E6E73] mt-0.5">
             {state.marketing.smsCreditsRemaining} mensagens de texto gratuitas
             restantes neste mês
           </p>
@@ -2947,8 +2965,51 @@ function InventorySection({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Barcode Scanner Modal State
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [scannerTarget, setScannerTarget] = useState<"lookup" | "field">("lookup");
+
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const imageFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleBarcodeScanned = (scannedCode: string) => {
+    const trimmed = scannedCode.trim();
+    if (!trimmed) return;
+
+    // Se estiver com a gaveta aberta (adicionando ou editando) ou foco no campo: vincula ao campo
+    if (drawerMode !== null || scannerTarget === "field") {
+      setBarcode(trimmed);
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: `Código vinculado: ${trimmed}`,
+      }));
+      return;
+    }
+
+    // Se estiver na lista geral: busca no estoque
+    const existing = findInventoryProductByBarcode(state, trimmed);
+
+    if (existing) {
+      openEditDrawer(existing);
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: `Produto localizado: ${existing.name}`,
+      }));
+    } else {
+      openAddDrawer();
+      setBarcode(trimmed);
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: `Novo código detectado (${trimmed}). Preencha os dados para salvar.`,
+      }));
+    }
+  };
+
+  // Escuta contínua de leitores físicos USB/Bluetooth (teclado HID)
+  useBarcodeScannerListener({
+    onScan: handleBarcodeScanned,
+    enabled: true,
+  });
 
   const openAddDrawer = () => {
     setDrawerMode("add");
@@ -3344,27 +3405,21 @@ function InventorySection({
               <button
                 type="button"
                 onClick={() => {
-                  searchInputRef.current?.focus();
+                  setScannerTarget("lookup");
+                  setIsScannerModalOpen(true);
                 }}
-                className="text-left rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#18181b] hover:border-[#C7C7CC] dark:hover:border-[#3f3f46] overflow-hidden flex items-stretch transition"
+                className="text-left rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#18181b] hover:border-[#C7C7CC] dark:hover:border-[#3f3f46] overflow-hidden flex items-stretch transition group"
               >
                 <div className="w-16 sm:w-[70px] bg-gradient-to-b from-[#F9A8D4] to-[#FCE7F3] flex items-center justify-center shrink-0">
-                  <svg
-                    className="w-6 h-6 text-[#831843]/80"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
-                    <path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14M21 5v14" />
-                  </svg>
+                  <ScanLine className="w-6 h-6 text-[#831843]/80 group-hover:scale-105 transition-transform" />
                 </div>
                 <div className="p-3 flex-1 flex flex-col justify-center items-start gap-1.5 min-w-0">
                   <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white leading-snug">
                     Leitura de código de barras
                   </p>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E5C158]/40 dark:bg-[#E5C158]/20 text-[#5C4408] dark:text-[#FDE68A] text-[10.5px] font-semibold">
-                    Disponível no celular
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white text-[10.5px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                    <span>Câmera e leitor físico</span>
                   </span>
                 </div>
               </button>
@@ -3984,15 +4039,28 @@ function InventorySection({
 
                   {/* Código de barras (Barcode) */}
                   <div className="rounded-[12px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition-colors">
-                    <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
-                      Código de barras
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Código de barras
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScannerTarget("field");
+                          setIsScannerModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-[#1C1C1E] dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition"
+                      >
+                        <ScanLine className="w-3 h-3 text-[#1C1C1E] dark:text-white" />
+                        <span>Escanear câmera</span>
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={barcode}
                       onChange={(e) => setBarcode(e.target.value)}
                       placeholder="Código de barras (EAN / SKU)"
-                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5"
+                      className="w-full bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none mt-0.5 tabular-nums"
                     />
                   </div>
 
@@ -4059,6 +4127,23 @@ function InventorySection({
           </aside>
         </>
       )}
+
+      {/* Modal de Leitura de Código de Barras (Câmera & Entrada Manual) */}
+      <BarcodeScannerModal
+        isOpen={isScannerModalOpen}
+        onClose={() => setIsScannerModalOpen(false)}
+        onScan={handleBarcodeScanned}
+        title={
+          scannerTarget === "field"
+            ? "Vincular código de barras"
+            : "Leitura de código de barras"
+        }
+        subtitle={
+          scannerTarget === "field"
+            ? "Aponte a câmera para o código deste produto"
+            : "Aponte a câmera ou use o leitor físico no produto"
+        }
+      />
     </div>
   );
 }

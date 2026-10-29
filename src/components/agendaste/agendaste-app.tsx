@@ -25,6 +25,7 @@ import {
   Sun,
   Moon,
   Smartphone,
+  AlertCircle,
 } from "lucide-react";
 import { useAppTheme } from "@/lib/theme";
 import { usePWAInstall } from "@/hooks/use-pwa-install";
@@ -820,24 +821,27 @@ export function LuveaApp({
                     <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveSection("marketing");
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium active:scale-95 transition-transform ${
-                      activeSection === "marketing"
-                        ? "bg-[#ECE9FE] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
-                        : "text-[#1C1C1E] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <Sparkles className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
-                      <span>Marketing IA</span>
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
-                  </button>
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-80"
+                    >
+                      <span className="flex items-center gap-3">
+                        <Sparkles className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+                        <span>Marketing IA</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 px-2 py-0.5 rounded-full">
+                        <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span>Em breve</span>
+                      </span>
+                    </button>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span>Em breve</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

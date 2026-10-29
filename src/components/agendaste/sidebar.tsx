@@ -23,6 +23,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  AlertCircle,
 } from "lucide-react";
 import type { NavigationSectionId } from "@/lib/agendaste-store";
 import { LuveaIcon } from "@/components/luvea-logo";
@@ -190,18 +191,21 @@ export function LuveaSidebar({
           >
             <Users className="w-4 h-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => onSelectSection("marketing")}
-            title="Marketing"
-            className={`p-2.5 rounded-xl ${
-              activeSection === "marketing"
-                ? "bg-[#ECE9FE] text-[#18181B] dark:bg-[#27272a] dark:text-white"
-                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#27272a]"
-            }`}
-          >
-            <Send className="w-4 h-4" />
-          </button>
+          <div className="relative group flex items-center justify-center">
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="p-2.5 rounded-xl text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-75 relative"
+            >
+              <Send className="w-4 h-4" />
+              <AlertCircle className="w-2.5 h-2.5 text-amber-500 absolute top-1.5 right-1.5" />
+            </button>
+            <div className="pointer-events-none absolute left-full ml-2 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+              <span>Em breve</span>
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => onSelectSection("settings")}
@@ -688,26 +692,6 @@ export function LuveaSidebar({
             )}
           </div>
 
-          {/* Marketing */}
-          <button
-            type="button"
-            onClick={() => onSelectSection("marketing")}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-              activeSection === "marketing"
-                ? "bg-[#ECE9FE] text-[#18181B] dark:bg-[#27272a] dark:text-white font-semibold"
-                : "text-[#27272A] dark:text-[#a1a1aa] hover:bg-zinc-100 dark:hover:bg-[#27272a] dark:hover:text-white"
-            }`}
-          >
-            <Send
-              className={`w-4 h-4 ${
-                activeSection === "marketing"
-                  ? "text-[#5B43D6] dark:text-[#A494F7]"
-                  : "text-zinc-700 dark:text-zinc-400"
-              }`}
-            />
-            <span>Marketing</span>
-          </button>
-
           {/* Insights / Relatórios expandable group (matches Analytics & Reports screenshots) */}
           <div
             className={`rounded-xl transition-all ${
@@ -810,6 +794,29 @@ export function LuveaSidebar({
             />
             <span>Prontuários</span>
           </button>
+
+          {/* Marketing (Trancado / Em breve) */}
+          <div className="relative group">
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium text-zinc-400 dark:text-zinc-500 cursor-not-allowed select-none opacity-80 hover:bg-zinc-50 dark:hover:bg-[#1f1f23] transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <Send className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+                <span>Marketing</span>
+              </div>
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 px-2 py-0.5 rounded-full">
+                <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
+                <span>Em breve</span>
+              </span>
+            </button>
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-8 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+              <span>Em breve</span>
+            </div>
+          </div>
         </div>
       </div>
 

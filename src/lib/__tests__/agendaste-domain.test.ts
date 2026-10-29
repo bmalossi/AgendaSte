@@ -44,6 +44,7 @@ import {
   deleteInventoryProduct,
   adjustInventoryStock,
   resolveProductIntendedUse,
+  findInventoryProductByBarcode,
   formatBRLCurrencyString,
   parseCurrencyToCents,
 } from "../agendaste-store.ts";
@@ -1333,6 +1334,50 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     // Vazio retorna ""
     assert.equal(formatBRLCurrencyString(""), "");
     assert.equal(parseCurrencyToCents(""), 0);
+  });
+
+  it("finds inventory products by barcode (EAN-13, EAN-8, SKU) or returns undefined if not found", () => {
+    let state = createInitialStudioState();
+
+    state = saveInventoryProduct(state, {
+      name: "Shampoo L'Oréal Absolut Repair",
+      brand: "L'Oréal Professionnel",
+      intendedUse: "retail",
+      barcode: "7891234567890",
+      costCents: 8500,
+      priceCents: 14500,
+      stockQuantity: 12,
+      minStockAlert: 3,
+    });
+
+    state = saveInventoryProduct(state, {
+      name: "Máscara Wella Nutri-Enrich",
+      brand: "Wella",
+      intendedUse: "both",
+      barcode: "7899876543210",
+      costCents: 9000,
+      priceCents: 16000,
+      stockQuantity: 6,
+      minStockAlert: 2,
+    });
+
+    // 1. Busca exata por código EAN
+    const found1 = findInventoryProductByBarcode(state, "7891234567890");
+    assert.ok(found1);
+    assert.equal(found1.name, "Shampoo L'Oréal Absolut Repair");
+
+    // 2. Busca com espaços em branco ao redor (trim automático)
+    const found2 = findInventoryProductByBarcode(state, "  7899876543210  ");
+    assert.ok(found2);
+    assert.equal(found2.name, "Máscara Wella Nutri-Enrich");
+
+    // 3. Código não cadastrado retorna undefined
+    const notFound = findInventoryProductByBarcode(state, "0000000000000");
+    assert.equal(notFound, undefined);
+
+    // 4. Entradas inválidas ou vazias retornam undefined de forma segura
+    assert.equal(findInventoryProductByBarcode(state, ""), undefined);
+    assert.equal(findInventoryProductByBarcode(state, "   "), undefined);
   });
 });
 

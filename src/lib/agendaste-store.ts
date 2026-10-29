@@ -4293,6 +4293,24 @@ export function resolveProductIntendedUse(
   return "retail";
 }
 
+/**
+ * Localiza um produto no estoque pelo código de barras (EAN/UPC/Code128) ou SKU.
+ */
+export function findInventoryProductByBarcode(
+  state: StudioState,
+  rawBarcode: string
+): InventoryProductItem | undefined {
+  if (!rawBarcode || typeof rawBarcode !== "string") return undefined;
+  const clean = rawBarcode.trim();
+  if (!clean) return undefined;
+
+  return state.inventory.find(
+    (item) =>
+      (item.barcode && item.barcode.trim() === clean) ||
+      (item.sku && item.sku.trim() === clean)
+  );
+}
+
 export interface SaveInventoryProductInput {
   id?: string;
   name: string;
