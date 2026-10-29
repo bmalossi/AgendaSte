@@ -69,16 +69,22 @@ export function LuveaSidebar({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [profileMenuOpen]);
-  const [paymentsOpen, setPaymentsOpen] = useState(
-    activeSection.startsWith("payments_")
-  );
-  const [catalogOpen, setCatalogOpen] = useState(
-    activeSection.startsWith("catalog_")
-  );
-  const [teamOpen, setTeamOpen] = useState(activeSection.startsWith("team_"));
-  const [insightsOpen, setInsightsOpen] = useState(
-    activeSection.startsWith("insights")
-  );
+  type MenuDropdownId = "payments" | "catalog" | "team" | "insights" | null;
+
+  const getInitialOpenMenu = (): MenuDropdownId => {
+    if (activeSection.startsWith("payments_")) return "payments";
+    if (activeSection.startsWith("catalog_")) return "catalog";
+    if (activeSection.startsWith("team_")) return "team";
+    if (activeSection.startsWith("insights")) return "insights";
+    return null;
+  };
+
+  const [openDropdown, setOpenDropdown] = useState<MenuDropdownId>(getInitialOpenMenu);
+
+  const paymentsOpen = openDropdown === "payments";
+  const catalogOpen = openDropdown === "catalog";
+  const teamOpen = openDropdown === "team";
+  const insightsOpen = openDropdown === "insights";
 
   const isPaymentsGroup = activeSection.startsWith("payments_");
   const isCatalogGroup = activeSection.startsWith("catalog_");
@@ -86,10 +92,10 @@ export function LuveaSidebar({
   const isInsightsGroup = activeSection.startsWith("insights");
 
   useEffect(() => {
-    if (activeSection.startsWith("payments_")) setPaymentsOpen(true);
-    if (activeSection.startsWith("catalog_")) setCatalogOpen(true);
-    if (activeSection.startsWith("team_")) setTeamOpen(true);
-    if (activeSection.startsWith("insights")) setInsightsOpen(true);
+    if (activeSection.startsWith("payments_")) setOpenDropdown("payments");
+    else if (activeSection.startsWith("catalog_")) setOpenDropdown("catalog");
+    else if (activeSection.startsWith("team_")) setOpenDropdown("team");
+    else if (activeSection.startsWith("insights")) setOpenDropdown("insights");
   }, [activeSection]);
 
   if (collapsed) {
@@ -433,8 +439,8 @@ export function LuveaSidebar({
             <button
               type="button"
               onClick={() => {
-                const next = !paymentsOpen;
-                setPaymentsOpen(next);
+                const next = openDropdown === "payments" ? null : "payments";
+                setOpenDropdown(next);
                 if (next && !isPaymentsGroup) {
                   onSelectSection("payments_sales_history");
                 }
@@ -528,8 +534,8 @@ export function LuveaSidebar({
             <button
               type="button"
               onClick={() => {
-                const next = !catalogOpen;
-                setCatalogOpen(next);
+                const next = openDropdown === "catalog" ? null : "catalog";
+                setOpenDropdown(next);
                 if (next && !isCatalogGroup) {
                   onSelectSection("catalog_services");
                 }
@@ -617,8 +623,8 @@ export function LuveaSidebar({
             <button
               type="button"
               onClick={() => {
-                const next = !teamOpen;
-                setTeamOpen(next);
+                const next = openDropdown === "team" ? null : "team";
+                setOpenDropdown(next);
                 if (next && !isTeamGroup) {
                   onSelectSection("team_staff");
                 }
@@ -701,8 +707,8 @@ export function LuveaSidebar({
             <button
               type="button"
               onClick={() => {
-                const next = !insightsOpen;
-                setInsightsOpen(next);
+                const next = openDropdown === "insights" ? null : "insights";
+                setOpenDropdown(next);
                 if (next && !isInsightsGroup) {
                   onSelectSection("insights_analytics");
                 }
