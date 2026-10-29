@@ -749,11 +749,11 @@ export function CatalogView({
               + Novo serviço
             </button>
           </div>
-          <div className="divide-y divide-[#EFEFF4]">
+          <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
             {state.services.map((srv) => (
               <div
                 key={srv.id}
-                className="p-5 flex flex-wrap items-center justify-between gap-4 hover:bg-[#FAFAFC]"
+                className="p-5 flex flex-wrap items-center justify-between gap-4 hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60"
               >
                 <div className="flex items-start gap-3.5">
                   <span
@@ -1175,7 +1175,7 @@ export function CatalogView({
             </button>
           </div>
 
-          <div className="divide-y divide-[#EFEFF4]">
+          <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
             {equipmentList.map((eq) => (
               <div key={eq.id} className="py-3 flex items-center justify-between">
                 <div>
@@ -1219,7 +1219,7 @@ export function CatalogView({
             </button>
           </div>
 
-          <div className="divide-y divide-[#EFEFF4]">
+          <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
             {roomsList.map((rm) => (
               <div key={rm.id} className="py-3 flex items-center justify-between">
                 <div>

@@ -138,6 +138,13 @@
 .dark .luvea-dashboard .bg-\[\#F5F5F7\],
 .dark .luvea-dashboard .bg-\[\#F2F2F7\],
 .dark .luvea-dashboard .bg-\[\#F2F4F2\],
+.dark .luvea-dashboard .bg-\[\#F5F6F7\],
+.dark .luvea-dashboard .bg-\[\#F5F6F8\],
+.dark .luvea-dashboard .bg-\[\#F8FAFC\],
+.dark .luvea-dashboard .bg-\[\#F3F4F6\],
+.dark .luvea-dashboard .bg-\[\#EFEAE1\],
+.dark .luvea-dashboard .bg-\[\#EFEAE2\],
+.dark .luvea-dashboard .bg-\[\#ECEEF0\],
 .dark .luvea-dashboard .bg-zinc-50,
 .dark .luvea-dashboard .bg-zinc-100 {
   background-color: #18181b;
@@ -163,7 +170,7 @@
   border-color: #3f3f46 !important;
 }
 
-/* 2. Bordas e Divisores */
+/* 2. Bordas e Divisores Sutis (Finos como no modo claro) */
 .dark .luvea-dashboard .border-\[\#E5E5EA\],
 .dark .luvea-dashboard .border-\[\#E5E7EB\],
 .dark .luvea-dashboard .border-\[\#EFEFF4\],
@@ -171,15 +178,38 @@
 .dark .luvea-dashboard .border-\[\#F2F2F7\],
 .dark .luvea-dashboard .border-\[\#D4D4D8\],
 .dark .luvea-dashboard .border-\[\#D1D1D6\],
+.dark .luvea-dashboard .border-\[\#C7C7CC\],
 .dark .luvea-dashboard .border-\[\#F3E8C4\],
+.dark .luvea-dashboard .border-\[\#E2E8F0\],
+.dark .luvea-dashboard .border-zinc-100,
 .dark .luvea-dashboard .border-zinc-200,
 .dark .luvea-dashboard .border-zinc-200\/70,
+.dark .luvea-dashboard .border-zinc-200\/80,
+.dark .luvea-dashboard .border-zinc-200\/90,
 .dark .luvea-dashboard .border-zinc-300,
+.dark .luvea-dashboard .border-gray-300,
+.dark .luvea-dashboard table,
+.dark .luvea-dashboard table tr,
+.dark .luvea-dashboard table th,
+.dark .luvea-dashboard table td {
+  border-color: #27272a !important;
+}
+
+/* Divisores entre linhas / itens de listas e tabelas (Finos e refinados como no modo claro) */
+.dark .luvea-dashboard .divide-\[\#EFEFF4\] > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-\[\#F2F2F7\] > :not([hidden]) ~ :not([hidden]),
 .dark .luvea-dashboard .divide-\[\#E5E5EA\] > :not([hidden]) ~ :not([hidden]),
 .dark .luvea-dashboard .divide-\[\#E5E7EB\] > :not([hidden]) ~ :not([hidden]),
-.dark .luvea-dashboard .divide-\[\#F2F2F7\] > :not([hidden]) ~ :not([hidden]),
-.dark .luvea-dashboard .divide-zinc-200 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #27272a;
+.dark .luvea-dashboard .divide-\[\#F5F5F7\] > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-\[\#FAFAFC\] > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-\[\#FAFAFA\] > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-zinc-100 > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-zinc-200 > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-line > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard tbody.divide-y > :not([hidden]) ~ :not([hidden]),
+.dark .luvea-dashboard .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a !important;
+  border-width: 1px;
 }
 
 /* 3. Textos Primários: Títulos, Nomes, Números em Destaque */
@@ -205,19 +235,34 @@
   color: #71717a;
 }
 
-/* 6. Estados de Hover */
+/* 6. Estados de Hover (Garantir alto contraste: nunca fundo claro com texto claro) */
 .dark .luvea-dashboard .hover\:bg-\[\#F5F5F7\]:hover,
 .dark .luvea-dashboard .hover\:bg-\[\#FAFAFC\]:hover,
 .dark .luvea-dashboard .hover\:bg-\[\#FAFAFA\]:hover,
 .dark .luvea-dashboard .hover\:bg-\[\#FBFBFC\]:hover,
 .dark .luvea-dashboard .hover\:bg-\[\#F2F2F7\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#F9F9FB\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#F5F6F7\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#F5F5F7\]\/70:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#EBEBED\]:hover,
+.dark .luvea-dashboard .hover\:bg-\[\#EFEFF4\]:hover,
 .dark .luvea-dashboard .hover\:bg-\[\#E5E5EA\]:hover,
 .dark .luvea-dashboard .hover\:bg-\[\#E4E4E7\]:hover,
 .dark .luvea-dashboard .hover\:bg-white:hover,
 .dark .luvea-dashboard .hover\:bg-zinc-50:hover,
-.dark .luvea-dashboard .hover\:bg-zinc-100:hover {
+.dark .luvea-dashboard .hover\:bg-zinc-100:hover,
+.dark .luvea-dashboard .hover\:bg-zinc-200:hover,
+.dark .luvea-dashboard table tbody tr:hover,
+.dark .luvea-dashboard tr.hover\:bg-\[\#F9F9FB\]:hover,
+.dark .luvea-dashboard tr.hover\:bg-\[\#FAFAFC\]:hover,
+.dark .luvea-dashboard tr.hover\:bg-\[\#F5F5F7\]:hover,
+.dark .luvea-dashboard tr.hover\:bg-\[\#F5F6F7\]:hover {
   background-color: #27272a !important;
   color: #ffffff;
+}
+
+.dark .luvea-dashboard tr:hover td {
+  color: inherit;
 }
 
 .dark .luvea-dashboard .hover\:border-\[\#C7C7CC\]:hover {
@@ -291,15 +336,25 @@
   background-color: #27272a;
 }
 
-/* 9. Elementos de Seleção / Abas Ativas */
+/* 9. Elementos de Seleção / Abas Ativas e Linhas Selecionadas */
 .dark .luvea-dashboard .bg-\[\#ECE9FE\] {
   background-color: #27272a;
   color: #ffffff;
 }
 
 .dark .luvea-dashboard .bg-\[\#F5F3FF\] {
-  background-color: #18181b;
-  border-color: #27272a;
+  background-color: #27272a;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+/* Linhas de tabelas e listas com estado selecionado ativo */
+.dark .luvea-dashboard tr.bg-\[\#F5F5F7\],
+.dark .luvea-dashboard tr.bg-\[\#F5F3FF\],
+.dark .luvea-dashboard div.cursor-pointer.bg-\[\#F5F3FF\],
+.dark .luvea-dashboard div.cursor-pointer.bg-\[\#F5F5F7\] {
+  background-color: #27272a !important;
+  color: #ffffff;
 }
 
 /* 9.1 Elementos de Relatórios e Badges Especiais */
@@ -359,12 +414,20 @@
   background-color: #27272a;
 }
 
-/* 11. Badges Numéricos Discretos */
+/* 11. Badges e Pílulas Discretas */
 .dark .luvea-dashboard span.rounded-full.bg-\[\#1C1C1E\],
-.dark .luvea-dashboard span.rounded-full.bg-\[\#18181B\] {
-  background-color: #27272a;
-  color: #ffffff;
+.dark .luvea-dashboard span.rounded-full.bg-\[\#18181B\],
+.dark .luvea-dashboard span.bg-\[\#EFEFF4\],
+.dark .luvea-dashboard span.bg-\[\#E5E5EA\],
+.dark .luvea-dashboard span.bg-\[\#F5F5F7\] {
+  background-color: #27272a !important;
+  color: #a1a1aa !important;
   border-color: #3f3f46;
+}
+
+/* 11.1 Avatares com cores de fundo pastéis inline (sempre manter texto escuro com alto contraste) */
+.dark .luvea-dashboard .rounded-full[style*="background"] {
+  color: #18181b !important;
 }
 
 /* 12. Imagens e QR Code (Preservar contraste limpo para câmeras) */

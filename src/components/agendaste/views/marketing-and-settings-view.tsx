@@ -50,6 +50,8 @@ import {
   ScanLine,
   AlertCircle,
   Lock,
+  MoreHorizontal,
+  ChevronUp,
 } from "lucide-react";
 import {
   StudioState,
@@ -57,6 +59,7 @@ import {
   ClinicalChartEntry,
   ClinicalChartPhotoItem,
   ClinicalChartProductUsage,
+  ClinicalChartVersionSnapshot,
   ClinicalChartMarkupPin,
   InventoryProductItem,
   InventoryIntendedUse,
@@ -240,7 +243,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
             Campanhas Enviadas ({state.marketing.campaigns.length})
           </h3>
         </div>
-        <div className="divide-y divide-[#EFEFF4]">
+        <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
           {state.marketing.campaigns.map((cmp) => (
             <div
               key={cmp.id}
@@ -1409,26 +1412,61 @@ const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
     id: "chart-stefany-1",
     clientId: "cli-stefany",
     clientName: "Stefany",
-    chartName: "17 de out. de 2026",
+    chartName: "Oct 17, 2026",
     serviceIds: [],
     serviceNames: [],
     providerId: "staff-bruno",
     providerName: "Bruno Fernandes Malossi Silva",
     status: "completed",
-    version: 1,
-    createdDateLabel: "17 de out. de 2026",
-    lastModifiedLabel: "17 de out. de 2026 15:38",
+    version: 2,
+    createdDateLabel: "Oct 29, 2026",
+    lastModifiedLabel: "Oct 29, 2026 15:38",
     photos: [],
-    productsUsed: [],
+    productsUsed: [
+      {
+        id: "prod-stef-1",
+        productName: "Colorante",
+        quantity: "2",
+        skuOrLot: "LOTE-9942A",
+        expirationDate: "12/2027",
+        notes: "",
+      },
+    ],
     templateType: "soap",
-    soapNoteName: "Avaliação e Protocolo Inicial",
-    subjective:
-      "Cliente relata desejo de iluminação natural sem sensibilizar o couro cabeludo.",
-    objective:
-      "Fios com boa elasticidade, fundo natural 6.0 com 4cm de crescimento na raiz.",
+    soapNoteName: "SOAP note",
+    subjective: "dsadsadsadsadsa",
+    objective: "dsadskssodkssod",
     assessment:
-      "Apta para protocolo de iluminação com proteção de pontes dissulfeto (Plex).",
-    plan: "Realizar teste de mecha preventivo, aplicar proteção plex e agendar manutenção de gloss em 30 dias.",
+      "Fios íntegros com boa elasticidade pós-procedimento. Cutícula selada e resposta satisfatória.",
+    plan: "Manutenção recomendada em 30 dias com protocolo de nutrição capilar intensiva.",
+    history: [
+      {
+        version: 1,
+        status: "superseded",
+        timestampISO: "2026-10-17T14:10:00.000Z",
+        savedAtLabel: "17 de out. de 2026 14:10",
+        amendedBy: "Bruno Fernandes Malossi Silva",
+        chartName: "Oct 17, 2026",
+        photos: [],
+        productsUsed: [
+          {
+            id: "prod-stef-v1-1",
+            productName: "Colorante",
+            quantity: "1",
+            skuOrLot: "LOTE-9942A",
+            expirationDate: "12/2027",
+            notes: "Dose inicial",
+          },
+        ],
+        soapNoteName: "SOAP note",
+        subjective: "dsadsadsadsadsa",
+        objective: "dsadskssodkssod",
+        assessment: "Avaliação inicial de elasticidade e tom de base.",
+        plan: "Realizar aplicação inicial de colorante com acompanhamento de tempo.",
+        amendReason:
+          "Ajuste na dosagem de colorante (de 1 para 2 unidades) e finalização do protocolo pós-aplicação.",
+      },
+    ],
   },
 ];
 
@@ -1474,9 +1512,17 @@ function ClinicalChartsSection({
   const [customProductName, setCustomProductName] = useState("");
   const [productLotSku, setProductLotSku] = useState("");
   const [productQuantity, setProductQuantity] = useState("1 unid.");
+  const [productExpDate, setProductExpDate] = useState("");
   const [productNotes, setProductNotes] = useState("");
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<{ url: string; title: string } | null>(null);
+
+  // Version History states
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(true);
+  const [expandedVersionId, setExpandedVersionId] = useState<number | null>(null);
+  const [activeVersionMenu, setActiveVersionMenu] = useState<number | null>(null);
+  const [previewingSnapshot, setPreviewingSnapshot] =
+    useState<ClinicalChartVersionSnapshot | null>(null);
 
   const ownerFullName =
     `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() ||
@@ -1525,23 +1571,24 @@ function ClinicalChartsSection({
       id: `chart-${Date.now()}`,
       clientId: defaultClient.id,
       clientName: defaultClient.fullName,
-      chartName: "17 de out. de 2026",
+      chartName: "Oct 17, 2026",
       serviceIds: [],
       serviceNames: [],
       providerId: state.staff[0]?.id ?? "staff-bruno",
       providerName: ownerFullName,
       status: "created",
       version: 1,
-      createdDateLabel: "17 de out. de 2026",
-      lastModifiedLabel: `17 de out. de 2026 ${nowTime}`,
+      createdDateLabel: "Oct 29, 2026",
+      lastModifiedLabel: `Oct 29, 2026 ${nowTime}`,
       photos: [],
       productsUsed: [],
       templateType: "soap",
-      soapNoteName: "",
+      soapNoteName: "SOAP note",
       subjective: "",
       objective: "",
       assessment: "",
       plan: "",
+      history: [],
     };
 
     onUpdateState((prev) => {
@@ -1557,33 +1604,91 @@ function ClinicalChartsSection({
 
     setActiveChartId(newChart.id);
     setActiveAnchor("chart_details");
+    setVersionHistoryOpen(true);
     setOpenRowMenuId(null);
   };
 
   const handleMarkAsComplete = (chartId: string) => {
+    const nowTime = new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     updateChartById(chartId, (c) => ({
       ...c,
       status: "completed",
+      lastModifiedLabel: `${c.createdDateLabel} ${nowTime}`,
     }));
     onUpdateState((prev) => ({
       ...prev,
       lastToastMessage: "Prontuário assinado e marcado como concluído!",
     }));
-    setActiveChartId(null);
   };
 
   const handleAmendChart = (chartId: string) => {
+    const chart = charts.find((c) => c.id === chartId);
+    if (!chart) return;
+
+    const nowTime = new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const todayLabel = chart.createdDateLabel || "17 de out. de 2026";
+
+    // Cria snapshot imutável da versão atual para o histórico
+    const snapshot: ClinicalChartVersionSnapshot = {
+      version: chart.version,
+      status: "superseded",
+      timestampISO: new Date().toISOString(),
+      savedAtLabel: chart.lastModifiedLabel || `${todayLabel} ${nowTime}`,
+      amendedBy: chart.providerName || ownerFullName,
+      chartName: chart.chartName,
+      serviceNames: chart.serviceNames,
+      photos: [...chart.photos],
+      productsUsed: [...chart.productsUsed],
+      soapNoteName: chart.soapNoteName,
+      subjective: chart.subjective,
+      objective: chart.objective,
+      assessment: chart.assessment,
+      plan: chart.plan,
+      amendReason: `Retificação da versão v${chart.version} para v${chart.version + 1}.`,
+    };
+
+    const newHistory = [snapshot, ...(chart.history || [])];
+
     updateChartById(chartId, (c) => ({
       ...c,
       status: "created",
       version: c.version + 1,
+      history: newHistory,
+      lastModifiedLabel: `${todayLabel} ${nowTime}`,
     }));
     setActiveChartId(chartId);
     setActiveAnchor("chart_details");
+    setVersionHistoryOpen(true);
     setOpenRowMenuId(null);
     onUpdateState((prev) => ({
       ...prev,
-      lastToastMessage: "Modo de retificação ativado (nova versão criada).",
+      lastToastMessage: `Modo de retificação ativado (v${chart.version + 1} criada).`,
+    }));
+  };
+
+  const handleRestoreSnapshot = (snapshot: ClinicalChartVersionSnapshot) => {
+    if (!activeChart) return;
+    updateChartById(activeChart.id, (c) => ({
+      ...c,
+      chartName: snapshot.chartName,
+      productsUsed: [...snapshot.productsUsed],
+      photos: [...snapshot.photos],
+      soapNoteName: snapshot.soapNoteName,
+      subjective: snapshot.subjective,
+      objective: snapshot.objective,
+      assessment: snapshot.assessment,
+      plan: snapshot.plan,
+    }));
+    setPreviewingSnapshot(null);
+    onUpdateState((prev) => ({
+      ...prev,
+      lastToastMessage: `Dados da versão v${snapshot.version} restaurados com sucesso!`,
     }));
   };
 
@@ -1765,6 +1870,7 @@ function ClinicalChartsSection({
       productName,
       skuOrLot,
       quantity: productQuantity.trim() || "1 unid.",
+      expirationDate: productExpDate.trim() || "12/2027",
       notes: productNotes.trim(),
     };
 
@@ -1777,6 +1883,7 @@ function ClinicalChartsSection({
     setCustomProductName("");
     setProductLotSku("");
     setProductQuantity("1 unid.");
+    setProductExpDate("");
     setProductNotes("");
   };
 
@@ -1785,38 +1892,60 @@ function ClinicalChartsSection({
   // ===========================================================================
   if (activeChart) {
     const anchorItems: Array<{ id: ChartSectionAnchorId; label: string }> = [
-      { id: "chart_details", label: "Detalhes do prontuário" },
-      { id: "photos_markup", label: "Fotos e marcações" },
-      { id: "product_details", label: "Detalhes de produtos" },
-      { id: "treatment_note", label: "Nota de evolução" },
+      { id: "chart_details", label: "Chart details" },
+      { id: "photos_markup", label: "Photos and markup" },
+      { id: "product_details", label: "Product details" },
+      { id: "treatment_note", label: "Treatment note" },
     ];
+
+    const totalVersionsCount = (activeChart.history?.length || 0) + 1;
 
     return (
       <div className="w-full min-h-[calc(100vh-56px)] bg-white flex flex-col">
         {/* Top Sticky Header Bar */}
-        <div className="w-full border-b border-[#EFEFF4] bg-white px-4 sm:px-6 lg:px-10 py-3 sm:py-3.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
-          <button
-            type="button"
-            onClick={() => setActiveChartId(null)}
-            className="inline-flex items-center gap-2.5 text-[#1C1C1E] hover:opacity-75 transition-opacity"
-          >
-            <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
-            <span className="text-[15px] sm:text-[16px] font-semibold tracking-tight">
-              Entradas de prontuário
+        <div className="w-full border-b border-[#EFEFF4] bg-white px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setActiveChartId(null)}
+              className="inline-flex items-center gap-2 text-[#1C1C1E] hover:opacity-75 transition-opacity"
+              title="Voltar para todos os prontuários"
+            >
+              <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
+              <span className="text-[15px] sm:text-[16px] font-medium tracking-tight text-[#1C1C1E]">
+                Chart entries - {activeChart.chartName}
+              </span>
+            </button>
+            <span className="px-2 py-0.5 rounded-full border border-[#D1D1D6] text-[#6E6E73] text-[11px] font-medium">
+              v{activeChart.version}
             </span>
-          </button>
+          </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6E6E73]">
-              <CheckCircle2 className="w-4 h-4 text-[#6E6E73]" />
-              <span>Salvo</span>
-            </span>
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setVersionHistoryOpen((prev) => !prev)}
+              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium border transition-colors ${
+                versionHistoryOpen
+                  ? "bg-[#F5F5F7] border-[#1C1C1E] text-[#1C1C1E]"
+                  : "bg-white border-[#D4D4D8] text-[#1C1C1E] hover:bg-[#F5F5F7]"
+              }`}
+            >
+              Version history
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveChartId(null)}
+              className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors"
+            >
+              All charts
+            </button>
 
             {activeChart.status === "created" ? (
               <button
                 type="button"
                 onClick={() => handleMarkAsComplete(activeChart.id)}
-                className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition-colors"
+                className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-medium transition-colors"
               >
                 Marcar como concluído
               </button>
@@ -1824,18 +1953,18 @@ function ClinicalChartsSection({
               <button
                 type="button"
                 onClick={() => handleAmendChart(activeChart.id)}
-                className="px-4 py-2 rounded-full border border-[#1C1C1E] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[13px] font-semibold transition-colors"
+                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors"
               >
-                Retificar prontuário (v{activeChart.version + 1})
+                Amend chart
               </button>
             )}
           </div>
         </div>
 
-        {/* Main Two-Column Content */}
-        <div className="w-full px-6 lg:px-10 py-8 flex flex-col lg:flex-row items-start gap-10 lg:gap-20">
+        {/* Main 3-Column Content (Left Anchor Nav + Center Form + Right Version History) */}
+        <div className="w-full flex-1 flex flex-col lg:flex-row items-stretch">
           {/* Left Sticky Section Anchor Navigation */}
-          <nav className="w-full lg:w-[190px] shrink-0 lg:sticky lg:top-20 flex lg:flex-col gap-1.5 overflow-x-auto pb-2 lg:pb-0">
+          <nav className="w-full lg:w-[180px] shrink-0 p-6 lg:p-8 flex lg:flex-col gap-1.5 overflow-x-auto lg:sticky lg:top-14 h-fit border-b lg:border-b-0">
             {anchorItems.map((item) => {
               const isActive = activeAnchor === item.id;
               return (
@@ -1845,8 +1974,8 @@ function ClinicalChartsSection({
                   onClick={() => scrollToChartSection(item.id)}
                   className={`text-left px-3.5 py-2 rounded-[8px] text-[13px] whitespace-nowrap transition-all ${
                     isActive
-                      ? "bg-[#D1D1D6] text-[#1C1C1E] font-semibold"
-                      : "text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] font-medium"
+                      ? "bg-[#D1D1D6] text-[#1C1C1E] font-medium"
+                      : "text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] font-normal"
                   }`}
                 >
                   {item.label}
@@ -1856,225 +1985,194 @@ function ClinicalChartsSection({
           </nav>
 
           {/* Center Form Body */}
-          <div className="flex-1 max-w-[660px] w-full space-y-10 pb-24">
-            {/* 1. DETALHES DO PRONTUÁRIO */}
+          <div className="flex-1 max-w-[680px] w-full p-6 lg:py-8 lg:px-6 space-y-9 pb-24">
+            {/* 1. DETALHES DO CLIENTE & NOME DO PRONTUÁRIO */}
             <section
               id="luvea-chart-chart_details"
               onMouseEnter={() => setActiveAnchor("chart_details")}
-              className="space-y-6 scroll-mt-24"
+              className="space-y-6 scroll-mt-20"
             >
-              {/* Client Hero */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-[#F6C6EA] flex items-center justify-center text-[#9D174D] shrink-0">
-                    <User className="w-6 h-6" />
+              {/* Client Meta Header */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-full bg-[#F6C6EA] flex items-center justify-center text-[#9D174D] shrink-0">
+                    <User className="w-5 h-5 stroke-[2.25]" />
                   </div>
-                  <h1 className="font-serif text-[28px] sm:text-[38px] leading-none text-[#1C1C1E] tracking-tight">
+                  <h1 className="text-[28px] sm:text-[32px] font-normal tracking-tight text-[#1C1C1E] leading-none">
                     {activeChart.clientName}
                   </h1>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-[13px] text-[#6E6E73]">
                   <span>
-                    {activeChart.createdDateLabel} | Profissional:{" "}
-                    {activeChart.providerName}
+                    {activeChart.createdDateLabel} | Provider: {activeChart.providerName}
                   </span>
                   {activeChart.status === "completed" ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11.5px] font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                      <span>Concluído</span>
+                      <span>Completed</span>
                     </span>
                   ) : (
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#E5E5EA] text-[#1C1C1E] text-[11.5px] font-semibold">
-                      Criado
-                    </span>
-                  )}
-                  {activeChart.version > 1 && (
-                    <span className="px-2 py-0.5 rounded-full border border-[#D1D1D6] text-[#1C1C1E] text-[11px] font-semibold">
-                      v{activeChart.version}
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[11.5px] font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                      <span>Em edição (v{activeChart.version})</span>
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Stacked Form Controls */}
-              <div className="space-y-3">
-                {/* Client Field */}
-                <div>
-                  <DropdownSelect
-                    label="Cliente"
-                    value={activeChart.clientId}
-                    onChange={(val) => {
-                      const found = state.clients.find((c) => c.id === val);
-                      if (found) {
-                        updateChartById(activeChart.id, (c) => ({
-                          ...c,
-                          clientId: found.id,
-                          clientName: found.fullName,
-                        }));
-                      }
-                    }}
-                    options={state.clients.map((cli) => ({
-                      value: cli.id,
-                      label: cli.fullName,
-                      sublabel: cli.phone || undefined,
-                    }))}
-                  />
-                </div>
+              {/* Chart Name */}
+              <div className="space-y-1.5 pt-2">
+                <h2 className="text-[14px] font-semibold text-[#1C1C1E]">
+                  Chart name
+                </h2>
+                <input
+                  type="text"
+                  value={activeChart.chartName}
+                  onChange={(e) =>
+                    updateChartById(activeChart.id, (c) => ({
+                      ...c,
+                      chartName: e.target.value,
+                    }))
+                  }
+                  placeholder="Oct 17, 2026"
+                  className="w-full text-[13.5px] text-[#1C1C1E] font-normal bg-transparent focus:outline-none"
+                />
+              </div>
 
-                {/* Chart Name Field */}
-                <div className="rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors">
-                  <label className="block text-[11.5px] text-[#6E6E73]">
-                    Nome do prontuário
-                  </label>
-                  <input
-                    type="text"
-                    value={activeChart.chartName}
-                    onChange={(e) =>
-                      updateChartById(activeChart.id, (c) => ({
-                        ...c,
-                        chartName: e.target.value,
-                      }))
-                    }
-                    placeholder="17 de out. de 2026"
-                    className="w-full bg-transparent text-[13.5px] font-medium text-[#1C1C1E] focus:outline-none mt-0.5"
-                  />
-                </div>
-
-                {/* Select Services Multi-select */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setServicesDropdownOpen((prev) => !prev)
-                    }
-                    className="w-full rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-3.5 text-left flex items-center justify-between gap-3 hover:border-[#1C1C1E] transition-colors"
+              {/* Serviços associados */}
+              <div className="relative pt-1">
+                <button
+                  type="button"
+                  onClick={() => setServicesDropdownOpen((prev) => !prev)}
+                  className="w-full rounded-[10px] border border-[#E5E5EA] bg-white px-3.5 py-2.5 text-left flex items-center justify-between gap-3 hover:border-[#D1D1D6] transition-colors"
+                >
+                  <span
+                    className={`text-[13px] ${
+                      activeChart.serviceNames.length > 0
+                        ? "font-normal text-[#1C1C1E]"
+                        : "text-[#8E8E93]"
+                    }`}
                   >
-                    <span
-                      className={`text-[13.5px] ${
-                        activeChart.serviceNames.length > 0
-                          ? "font-medium text-[#1C1C1E]"
-                          : "text-[#6E6E73]"
-                      }`}
-                    >
-                      {activeChart.serviceNames.length > 0
-                        ? activeChart.serviceNames.join(", ")
-                        : "Selecionar serviços"}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-[#1C1C1E] shrink-0" />
-                  </button>
+                    {activeChart.serviceNames.length > 0
+                      ? activeChart.serviceNames.join(", ")
+                      : "Selecionar serviços deste atendimento (opcional)"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-[#8E8E93] shrink-0" />
+                </button>
 
-                  {servicesDropdownOpen && (
-                    <div className="absolute left-0 right-0 mt-1.5 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-2 z-20 max-h-60 overflow-y-auto">
-                      {state.services.map((srv) => {
-                        const checked = activeChart.serviceIds.includes(srv.id);
-                        return (
-                          <button
-                            key={srv.id}
-                            type="button"
-                            onClick={() => {
-                              updateChartById(activeChart.id, (c) => {
-                                const exists = c.serviceIds.includes(srv.id);
-                                const nextIds = exists
-                                  ? c.serviceIds.filter((id) => id !== srv.id)
-                                  : [...c.serviceIds, srv.id];
-                                const nextNames = state.services
-                                  .filter((s) => nextIds.includes(s.id))
-                                  .map((s) => s.name);
-                                return {
-                                  ...c,
-                                  serviceIds: nextIds,
-                                  serviceNames: nextNames,
-                                };
-                              });
-                            }}
-                            className="w-full px-4 py-2.5 text-left text-[13px] flex items-center justify-between hover:bg-[#F5F5F7]"
+                {servicesDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-1.5 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-2 z-20 max-h-60 overflow-y-auto">
+                    {state.services.map((srv) => {
+                      const checked = activeChart.serviceIds.includes(srv.id);
+                      return (
+                        <button
+                          key={srv.id}
+                          type="button"
+                          onClick={() => {
+                            updateChartById(activeChart.id, (c) => {
+                              const exists = c.serviceIds.includes(srv.id);
+                              const nextIds = exists
+                                ? c.serviceIds.filter((id) => id !== srv.id)
+                                : [...c.serviceIds, srv.id];
+                              const nextNames = state.services
+                                .filter((s) => nextIds.includes(s.id))
+                                .map((s) => s.name);
+                              return {
+                                ...c,
+                                serviceIds: nextIds,
+                                serviceNames: nextNames,
+                              };
+                            });
+                          }}
+                          className="w-full px-4 py-2 text-left text-[13px] flex items-center justify-between hover:bg-[#F5F5F7]"
+                        >
+                          <span className="font-normal text-[#1C1C1E]">
+                            {srv.name}
+                          </span>
+                          <span
+                            className={`w-4 h-4 rounded flex items-center justify-center border ${
+                              checked
+                                ? "bg-[#1C1C1E] border-[#1C1C1E] text-white"
+                                : "border-[#C7C7CC] bg-white"
+                            }`}
                           >
-                            <span className="font-medium text-[#1C1C1E]">
-                              {srv.name}
-                            </span>
-                            <span
-                              className={`w-4 h-4 rounded flex items-center justify-center border ${
-                                checked
-                                  ? "bg-[#1C1C1E] border-[#1C1C1E] text-white"
-                                  : "border-[#C7C7CC] bg-white"
-                              }`}
-                            >
-                              {checked && <Check className="w-3 h-3" />}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                            {checked && <Check className="w-3 h-3" />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </section>
 
-            {/* 2. FOTOS E MARCAÇÕES */}
+            {/* 2. PHOTOS AND MARKUP */}
             <section
               id="luvea-chart-photos_markup"
               onMouseEnter={() => setActiveAnchor("photos_markup")}
-              className="space-y-3 scroll-mt-24"
+              className="space-y-3 scroll-mt-20"
             >
               <div>
-                <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
-                  Fotos e marcações
+                <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
+                  Photos and markup
                 </h2>
-                <p className="text-[13px] text-[#6E6E73] mt-0.5">
-                  Mapeie pontos de aplicação e áreas de tratamento
-                </p>
+                {activeChart.photos.length === 0 ? (
+                  <p className="text-[13px] text-[#6E6E73] mt-1">
+                    No photos added
+                  </p>
+                ) : null}
               </div>
 
-              <div className="rounded-[14px] border border-dashed border-[#D1D1D6] bg-white p-8">
-                {/* Visual Collage Header */}
-                <div className="flex flex-col items-center text-center max-w-md mx-auto">
-                  <div className="relative w-56 h-36 flex items-center justify-center mb-4">
-                    {/* Left Tilted Photo Card */}
-                    <div className="w-24 h-28 rounded-[12px] overflow-hidden border-2 border-white shadow-md -rotate-6 -mr-4 bg-[#E5E5EA]">
-                      <img
-                        src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=300&q=80"
-                        alt="Antes"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    {/* Right Tilted Photo Card */}
-                    <div className="w-28 h-32 rounded-[12px] overflow-hidden border-2 border-white shadow-md rotate-6 bg-[#E5E5EA] z-10">
-                      <img
-                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"
-                        alt="Depois"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    {/* Floating Solid Pill Top-Right */}
-                    <span className="absolute -right-2 sm:-right-6 top-6 z-20 px-2.5 sm:px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[10.5px] sm:text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
-                      + Organizando fotos...
-                    </span>
-                    {/* Floating Solid Pill Bottom-Left */}
-                    <span className="absolute -left-2 sm:-left-10 bottom-3 z-20 px-2.5 sm:px-3 py-1 rounded-full bg-[#F2F2F7] border border-[#E5E5EA] text-[10.5px] sm:text-[11px] font-medium text-[#1C1C1E] shadow-sm whitespace-nowrap">
-                      + Gerando documentação...
-                    </span>
-                  </div>
-
-                  <p className="text-[14.5px] font-medium text-[#1C1C1E] leading-snug">
-                    Adicione fotos de antes e depois.
-                    <br />
-                    Organizadas e rotuladas - prontas para marcação.
-                  </p>
-
-                  <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5">
+              {activeChart.photos.length === 0 ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <label
+                    className={`cursor-pointer px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors inline-flex items-center gap-2 ${
+                      isUploadingPhoto ? "opacity-60 pointer-events-none" : ""
+                    }`}
+                  >
+                    {isUploadingPhoto ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E]" />
+                        <span>Enviando...</span>
+                      </>
+                    ) : (
+                      <span>Adicionar do dispositivo</span>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={isUploadingPhoto}
+                      onChange={handleUploadDevicePhoto}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={isUploadingPhoto}
+                    onClick={handleAddPhotoFromGallery}
+                    className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors"
+                  >
+                    Adicionar da galeria da cliente
+                  </button>
+                </div>
+              ) : (
+                /* Interactive Photos & Markup Pins Canvas */
+                <div className="space-y-4 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 pb-2">
                     <label
-                      className={`cursor-pointer px-4 py-2 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-semibold text-[#1C1C1E] transition-colors inline-flex items-center gap-2 ${
+                      className={`cursor-pointer px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors inline-flex items-center gap-2 ${
                         isUploadingPhoto ? "opacity-60 pointer-events-none" : ""
                       }`}
                     >
                       {isUploadingPhoto ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E]" />
-                          <span>Enviando foto...</span>
+                          <span>Enviando...</span>
                         </>
                       ) : (
-                        <span>Adicionar do dispositivo</span>
+                        <span>Adicionar outra foto</span>
                       )}
                       <input
                         type="file"
@@ -2089,228 +2187,222 @@ function ClinicalChartsSection({
                       type="button"
                       disabled={isUploadingPhoto}
                       onClick={handleAddPhotoFromGallery}
-                      className="px-4 py-2 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-semibold text-[#1C1C1E] transition-colors"
+                      className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors"
                     >
-                      Adicionar da galeria da cliente
+                      Adicionar da galeria
                     </button>
                   </div>
 
-                  {isUploadingPhoto && (
-                    <div className="flex items-center justify-center gap-2 mt-3 text-[12px] font-medium text-[#1C1C1E] animate-pulse">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E]" />
-                      <span>Processando e enviando imagem...</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Interactive Photos & Markup Pins Canvas */}
-                {activeChart.photos.length > 0 && (
-                  <div className="mt-8 pt-6 border-t border-[#EFEFF4] space-y-6">
-                    {activeChart.photos.map((photo) => (
-                      <div
-                        key={photo.id}
-                        className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 space-y-3"
-                      >
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className="text-[12.5px] font-semibold text-[#1C1C1E] truncate max-w-[200px] sm:max-w-md">
-                            {photo.caption}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreviewPhotoUrl({
-                                  url: photo.url,
-                                  title: photo.caption,
-                                })
+                  {activeChart.photos.map((photo) => (
+                    <div
+                      key={photo.id}
+                      className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-[12.5px] font-medium text-[#1C1C1E] truncate max-w-[200px] sm:max-w-md">
+                          {photo.caption}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewPhotoUrl({
+                                url: photo.url,
+                                title: photo.caption,
+                              })
+                            }
+                            className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                            Ampliar
+                          </button>
+                          <a
+                            href={photo.url}
+                            download={`prontuario-${photo.id}.jpg`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Baixar
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  "Deseja realmente remover esta foto do prontuário?"
+                                )
+                              ) {
+                                updateChartById(activeChart.id, (c) => ({
+                                  ...c,
+                                  photos: c.photos.filter((p) => p.id !== photo.id),
+                                }));
                               }
-                              className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
-                            >
-                              <Maximize2 className="w-3.5 h-3.5" />
-                              Ampliar
-                            </button>
-                            <a
-                              href={photo.url}
-                              download={`prontuario-${photo.id}.jpg`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              Baixar
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    "Deseja realmente remover esta foto do prontuário?"
-                                  )
-                                ) {
+                            }}
+                            className="px-3 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] hover:text-rose-600 inline-flex items-center gap-1 transition-colors shadow-2xs"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Excluir
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={(e) => handlePhotoCanvasClick(photo.id, e)}
+                        title="Clique em qualquer ponto da foto para adicionar uma marcação"
+                        className="relative w-full max-h-[340px] overflow-hidden rounded-[10px] border border-[#D1D1D6] cursor-crosshair bg-[#1C1C1E]"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.caption}
+                          className="w-full h-[300px] object-cover select-none"
+                        />
+                        {photo.pins.map((pin, idx) => (
+                          <div
+                            key={pin.id}
+                            style={{
+                              left: `${pin.xPercent}%`,
+                              top: `${pin.yPercent}%`,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#1C1C1E] border-2 border-white text-white text-[11px] font-bold flex items-center justify-center shadow-md"
+                          >
+                            {idx + 1}
+                          </div>
+                        ))}
+                      </div>
+
+                      {photo.pins.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[11.5px] font-medium text-[#6E6E73]">
+                            Pontos mapeados na imagem (clique na foto para adicionar mais):
+                          </p>
+                          {photo.pins.map((pin, idx) => (
+                            <div key={pin.id} className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                                {idx + 1}
+                              </span>
+                              <input
+                                type="text"
+                                value={pin.label}
+                                onChange={(e) => {
+                                  const nextVal = e.target.value;
                                   updateChartById(activeChart.id, (c) => ({
                                     ...c,
-                                    photos: c.photos.filter(
-                                      (p) => p.id !== photo.id
+                                    photos: c.photos.map((ph) =>
+                                      ph.id === photo.id
+                                        ? {
+                                            ...ph,
+                                            pins: ph.pins.map((p) =>
+                                              p.id === pin.id
+                                                ? { ...p, label: nextVal }
+                                                : p
+                                            ),
+                                          }
+                                        : ph
                                     ),
                                   }));
+                                }}
+                                className="flex-1 rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-1.5 text-[12.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateChartById(activeChart.id, (c) => ({
+                                    ...c,
+                                    photos: c.photos.map((ph) =>
+                                      ph.id === photo.id
+                                        ? {
+                                            ...ph,
+                                            pins: ph.pins.filter((p) => p.id !== pin.id),
+                                          }
+                                        : ph
+                                    ),
+                                  }))
                                 }
-                              }}
-                              className="px-3 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] hover:text-rose-600 inline-flex items-center gap-1 transition-colors shadow-2xs"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              Excluir
-                            </button>
-                          </div>
-                        </div>
-
-                        <div
-                          onClick={(e) => handlePhotoCanvasClick(photo.id, e)}
-                          title="Clique em qualquer ponto da foto para adicionar uma marcação"
-                          className="relative w-full max-h-[340px] overflow-hidden rounded-[10px] border border-[#D1D1D6] cursor-crosshair bg-[#1C1C1E]"
-                        >
-                          <img
-                            src={photo.url}
-                            alt={photo.caption}
-                            className="w-full h-[300px] object-cover select-none"
-                          />
-                          {photo.pins.map((pin, idx) => (
-                            <div
-                              key={pin.id}
-                              style={{
-                                left: `${pin.xPercent}%`,
-                                top: `${pin.yPercent}%`,
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#1C1C1E] border-2 border-white text-white text-[11px] font-bold flex items-center justify-center shadow-md"
-                            >
-                              {idx + 1}
+                                className="p-1 text-[#8E8E93] hover:text-[#1C1C1E]"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           ))}
                         </div>
-
-                        {photo.pins.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[11.5px] font-semibold text-[#6E6E73]">
-                              Pontos mapeados na imagem (clique na foto para adicionar mais):
-                            </p>
-                            {photo.pins.map((pin, idx) => (
-                              <div
-                                key={pin.id}
-                                className="flex items-center gap-2"
-                              >
-                                <span className="w-5 h-5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                                  {idx + 1}
-                                </span>
-                                <input
-                                  type="text"
-                                  value={pin.label}
-                                  onChange={(e) => {
-                                    const nextVal = e.target.value;
-                                    updateChartById(activeChart.id, (c) => ({
-                                      ...c,
-                                      photos: c.photos.map((ph) =>
-                                        ph.id === photo.id
-                                          ? {
-                                              ...ph,
-                                              pins: ph.pins.map((p) =>
-                                                p.id === pin.id
-                                                  ? { ...p, label: nextVal }
-                                                  : p
-                                              ),
-                                            }
-                                          : ph
-                                      ),
-                                    }));
-                                  }}
-                                  className="flex-1 rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-1.5 text-[12.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateChartById(activeChart.id, (c) => ({
-                                      ...c,
-                                      photos: c.photos.map((ph) =>
-                                        ph.id === photo.id
-                                          ? {
-                                              ...ph,
-                                              pins: ph.pins.filter(
-                                                (p) => p.id !== pin.id
-                                              ),
-                                            }
-                                          : ph
-                                      ),
-                                    }))
-                                  }
-                                  className="p-1 text-[#8E8E93] hover:text-[#1C1C1E]"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* 3. DETALHES DE PRODUTOS */}
-            <section
-              id="luvea-chart-product_details"
-              onMouseEnter={() => setActiveAnchor("product_details")}
-              className="space-y-3 scroll-mt-24"
-            >
-              <div>
-                <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
-                  Detalhes de produtos
-                </h2>
-                <p className="text-[13px] text-[#6E6E73] mt-0.5">
-                  Registre os produtos utilizados durante o procedimento para conformidade e controle de estoque.
-                </p>
-              </div>
-
-              {activeChart.productsUsed.length > 0 && (
-                <div className="space-y-2">
-                  {activeChart.productsUsed.map((prod) => (
-                    <div
-                      key={prod.id}
-                      className="rounded-[12px] border border-[#E5E5EA] bg-white px-4 py-3 flex items-center justify-between gap-4"
-                    >
-                      <div>
-                        <p className="text-[13.5px] font-semibold text-[#1C1C1E]">
-                          {prod.productName}
-                        </p>
-                        <p className="text-[12px] text-[#6E6E73]">
-                          Lote/SKU: {prod.skuOrLot} · Qtd.: {prod.quantity}
-                          {prod.notes ? ` · ${prod.notes}` : ""}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateChartById(activeChart.id, (c) => ({
-                            ...c,
-                            productsUsed: c.productsUsed.filter(
-                              (item) => item.id !== prod.id
-                            ),
-                          }))
-                        }
-                        className="p-1.5 rounded-full text-[#8E8E93] hover:text-[#B91C1C] hover:bg-[#F5F5F7]"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+            </section>
 
+            {/* 3. PRODUCT DETAILS (Minimalist table matching screenshot) */}
+            <section
+              id="luvea-chart-product_details"
+              onMouseEnter={() => setActiveAnchor("product_details")}
+              className="space-y-3.5 scroll-mt-20"
+            >
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
+                  Product details
+                </h2>
+                <p className="text-[12.5px] text-[#6E6E73] mt-0.5">
+                  Track products used during treatment for compliance and inventory.
+                </p>
+              </div>
+
+              {/* Minimal Table */}
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[#E5E5EA] text-[12px] text-[#6E6E73]">
+                      <th className="py-2.5 font-normal w-1/3">Product name</th>
+                      <th className="py-2.5 font-normal w-1/5">Units/Dosage</th>
+                      <th className="py-2.5 font-normal w-1/5">Lot #</th>
+                      <th className="py-2.5 font-normal w-1/5">Exp. date</th>
+                      <th className="py-2.5 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F2F2F7]">
+                    {activeChart.productsUsed.map((p) => (
+                      <tr key={p.id} className="text-[#1C1C1E] group">
+                        <td className="py-3 font-normal">{p.productName}</td>
+                        <td className="py-3 font-normal">{p.quantity}</td>
+                        <td className="py-3 font-normal text-[#6E6E73]">{p.skuOrLot || "—"}</td>
+                        <td className="py-3 font-normal text-[#6E6E73]">{p.expirationDate || "—"}</td>
+                        <td className="py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateChartById(activeChart.id, (c) => ({
+                                ...c,
+                                productsUsed: c.productsUsed.filter((item) => item.id !== p.id),
+                              }))
+                            }
+                            className="p-1 text-[#8E8E93] hover:text-[#1C1C1E] opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remover produto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {activeChart.productsUsed.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-3 text-[12.5px] text-[#8E8E93]">
+                          Nenhum produto registrado. Clique abaixo para registrar insumo.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Add Product Inline Form / Button */}
               {addingProductOpen ? (
-                <div className="rounded-[14px] border border-[#1C1C1E] bg-white p-4 space-y-3">
+                <div className="rounded-[12px] border border-[#1C1C1E] bg-white p-4 space-y-3 mt-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-semibold text-[#1C1C1E]">
-                      Adicionar produto utilizado no atendimento
+                    <span className="text-[13px] font-medium text-[#1C1C1E]">
+                      Adicionar produto utilizado
                     </span>
                     <button
                       type="button"
@@ -2345,14 +2437,14 @@ function ClinicalChartsSection({
 
                     <div>
                       <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Quantidade / Dosagem
+                        Units / Dosage
                       </label>
                       <input
                         type="text"
                         value={productQuantity}
                         onChange={(e) => setProductQuantity(e.target.value)}
-                        placeholder="Ex.: 30ml, 2 ampolas, 50g"
-                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                        placeholder="Ex.: 2, 30ml, 50g"
+                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
                       />
                     </div>
                   </div>
@@ -2360,14 +2452,14 @@ function ClinicalChartsSection({
                   {selectedInventoryId === "custom" && (
                     <div>
                       <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Nome do produto / ativo
+                        Product name
                       </label>
                       <input
                         type="text"
                         value={customProductName}
                         onChange={(e) => setCustomProductName(e.target.value)}
-                        placeholder="Ex.: Toxina Botulínica / Coloração 8.31"
-                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                        placeholder="Ex.: Colorante, Pigmento 8.31"
+                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
                       />
                     </div>
                   )}
@@ -2375,44 +2467,57 @@ function ClinicalChartsSection({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Lote / Validade (Anvisa)
+                        Lot #
                       </label>
                       <input
                         type="text"
                         value={productLotSku}
                         onChange={(e) => setProductLotSku(e.target.value)}
                         placeholder="Ex.: LOTE-9942A"
-                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
                       />
                     </div>
                     <div>
                       <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Observações de aplicação
+                        Exp. date
                       </label>
                       <input
                         type="text"
-                        value={productNotes}
-                        onChange={(e) => setProductNotes(e.target.value)}
-                        placeholder="Ex.: Diluição 1:1.5 com oxidante 20v"
-                        className="w-full rounded-[10px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                        value={productExpDate}
+                        onChange={(e) => setProductExpDate(e.target.value)}
+                        placeholder="Ex.: 12/2027"
+                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11.5px] text-[#6E6E73] mb-1">
+                      Observações de aplicação (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={productNotes}
+                      onChange={(e) => setProductNotes(e.target.value)}
+                      placeholder="Ex.: Diluição 1:1.5 com oxidante 20v"
+                      className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
+                    />
                   </div>
 
                   <div className="flex justify-end gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => setAddingProductOpen(false)}
-                      className="px-4 py-2 rounded-full border border-[#D1D1D6] text-[12.5px] font-semibold text-[#1C1C1E]"
+                      className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] text-[12px] font-medium text-[#1C1C1E]"
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
                       onClick={handleConfirmAddProduct}
-                      className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-semibold"
+                      className="px-4 py-1.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-medium"
                     >
-                      Confirmar produto
+                      Salvar produto
                     </button>
                   </div>
                 </div>
@@ -2420,54 +2525,28 @@ function ClinicalChartsSection({
                 <button
                   type="button"
                   onClick={() => setAddingProductOpen(true)}
-                  className="w-full py-3 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[13.5px] font-semibold text-[#1C1C1E] flex items-center justify-center gap-2 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#1C1C1E] hover:underline pt-1"
                 >
-                  <Plus className="w-4 h-4 text-[#1C1C1E]" />
+                  <Plus className="w-3.5 h-3.5" />
                   <span>Adicionar produto</span>
                 </button>
               )}
             </section>
 
-            {/* 4. NOTA DE EVOLUÇÃO (TREATMENT NOTE / SOAP NOTE) */}
+            {/* 4. TREATMENT NOTE (SOAP format matching screenshot) */}
             <section
               id="luvea-chart-treatment_note"
               onMouseEnter={() => setActiveAnchor("treatment_note")}
-              className="space-y-5 scroll-mt-24"
+              className="space-y-4 scroll-mt-20"
             >
-              <h2 className="text-[18px] font-semibold text-[#1C1C1E]">
-                Nota de evolução
+              <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
+                Treatment note
               </h2>
 
-              {/* Select Template */}
-              <div>
-                <DropdownSelect
-                  label="Selecionar modelo"
-                  value={activeChart.templateType}
-                  onChange={(val) =>
-                    updateChartById(activeChart.id, (c) => ({
-                      ...c,
-                      templateType: val as ClinicalChartEntry["templateType"],
-                    }))
-                  }
-                  options={[
-                    { value: "soap", label: "Nota SOAP" },
-                    {
-                      value: "aesthetic_anamnesis",
-                      label: "Anamnese Estética & Capilar",
-                    },
-                    {
-                      value: "injectables",
-                      label: "Protocolo de Injetáveis & Harmonização",
-                    },
-                    { value: "free_note", label: "Nota Livre de Evolução" },
-                  ]}
-                />
-              </div>
-
               {/* SOAP note name */}
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
-                  Nome da nota SOAP
+              <div className="space-y-1">
+                <label className="block text-[12px] font-medium text-[#1C1C1E]">
+                  SOAP note name
                 </label>
                 <input
                   type="text"
@@ -2478,21 +2557,18 @@ function ClinicalChartsSection({
                       soapNoteName: e.target.value,
                     }))
                   }
-                  placeholder="Nome da nota SOAP"
-                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white px-4 py-3 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                  placeholder="SOAP note"
+                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent"
                 />
               </div>
 
               {/* Subjective */}
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
-                  Subjetivo
+              <div className="space-y-1">
+                <label className="block text-[12px] font-medium text-[#1C1C1E]">
+                  Subjective
                 </label>
-                <p className="text-[12.5px] text-[#6E6E73]">
-                  Insira os relatos da cliente sobre queixas, sintomas ou objetivos.
-                </p>
                 <textarea
-                  rows={5}
+                  rows={2}
                   value={activeChart.subjective}
                   onChange={(e) =>
                     updateChartById(activeChart.id, (c) => ({
@@ -2500,21 +2576,18 @@ function ClinicalChartsSection({
                       subjective: e.target.value,
                     }))
                   }
-                  placeholder="Subjetivo"
-                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                  placeholder="dsadsadsadsadsa"
+                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
                 />
               </div>
 
               {/* Objective */}
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
-                  Objetivo
+              <div className="space-y-1">
+                <label className="block text-[12px] font-medium text-[#1C1C1E]">
+                  Objective
                 </label>
-                <p className="text-[12.5px] text-[#6E6E73]">
-                  Insira observações de sinais visíveis, medidas ou achados físicos.
-                </p>
                 <textarea
-                  rows={5}
+                  rows={2}
                   value={activeChart.objective}
                   onChange={(e) =>
                     updateChartById(activeChart.id, (c) => ({
@@ -2522,21 +2595,18 @@ function ClinicalChartsSection({
                       objective: e.target.value,
                     }))
                   }
-                  placeholder="Objetivo"
-                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                  placeholder="dsadskssodkssod"
+                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
                 />
               </div>
 
               {/* Assessment */}
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
-                  Avaliação
+              <div className="space-y-1">
+                <label className="block text-[12px] font-medium text-[#1C1C1E]">
+                  Assessment
                 </label>
-                <p className="text-[12.5px] text-[#6E6E73]">
-                  Insira sua avaliação profissional com base nos achados clínicos.
-                </p>
                 <textarea
-                  rows={5}
+                  rows={2}
                   value={activeChart.assessment}
                   onChange={(e) =>
                     updateChartById(activeChart.id, (c) => ({
@@ -2544,21 +2614,18 @@ function ClinicalChartsSection({
                       assessment: e.target.value,
                     }))
                   }
-                  placeholder="Avaliação"
-                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                  placeholder="Insira a avaliação clínica e resposta ao protocolo..."
+                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
                 />
               </div>
 
               {/* Plan */}
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-[#1C1C1E]">
-                  Plano
+              <div className="space-y-1">
+                <label className="block text-[12px] font-medium text-[#1C1C1E]">
+                  Plan
                 </label>
-                <p className="text-[12.5px] text-[#6E6E73]">
-                  Insira o procedimento realizado e os próximos passos.
-                </p>
                 <textarea
-                  rows={5}
+                  rows={2}
                   value={activeChart.plan}
                   onChange={(e) =>
                     updateChartById(activeChart.id, (c) => ({
@@ -2566,12 +2633,252 @@ function ClinicalChartsSection({
                       plan: e.target.value,
                     }))
                   }
-                  placeholder="Plano"
-                  className="w-full rounded-[12px] border border-[#D1D1D6] bg-white p-4 text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E]"
+                  placeholder="Insira o plano de tratamento e data de retorno..."
+                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
                 />
               </div>
             </section>
           </div>
+
+          {/* Right Column: Version History Drawer matching screenshot */}
+          {versionHistoryOpen && (
+            <aside className="w-full lg:w-[350px] xl:w-[380px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#EFEFF4] bg-white p-6 lg:p-7 flex flex-col space-y-6 lg:sticky lg:top-14 lg:h-[calc(100vh-56px)] overflow-y-auto">
+              {/* Drawer Top */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E] tracking-tight">
+                  Version history
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setVersionHistoryOpen(false)}
+                  className="p-1 rounded-full text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                  title="Fechar histórico de versões"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Summary Subline */}
+              <p className="text-[12px] text-[#6E6E73] leading-snug">
+                {totalVersionsCount} versions · v{activeChart.version} amended by {activeChart.providerName} and completed
+              </p>
+
+              {/* Current Version */}
+              <div className="space-y-2">
+                <span className="block text-[11.5px] font-medium text-[#6E6E73]">
+                  Current version
+                </span>
+
+                <div className="rounded-[10px] bg-[#F5F5F7] border border-[#E5E5EA] p-3 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                        v{activeChart.version}
+                      </span>
+                      {activeChart.status === "completed" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#EBF8EE] border border-[#D1F0D9] text-[#166534] text-[10.5px] font-medium">
+                          Completed
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-[#E5E5EA] text-[#6E6E73] text-[10.5px] font-medium">
+                          Em edição
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveVersionMenu((prev) =>
+                              prev === activeChart.version ? null : activeChart.version
+                            )
+                          }
+                          className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-white transition-colors"
+                          title="Opções da versão atual"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+
+                        {activeVersionMenu === activeChart.version && (
+                          <div className="absolute right-0 top-7 w-48 rounded-[10px] bg-white border border-[#E5E5EA] shadow-md py-1 z-30 text-[12px]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleAmendChart(activeChart.id);
+                                setActiveVersionMenu(null);
+                              }}
+                              className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                            >
+                              Retificar (Amend chart)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(
+                                  `Prontuário ${activeChart.clientName} - v${activeChart.version} (${activeChart.chartName})`
+                                );
+                                setActiveVersionMenu(null);
+                                onUpdateState((prev) => ({
+                                  ...prev,
+                                  lastToastMessage: "Resumo copiado!",
+                                }));
+                              }}
+                              className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                            >
+                              Copiar resumo
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedVersionId((prev) =>
+                            prev === activeChart.version ? null : activeChart.version
+                          )
+                        }
+                        className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-white transition-colors"
+                      >
+                        {expandedVersionId === activeChart.version ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {expandedVersionId === activeChart.version && (
+                    <div className="pt-2 border-t border-[#E5E5EA] text-[11.5px] text-[#6E6E73] space-y-1">
+                      <p>Profissional: {activeChart.providerName}</p>
+                      <p>Data: {activeChart.lastModifiedLabel}</p>
+                      <p>Produtos: {activeChart.productsUsed.length} item(ns)</p>
+                      <p>Fotos: {activeChart.photos.length} item(ns)</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Past Versions */}
+              <div className="space-y-2 pt-2">
+                <span className="block text-[11.5px] font-medium text-[#6E6E73]">
+                  Past versions
+                </span>
+
+                {activeChart.history && activeChart.history.length > 0 ? (
+                  <div className="space-y-2">
+                    {activeChart.history.map((snap) => (
+                      <div
+                        key={snap.version}
+                        className="rounded-[10px] bg-white border border-[#E5E5EA] p-3 space-y-2 hover:border-[#D1D1D6] transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                              v{snap.version}
+                            </span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[10.5px] font-medium">
+                              Superseded
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActiveVersionMenu((prev) =>
+                                    prev === snap.version ? null : snap.version
+                                  )
+                                }
+                                className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                                title="Opções desta versão histórica"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </button>
+
+                              {activeVersionMenu === snap.version && (
+                                <div className="absolute right-0 top-7 w-48 rounded-[10px] bg-white border border-[#E5E5EA] shadow-md py-1 z-30 text-[12px]">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPreviewingSnapshot(snap);
+                                      setActiveVersionMenu(null);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                                  >
+                                    Visualizar snapshot
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleRestoreSnapshot(snap);
+                                      setActiveVersionMenu(null);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                                  >
+                                    Restaurar como atual
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedVersionId((prev) =>
+                                  prev === snap.version ? null : snap.version
+                                )
+                              }
+                              className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                            >
+                              {expandedVersionId === snap.version ? (
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {expandedVersionId === snap.version && (
+                          <div className="pt-2 border-t border-[#E5E5EA] text-[11.5px] text-[#6E6E73] space-y-1.5">
+                            <p>Substituída em: {snap.savedAtLabel}</p>
+                            <p>Autor: {snap.amendedBy}</p>
+                            {snap.amendReason && <p className="italic">{snap.amendReason}</p>}
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewingSnapshot(snap)}
+                                className="text-[11px] font-medium text-[#1C1C1E] hover:underline"
+                              >
+                                Visualizar snapshot
+                              </button>
+                              <span>·</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreSnapshot(snap)}
+                                className="text-[11px] font-medium text-[#1C1C1E] hover:underline"
+                              >
+                                Restaurar dados
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[12px] text-[#8E8E93]">
+                    Nenhuma versão anterior registrada.
+                  </p>
+                )}
+              </div>
+            </aside>
+          )}
         </div>
 
         {/* Modal Lightbox de Foto do Prontuário */}
@@ -2585,7 +2892,7 @@ function ClinicalChartsSection({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 bg-[#1C1C1E] text-white">
-                <span className="text-[13.5px] font-semibold text-white/90 truncate max-w-[260px] sm:max-w-md">
+                <span className="text-[13.5px] font-medium text-white/90 truncate max-w-[260px] sm:max-w-md">
                   {previewPhotoUrl.title || "Visualização da Foto do Prontuário"}
                 </span>
                 <div className="flex items-center gap-2">
@@ -2623,6 +2930,118 @@ function ClinicalChartsSection({
                   alt={previewPhotoUrl.title || "Foto do prontuário ampliada"}
                   className="max-h-[75vh] w-auto max-w-full object-contain rounded-[8px] select-none shadow-lg"
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Snapshot Histórico */}
+        {previewingSnapshot && (
+          <div
+            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs"
+            onClick={() => setPreviewingSnapshot(null)}
+          >
+            <div
+              className="bg-white rounded-[16px] border border-[#E5E5EA] shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#EFEFF4] pb-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[17px] font-medium text-[#1C1C1E]">
+                    Snapshot Histórico · Versão v{previewingSnapshot.version}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[11px] font-medium">
+                    Superseded
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewingSnapshot(null)}
+                  className="p-1 text-[#6E6E73] hover:text-[#1C1C1E] rounded-full hover:bg-[#F5F5F7]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="text-[12.5px] text-[#6E6E73] space-y-1 bg-[#F5F5F7] rounded-[10px] p-3">
+                <p>Salvo em: <span className="text-[#1C1C1E] font-medium">{previewingSnapshot.savedAtLabel}</span></p>
+                <p>Autor: <span className="text-[#1C1C1E] font-medium">{previewingSnapshot.amendedBy}</span></p>
+                {previewingSnapshot.amendReason && (
+                  <p>Motivo: <span className="text-[#1C1C1E]">{previewingSnapshot.amendReason}</span></p>
+                )}
+              </div>
+
+              {/* Products in Snapshot */}
+              <div className="space-y-2">
+                <h4 className="text-[13px] font-medium text-[#1C1C1E]">
+                  Produtos utilizados nesta versão ({previewingSnapshot.productsUsed.length})
+                </h4>
+                {previewingSnapshot.productsUsed.length > 0 ? (
+                  <table className="w-full text-left text-[12px] border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#E5E5EA] text-[#6E6E73]">
+                        <th className="py-2 font-normal">Produto</th>
+                        <th className="py-2 font-normal">Qtd/Dose</th>
+                        <th className="py-2 font-normal">Lote</th>
+                        <th className="py-2 font-normal">Validade</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F2F2F7]">
+                      {previewingSnapshot.productsUsed.map((p) => (
+                        <tr key={p.id}>
+                          <td className="py-2 font-medium text-[#1C1C1E]">{p.productName}</td>
+                          <td className="py-2 text-[#6E6E73]">{p.quantity}</td>
+                          <td className="py-2 text-[#6E6E73]">{p.skuOrLot || "—"}</td>
+                          <td className="py-2 text-[#6E6E73]">{p.expirationDate || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-[12px] text-[#8E8E93]">Nenhum produto registrado nesta versão.</p>
+                )}
+              </div>
+
+              {/* SOAP note in Snapshot */}
+              <div className="space-y-3 pt-2 border-t border-[#EFEFF4]">
+                <h4 className="text-[13px] font-medium text-[#1C1C1E]">
+                  Nota de evolução ({previewingSnapshot.soapNoteName || "SOAP note"})
+                </h4>
+                <div className="grid grid-cols-1 gap-2 text-[12.5px]">
+                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
+                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Subjective</span>
+                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.subjective || "—"}</p>
+                  </div>
+                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
+                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Objective</span>
+                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.objective || "—"}</p>
+                  </div>
+                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
+                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Assessment</span>
+                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.assessment || "—"}</p>
+                  </div>
+                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
+                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Plan</span>
+                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.plan || "—"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#EFEFF4]">
+                <button
+                  type="button"
+                  onClick={() => setPreviewingSnapshot(null)}
+                  className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRestoreSnapshot(previewingSnapshot)}
+                  className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-medium transition-colors"
+                >
+                  Restaurar para rascunho atual
+                </button>
               </div>
             </div>
           </div>
@@ -2774,7 +3193,7 @@ function ClinicalChartsSection({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-[#EFEFF4] text-[13px] text-[#1C1C1E]">
+          <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px] text-[#1C1C1E] dark:text-white">
             {filteredCharts.map((chart) => {
               const menuOpen = openRowMenuId === chart.id;
               return (

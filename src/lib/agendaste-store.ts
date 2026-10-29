@@ -390,7 +390,26 @@ export interface ClinicalChartProductUsage {
   productName: string;
   skuOrLot: string;
   quantity: string;
+  expirationDate?: string;
   notes: string;
+}
+
+export interface ClinicalChartVersionSnapshot {
+  version: number;
+  status: "created" | "completed" | "superseded";
+  timestampISO: string;
+  savedAtLabel: string;
+  amendedBy: string;
+  chartName: string;
+  serviceNames?: string[];
+  photos: ClinicalChartPhotoItem[];
+  productsUsed: ClinicalChartProductUsage[];
+  soapNoteName: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  amendReason?: string;
 }
 
 export interface ClinicalChartEntry {
@@ -414,6 +433,7 @@ export interface ClinicalChartEntry {
   objective: string;
   assessment: string;
   plan: string;
+  history?: ClinicalChartVersionSnapshot[];
 }
 
 export interface ReceptionAiLog {
@@ -1539,26 +1559,61 @@ export function createInitialStudioState(): StudioState {
         id: "chart-stefany-1",
         clientId: "cli-stefany",
         clientName: "Stefany",
-        chartName: "17 de out. de 2026",
+        chartName: "Oct 17, 2026",
         serviceIds: [],
         serviceNames: [],
         providerId: "staff-bruno",
         providerName: "Bruno Fernandes Malossi Silva",
         status: "completed",
-        version: 1,
-        createdDateLabel: "17 de out. de 2026",
-        lastModifiedLabel: "17 de out. de 2026 15:38",
+        version: 2,
+        createdDateLabel: "Oct 29, 2026",
+        lastModifiedLabel: "Oct 29, 2026 15:38",
         photos: [],
-        productsUsed: [],
+        productsUsed: [
+          {
+            id: "prod-stef-1",
+            productName: "Colorante",
+            quantity: "2",
+            skuOrLot: "LOTE-9942A",
+            expirationDate: "12/2027",
+            notes: "",
+          },
+        ],
         templateType: "soap",
-        soapNoteName: "Avaliação e Protocolo Inicial",
-        subjective:
-          "Cliente relata desejo de iluminação natural sem sensibilizar o couro cabeludo.",
-        objective:
-          "Fios com boa elasticidade, fundo natural 6.0 com 4cm de crescimento na raiz.",
+        soapNoteName: "SOAP note",
+        subjective: "dsadsadsadsadsa",
+        objective: "dsadskssodkssod",
         assessment:
-          "Apta para protocolo de iluminação com proteção de pontes dissulfeto (Plex).",
-        plan: "Realizar teste de mecha preventivo, aplicar proteção plex e agendar manutenção de gloss em 30 dias.",
+          "Fios íntegros com boa elasticidade pós-procedimento. Cutícula selada e resposta satisfatória.",
+        plan: "Manutenção recomendada em 30 dias com protocolo de nutrição capilar intensiva.",
+        history: [
+          {
+            version: 1,
+            status: "superseded",
+            timestampISO: "2026-10-17T14:10:00.000Z",
+            savedAtLabel: "17 de out. de 2026 14:10",
+            amendedBy: "Bruno Fernandes Malossi Silva",
+            chartName: "Oct 17, 2026",
+            photos: [],
+            productsUsed: [
+              {
+                id: "prod-stef-v1-1",
+                productName: "Colorante",
+                quantity: "1",
+                skuOrLot: "LOTE-9942A",
+                expirationDate: "12/2027",
+                notes: "Dose inicial",
+              },
+            ],
+            soapNoteName: "SOAP note",
+            subjective: "dsadsadsadsadsa",
+            objective: "dsadskssodkssod",
+            assessment: "Avaliação inicial de elasticidade e tom de base.",
+            plan: "Realizar aplicação inicial de colorante com acompanhamento de tempo.",
+            amendReason:
+              "Ajuste na dosagem de colorante (de 1 para 2 unidades) e finalização do protocolo pós-aplicação.",
+          },
+        ],
       },
     ],
     settings: {
@@ -4533,5 +4588,103 @@ export function importStarterInventoryProducts(
       toAdd.length > 0
         ? `${toAdd.length} produtos importados para o seu estoque!`
         : "Os produtos de demonstração já estão no seu estoque.",
+  };
+}
+
+export function amendClinicalChart(
+  state: StudioState,
+  chartId: string,
+  amendReason?: string
+): StudioState {
+  const chartList = state.clinicalCharts || [];
+  const target = chartList.find((c) => c.id === chartId);
+  if (!target) return state;
+
+  const snapshot: ClinicalChartVersionSnapshot = {
+    version: target.version,
+    status: "superseded",
+    timestampISO: new Date().toISOString(),
+    savedAtLabel: target.lastModifiedLabel || "17 de out. de 2026",
+    amendedBy: target.providerName,
+    chartName: target.chartName,
+    serviceNames: target.serviceNames,
+    photos: [...target.photos],
+    productsUsed: [...target.productsUsed],
+    soapNoteName: target.soapNoteName,
+    subjective: target.subjective,
+    objective: target.objective,
+    assessment: target.assessment,
+    plan: target.plan,
+    amendReason: amendReason || `Retificação da versão v${target.version}.`,
+  };
+
+  const updatedCharts = chartList.map((c) => {
+    if (c.id !== chartId) return c;
+    return {
+      ...c,
+      status: "created" as const,
+      version: c.version + 1,
+      history: [snapshot, ...(c.history || [])],
+    };
+  });
+
+  return {
+    ...state,
+    clinicalCharts: updatedCharts,
+    lastToastMessage: `Modo de retificação ativado (v${target.version + 1} criada).`,
+  };
+}
+
+export function completeClinicalChart(
+  state: StudioState,
+  chartId: string
+): StudioState {
+  const chartList = state.clinicalCharts || [];
+  const updatedCharts = chartList.map((c) => {
+    if (c.id !== chartId) return c;
+    return {
+      ...c,
+      status: "completed" as const,
+    };
+  });
+
+  return {
+    ...state,
+    clinicalCharts: updatedCharts,
+    lastToastMessage: "Prontuário assinado e marcado como concluído!",
+  };
+}
+
+export function restoreClinicalChartSnapshot(
+  state: StudioState,
+  chartId: string,
+  targetVersion: number
+): StudioState {
+  const chartList = state.clinicalCharts || [];
+  const target = chartList.find((c) => c.id === chartId);
+  if (!target || !target.history) return state;
+
+  const snapshot = target.history.find((s) => s.version === targetVersion);
+  if (!snapshot) return state;
+
+  const updatedCharts = chartList.map((c) => {
+    if (c.id !== chartId) return c;
+    return {
+      ...c,
+      chartName: snapshot.chartName,
+      productsUsed: [...snapshot.productsUsed],
+      photos: [...snapshot.photos],
+      soapNoteName: snapshot.soapNoteName,
+      subjective: snapshot.subjective,
+      objective: snapshot.objective,
+      assessment: snapshot.assessment,
+      plan: snapshot.plan,
+    };
+  });
+
+  return {
+    ...state,
+    clinicalCharts: updatedCharts,
+    lastToastMessage: `Dados da versão v${targetVersion} restaurados com sucesso!`,
   };
 }

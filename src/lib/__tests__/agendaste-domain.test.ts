@@ -47,6 +47,9 @@ import {
   findInventoryProductByBarcode,
   formatBRLCurrencyString,
   parseCurrencyToCents,
+  amendClinicalChart,
+  completeClinicalChart,
+  restoreClinicalChartSnapshot,
 } from "../agendaste-store.ts";
 
 describe("Ticket 01 — Primeiros Passos (Get Started) & Site de Agendamento Online (Luvea Studio)", () => {
@@ -1380,6 +1383,76 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     assert.equal(findInventoryProductByBarcode(state, "   "), undefined);
   });
 });
+
+describe("Ticket 09 — Prontuários Clínicos (Clinical Charts) & Histórico de Versões (GlossGenius Model)", () => {
+  it("initializes Stefany's chart at v2 with immutable v1 snapshot in history and products registered", () => {
+    const state = createInitialStudioState();
+    const stefanyChart = state.clinicalCharts?.find((c) => c.clientId === "cli-stefany");
+    assert.ok(stefanyChart, "Stefany chart must exist in initial state");
+    assert.equal(stefanyChart.version, 2);
+    assert.equal(stefanyChart.status, "completed");
+    assert.equal(stefanyChart.chartName, "Oct 17, 2026");
+    assert.equal(stefanyChart.productsUsed.length, 1);
+    assert.equal(stefanyChart.productsUsed[0].productName, "Colorante");
+    assert.equal(stefanyChart.productsUsed[0].quantity, "2");
+    assert.equal(stefanyChart.productsUsed[0].expirationDate, "12/2027");
+
+    // History contains superseded v1
+    assert.ok(stefanyChart.history && stefanyChart.history.length === 1);
+    const v1Snapshot = stefanyChart.history[0];
+    assert.equal(v1Snapshot.version, 1);
+    assert.equal(v1Snapshot.status, "superseded");
+    assert.equal(v1Snapshot.productsUsed[0].quantity, "1");
+    assert.ok(v1Snapshot.amendReason);
+  });
+
+  it("amends a chart to create v3, preserving v2 in history as superseded snapshot", () => {
+    let state = createInitialStudioState();
+    const stefanyChart = state.clinicalCharts?.find((c) => c.clientId === "cli-stefany");
+    assert.ok(stefanyChart);
+
+    state = amendClinicalChart(state, stefanyChart.id, "Retificação clínica: adicionado tonalizante pós-mechas.");
+
+    const amended = state.clinicalCharts?.find((c) => c.id === stefanyChart.id);
+    assert.ok(amended);
+    assert.equal(amended.version, 3);
+    assert.equal(amended.status, "created");
+    assert.equal(amended.history?.length, 2);
+
+    // Most recent history snapshot is v2 superseded
+    assert.equal(amended.history?.[0].version, 2);
+    assert.equal(amended.history?.[0].status, "superseded");
+    assert.equal(amended.history?.[0].productsUsed[0].quantity, "2");
+
+    // Past snapshot v1 is also preserved
+    assert.equal(amended.history?.[1].version, 1);
+  });
+
+  it("completes a chart and marks status as completed", () => {
+    let state = createInitialStudioState();
+    const stefanyChart = state.clinicalCharts?.find((c) => c.clientId === "cli-stefany")!;
+    state = amendClinicalChart(state, stefanyChart.id);
+    state = completeClinicalChart(state, stefanyChart.id);
+
+    const completed = state.clinicalCharts?.find((c) => c.id === stefanyChart.id);
+    assert.ok(completed);
+    assert.equal(completed.status, "completed");
+    assert.equal(completed.version, 3);
+  });
+
+  it("restores historical snapshot data from past version into the active chart", () => {
+    let state = createInitialStudioState();
+    const stefanyChart = state.clinicalCharts?.find((c) => c.clientId === "cli-stefany")!;
+
+    // Restores v1 snapshot (which had quantity: "1")
+    state = restoreClinicalChartSnapshot(state, stefanyChart.id, 1);
+
+    const restored = state.clinicalCharts?.find((c) => c.id === stefanyChart.id);
+    assert.ok(restored);
+    assert.equal(restored.productsUsed[0].quantity, "1");
+  });
+});
+
 
 
 

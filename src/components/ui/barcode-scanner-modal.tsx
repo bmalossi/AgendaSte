@@ -243,14 +243,14 @@ export function BarcodeScannerModal({
       aria-modal="true"
       aria-label={title}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-xs animate-in fade-in duration-200 motion-reduce:animate-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
       >
         {/* Top Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#EFEFF4] dark:border-[#27272a]">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#EFEFF4] dark:border-[#27272a]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white shrink-0">
               <ScanLine className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
@@ -269,7 +269,7 @@ export function BarcodeScannerModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar leitor de código de barras"
-            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-[#F5F5F7] hover:bg-[#E5E5EA] dark:bg-[#27272a] dark:hover:bg-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white flex items-center justify-center transition"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-[#F5F5F7] hover:bg-[#E5E5EA] dark:bg-[#27272a] dark:hover:bg-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white flex items-center justify-center transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -313,14 +313,14 @@ export function BarcodeScannerModal({
                   <span className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-white" />
 
                   {/* Linha guia de laser sutil */}
-                  <div className="absolute left-2 right-2 top-1/2 -translate-y-1/2 h-0.5 bg-rose-500/80 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse" />
+                  <div className="absolute left-2 right-2 top-1/2 -translate-y-1/2 h-0.5 bg-rose-500/80 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse motion-reduce:animate-none" />
                 </div>
               </div>
 
               {/* Indicador de inicialização */}
               {isInitializing && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-2 text-white">
-                  <RefreshCw className="w-6 h-6 animate-spin text-white/80" />
+                  <RefreshCw className="w-6 h-6 animate-spin motion-reduce:animate-none text-white/80" />
                   <span className="text-[12px] text-white/70">
                     Iniciando câmera...
                   </span>
@@ -374,29 +374,33 @@ export function BarcodeScannerModal({
             <button
               type="button"
               onClick={() => setShowManualInput(true)}
-              className="w-full flex items-center justify-center gap-1.5 text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition"
+              className="w-full min-h-[44px] flex items-center justify-center gap-1.5 text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition"
             >
               <Keyboard className="w-3.5 h-3.5" />
               <span>Não conseguiu ler? Digitar código manualmente</span>
             </button>
           ) : (
             <form onSubmit={handleManualSubmit} className="space-y-2">
-              <label className="block text-[11px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+              <label
+                htmlFor="manual-barcode-input"
+                className="block text-[11px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]"
+              >
                 Código de barras manual
               </label>
               <div className="flex items-center gap-2">
                 <input
+                  id="manual-barcode-input"
                   type="text"
                   autoFocus
                   value={manualCode}
                   onChange={(e) => setManualCode(e.target.value)}
                   placeholder="Ex: 7891234567890"
-                  className="flex-1 px-3.5 py-1.5 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition tabular-nums"
+                  className="flex-1 px-3.5 py-2 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition tabular-nums"
                 />
                 <button
                   type="submit"
                   disabled={!manualCode.trim()}
-                  className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[12px] font-semibold transition disabled:opacity-50"
+                  className="min-h-[40px] px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[12px] font-semibold transition disabled:opacity-50"
                 >
                   OK
                 </button>

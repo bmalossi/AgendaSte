@@ -200,11 +200,11 @@ export function PaymentsView({
                   <th className="py-3.5 px-5 text-right">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#EFEFF4] text-[13px]">
+              <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px]">
                 {filteredSales.map((sale) => (
                   <tr
                     key={sale.id}
-                    className="hover:bg-[#FAFAFC] transition"
+                    className="hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60 transition"
                   >
                     <td className="py-4 px-5 font-medium text-[#1C1C1E]">
                       {sale.appointmentTimeLabel}
@@ -581,11 +581,11 @@ export function PaymentsView({
               + Nova fatura
             </button>
           </div>
-          <div className="divide-y divide-[#EFEFF4]">
+          <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
             {state.invoices.map((inv) => (
               <div
                 key={inv.id}
-                className="p-5 flex flex-wrap items-center justify-between gap-4 hover:bg-[#FAFAFC]"
+                className="p-5 flex flex-wrap items-center justify-between gap-4 hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60"
               >
                 <div>
                   <div className="flex items-center gap-2">
@@ -684,7 +684,7 @@ export function PaymentsView({
             + Novo Vale-Presente
           </button>
         </div>
-        <div className="divide-y divide-[#EFEFF4]">
+        <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
           {state.giftCards.map((gc) => (
             <div
               key={gc.id}

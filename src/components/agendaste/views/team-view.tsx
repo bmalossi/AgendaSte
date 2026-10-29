@@ -337,11 +337,11 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
           </div>
 
           {/* Staff Table */}
-          <div className="bg-white border border-[#E5E5EA] rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-[#EFEFF4] bg-[#FAFAFC] text-[12px] font-semibold text-[#8E8E93]">
+                  <tr className="border-b border-[#EFEFF4] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] text-[12px] font-semibold text-[#8E8E93] dark:text-[#71717a]">
                     <th className="py-3 px-4 w-10 text-center">
                       <input
                         type="checkbox"
@@ -356,14 +356,14 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                             setSelectedRowIds([]);
                           }
                         }}
-                        className="w-4 h-4 rounded border-[#D4D4D8] text-[#1C1C1E] focus:ring-0 accent-[#1C1C1E] cursor-pointer"
+                        className="w-4 h-4 rounded border-[#D4D4D8] dark:border-[#3f3f46] text-[#1C1C1E] focus:ring-0 accent-[#6E56CF] cursor-pointer"
                       />
                     </th>
                     <th
                       onClick={() =>
                         setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
                       }
-                      className="py-3 px-4 cursor-pointer select-none hover:text-[#1C1C1E]"
+                      className="py-3 px-4 cursor-pointer select-none hover:text-[#1C1C1E] dark:hover:text-white"
                     >
                       <div className="inline-flex items-center gap-1.5">
                         <span>Nome</span>
@@ -375,12 +375,12 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                     <th className="py-3 px-4">Serviços</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#EFEFF4] text-[13px]">
+                <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px]">
                   {filteredStaff.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5}
-                        className="py-10 text-center text-[#8E8E93] text-[13px]"
+                        className="py-10 text-center text-[#8E8E93] dark:text-[#71717a] text-[13px]"
                       >
                         Nenhum profissional encontrado com os critérios de busca.
                       </td>
@@ -419,8 +419,8 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                           }}
                           className={`cursor-pointer transition ${
                             isSelected
-                              ? "bg-[#F5F5F7]"
-                              : "hover:bg-[#F9F9FB]"
+                              ? "bg-[#F5F5F7] dark:bg-[#27272a]"
+                              : "hover:bg-[#F9F9FB] dark:hover:bg-[#27272a]/60"
                           }`}
                         >
                           <td
@@ -442,15 +442,15 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                                   );
                                 }
                               }}
-                              className="w-4 h-4 rounded border-[#D4D4D8] text-[#1C1C1E] focus:ring-0 accent-[#1C1C1E] cursor-pointer"
+                              className="w-4 h-4 rounded border-[#D4D4D8] dark:border-[#3f3f46] text-[#1C1C1E] focus:ring-0 accent-[#6E56CF] cursor-pointer"
                             />
                           </td>
 
                           {/* Name + Initials */}
-                          <td className="py-3.5 px-4 font-semibold text-[#1C1C1E]">
+                          <td className="py-3.5 px-4 font-semibold text-[#1C1C1E] dark:text-white">
                             <div className="flex items-center gap-3">
                               <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-[#1C1C1E] shrink-0"
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-zinc-950 dark:text-zinc-950 shrink-0"
                                 style={{
                                   backgroundColor:
                                     member.avatarColor || "#E5E5EA",
@@ -461,7 +461,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                               <span className="truncate">
                                 {member.fullName}
                                 {isOwnerOrPrimary && (
-                                  <span className="ml-1.5 text-[12px] font-normal text-[#6E6E73]">
+                                  <span className="ml-1.5 text-[12px] font-normal text-[#6E6E73] dark:text-[#a1a1aa]">
                                     (Você)
                                   </span>
                                 )}
@@ -470,26 +470,26 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                           </td>
 
                           {/* Email */}
-                          <td className="py-3.5 px-4 text-[#1C1C1E]">
+                          <td className="py-3.5 px-4 text-[#1C1C1E] dark:text-[#e4e4e7]">
                             {member.email || "—"}
                           </td>
 
                           {/* Phone */}
-                          <td className="py-3.5 px-4 text-[#6E6E73] font-mono text-[12.5px]">
+                          <td className="py-3.5 px-4 text-[#6E6E73] dark:text-[#a1a1aa] font-mono text-[12.5px]">
                             {member.phone || "—"}
                           </td>
 
                           {/* Services */}
                           <td className="py-3.5 px-4">
                             {assignedServices.length === 0 ? (
-                              <span className="text-[12px] text-[#8E8E93]">
+                              <span className="text-[12px] text-[#8E8E93] dark:text-[#71717a]">
                                 Nenhum serviço
                               </span>
                             ) : assignedServices.length ===
                               state.services.length ? (
                               <div className="flex items-center gap-2">
                                 <span className="w-2.5 h-2.5 rounded-sm bg-[#E11D8F] shrink-0" />
-                                <span className="text-[12.5px] text-[#1C1C1E] font-medium">
+                                <span className="text-[12.5px] text-[#1C1C1E] dark:text-white font-medium">
                                   Todos os serviços ({assignedServices.length})
                                 </span>
                               </div>
@@ -498,7 +498,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                                 {assignedServices.slice(0, 2).map((srv) => (
                                   <span
                                     key={srv.id}
-                                    className="inline-flex items-center gap-1.5 text-[12.5px] text-[#1C1C1E]"
+                                    className="inline-flex items-center gap-1.5 text-[12.5px] text-[#1C1C1E] dark:text-white"
                                   >
                                     <span
                                       className="w-2.5 h-2.5 rounded-sm shrink-0"
@@ -511,7 +511,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                                   </span>
                                 ))}
                                 {assignedServices.length > 2 && (
-                                  <span className="text-[11px] font-medium text-[#6E6E73] bg-[#EFEFF4] px-1.5 py-0.5 rounded">
+                                  <span className="text-[11px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] bg-[#EFEFF4] dark:bg-[#27272a] px-1.5 py-0.5 rounded">
                                     +{assignedServices.length - 2}
                                   </span>
                                 )}
@@ -855,7 +855,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                     </div>
                   </div>
 
-                  <div className="divide-y divide-[#EFEFF4] border border-[#E5E5EA] rounded-xl overflow-hidden bg-white">
+                  <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] border border-[#E5E5EA] dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-[#18181b]">
                     {state.services.map((service) => {
                       const isAssigned = draftAssignedServiceIds.includes(
                         service.id
@@ -1318,9 +1318,9 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                   <th className="py-3.5 px-5 text-right">Repasse Líquido</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#EFEFF4] text-[13px]">
+              <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px]">
                 {payrollRows.map((row) => (
-                  <tr key={row.staffId} className="hover:bg-[#FAFAFC]">
+                  <tr key={row.staffId} className="hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60">
                     <td className="py-4 px-5 font-bold text-[#1C1C1E]">
                       {row.staffName}
                       <span className="block text-[11px] font-normal text-[#6E6E73]">
@@ -1444,13 +1444,13 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Anchor Nav */}
         <div className="lg:col-span-3 space-y-1">
-          <div className="px-4 py-2.5 rounded-[12px] bg-[#1C1C1E] text-white font-semibold text-[13px] shadow-sm">
+          <div className="px-4 py-2.5 rounded-[12px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-semibold text-[13px] shadow-sm">
             Configurações gerais
           </div>
-          <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px]">
+          <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium text-[13px]">
             Membros da equipe
           </div>
-          <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px]">
+          <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium text-[13px]">
             Folhas de ponto (Timesheets)
           </div>
         </div>
@@ -1513,7 +1513,7 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                       },
                     }))
                   }
-                  className="w-20 px-3 py-1.5 rounded-lg border border-[#E5E5EA] text-[13px] font-mono font-bold"
+                  className="w-20 px-3 py-1.5 rounded-lg border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-mono font-bold text-[#1C1C1E] dark:text-white"
                 />
                 <input
                   type="checkbox"
@@ -1534,11 +1534,11 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
           </div>
 
           {/* Card 2: Team Members Notifications (06-5-1.png) */}
-          <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4">
-            <h2 className="text-[18px] font-bold text-[#1C1C1E]">
+          <div className="bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] p-6 shadow-gg-card space-y-4">
+            <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
               Notificações de entrada/saída por membro
             </h2>
-            <div className="divide-y divide-[#EFEFF4]">
+            <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
               {state.staff.map((member) => (
                 <div
                   key={member.id}
@@ -1546,12 +1546,12 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-[#1C1C1E]"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-zinc-950 dark:text-zinc-950"
                       style={{ backgroundColor: member.avatarColor }}
                     >
                       {member.initials}
                     </div>
-                    <span className="text-[14px] font-semibold text-[#1C1C1E]">
+                    <span className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white">
                       {member.fullName}
                     </span>
                   </div>
@@ -1579,11 +1579,11 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
           </div>
 
           {/* Card 3: Recorded Timesheet Logs */}
-          <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-3">
-            <h2 className="text-[18px] font-bold text-[#1C1C1E]">
+          <div className="bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] p-6 shadow-gg-card space-y-3">
+            <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
               Folhas de Ponto Registradas ({state.timeTracking.logs.length})
             </h2>
-            <div className="divide-y divide-[#EFEFF4]">
+            <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
               {state.timeTracking.logs.map((log) => (
                 <div
                   key={log.id}

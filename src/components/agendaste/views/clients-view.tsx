@@ -337,9 +337,9 @@ export function ClientsView({
         <div
           className={`${
             selectedClient ? "lg:col-span-7" : "lg:col-span-12"
-          } bg-white rounded-[20px] border border-[#E5E5EA] shadow-gg-card overflow-hidden`}
+          } bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-card overflow-hidden`}
         >
-          <div className="divide-y divide-[#EFEFF4]">
+          <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
             {filteredClients.map((client) => {
               const isSelected = selectedClient?.id === client.id;
               const initials = client.fullName
@@ -355,12 +355,12 @@ export function ClientsView({
                   key={client.id}
                   onClick={() => handleSelectClient(client)}
                   className={`p-4 px-5 flex items-center justify-between gap-4 cursor-pointer transition ${
-                    isSelected ? "bg-[#F5F3FF]" : "hover:bg-[#FAFAFC]"
+                    isSelected ? "bg-[#F5F3FF] dark:bg-[#27272a]" : "hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60"
                   }`}
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold text-[#1C1C1E] shrink-0"
+                      className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold text-zinc-950 dark:text-zinc-950 shrink-0"
                       style={{ backgroundColor: client.avatarColor }}
                     >
                       {initials}
