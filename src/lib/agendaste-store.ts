@@ -1615,6 +1615,100 @@ export function createInitialStudioState(): StudioState {
           },
         ],
       },
+      {
+        id: "chart-stefany-amended",
+        clientId: "cli-stefany",
+        clientName: "Stefany",
+        chartName: "Oct 17, 2026 (Retificação)",
+        serviceIds: ["srv-1"],
+        serviceNames: ["Mechas Criativas"],
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        status: "created",
+        version: 3,
+        createdDateLabel: "Oct 29, 2026",
+        lastModifiedLabel: "Oct 29, 2026 15:45",
+        photos: [],
+        productsUsed: [
+          {
+            id: "prod-stef-v3-1",
+            productName: "Colorante",
+            quantity: "2 unid.",
+            skuOrLot: "LOTE-9942A",
+            expirationDate: "12/2027",
+            notes: "Dose ajustada",
+          },
+          {
+            id: "prod-stef-v3-2",
+            productName: "Oxidante 20v",
+            quantity: "60ml",
+            skuOrLot: "LOTE-OX-88",
+            expirationDate: "11/2026",
+            notes: "Emulsão reveladora",
+          },
+        ],
+        templateType: "soap",
+        soapNoteName: "SOAP note · Retificação",
+        subjective: "dsadsadsadsadsa",
+        objective: "dsadskssodkssod",
+        assessment:
+          "Fios íntegros com boa elasticidade pós-procedimento. Cutícula selada e resposta satisfatória.",
+        plan: "Manutenção recomendada em 30 dias com protocolo de nutrição capilar intensiva.",
+        history: [
+          {
+            version: 2,
+            status: "superseded",
+            timestampISO: "2026-10-29T15:38:00.000Z",
+            savedAtLabel: "29 de out. de 2026 15:38",
+            amendedBy: "Bruno Fernandes Malossi Silva",
+            chartName: "Oct 17, 2026",
+            photos: [],
+            productsUsed: [
+              {
+                id: "prod-stef-1",
+                productName: "Colorante",
+                quantity: "2",
+                skuOrLot: "LOTE-9942A",
+                expirationDate: "12/2027",
+                notes: "",
+              },
+            ],
+            soapNoteName: "SOAP note",
+            subjective: "dsadsadsadsadsa",
+            objective: "dsadskssodkssod",
+            assessment:
+              "Fios íntegros com boa elasticidade pós-procedimento. Cutícula selada e resposta satisfatória.",
+            plan: "Manutenção recomendada em 30 dias com protocolo de nutrição capilar intensiva.",
+            amendReason: "Retificação para inclusão do oxidante e ajuste de formulação.",
+          },
+          {
+            version: 1,
+            status: "superseded",
+            timestampISO: "2026-10-17T14:10:00.000Z",
+            savedAtLabel: "17 de out. de 2026 14:10",
+            amendedBy: "Bruno Fernandes Malossi Silva",
+            chartName: "Oct 17, 2026",
+            photos: [],
+            productsUsed: [
+              {
+                id: "prod-stef-v1-1",
+                productName: "Colorante",
+                quantity: "1",
+                skuOrLot: "LOTE-9942A",
+                expirationDate: "12/2027",
+                notes: "Dose inicial",
+              },
+            ],
+            soapNoteName: "SOAP note",
+            subjective: "dsadsadsadsadsa",
+            objective: "dsadskssodkssod",
+            assessment: "Avaliação inicial de elasticidade e tom de base.",
+            plan: "Realizar aplicação inicial de colorante com acompanhamento de tempo.",
+            amendReason:
+              "Ajuste na dosagem de colorante (de 1 para 2 unidades) e finalização do protocolo pós-aplicação.",
+          },
+        ],
+      },
     ],
     settings: {
       personal: {
@@ -4660,18 +4754,53 @@ export function restoreClinicalChartSnapshot(
   chartId: string,
   targetVersion: number
 ): StudioState {
-  const chartList = state.clinicalCharts || [];
-  const target = chartList.find((c) => c.id === chartId);
+  const chartList: ClinicalChartEntry[] =
+    state.clinicalCharts && state.clinicalCharts.length > 0
+      ? state.clinicalCharts
+      : (createInitialStudioState().clinicalCharts || []);
+  const target = chartList.find((c: ClinicalChartEntry) => c.id === chartId);
   if (!target || !target.history) return state;
 
-  const snapshot = target.history.find((s) => s.version === targetVersion);
+  const snapshot = target.history.find((s: ClinicalChartVersionSnapshot) => s.version === targetVersion);
   if (!snapshot) return state;
 
-  const updatedCharts = chartList.map((c) => {
+  const nowTime = new Date().toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const todayLabel = target.createdDateLabel || "17 de out. de 2026";
+  const nowLabel = `${todayLabel} ${nowTime}`;
+
+  const previousSnapshot: ClinicalChartVersionSnapshot = {
+    version: target.version,
+    status: "superseded",
+    timestampISO: new Date().toISOString(),
+    savedAtLabel: target.lastModifiedLabel || nowLabel,
+    amendedBy: target.providerName,
+    chartName: target.chartName,
+    serviceNames: target.serviceNames,
+    photos: [...target.photos],
+    productsUsed: [...target.productsUsed],
+    soapNoteName: target.soapNoteName,
+    subjective: target.subjective,
+    objective: target.objective,
+    assessment: target.assessment,
+    plan: target.plan,
+    amendReason: `Substituída pela restauração da versão v${targetVersion}.`,
+  };
+
+  const remainingHistory = target.history.filter((h: ClinicalChartVersionSnapshot) => h.version !== targetVersion);
+  const newHistory = [previousSnapshot, ...remainingHistory].sort((a, b) => b.version - a.version);
+
+  const updatedCharts = chartList.map((c: ClinicalChartEntry) => {
     if (c.id !== chartId) return c;
     return {
       ...c,
+      version: targetVersion,
+      status: "completed" as const,
+      lastModifiedLabel: nowLabel,
       chartName: snapshot.chartName,
+      serviceNames: snapshot.serviceNames || c.serviceNames,
       productsUsed: [...snapshot.productsUsed],
       photos: [...snapshot.photos],
       soapNoteName: snapshot.soapNoteName,
@@ -4679,12 +4808,13 @@ export function restoreClinicalChartSnapshot(
       objective: snapshot.objective,
       assessment: snapshot.assessment,
       plan: snapshot.plan,
+      history: newHistory,
     };
   });
 
   return {
     ...state,
     clinicalCharts: updatedCharts,
-    lastToastMessage: `Dados da versão v${targetVersion} restaurados com sucesso!`,
+    lastToastMessage: `Versão v${targetVersion} restaurada como atual com sucesso!`,
   };
 }

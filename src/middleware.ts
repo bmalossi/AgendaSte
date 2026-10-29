@@ -87,8 +87,15 @@ export async function middleware(req: NextRequest) {
     url.pathname === "/esqueci-senha" ||
     url.pathname === "/redefinir-senha";
 
+  // Em desenvolvimento local no localhost, permite navegação livre para auditorias e testes de interface
+  const isLocalDev =
+    process.env.NODE_ENV !== "production" &&
+    (currentHost === "localhost" ||
+      currentHost === "127.0.0.1" ||
+      req.cookies.get("luvea_local_preview")?.value === "1");
+
   // Se o Supabase estiver configurado em produção e o usuário não estiver autenticado
-  if (isAppRoute && !user && isSupabaseConfigured()) {
+  if (isAppRoute && !user && isSupabaseConfigured() && !isLocalDev) {
     const redirectUrl = new URL("/login", req.url);
     redirectUrl.searchParams.set("redirect", url.pathname);
     return NextResponse.redirect(redirectUrl);

@@ -17,3 +17,10 @@ Adotamos para o módulo de Estoque (`/app?view=inventory`) uma solução híbrid
 - Operação 100% plug-and-play para leitores de código de barras físicos sem necessidade de drivers ou emparelhamento complexo.
 - Economia de recursos de hardware em dispositivos móveis por não manter feeds de câmera contínuos em segundo plano.
 - Base arquitetural desacoplada e pronta para ser estendida à Venda Rápida (PDV) no futuro.
+
+## Adendo de Otimização: Códigos de Barras Lineares 1D (EAN-13, ISBN, UPC)
+Códigos 1D lineares possuem requisitos ópticos substancialmente mais rigorosos do que QR Codes (que possuem 3 marcadores de posição 2D bidimensionais). Para garantir sensibilidade instantânea em livros, cosméticos e insumos:
+1. **Restrições de Resolução HD (`videoConstraints`)**: A câmera solicita explicitamente `width: { ideal: 1280, max: 1920 }` e `height: { ideal: 720, max: 1080 }` para evitar que barras finas se misturem em resoluções VGA (640x480).
+2. **Quadro Completo sem Recorte Restritivo (Remoção do `qrbox`)**: A configuração `qrbox` foi omitida da biblioteca de leitura para que o decodificador analise o quadro inteiro. Isso preserva as "quiet zones" (margens brancas essenciais de no mínimo 9 a 11 módulos nas laterais do código) e evita que o usuário precise enquadrar o código milimetricamente.
+3. **Aceleração Nativa Dual-Engine (`BarcodeDetector`)**: Em dispositivos móveis (Android Chrome e Safari 17+), o `BarcodeDetector` nativo em hardware executa diretamente sobre o stream de vídeo a 60fps com tolerância a rotações e sombras, atuando em paralelo ao pipeline JS/ZXing.
+4. **Fallback com Upload/Foto em Alta Resolução**: Permite ao usuário carregar uma foto capturada pelo aplicativo de câmera do celular (com autofoco e flash) ou arquivo de imagem.

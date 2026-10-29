@@ -10,6 +10,7 @@ import {
   Keyboard,
   AlertCircle,
   ScanLine,
+  Image as ImageIcon,
 } from "lucide-react";
 import { playBarcodeSuccessFeedback } from "@/lib/barcode-feedback";
 
@@ -26,7 +27,7 @@ export function BarcodeScannerModal({
   onClose,
   onScan,
   title = "Leitura de código de barras",
-  subtitle = "Aponte a câmera para o código do produto",
+  subtitle = "Aponte a câmera para o código do produto ou QR Code",
 }: BarcodeScannerModalProps) {
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -36,10 +37,53 @@ export function BarcodeScannerModal({
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualCode, setManualCode] = useState("");
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
-  const html5QrCodeRef = useRef<any>(null);
+  const quaggaRef = useRef<any>(null);
+  const qrReaderRef = useRef<any>(null);
+  const nativeIntervalRef = useRef<any>(null);
+  const handleDetectedRef = useRef<any>(null);
   const isScannedRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scannerContainerId = "luvea-barcode-reader";
+
+  // Desativa e libera todos os recursos de câmera e decodificadores
+  const cleanupScanner = () => {
+    if (nativeIntervalRef.current) {
+      clearInterval(nativeIntervalRef.current);
+      nativeIntervalRef.current = null;
+    }
+    if (qrReaderRef.current) {
+      try {
+        qrReaderRef.current.stopContinuousDecode();
+        qrReaderRef.current.reset();
+      } catch {}
+      qrReaderRef.current = null;
+    }
+    if (quaggaRef.current) {
+      try {
+        if (handleDetectedRef.current) {
+          quaggaRef.current.offDetected(handleDetectedRef.current);
+        }
+        quaggaRef.current.stop();
+      } catch {}
+      quaggaRef.current = null;
+    }
+    const container = document.getElementById(scannerContainerId);
+    if (container) {
+      container.innerHTML = "";
+    }
+  };
+
+  const handleSuccess = (decodedValue: string) => {
+    const clean = decodedValue.trim();
+    if (!clean || isScannedRef.current) return;
+    isScannedRef.current = true;
+    cleanupScanner();
+    playBarcodeSuccessFeedback();
+    onScan(clean);
+    onClose();
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -48,6 +92,8 @@ export function BarcodeScannerModal({
       setShowManualInput(false);
       setManualCode("");
       setIsTorchOn(false);
+      setIsProcessingFile(false);
+      cleanupScanner();
       return;
     }
 
@@ -59,82 +105,162 @@ export function BarcodeScannerModal({
         setIsInitializing(true);
         setPermissionError(null);
 
-        // Importação dinâmica para evitar problemas de SSR no Next.js
-        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import(
-          "html5-qrcode"
-        );
+        // Importação dinâmica das engines híbridas:
+        // 1. Quagga2: Especialista em códigos de barras 1D (EAN-13, EAN-8, UPC, Code 128) com localizador multi-ângulo.
+        // 2. ZXing BrowserQRCodeReader: Especialista em QR Codes bidimensionais.
+        const Quagga = (await import("@ericblade/quagga2")).default;
+        const ZXingModule: any = await import("html5-qrcode/third_party/zxing-js.umd" as any);
+        const ZXing: any = ZXingModule.default || ZXingModule;
 
         if (isCancelled) return;
+        quaggaRef.current = Quagga;
 
-        // Formatos suportados no varejo e cosméticos
-        const formatsToSupport = [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.QR_CODE,
-        ];
+        const targetContainer = document.getElementById(scannerContainerId);
+        if (!targetContainer || isCancelled) return;
+        targetContainer.innerHTML = "";
 
-        // Obtém dispositivos de câmera disponíveis
-        const devices = await Html5Qrcode.getCameras().catch(() => []);
-        if (isCancelled) return;
-
-        setCameras(devices);
-
-        const qrCodeInstance = new Html5Qrcode(scannerContainerId, {
-          formatsToSupport,
-          verbose: false,
-        });
-        html5QrCodeRef.current = qrCodeInstance;
-
-        // Configuração de mira e resolução
-        const config = {
-          fps: 15,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            return {
-              width: Math.floor(minEdge * 0.88),
-              height: Math.floor(minEdge * 0.55),
-            };
-          },
-          aspectRatio: 1.333333,
-        };
-
-        const cameraIdOrConfig =
-          devices.length > 0
-            ? { deviceId: { exact: devices[currentCameraIndex % devices.length].id } }
-            : { facingMode: "environment" };
-
-        await qrCodeInstance.start(
-          cameraIdOrConfig,
-          config,
-          (decodedText: string) => {
-            if (isScannedRef.current) return;
-            isScannedRef.current = true;
-            playBarcodeSuccessFeedback();
-            onScan(decodedText.trim());
-            onClose();
-          },
-          () => {
-            // Callback contínuo de frame sem código (ignorado silenciosamente)
+        // Enumera câmeras disponíveis
+        try {
+          const videoDevices = await Quagga.CameraAccess.enumerateVideoDevices();
+          if (videoDevices && videoDevices.length > 0) {
+            setCameras(
+              videoDevices.map((d: any, idx: number) => ({
+                id: d.deviceId,
+                label: d.label || `Câmera ${idx + 1}`,
+              }))
+            );
           }
-        );
+        } catch {
+          // Continua com dispositivo padrão
+        }
+
+        const selectedDeviceId =
+          cameras.length > 0
+            ? cameras[currentCameraIndex % cameras.length]?.id
+            : undefined;
+
+        // Configuração Quagga2 para detecção de códigos lineares 1D em tempo real
+        await new Promise<void>((resolve, reject) => {
+          Quagga.init(
+            {
+              inputStream: {
+                type: "LiveStream",
+                target: targetContainer,
+                constraints: {
+                  width: { min: 640, ideal: 1280, max: 1920 },
+                  height: { min: 480, ideal: 720, max: 1080 },
+                  facingMode: "environment",
+                  ...(selectedDeviceId
+                    ? { deviceId: { exact: selectedDeviceId } }
+                    : {}),
+                },
+                singleChannel: false,
+              },
+              locator: {
+                patchSize: "medium",
+                halfSample: true,
+              },
+              numOfWorkers: 0,
+              decoder: {
+                readers: [
+                  "ean_reader",
+                  "ean_8_reader",
+                  "code_128_reader",
+                  "code_39_reader",
+                  "upc_reader",
+                  "upc_e_reader",
+                ],
+              },
+              locate: true,
+            },
+            (err: any) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            }
+          );
+        });
 
         if (isCancelled) {
-          qrCodeInstance.stop().catch(() => {});
+          Quagga.stop();
           return;
         }
 
+        Quagga.start();
         setIsInitializing(false);
+
+        // Listener de códigos 1D via Quagga
+        handleDetectedRef.current = (result: any) => {
+          const code = result?.codeResult?.code;
+          if (code && !isScannedRef.current) {
+            handleSuccess(code);
+          }
+        };
+        Quagga.onDetected(handleDetectedRef.current);
+
+        // Conecta decodificador de QR Code no mesmo elemento <video> gerado pelo Quagga
+        const videoElement = targetContainer.querySelector("video");
+        if (videoElement) {
+          const BrowserQRReader = (ZXing as any).BrowserQRCodeReader;
+          const qrReader = new BrowserQRReader();
+          qrReaderRef.current = qrReader;
+
+          qrReader.decodeFromVideoElementContinuously(
+            videoElement,
+            (result: any) => {
+              if (result && !isScannedRef.current) {
+                const text = result.getText?.() || result.text;
+                if (text) {
+                  handleSuccess(text);
+                }
+              }
+            }
+          );
+
+          // Engine 3: BarcodeDetector nativo de hardware (quando disponível no navegador)
+          if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+            try {
+              const supported = await (window as any).BarcodeDetector.getSupportedFormats().catch(
+                () => []
+              );
+              const nativeDetector = new (window as any).BarcodeDetector(
+                supported.length > 0 ? { formats: supported } : undefined
+              );
+
+              nativeIntervalRef.current = setInterval(async () => {
+                if (isScannedRef.current) {
+                  if (nativeIntervalRef.current) {
+                    clearInterval(nativeIntervalRef.current);
+                    nativeIntervalRef.current = null;
+                  }
+                  return;
+                }
+                if (videoElement.readyState >= 2 && !videoElement.paused) {
+                  try {
+                    const barcodes = await nativeDetector.detect(videoElement);
+                    if (barcodes && barcodes.length > 0) {
+                      const detected = barcodes[0]?.rawValue?.trim();
+                      if (detected && !isScannedRef.current) {
+                        handleSuccess(detected);
+                      }
+                    }
+                  } catch {}
+                }
+              }, 100);
+            } catch {}
+          }
+        }
 
         // Verifica suporte a lanterna (Torch)
         try {
-          const track = qrCodeInstance.getRunningTrackCameraCapabilities();
-          if (track && track.torchFeature().isSupported()) {
-            setIsTorchSupported(true);
+          const track = Quagga.CameraAccess.getActiveTrack();
+          if (track && track.getCapabilities) {
+            const caps = track.getCapabilities();
+            if (caps && "torch" in caps) {
+              setIsTorchSupported(true);
+            }
           }
         } catch {
           setIsTorchSupported(false);
@@ -153,7 +279,8 @@ export function BarcodeScannerModal({
           );
         } else if (
           errMessage.includes("NotFoundError") ||
-          errMessage.includes("No video device found")
+          errMessage.includes("No video device found") ||
+          errMessage.includes("DevicesNotFoundError")
         ) {
           setPermissionError(
             "Nenhuma câmera encontrada no dispositivo. Você pode digitar o código de barras manualmente abaixo ou conectar um leitor USB."
@@ -166,7 +293,6 @@ export function BarcodeScannerModal({
       }
     };
 
-    // Aguarda o container DOM estar montado antes de iniciar a câmera
     const timer = setTimeout(() => {
       startScanner();
     }, 150);
@@ -174,22 +300,11 @@ export function BarcodeScannerModal({
     return () => {
       isCancelled = true;
       clearTimeout(timer);
-      if (html5QrCodeRef.current) {
-        if (html5QrCodeRef.current.isScanning) {
-          html5QrCodeRef.current
-            .stop()
-            .catch(() => {})
-            .then(() => {
-              try {
-                html5QrCodeRef.current.clear();
-              } catch {}
-            });
-        }
-      }
+      cleanupScanner();
     };
   }, [isOpen, currentCameraIndex, onScan, onClose]);
 
-  // Atalho de teclado Escape para fechar o modal com segurança
+  // Atalho de teclado Escape
   useEffect(() => {
     if (!isOpen) return;
 
@@ -208,31 +323,125 @@ export function BarcodeScannerModal({
 
   // Alterna lanterna
   const toggleTorch = async () => {
-    if (!html5QrCodeRef.current || !isTorchSupported) return;
+    if (!quaggaRef.current || !isTorchSupported) return;
     try {
+      const track = quaggaRef.current.CameraAccess.getActiveTrack();
+      if (!track) return;
       const nextState = !isTorchOn;
-      await html5QrCodeRef.current.applyVideoConstraints({
-        advanced: [{ torch: nextState }],
+      await track.applyConstraints({
+        advanced: [{ torch: nextState } as any],
       });
       setIsTorchOn(nextState);
     } catch {
-      // Ignora silenciosamente se o hardware rejeitar
+      // Hardware rejeitou lanterna silenciosamente
     }
   };
 
-  // Alterna entre câmeras disponíveis
+  // Alterna câmera
   const switchCamera = () => {
     if (cameras.length <= 1) return;
+    cleanupScanner();
     setCurrentCameraIndex((prev) => (prev + 1) % cameras.length);
+  };
+
+  // Leitura a partir de foto ou imagem enviada
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingFile(true);
+    setPermissionError(null);
+
+    try {
+      const fileUrl = URL.createObjectURL(file);
+
+      // 1. Tenta decodificação nativa imediata via BarcodeDetector
+      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+        try {
+          const supported = await (window as any).BarcodeDetector.getSupportedFormats().catch(
+            () => []
+          );
+          const detector = new (window as any).BarcodeDetector(
+            supported.length > 0 ? { formats: supported } : undefined
+          );
+          const bitmap = await createImageBitmap(file);
+          const detectedBarcodes = await detector.detect(bitmap);
+          if (detectedBarcodes && detectedBarcodes.length > 0) {
+            const raw = detectedBarcodes[0]?.rawValue?.trim();
+            if (raw) {
+              URL.revokeObjectURL(fileUrl);
+              handleSuccess(raw);
+              return;
+            }
+          }
+        } catch {}
+      }
+
+      // 2. Tenta decodificação 1D com Quagga2
+      const Quagga = (await import("@ericblade/quagga2")).default;
+      const quaggaResult = await new Promise<any>((resolve) => {
+        Quagga.decodeSingle(
+          {
+            src: fileUrl,
+            numOfWorkers: 0,
+            inputStream: { size: 1280 },
+            decoder: {
+              readers: [
+                "ean_reader",
+                "ean_8_reader",
+                "code_128_reader",
+                "code_39_reader",
+                "upc_reader",
+                "upc_e_reader",
+              ],
+            },
+            locate: true,
+          },
+          (res) => resolve(res)
+        );
+      });
+
+      if (quaggaResult?.codeResult?.code) {
+        URL.revokeObjectURL(fileUrl);
+        handleSuccess(quaggaResult.codeResult.code.trim());
+        return;
+      }
+
+      // 3. Tenta decodificação de QR Code com ZXing
+      const ZXingModule: any = await import("html5-qrcode/third_party/zxing-js.umd" as any);
+      const ZXing: any = ZXingModule.default || ZXingModule;
+      const BrowserQRReader = ZXing.BrowserQRCodeReader;
+      const qrReader = new BrowserQRReader();
+      try {
+        const qrRes = await qrReader.decodeFromImageUrl(fileUrl);
+        if (qrRes && qrRes.getText()) {
+          URL.revokeObjectURL(fileUrl);
+          handleSuccess(qrRes.getText().trim());
+          return;
+        }
+      } catch {}
+
+      URL.revokeObjectURL(fileUrl);
+      setPermissionError(
+        "Não foi possível identificar o código nesta foto. Experimente aproximar o código de barras ou digite o número manualmente."
+      );
+    } catch {
+      setPermissionError(
+        "Não foi possível identificar o código nesta foto. Experimente aproximar o código de barras ou digite o número manualmente."
+      );
+    } finally {
+      setIsProcessingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   // Envio manual
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualCode.trim()) return;
-    playBarcodeSuccessFeedback();
-    onScan(manualCode.trim());
-    onClose();
+    handleSuccess(manualCode.trim());
   };
 
   if (!isOpen) return null;
@@ -269,7 +478,7 @@ export function BarcodeScannerModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar leitor de código de barras"
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-[#F5F5F7] hover:bg-[#E5E5EA] dark:bg-[#27272a] dark:hover:bg-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white flex items-center justify-center transition"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-[#F5F5F7] hover:bg-[#E5E5EA] dark:bg-[#27272a] dark:hover:bg-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -292,7 +501,7 @@ export function BarcodeScannerModal({
                   setIsInitializing(true);
                   setCurrentCameraIndex((prev) => prev);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] transition shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] transition shadow-2xs cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Tentar novamente</span>
@@ -300,12 +509,15 @@ export function BarcodeScannerModal({
             </div>
           ) : (
             <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-black flex items-center justify-center shadow-inner">
-              {/* Container interno do HTML5-QRCode */}
-              <div id={scannerContainerId} className="w-full h-full" />
+              {/* Container interno da câmera (Quagga + ZXing) */}
+              <div
+                id={scannerContainerId}
+                className="w-full h-full relative [&>video]:w-full [&>video]:h-full [&>video]:object-cover [&>canvas]:hidden"
+              />
 
               {/* Mira visual de enquadramento (Overlay) */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-[84%] h-[55%] border-2 border-white/80 rounded-xl relative shadow-2xl">
+                <div className="w-[88%] h-[50%] border-2 border-white/80 rounded-xl relative shadow-2xl">
                   {/* Cantos destacados */}
                   <span className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-white" />
                   <span className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-white" />
@@ -317,25 +529,30 @@ export function BarcodeScannerModal({
                 </div>
               </div>
 
-              {/* Indicador de inicialização */}
-              {isInitializing && (
+              {/* Indicador de inicialização ou processamento de arquivo */}
+              {(isInitializing || isProcessingFile) && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-2 text-white">
                   <RefreshCw className="w-6 h-6 animate-spin motion-reduce:animate-none text-white/80" />
                   <span className="text-[12px] text-white/70">
-                    Iniciando câmera...
+                    {isProcessingFile ? "Processando imagem..." : "Iniciando câmera..."}
                   </span>
                 </div>
               )}
             </div>
           )}
 
-          {/* Controles de Câmera (Lanterna & Troca de Câmera) */}
-          <div className="flex items-center justify-center gap-2.5 mt-3.5">
+          {/* Dica de enquadramento sutil */}
+          <p className="text-[11px] text-[#8E8E93] dark:text-[#71717a] text-center mt-2.5">
+            Aponte para o código mantendo uma distância de 10 a 20 cm
+          </p>
+
+          {/* Controles de Câmera, Lanterna e Upload de Foto */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
             {cameras.length > 1 && (
               <button
                 type="button"
                 onClick={switchCamera}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[11.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[11.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition cursor-pointer"
               >
                 <Camera className="w-3.5 h-3.5" />
                 <span>Trocar câmera</span>
@@ -346,10 +563,10 @@ export function BarcodeScannerModal({
               <button
                 type="button"
                 onClick={toggleTorch}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11.5px] font-medium transition ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11.5px] font-medium transition cursor-pointer ${
                   isTorchOn
                     ? "bg-[#1C1C1E] text-white border-[#1C1C1E] dark:bg-white dark:text-[#09090b]"
-                    : "border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7]"
+                    : "border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                 }`}
               >
                 {isTorchOn ? (
@@ -365,6 +582,23 @@ export function BarcodeScannerModal({
                 )}
               </button>
             )}
+
+            {/* Escanear a partir de foto */}
+            <label
+              htmlFor="barcode-photo-upload"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[11.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition cursor-pointer"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Escanear foto</span>
+              <input
+                id="barcode-photo-upload"
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="sr-only"
+              />
+            </label>
           </div>
         </div>
 
@@ -374,7 +608,7 @@ export function BarcodeScannerModal({
             <button
               type="button"
               onClick={() => setShowManualInput(true)}
-              className="w-full min-h-[44px] flex items-center justify-center gap-1.5 text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition"
+              className="w-full min-h-[44px] flex items-center justify-center gap-1.5 text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition cursor-pointer"
             >
               <Keyboard className="w-3.5 h-3.5" />
               <span>Não conseguiu ler? Digitar código manualmente</span>
@@ -394,13 +628,13 @@ export function BarcodeScannerModal({
                   autoFocus
                   value={manualCode}
                   onChange={(e) => setManualCode(e.target.value)}
-                  placeholder="Ex: 7891234567890"
+                  placeholder="Ex: 9786583195678"
                   className="flex-1 px-3.5 py-2 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition tabular-nums"
                 />
                 <button
                   type="submit"
                   disabled={!manualCode.trim()}
-                  className="min-h-[40px] px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[12px] font-semibold transition disabled:opacity-50"
+                  className="min-h-[40px] px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[12px] font-semibold transition disabled:opacity-50 cursor-pointer"
                 >
                   OK
                 </button>

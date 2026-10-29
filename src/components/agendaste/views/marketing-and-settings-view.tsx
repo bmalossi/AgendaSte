@@ -52,6 +52,7 @@ import {
   Lock,
   MoreHorizontal,
   ChevronUp,
+  Pencil,
 } from "lucide-react";
 import {
   StudioState,
@@ -76,6 +77,7 @@ import {
   deleteInventoryProduct,
   adjustInventoryStock,
   importStarterInventoryProducts,
+  restoreClinicalChartSnapshot,
 } from "@/lib/agendaste-store";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
@@ -1468,6 +1470,100 @@ const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
       },
     ],
   },
+  {
+    id: "chart-stefany-amended",
+    clientId: "cli-stefany",
+    clientName: "Stefany",
+    chartName: "Oct 17, 2026 (Retificação)",
+    serviceIds: ["srv-1"],
+    serviceNames: ["Mechas Criativas"],
+    providerId: "staff-bruno",
+    providerName: "Bruno Fernandes Malossi Silva",
+    status: "created",
+    version: 3,
+    createdDateLabel: "Oct 29, 2026",
+    lastModifiedLabel: "Oct 29, 2026 15:45",
+    photos: [],
+    productsUsed: [
+      {
+        id: "prod-stef-v3-1",
+        productName: "Colorante",
+        quantity: "2 unid.",
+        skuOrLot: "LOTE-9942A",
+        expirationDate: "12/2027",
+        notes: "Dose ajustada",
+      },
+      {
+        id: "prod-stef-v3-2",
+        productName: "Oxidante 20v",
+        quantity: "60ml",
+        skuOrLot: "LOTE-OX-88",
+        expirationDate: "11/2026",
+        notes: "Emulsão reveladora",
+      },
+    ],
+    templateType: "soap",
+    soapNoteName: "SOAP note · Retificação",
+    subjective: "dsadsadsadsadsa",
+    objective: "dsadskssodkssod",
+    assessment:
+      "Fios íntegros com boa elasticidade pós-procedimento. Cutícula selada e resposta satisfatória.",
+    plan: "Manutenção recomendada em 30 dias com protocolo de nutrição capilar intensiva.",
+    history: [
+      {
+        version: 2,
+        status: "superseded",
+        timestampISO: "2026-10-29T15:38:00.000Z",
+        savedAtLabel: "29 de out. de 2026 15:38",
+        amendedBy: "Bruno Fernandes Malossi Silva",
+        chartName: "Oct 17, 2026",
+        photos: [],
+        productsUsed: [
+          {
+            id: "prod-stef-1",
+            productName: "Colorante",
+            quantity: "2",
+            skuOrLot: "LOTE-9942A",
+            expirationDate: "12/2027",
+            notes: "",
+          },
+        ],
+        soapNoteName: "SOAP note",
+        subjective: "dsadsadsadsadsa",
+        objective: "dsadskssodkssod",
+        assessment:
+          "Fios íntegros com boa elasticidade pós-procedimento. Cutícula selada e resposta satisfatória.",
+        plan: "Manutenção recomendada em 30 dias com protocolo de nutrição capilar intensiva.",
+        amendReason: "Retificação para inclusão do oxidante e ajuste de formulação.",
+      },
+      {
+        version: 1,
+        status: "superseded",
+        timestampISO: "2026-10-17T14:10:00.000Z",
+        savedAtLabel: "17 de out. de 2026 14:10",
+        amendedBy: "Bruno Fernandes Malossi Silva",
+        chartName: "Oct 17, 2026",
+        photos: [],
+        productsUsed: [
+          {
+            id: "prod-stef-v1-1",
+            productName: "Colorante",
+            quantity: "1",
+            skuOrLot: "LOTE-9942A",
+            expirationDate: "12/2027",
+            notes: "Dose inicial",
+          },
+        ],
+        soapNoteName: "SOAP note",
+        subjective: "dsadsadsadsadsa",
+        objective: "dsadskssodkssod",
+        assessment: "Avaliação inicial de elasticidade e tom de base.",
+        plan: "Realizar aplicação inicial de colorante com acompanhamento de tempo.",
+        amendReason:
+          "Ajuste na dosagem de colorante (de 1 para 2 unidades) e finalização do protocolo pós-aplicação.",
+      },
+    ],
+  },
 ];
 
 function getInitials(name: string): string {
@@ -1489,8 +1585,22 @@ function ClinicalChartsSection({
       ? state.clinicalCharts
       : DEFAULT_FALLBACK_CHARTS;
 
-  // Mode: null = List table view ("Prontuários"), string = active chart id in Editor ("Entradas de prontuário")
-  const [activeChartId, setActiveChartId] = useState<string | null>(null);
+  // Mode: null = List table view ("Prontuários"), string = active chart id in Editor ("Chart entries")
+  const [activeChartId, setActiveChartId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlChartId = params.get("chartId");
+      if (urlChartId) return urlChartId;
+      const urlClientId = params.get("clientId");
+      if (urlClientId) {
+        const found = (state.clinicalCharts || DEFAULT_FALLBACK_CHARTS).find(
+          (c) => c.clientId === urlClientId
+        );
+        if (found) return found.id;
+      }
+    }
+    return null;
+  });
   const [activeAnchor, setActiveAnchor] =
     useState<ChartSectionAnchorId>("chart_details");
 
@@ -1506,6 +1616,7 @@ function ClinicalChartsSection({
   // Editor helper states
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
   const [addingProductOpen, setAddingProductOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [selectedInventoryId, setSelectedInventoryId] = useState<string>(
     state.inventory[0]?.id ?? "custom"
   );
@@ -1674,22 +1785,12 @@ function ClinicalChartsSection({
 
   const handleRestoreSnapshot = (snapshot: ClinicalChartVersionSnapshot) => {
     if (!activeChart) return;
-    updateChartById(activeChart.id, (c) => ({
-      ...c,
-      chartName: snapshot.chartName,
-      productsUsed: [...snapshot.productsUsed],
-      photos: [...snapshot.photos],
-      soapNoteName: snapshot.soapNoteName,
-      subjective: snapshot.subjective,
-      objective: snapshot.objective,
-      assessment: snapshot.assessment,
-      plan: snapshot.plan,
-    }));
+    onUpdateState((prev) =>
+      restoreClinicalChartSnapshot(prev, activeChart.id, snapshot.version)
+    );
     setPreviewingSnapshot(null);
-    onUpdateState((prev) => ({
-      ...prev,
-      lastToastMessage: `Dados da versão v${snapshot.version} restaurados com sucesso!`,
-    }));
+    setActiveVersionMenu(null);
+    setExpandedVersionId(null);
   };
 
   const handleDeleteChart = (chart: ClinicalChartEntry) => {
@@ -1853,6 +1954,38 @@ function ClinicalChartsSection({
     }));
   };
 
+  const handleOpenAddProduct = () => {
+    setEditingProductId(null);
+    setSelectedInventoryId(state.inventory[0]?.id ?? "custom");
+    setCustomProductName("");
+    setProductLotSku("");
+    setProductQuantity("1 unid.");
+    setProductExpDate("");
+    setProductNotes("");
+    setAddingProductOpen(true);
+  };
+
+  const handleStartEditProduct = (prod: ClinicalChartProductUsage) => {
+    setEditingProductId(prod.id);
+    setSelectedInventoryId(prod.inventoryProductId || "custom");
+    setCustomProductName(prod.productName);
+    setProductLotSku(prod.skuOrLot || "");
+    setProductQuantity(prod.quantity || "1 unid.");
+    setProductExpDate(prod.expirationDate || "");
+    setProductNotes(prod.notes || "");
+    setAddingProductOpen(true);
+  };
+
+  const handleCancelProductForm = () => {
+    setAddingProductOpen(false);
+    setEditingProductId(null);
+    setCustomProductName("");
+    setProductLotSku("");
+    setProductQuantity("1 unid.");
+    setProductExpDate("");
+    setProductNotes("");
+  };
+
   const handleConfirmAddProduct = () => {
     if (!activeChart) return;
     const invItem = state.inventory.find((i) => i.id === selectedInventoryId);
@@ -1863,23 +1996,52 @@ function ClinicalChartsSection({
     const skuOrLot =
       productLotSku.trim() || invItem?.sku || "LOTE-2026-BR";
 
-    const newUsage: ClinicalChartProductUsage = {
-      id: `prd-use-${Date.now()}`,
-      inventoryProductId:
-        selectedInventoryId === "custom" ? undefined : selectedInventoryId,
-      productName,
-      skuOrLot,
-      quantity: productQuantity.trim() || "1 unid.",
-      expirationDate: productExpDate.trim() || "12/2027",
-      notes: productNotes.trim(),
-    };
+    if (editingProductId) {
+      updateChartById(activeChart.id, (c) => ({
+        ...c,
+        productsUsed: c.productsUsed.map((p) =>
+          p.id === editingProductId
+            ? {
+                ...p,
+                inventoryProductId:
+                  selectedInventoryId === "custom" ? undefined : selectedInventoryId,
+                productName,
+                skuOrLot,
+                quantity: productQuantity.trim() || "1 unid.",
+                expirationDate: productExpDate.trim() || "12/2027",
+                notes: productNotes.trim(),
+              }
+            : p
+        ),
+      }));
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: `Produto "${productName}" atualizado com sucesso!`,
+      }));
+    } else {
+      const newUsage: ClinicalChartProductUsage = {
+        id: `prd-use-${Date.now()}`,
+        inventoryProductId:
+          selectedInventoryId === "custom" ? undefined : selectedInventoryId,
+        productName,
+        skuOrLot,
+        quantity: productQuantity.trim() || "1 unid.",
+        expirationDate: productExpDate.trim() || "12/2027",
+        notes: productNotes.trim(),
+      };
 
-    updateChartById(activeChart.id, (c) => ({
-      ...c,
-      productsUsed: [...c.productsUsed, newUsage],
-    }));
+      updateChartById(activeChart.id, (c) => ({
+        ...c,
+        productsUsed: [...c.productsUsed, newUsage],
+      }));
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: `Produto "${productName}" registrado no prontuário.`,
+      }));
+    }
 
     setAddingProductOpen(false);
+    setEditingProductId(null);
     setCustomProductName("");
     setProductLotSku("");
     setProductQuantity("1 unid.");
@@ -1891,6 +2053,9 @@ function ClinicalChartsSection({
   // VIEW A: CHART ENTRY EDITOR ("Entradas de prontuário" / "Chart entries")
   // ===========================================================================
   if (activeChart) {
+    const isCompleted = activeChart.status === "completed";
+    const isEditing = !isCompleted;
+
     const anchorItems: Array<{ id: ChartSectionAnchorId; label: string }> = [
       { id: "chart_details", label: "Chart details" },
       { id: "photos_markup", label: "Photos and markup" },
@@ -1941,11 +2106,11 @@ function ClinicalChartsSection({
               All charts
             </button>
 
-            {activeChart.status === "created" ? (
+            {isEditing ? (
               <button
                 type="button"
                 onClick={() => handleMarkAsComplete(activeChart.id)}
-                className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-medium transition-colors"
+                className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-medium transition-colors shadow-2xs"
               >
                 Marcar como concluído
               </button>
@@ -1953,7 +2118,7 @@ function ClinicalChartsSection({
               <button
                 type="button"
                 onClick={() => handleAmendChart(activeChart.id)}
-                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors"
+                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors shadow-2xs"
               >
                 Amend chart
               </button>
@@ -1986,6 +2151,53 @@ function ClinicalChartsSection({
 
           {/* Center Form Body */}
           <div className="flex-1 max-w-[680px] w-full p-6 lg:py-8 lg:px-6 space-y-9 pb-24">
+            {/* Mode Indicator Banner */}
+            {isEditing && (
+              <div className="rounded-[12px] border border-[#E5E5EA] bg-[#F5F5F7] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0 mt-1 sm:mt-0" />
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#1C1C1E]">
+                      Modo de retificação ativo · Versão v{activeChart.version} em edição
+                    </p>
+                    <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                      Edite livremente os campos clínicos, produtos e notas. Ao finalizar, clique em &quot;Marcar como concluído&quot;.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleMarkAsComplete(activeChart.id)}
+                  className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12px] font-medium transition-colors shrink-0 self-end sm:self-auto"
+                >
+                  Concluir versão v{activeChart.version}
+                </button>
+              </div>
+            )}
+
+            {isCompleted && (
+              <div className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0 mt-1 sm:mt-0" />
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#1C1C1E]">
+                      Prontuário concluído e selado (v{activeChart.version})
+                    </p>
+                    <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                      Registro clínico bloqueado contra alterações diretas. Para retificar qualquer dado, utilize &quot;Amend chart&quot;.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAmendChart(activeChart.id)}
+                  className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12px] font-medium transition-colors shrink-0 self-end sm:self-auto"
+                >
+                  Retificar (Amend chart)
+                </button>
+              </div>
+            )}
+
             {/* 1. DETALHES DO CLIENTE & NOME DO PRONTUÁRIO */}
             <section
               id="luvea-chart-chart_details"
@@ -2007,7 +2219,7 @@ function ClinicalChartsSection({
                   <span>
                     {activeChart.createdDateLabel} | Provider: {activeChart.providerName}
                   </span>
-                  {activeChart.status === "completed" ? (
+                  {isCompleted ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11.5px] font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                       <span>Completed</span>
@@ -2023,85 +2235,110 @@ function ClinicalChartsSection({
 
               {/* Chart Name */}
               <div className="space-y-1.5 pt-2">
-                <h2 className="text-[14px] font-semibold text-[#1C1C1E]">
+                <label
+                  htmlFor="chart-name-input"
+                  className="block text-[13px] font-medium text-[#1C1C1E]"
+                >
                   Chart name
-                </h2>
-                <input
-                  type="text"
-                  value={activeChart.chartName}
-                  onChange={(e) =>
-                    updateChartById(activeChart.id, (c) => ({
-                      ...c,
-                      chartName: e.target.value,
-                    }))
-                  }
-                  placeholder="Oct 17, 2026"
-                  className="w-full text-[13.5px] text-[#1C1C1E] font-normal bg-transparent focus:outline-none"
-                />
+                </label>
+                {isEditing ? (
+                  <input
+                    id="chart-name-input"
+                    type="text"
+                    value={activeChart.chartName}
+                    onChange={(e) =>
+                      updateChartById(activeChart.id, (c) => ({
+                        ...c,
+                        chartName: e.target.value,
+                      }))
+                    }
+                    placeholder="Oct 17, 2026"
+                    className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white px-3.5 py-2.5 text-[14px] font-medium text-[#1C1C1E] transition-all"
+                  />
+                ) : (
+                  <p className="text-[14px] text-[#1C1C1E] font-medium py-1">
+                    {activeChart.chartName || "Sem título"}
+                  </p>
+                )}
               </div>
 
               {/* Serviços associados */}
               <div className="relative pt-1">
-                <button
-                  type="button"
-                  onClick={() => setServicesDropdownOpen((prev) => !prev)}
-                  className="w-full rounded-[10px] border border-[#E5E5EA] bg-white px-3.5 py-2.5 text-left flex items-center justify-between gap-3 hover:border-[#D1D1D6] transition-colors"
-                >
-                  <span
-                    className={`text-[13px] ${
-                      activeChart.serviceNames.length > 0
-                        ? "font-normal text-[#1C1C1E]"
-                        : "text-[#8E8E93]"
-                    }`}
-                  >
-                    {activeChart.serviceNames.length > 0
-                      ? activeChart.serviceNames.join(", ")
-                      : "Selecionar serviços deste atendimento (opcional)"}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-[#8E8E93] shrink-0" />
-                </button>
+                {isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setServicesDropdownOpen((prev) => !prev)}
+                      className="w-full rounded-[10px] border border-[#E5E5EA] bg-white px-3.5 py-2.5 text-left flex items-center justify-between gap-3 hover:border-[#D1D1D6] transition-colors"
+                    >
+                      <span
+                        className={`text-[13px] ${
+                          activeChart.serviceNames.length > 0
+                            ? "font-normal text-[#1C1C1E]"
+                            : "text-[#8E8E93]"
+                        }`}
+                      >
+                        {activeChart.serviceNames.length > 0
+                          ? activeChart.serviceNames.join(", ")
+                          : "Selecionar serviços deste atendimento (opcional)"}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-[#8E8E93] shrink-0" />
+                    </button>
 
-                {servicesDropdownOpen && (
-                  <div className="absolute left-0 right-0 mt-1.5 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-2 z-20 max-h-60 overflow-y-auto">
-                    {state.services.map((srv) => {
-                      const checked = activeChart.serviceIds.includes(srv.id);
-                      return (
-                        <button
-                          key={srv.id}
-                          type="button"
-                          onClick={() => {
-                            updateChartById(activeChart.id, (c) => {
-                              const exists = c.serviceIds.includes(srv.id);
-                              const nextIds = exists
-                                ? c.serviceIds.filter((id) => id !== srv.id)
-                                : [...c.serviceIds, srv.id];
-                              const nextNames = state.services
-                                .filter((s) => nextIds.includes(s.id))
-                                .map((s) => s.name);
-                              return {
-                                ...c,
-                                serviceIds: nextIds,
-                                serviceNames: nextNames,
-                              };
-                            });
-                          }}
-                          className="w-full px-4 py-2 text-left text-[13px] flex items-center justify-between hover:bg-[#F5F5F7]"
-                        >
-                          <span className="font-normal text-[#1C1C1E]">
-                            {srv.name}
-                          </span>
-                          <span
-                            className={`w-4 h-4 rounded flex items-center justify-center border ${
-                              checked
-                                ? "bg-[#1C1C1E] border-[#1C1C1E] text-white"
-                                : "border-[#C7C7CC] bg-white"
-                            }`}
-                          >
-                            {checked && <Check className="w-3 h-3" />}
-                          </span>
-                        </button>
-                      );
-                    })}
+                    {servicesDropdownOpen && (
+                      <div className="absolute left-0 right-0 mt-1.5 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-2 z-20 max-h-60 overflow-y-auto">
+                        {state.services.map((srv) => {
+                          const checked = activeChart.serviceIds.includes(srv.id);
+                          return (
+                            <button
+                              key={srv.id}
+                              type="button"
+                              onClick={() => {
+                                updateChartById(activeChart.id, (c) => {
+                                  const exists = c.serviceIds.includes(srv.id);
+                                  const nextIds = exists
+                                    ? c.serviceIds.filter((id) => id !== srv.id)
+                                    : [...c.serviceIds, srv.id];
+                                  const nextNames = state.services
+                                    .filter((s) => nextIds.includes(s.id))
+                                    .map((s) => s.name);
+                                  return {
+                                    ...c,
+                                    serviceIds: nextIds,
+                                    serviceNames: nextNames,
+                                  };
+                                });
+                              }}
+                              className="w-full px-4 py-2 text-left text-[13px] flex items-center justify-between hover:bg-[#F5F5F7]"
+                            >
+                              <span className="font-normal text-[#1C1C1E]">
+                                {srv.name}
+                              </span>
+                              <span
+                                className={`w-4 h-4 rounded flex items-center justify-center border ${
+                                  checked
+                                    ? "bg-[#1C1C1E] border-[#1C1C1E] text-white"
+                                    : "border-[#C7C7CC] bg-white"
+                                }`}
+                              >
+                                {checked && <Check className="w-3 h-3" />}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div>
+                    <span className="block text-[12px] text-[#6E6E73] mb-1">
+                      Serviços associados
+                    </span>
+                    <p className="text-[13px] text-[#1C1C1E]">
+                      {activeChart.serviceNames.length > 0
+                        ? activeChart.serviceNames.join(", ")
+                        : "Nenhum serviço selecionado neste atendimento."}
+                    </p>
                   </div>
                 )}
               </div>
@@ -2111,7 +2348,7 @@ function ClinicalChartsSection({
             <section
               id="luvea-chart-photos_markup"
               onMouseEnter={() => setActiveAnchor("photos_markup")}
-              className="space-y-3 scroll-mt-20"
+              className="space-y-3.5 scroll-mt-20"
             >
               <div>
                 <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
@@ -2124,7 +2361,7 @@ function ClinicalChartsSection({
                 ) : null}
               </div>
 
-              {activeChart.photos.length === 0 ? (
+              {isEditing && (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <label
                     className={`cursor-pointer px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors inline-flex items-center gap-2 ${
@@ -2157,42 +2394,11 @@ function ClinicalChartsSection({
                     Adicionar da galeria da cliente
                   </button>
                 </div>
-              ) : (
-                /* Interactive Photos & Markup Pins Canvas */
-                <div className="space-y-4 pt-1">
-                  <div className="flex flex-wrap items-center gap-2 pb-2">
-                    <label
-                      className={`cursor-pointer px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors inline-flex items-center gap-2 ${
-                        isUploadingPhoto ? "opacity-60 pointer-events-none" : ""
-                      }`}
-                    >
-                      {isUploadingPhoto ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E]" />
-                          <span>Enviando...</span>
-                        </>
-                      ) : (
-                        <span>Adicionar outra foto</span>
-                      )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        disabled={isUploadingPhoto}
-                        onChange={handleUploadDevicePhoto}
-                        className="hidden"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      disabled={isUploadingPhoto}
-                      onClick={handleAddPhotoFromGallery}
-                      className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors"
-                    >
-                      Adicionar da galeria
-                    </button>
-                  </div>
+              )}
 
+              {/* Photos Gallery */}
+              {activeChart.photos.length > 0 && (
+                <div className="space-y-4 pt-1">
                   {activeChart.photos.map((photo) => (
                     <div
                       key={photo.id}
@@ -2226,32 +2432,42 @@ function ClinicalChartsSection({
                             <Download className="w-3.5 h-3.5" />
                             Baixar
                           </a>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  "Deseja realmente remover esta foto do prontuário?"
-                                )
-                              ) {
-                                updateChartById(activeChart.id, (c) => ({
-                                  ...c,
-                                  photos: c.photos.filter((p) => p.id !== photo.id),
-                                }));
-                              }
-                            }}
-                            className="px-3 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] hover:text-rose-600 inline-flex items-center gap-1 transition-colors shadow-2xs"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Excluir
-                          </button>
+                          {isEditing && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    "Deseja realmente remover esta foto do prontuário?"
+                                  )
+                                ) {
+                                  updateChartById(activeChart.id, (c) => ({
+                                    ...c,
+                                    photos: c.photos.filter((p) => p.id !== photo.id),
+                                  }));
+                                }
+                              }}
+                              className="px-3 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] hover:text-rose-600 inline-flex items-center gap-1 transition-colors shadow-2xs"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Excluir
+                            </button>
+                          )}
                         </div>
                       </div>
 
                       <div
-                        onClick={(e) => handlePhotoCanvasClick(photo.id, e)}
-                        title="Clique em qualquer ponto da foto para adicionar uma marcação"
-                        className="relative w-full max-h-[340px] overflow-hidden rounded-[10px] border border-[#D1D1D6] cursor-crosshair bg-[#1C1C1E]"
+                        onClick={(e) => {
+                          if (isEditing) handlePhotoCanvasClick(photo.id, e);
+                        }}
+                        title={
+                          isEditing
+                            ? "Clique em qualquer ponto da foto para adicionar uma marcação anatômica"
+                            : "Visualização com marcações anatômicas"
+                        }
+                        className={`relative w-full max-h-[340px] overflow-hidden rounded-[10px] border border-[#D1D1D6] bg-[#1C1C1E] ${
+                          isEditing ? "cursor-crosshair" : "cursor-default"
+                        }`}
                       >
                         <img
                           src={photo.url}
@@ -2276,55 +2492,65 @@ function ClinicalChartsSection({
                       {photo.pins.length > 0 && (
                         <div className="space-y-2">
                           <p className="text-[11.5px] font-medium text-[#6E6E73]">
-                            Pontos mapeados na imagem (clique na foto para adicionar mais):
+                            {isEditing
+                              ? "Pontos mapeados na imagem (clique na foto para adicionar mais):"
+                              : "Pontos mapeados nesta imagem:"}
                           </p>
                           {photo.pins.map((pin, idx) => (
                             <div key={pin.id} className="flex items-center gap-2">
                               <span className="w-5 h-5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
                                 {idx + 1}
                               </span>
-                              <input
-                                type="text"
-                                value={pin.label}
-                                onChange={(e) => {
-                                  const nextVal = e.target.value;
-                                  updateChartById(activeChart.id, (c) => ({
-                                    ...c,
-                                    photos: c.photos.map((ph) =>
-                                      ph.id === photo.id
-                                        ? {
-                                            ...ph,
-                                            pins: ph.pins.map((p) =>
-                                              p.id === pin.id
-                                                ? { ...p, label: nextVal }
-                                                : p
-                                            ),
-                                          }
-                                        : ph
-                                    ),
-                                  }));
-                                }}
-                                className="flex-1 rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-1.5 text-[12.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateChartById(activeChart.id, (c) => ({
-                                    ...c,
-                                    photos: c.photos.map((ph) =>
-                                      ph.id === photo.id
-                                        ? {
-                                            ...ph,
-                                            pins: ph.pins.filter((p) => p.id !== pin.id),
-                                          }
-                                        : ph
-                                    ),
-                                  }))
-                                }
-                                className="p-1 text-[#8E8E93] hover:text-[#1C1C1E]"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                              {isEditing ? (
+                                <>
+                                  <input
+                                    type="text"
+                                    value={pin.label}
+                                    onChange={(e) => {
+                                      const nextVal = e.target.value;
+                                      updateChartById(activeChart.id, (c) => ({
+                                        ...c,
+                                        photos: c.photos.map((ph) =>
+                                          ph.id === photo.id
+                                            ? {
+                                                ...ph,
+                                                pins: ph.pins.map((p) =>
+                                                  p.id === pin.id
+                                                    ? { ...p, label: nextVal }
+                                                    : p
+                                                ),
+                                              }
+                                            : ph
+                                        ),
+                                      }));
+                                    }}
+                                    className="flex-1 rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-1.5 text-[12.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateChartById(activeChart.id, (c) => ({
+                                        ...c,
+                                        photos: c.photos.map((ph) =>
+                                          ph.id === photo.id
+                                            ? {
+                                                ...ph,
+                                                pins: ph.pins.filter((p) => p.id !== pin.id),
+                                              }
+                                            : ph
+                                        ),
+                                      }))
+                                    }
+                                    className="p-1 text-[#8E8E93] hover:text-[#1C1C1E]"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-[12.5px] text-[#1C1C1E] font-medium">
+                                  {pin.label}
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -2335,7 +2561,7 @@ function ClinicalChartsSection({
               )}
             </section>
 
-            {/* 3. PRODUCT DETAILS (Minimalist table matching screenshot) */}
+            {/* 3. PRODUCT DETAILS */}
             <section
               id="luvea-chart-product_details"
               onMouseEnter={() => setActiveAnchor("product_details")}
@@ -2359,7 +2585,7 @@ function ClinicalChartsSection({
                       <th className="py-2.5 font-normal w-1/5">Units/Dosage</th>
                       <th className="py-2.5 font-normal w-1/5">Lot #</th>
                       <th className="py-2.5 font-normal w-1/5">Exp. date</th>
-                      <th className="py-2.5 w-8"></th>
+                      {isEditing && <th className="py-2.5 w-16 text-right">Ações</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F2F7]">
@@ -2369,27 +2595,41 @@ function ClinicalChartsSection({
                         <td className="py-3 font-normal">{p.quantity}</td>
                         <td className="py-3 font-normal text-[#6E6E73]">{p.skuOrLot || "—"}</td>
                         <td className="py-3 font-normal text-[#6E6E73]">{p.expirationDate || "—"}</td>
-                        <td className="py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateChartById(activeChart.id, (c) => ({
-                                ...c,
-                                productsUsed: c.productsUsed.filter((item) => item.id !== p.id),
-                              }))
-                            }
-                            className="p-1 text-[#8E8E93] hover:text-[#1C1C1E] opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Remover produto"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
+                        {isEditing && (
+                          <td className="py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditProduct(p)}
+                                className="p-1.5 rounded text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                                title="Editar produto"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateChartById(activeChart.id, (c) => ({
+                                    ...c,
+                                    productsUsed: c.productsUsed.filter((item) => item.id !== p.id),
+                                  }))
+                                }
+                                className="p-1.5 rounded text-[#6E6E73] hover:text-rose-600 hover:bg-[#F5F5F7] transition-colors"
+                                title="Remover produto"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {activeChart.productsUsed.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-3 text-[12.5px] text-[#8E8E93]">
-                          Nenhum produto registrado. Clique abaixo para registrar insumo.
+                        <td colSpan={isEditing ? 5 : 4} className="py-3 text-[12.5px] text-[#8E8E93]">
+                          {isEditing
+                            ? "Nenhum produto registrado. Clique abaixo para registrar insumo."
+                            : "Nenhum produto registrado neste prontuário."}
                         </td>
                       </tr>
                     )}
@@ -2397,246 +2637,333 @@ function ClinicalChartsSection({
                 </table>
               </div>
 
-              {/* Add Product Inline Form / Button */}
-              {addingProductOpen ? (
-                <div className="rounded-[12px] border border-[#1C1C1E] bg-white p-4 space-y-3 mt-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-medium text-[#1C1C1E]">
-                      Adicionar produto utilizado
-                    </span>
+              {/* Add or Edit Product Inline Form / Button */}
+              {isEditing && (
+                <>
+                  {addingProductOpen ? (
+                    <div className="rounded-[12px] border border-[#1C1C1E] bg-white p-4 space-y-3 mt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                          {editingProductId ? "Editar produto utilizado" : "Adicionar produto utilizado"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCancelProductForm}
+                          className="text-[#8E8E93] hover:text-[#1C1C1E]"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                            Selecionar do estoque
+                          </label>
+                          <DropdownSelect
+                            value={selectedInventoryId}
+                            onChange={(val) => setSelectedInventoryId(val)}
+                            options={[
+                              ...state.inventory.map((inv) => ({
+                                value: inv.id,
+                                label: inv.name,
+                                sublabel: inv.sku,
+                              })),
+                              {
+                                value: "custom",
+                                label: "Outro produto / fórmula manual",
+                              },
+                            ]}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                            Units / Dosage
+                          </label>
+                          <input
+                            type="text"
+                            value={productQuantity}
+                            onChange={(e) => setProductQuantity(e.target.value)}
+                            placeholder="Ex.: 2, 30ml, 50g"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                          />
+                        </div>
+                      </div>
+
+                      {selectedInventoryId === "custom" && (
+                        <div>
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                            Product name
+                          </label>
+                          <input
+                            type="text"
+                            value={customProductName}
+                            onChange={(e) => setCustomProductName(e.target.value)}
+                            placeholder="Ex.: Colorante, Pigmento 8.31"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                          />
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                            Lot #
+                          </label>
+                          <input
+                            type="text"
+                            value={productLotSku}
+                            onChange={(e) => setProductLotSku(e.target.value)}
+                            placeholder="Ex.: LOTE-9942A"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                            Exp. date
+                          </label>
+                          <input
+                            type="text"
+                            value={productExpDate}
+                            onChange={(e) => setProductExpDate(e.target.value)}
+                            placeholder="Ex.: 12/2027"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                          Observações de aplicação (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={productNotes}
+                          onChange={(e) => setProductNotes(e.target.value)}
+                          placeholder="Ex.: Diluição 1:1.5 com oxidante 20v"
+                          className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleCancelProductForm}
+                          className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] text-[12px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmAddProduct}
+                          className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12px] font-medium transition-colors"
+                        >
+                          {editingProductId ? "Salvar alterações" : "Adicionar produto"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => setAddingProductOpen(false)}
-                      className="text-[#8E8E93] hover:text-[#1C1C1E]"
+                      onClick={handleOpenAddProduct}
+                      className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#1C1C1E] hover:underline pt-1"
                     >
-                      <X className="w-4 h-4" />
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Adicionar produto</span>
                     </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Selecionar do estoque
-                      </label>
-                      <DropdownSelect
-                        value={selectedInventoryId}
-                        onChange={(val) => setSelectedInventoryId(val)}
-                        options={[
-                          ...state.inventory.map((inv) => ({
-                            value: inv.id,
-                            label: inv.name,
-                            sublabel: inv.sku,
-                          })),
-                          {
-                            value: "custom",
-                            label: "Outro produto / fórmula manual",
-                          },
-                        ]}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Units / Dosage
-                      </label>
-                      <input
-                        type="text"
-                        value={productQuantity}
-                        onChange={(e) => setProductQuantity(e.target.value)}
-                        placeholder="Ex.: 2, 30ml, 50g"
-                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
-                      />
-                    </div>
-                  </div>
-
-                  {selectedInventoryId === "custom" && (
-                    <div>
-                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Product name
-                      </label>
-                      <input
-                        type="text"
-                        value={customProductName}
-                        onChange={(e) => setCustomProductName(e.target.value)}
-                        placeholder="Ex.: Colorante, Pigmento 8.31"
-                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
-                      />
-                    </div>
                   )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Lot #
-                      </label>
-                      <input
-                        type="text"
-                        value={productLotSku}
-                        onChange={(e) => setProductLotSku(e.target.value)}
-                        placeholder="Ex.: LOTE-9942A"
-                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                        Exp. date
-                      </label>
-                      <input
-                        type="text"
-                        value={productExpDate}
-                        onChange={(e) => setProductExpDate(e.target.value)}
-                        placeholder="Ex.: 12/2027"
-                        className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11.5px] text-[#6E6E73] mb-1">
-                      Observações de aplicação (opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={productNotes}
-                      onChange={(e) => setProductNotes(e.target.value)}
-                      placeholder="Ex.: Diluição 1:1.5 com oxidante 20v"
-                      className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E]"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setAddingProductOpen(false)}
-                      className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] text-[12px] font-medium text-[#1C1C1E]"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmAddProduct}
-                      className="px-4 py-1.5 rounded-full bg-[#1C1C1E] text-white text-[12px] font-medium"
-                    >
-                      Salvar produto
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAddingProductOpen(true)}
-                  className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#1C1C1E] hover:underline pt-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Adicionar produto</span>
-                </button>
+                </>
               )}
             </section>
 
-            {/* 4. TREATMENT NOTE (SOAP format matching screenshot) */}
+            {/* 4. TREATMENT NOTE (SOAP format) */}
             <section
               id="luvea-chart-treatment_note"
               onMouseEnter={() => setActiveAnchor("treatment_note")}
               className="space-y-4 scroll-mt-20"
             >
-              <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
-                Treatment note
-              </h2>
-
-              {/* SOAP note name */}
-              <div className="space-y-1">
-                <label className="block text-[12px] font-medium text-[#1C1C1E]">
-                  SOAP note name
-                </label>
-                <input
-                  type="text"
-                  value={activeChart.soapNoteName}
-                  onChange={(e) =>
-                    updateChartById(activeChart.id, (c) => ({
-                      ...c,
-                      soapNoteName: e.target.value,
-                    }))
-                  }
-                  placeholder="SOAP note"
-                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent"
-                />
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
+                    Treatment note
+                  </h2>
+                  <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                    Estrutura clínica padrão SOAP (Subjetivo, Objetivo, Avaliação e Plano)
+                  </p>
+                </div>
+                {isCompleted && (
+                  <span className="text-[11.5px] font-medium text-[#6E6E73] font-mono">
+                    {activeChart.soapNoteName || "SOAP note"}
+                  </span>
+                )}
               </div>
 
-              {/* Subjective */}
-              <div className="space-y-1">
-                <label className="block text-[12px] font-medium text-[#1C1C1E]">
-                  Subjective
-                </label>
-                <textarea
-                  rows={2}
-                  value={activeChart.subjective}
-                  onChange={(e) =>
-                    updateChartById(activeChart.id, (c) => ({
-                      ...c,
-                      subjective: e.target.value,
-                    }))
-                  }
-                  placeholder="dsadsadsadsadsa"
-                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
-                />
-              </div>
+              {isEditing ? (
+                <div className="space-y-4">
+                  {/* SOAP note name */}
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="soap-note-name-input"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                    >
+                      Nome da evolução clínica
+                    </label>
+                    <input
+                      id="soap-note-name-input"
+                      type="text"
+                      value={activeChart.soapNoteName}
+                      onChange={(e) =>
+                        updateChartById(activeChart.id, (c) => ({
+                          ...c,
+                          soapNoteName: e.target.value,
+                        }))
+                      }
+                      placeholder="SOAP note"
+                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white px-3.5 py-2 text-[13px] text-[#1C1C1E] transition-all"
+                    />
+                  </div>
 
-              {/* Objective */}
-              <div className="space-y-1">
-                <label className="block text-[12px] font-medium text-[#1C1C1E]">
-                  Objective
-                </label>
-                <textarea
-                  rows={2}
-                  value={activeChart.objective}
-                  onChange={(e) =>
-                    updateChartById(activeChart.id, (c) => ({
-                      ...c,
-                      objective: e.target.value,
-                    }))
-                  }
-                  placeholder="dsadskssodkssod"
-                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
-                />
-              </div>
+                  {/* Subjective */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="soap-subjective-input"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      >
+                        Subjective (Queixas e histórico relatado)
+                      </label>
+                      <span className="text-[11px] text-[#8E8E93]">Relato da cliente</span>
+                    </div>
+                    <textarea
+                      id="soap-subjective-input"
+                      rows={3}
+                      value={activeChart.subjective}
+                      onChange={(e) =>
+                        updateChartById(activeChart.id, (c) => ({
+                          ...c,
+                          subjective: e.target.value,
+                        }))
+                      }
+                      placeholder="Queixas relatadas pela cliente, histórico recente, hábitos de cuidado em casa..."
+                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                    />
+                  </div>
 
-              {/* Assessment */}
-              <div className="space-y-1">
-                <label className="block text-[12px] font-medium text-[#1C1C1E]">
-                  Assessment
-                </label>
-                <textarea
-                  rows={2}
-                  value={activeChart.assessment}
-                  onChange={(e) =>
-                    updateChartById(activeChart.id, (c) => ({
-                      ...c,
-                      assessment: e.target.value,
-                    }))
-                  }
-                  placeholder="Insira a avaliação clínica e resposta ao protocolo..."
-                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
-                />
-              </div>
+                  {/* Objective */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="soap-objective-input"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      >
+                        Objective (Achados do exame físico)
+                      </label>
+                      <span className="text-[11px] text-[#8E8E93]">Inspeção e testes</span>
+                    </div>
+                    <textarea
+                      id="soap-objective-input"
+                      rows={3}
+                      value={activeChart.objective}
+                      onChange={(e) =>
+                        updateChartById(activeChart.id, (c) => ({
+                          ...c,
+                          objective: e.target.value,
+                        }))
+                      }
+                      placeholder="Exame físico, teste de mecha, elasticidade capilar, sensibilidade de couro cabeludo..."
+                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                    />
+                  </div>
 
-              {/* Plan */}
-              <div className="space-y-1">
-                <label className="block text-[12px] font-medium text-[#1C1C1E]">
-                  Plan
-                </label>
-                <textarea
-                  rows={2}
-                  value={activeChart.plan}
-                  onChange={(e) =>
-                    updateChartById(activeChart.id, (c) => ({
-                      ...c,
-                      plan: e.target.value,
-                    }))
-                  }
-                  placeholder="Insira o plano de tratamento e data de retorno..."
-                  className="w-full text-[13px] text-[#1C1C1E] font-normal focus:outline-none bg-transparent resize-y"
-                />
-              </div>
+                  {/* Assessment */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="soap-assessment-input"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      >
+                        Assessment (Avaliação e diagnóstico)
+                      </label>
+                      <span className="text-[11px] text-[#8E8E93]">Diagnóstico profissional</span>
+                    </div>
+                    <textarea
+                      id="soap-assessment-input"
+                      rows={3}
+                      value={activeChart.assessment}
+                      onChange={(e) =>
+                        updateChartById(activeChart.id, (c) => ({
+                          ...c,
+                          assessment: e.target.value,
+                        }))
+                      }
+                      placeholder="Avaliação diagnóstica do estado dos fios/pele e resposta ao protocolo aplicado..."
+                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                    />
+                  </div>
+
+                  {/* Plan */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="soap-plan-input"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      >
+                        Plan (Plano terapêutico e orientações)
+                      </label>
+                      <span className="text-[11px] text-[#8E8E93]">Conduta e retorno</span>
+                    </div>
+                    <textarea
+                      id="soap-plan-input"
+                      rows={3}
+                      value={activeChart.plan}
+                      onChange={(e) =>
+                        updateChartById(activeChart.id, (c) => ({
+                          ...c,
+                          plan: e.target.value,
+                        }))
+                      }
+                      placeholder="Plano de tratamento, orientações de manutenção em casa, data de retorno recomendada..."
+                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                      Subjective
+                    </span>
+                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                      {activeChart.subjective || "Nenhum relato subjetivo registrado."}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                      Objective
+                    </span>
+                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                      {activeChart.objective || "Nenhum exame objetivo registrado."}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                      Assessment
+                    </span>
+                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                      {activeChart.assessment || "Nenhuma avaliação diagnóstica registrada."}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                      Plan
+                    </span>
+                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                      {activeChart.plan || "Nenhum plano terapêutico registrado."}
+                    </p>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
 
@@ -2676,12 +3003,14 @@ function ClinicalChartsSection({
                         v{activeChart.version}
                       </span>
                       {activeChart.status === "completed" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#EBF8EE] border border-[#D1F0D9] text-[#166534] text-[10.5px] font-medium">
-                          Completed
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                          <span>Completed</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-[#E5E5EA] text-[#6E6E73] text-[10.5px] font-medium">
-                          Em edição
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[11px] font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                          <span>Em edição</span>
                         </span>
                       )}
                     </div>
@@ -2863,7 +3192,7 @@ function ClinicalChartsSection({
                                 onClick={() => handleRestoreSnapshot(snap)}
                                 className="text-[11px] font-medium text-[#1C1C1E] hover:underline"
                               >
-                                Restaurar dados
+                                Restaurar como atual
                               </button>
                             </div>
                           </div>
@@ -3040,7 +3369,7 @@ function ClinicalChartsSection({
                   onClick={() => handleRestoreSnapshot(previewingSnapshot)}
                   className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-medium transition-colors"
                 >
-                  Restaurar para rascunho atual
+                  Restaurar como atual
                 </button>
               </div>
             </div>

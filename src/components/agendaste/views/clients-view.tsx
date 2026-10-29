@@ -734,6 +734,16 @@ export function ClientsView({
                   >
                     Salvar Notas e Ficha
                   </button>
+
+                  <div className="pt-2 border-t border-[#E5E5EA]">
+                    <a
+                      href={`/app?view=charts&clientId=${selectedClient.id}`}
+                      className="w-full py-2.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-medium text-[#1C1C1E] flex items-center justify-center gap-2 transition"
+                    >
+                      <FileText className="w-4 h-4 text-[#1C1C1E]" />
+                      <span>Ver Prontuário Clínico &amp; Versões</span>
+                    </a>
+                  </div>
                 </div>
               )}
 

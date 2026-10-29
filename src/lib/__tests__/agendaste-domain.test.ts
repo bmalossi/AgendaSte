@@ -1449,7 +1449,15 @@ describe("Ticket 09 — Prontuários Clínicos (Clinical Charts) & Histórico de
 
     const restored = state.clinicalCharts?.find((c) => c.id === stefanyChart.id);
     assert.ok(restored);
+    assert.ok(restored.history);
+    assert.equal(restored.version, 1);
+    assert.equal(restored.status, "completed");
     assert.equal(restored.productsUsed[0].quantity, "1");
+    // Verify previous version (v2) is now in history as superseded
+    assert.equal(restored.history.length, 1);
+    assert.equal(restored.history[0].version, 2);
+    assert.equal(restored.history[0].status, "superseded");
+    assert.ok(restored.history[0].amendReason?.includes("v1"));
   });
 });
 
