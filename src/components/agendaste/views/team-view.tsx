@@ -1054,308 +1054,122 @@ export function TeamView({
   }
 
   // ===========================================================================
-  // 2. COMMISSIONS (06-5-commissions.png)
+  // 2. COMMISSIONS (TRANCADO / EM BREVE)
   // ===========================================================================
   if (section === "team_commissions") {
-    // Dynamic calculation of total revenue booked this week from real calendar events + sales
-    const allEventsSumCents = state.calendarEvents
-      .filter((e) => e.status !== "canceled")
-      .reduce((sum, e) => sum + (e.totalCents || 0), 0);
-    const allSalesSumCents = state.salesHistory
-      .filter((s) => s.status !== "Reembolsado")
-      .reduce((sum, s) => sum + s.amountCents, 0);
-    const totalSalonBookedCents =
-      allEventsSumCents + allSalesSumCents > 0
-        ? allEventsSumCents + allSalesSumCents
-        : state.staff.reduce((acc, m) => acc + (m.bookedThisWeekCents || 0), 0);
-
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-        {/* Editorial Hero Card matching 06-5-commissions.png */}
-        <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
-          <div className="lg:col-span-7 space-y-4">
-            <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
-              Gerencie comissões com facilidade
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6">
+        {/* Top Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[26px] sm:text-[28px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+              Comissões
             </h1>
-            <p className="text-[15px] text-[#6E6E73] max-w-xl">
-              Configure estruturas de comissão por serviços e produtos para cada profissional e acompanhe metas semanais em tempo real.
-            </p>
-          </div>
-
-          {/* Dark Weekly Goal Card from 06-5-commissions.png */}
-          <div className="lg:col-span-5 bg-[#1C1C1E] text-white rounded-[22px] p-6 space-y-4 shadow-gg-card">
-            <div className="flex items-center justify-between text-[12px] text-[#A1A1AA]">
-              <span className="uppercase tracking-wider font-semibold">
-                Meta Semanal (Weekly Goal)
+            <div className="relative group inline-flex items-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 shadow-2xs select-none">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Em breve</span>
               </span>
-              <span className="font-mono text-white">R$ 6.250,00</span>
-            </div>
-            <div>
-              <p className="text-[28px] font-mono font-bold text-white">
-                {formatBRL(totalSalonBookedCents || 825000)}
-              </p>
-              <p className="text-[12px] text-emerald-400 font-medium">
-                Agendado nesta semana · 132% da meta atingida
-              </p>
-            </div>
-            <div className="w-full h-2.5 rounded-full bg-white/15 overflow-hidden">
-              <div className="h-full bg-[#E11D8F] w-full rounded-full" />
-            </div>
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[13px]">
-              <span className="text-[#A1A1AA]">Comissão acumulada</span>
-              <span className="font-mono font-bold text-white">
-                R$ 3.712,50
-              </span>
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -bottom-8 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                <span>Em breve</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Interactive Commission Policy Editor per Staff */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {state.staff.map((member) => {
-            const memberEvents = state.calendarEvents.filter(
-              (e) =>
-                (e.providerId === member.id ||
-                  e.providerName?.toLowerCase() ===
-                    member.fullName?.toLowerCase()) &&
-                e.status !== "canceled"
-            );
-            const eventsSumCents = memberEvents.reduce(
-              (acc, e) => acc + (e.totalCents || 0),
-              0
-            );
-            const memberSales = state.salesHistory.filter(
-              (s) => s.providerId === member.id && s.status !== "Reembolsado"
-            );
-            const salesSumCents = memberSales.reduce(
-              (acc, s) => acc + s.amountCents,
-              0
-            );
+        {/* Luxury Editorial Locked Card */}
+        <div className="bg-white dark:bg-[#18181b] rounded-[24px] border border-[#E5E5EA] dark:border-[#27272a] p-8 sm:p-14 text-center max-w-2xl mx-auto shadow-gg-card space-y-5 my-6">
+          <div className="w-14 h-14 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white flex items-center justify-center mx-auto shadow-2xs">
+            <Lock className="w-6 h-6 text-[#6E6E73] dark:text-[#a1a1aa]" />
+          </div>
 
-            // Dynamic sum: if calendar events exist, credit real bookings; avoids fake hardcoded numbers
-            const effectiveBookedCents =
-              eventsSumCents + salesSumCents > 0
-                ? eventsSumCents + salesSumCents
-                : state.calendarEvents.length > 0
-                ? 0
-                : member.bookedThisWeekCents || 0;
+          <div className="space-y-2 max-w-md mx-auto">
+            <h2 className="text-[20px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+              Módulo em aprimoramento
+            </h2>
+            <p className="text-[13.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+              Estamos redesenhando a gestão de regras e repasse de comissões por serviços e produtos para oferecer automação inteligente e total conformidade.
+            </p>
+          </div>
 
-            const pctGoal = Math.min(
-              100,
-              Math.round(
-                (effectiveBookedCents /
-                  Math.max(1, member.weeklyGoalCents)) *
-                  100
-              )
-            );
-            const earnedCommissionCents = Math.round(
-              effectiveBookedCents *
-                (member.serviceCommissionPercent / 100)
-            );
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FAF9F6] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#3f3f46] text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+            <Clock className="w-3.5 h-3.5 text-[#6E56CF] dark:text-[#A494F7]" />
+            <span>Disponível em atualizações futuras</span>
+          </div>
 
-            return (
-              <div
-                key={member.id}
-                className="bg-white rounded-[22px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4"
+          {onSelectSection && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onSelectSection("team_staff")}
+                className="px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-medium transition shadow-2xs active:scale-[0.98]"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-[#1C1C1E]"
-                      style={{ backgroundColor: member.avatarColor }}
-                    >
-                      {member.initials}
-                    </div>
-                    <div>
-                      <h3 className="text-[16px] font-bold text-[#1C1C1E]">
-                        {member.fullName}
-                      </h3>
-                      <p className="text-[12px] text-[#6E6E73]">{member.role}</p>
-                    </div>
-                  </div>
-                  <span className="font-mono text-[15px] font-bold text-[#6E56CF]">
-                    Comissão: {formatBRL(earnedCommissionCents)}
-                  </span>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="p-4 rounded-[16px] bg-[#FAFAFC] border border-[#EFEFF4] space-y-2">
-                  <div className="flex justify-between text-[12px]">
-                    <span className="text-[#6E6E73]">
-                      Agendado:{" "}
-                      <strong>{formatBRL(effectiveBookedCents)}</strong>
-                    </span>
-                    <span className="text-[#6E6E73]">
-                      Meta: <strong>{formatBRL(member.weeklyGoalCents)}</strong> (
-                      {pctGoal}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-[#E5E5EA] overflow-hidden">
-                    <div
-                      className="h-full bg-[#6E56CF] rounded-full transition-all"
-                      style={{ width: `${pctGoal}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[#6E6E73] mb-1">
-                      % Comissão Serviços
-                    </label>
-                    <input
-                      type="number"
-                      value={member.serviceCommissionPercent}
-                      onChange={(e) => {
-                        const val = Math.min(
-                          100,
-                          Math.max(0, parseInt(e.target.value || "0", 10))
-                        );
-                        onUpdateState((prev) => ({
-                          ...prev,
-                          staff: prev.staff.map((s) =>
-                            s.id === member.id
-                              ? { ...s, serviceCommissionPercent: val }
-                              : s
-                          ),
-                        }));
-                      }}
-                      className="w-full px-3.5 py-2 rounded-[12px] border border-[#E5E5EA] text-[14px] font-mono font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[#6E6E73] mb-1">
-                      % Comissão Produtos (Retail)
-                    </label>
-                    <input
-                      type="number"
-                      value={member.productCommissionPercent}
-                      onChange={(e) => {
-                        const val = Math.min(
-                          100,
-                          Math.max(0, parseInt(e.target.value || "0", 10))
-                        );
-                        onUpdateState((prev) => ({
-                          ...prev,
-                          staff: prev.staff.map((s) =>
-                            s.id === member.id
-                              ? { ...s, productCommissionPercent: val }
-                              : s
-                          ),
-                        }));
-                      }}
-                      className="w-full px-3.5 py-2 rounded-[12px] border border-[#E5E5EA] text-[14px] font-mono font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                Voltar para Profissionais
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   // ===========================================================================
-  // 3. PAYROLL / FECHAMENTO DE REPASSE (06-5-payroll.png)
+  // 3. PAYROLL / FECHAMENTO DE REPASSE (TRANCADO / EM BREVE)
   // ===========================================================================
   if (section === "team_payroll") {
-    const payrollRows = calculatePayrollSummary(state);
-    const totalPayrollCents = payrollRows.reduce(
-      (sum, r) => sum + r.totalPayoutCents,
-      0
-    );
-
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-        {/* Editorial Hero matching 06-5-payroll.png */}
-        <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
-          <div className="lg:col-span-7 space-y-4">
-            <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
-              Pague sua equipe em minutos, não em horas
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6">
+        {/* Top Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[26px] sm:text-[28px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+              Folha de pagamento
             </h1>
-            <p className="text-[15px] text-[#6E6E73] max-w-xl">
-              Cálculo automático de repasses (Lei do Salão-Parceiro / MEI), somando comissões de serviços, venda de produtos, gorjetas e horas do ponto.
-            </p>
-            <button
-              onClick={() =>
-                onUpdateState((prev) => ({
-                  ...prev,
-                  lastToastMessage: `Fechamento de repasse Pix (${formatBRL(
-                    totalPayrollCents
-                  )}) processado para ${payrollRows.length} profissionais!`,
-                }))
-              }
-              className="px-6 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[14px] font-semibold transition"
-            >
-              Rodar fechamento de repasse (Run payroll)
-            </button>
-          </div>
-
-          {/* Right Mockup Card from 06-5-payroll.png */}
-          <div className="lg:col-span-5 bg-white rounded-[20px] p-6 border border-[#E5E5EA] shadow-gg-card space-y-3">
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#6E6E73]">
-              Total líquido a repassar
-            </span>
-            <p className="text-[32px] font-mono font-bold text-[#1C1C1E]">
-              {formatBRL(totalPayrollCents)}
-            </p>
-            <p className="text-[12px] text-zinc-600 font-medium">
-              Conciliado automaticamente com o Histórico de Vendas &amp; Ponto
-            </p>
+            <div className="relative group inline-flex items-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 shadow-2xs select-none">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Em breve</span>
+              </span>
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -bottom-8 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                <span>Em breve</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Payroll Breakdown Table */}
-        <div className="bg-white rounded-[20px] border border-[#E5E5EA] shadow-gg-card overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#EFEFF4] flex items-center justify-between">
-            <h2 className="text-[16px] font-bold text-[#1C1C1E]">
-              Demonstrativo de Repasse por Profissional
+        {/* Luxury Editorial Locked Card */}
+        <div className="bg-white dark:bg-[#18181b] rounded-[24px] border border-[#E5E5EA] dark:border-[#27272a] p-8 sm:p-14 text-center max-w-2xl mx-auto shadow-gg-card space-y-5 my-6">
+          <div className="w-14 h-14 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white flex items-center justify-center mx-auto shadow-2xs">
+            <Lock className="w-6 h-6 text-[#6E6E73] dark:text-[#a1a1aa]" />
+          </div>
+
+          <div className="space-y-2 max-w-md mx-auto">
+            <h2 className="text-[20px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+              Módulo em aprimoramento
             </h2>
+            <p className="text-[13.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+              O módulo de fechamento de repasses, holerites e cálculos de folha de pagamento está sendo otimizado para proporcionar uma gestão financeira fluida e precisa.
+            </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-[#EFEFF4] text-[12px] font-semibold text-[#8E8E93]">
-                  <th className="py-3.5 px-5">Profissional</th>
-                  <th className="py-3.5 px-5">Volume Bruto</th>
-                  <th className="py-3.5 px-5">Comissão Serviços</th>
-                  <th className="py-3.5 px-5">Comissão Produtos</th>
-                  <th className="py-3.5 px-5">Gorjetas</th>
-                  <th className="py-3.5 px-5">Horas no Ponto</th>
-                  <th className="py-3.5 px-5 text-right">Repasse Líquido</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px]">
-                {payrollRows.map((row) => (
-                  <tr key={row.staffId} className="hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60">
-                    <td className="py-4 px-5 font-bold text-[#1C1C1E]">
-                      {row.staffName}
-                      <span className="block text-[11px] font-normal text-[#6E6E73]">
-                        {row.role}
-                      </span>
-                    </td>
-                    <td className="py-4 px-5 font-mono">
-                      {formatBRL(row.bookedCents)}
-                    </td>
-                    <td className="py-4 px-5 font-mono text-[#1C1C1E]">
-                      {formatBRL(row.serviceCommissionCents)}
-                    </td>
-                    <td className="py-4 px-5 font-mono text-[#1C1C1E]">
-                      {formatBRL(row.productCommissionCents)}
-                    </td>
-                    <td className="py-4 px-5 font-mono text-[#16A34A]">
-                      {formatBRL(row.tipsCents)}
-                    </td>
-                    <td className="py-4 px-5 font-mono">{row.loggedHours}h</td>
-                    <td className="py-4 px-5 text-right font-mono font-bold text-[#6E56CF] text-[15px]">
-                      {formatBRL(row.totalPayoutCents)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FAF9F6] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#3f3f46] text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+            <Clock className="w-3.5 h-3.5 text-[#6E56CF] dark:text-[#A494F7]" />
+            <span>Disponível em atualizações futuras</span>
           </div>
+
+          {onSelectSection && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onSelectSection("team_staff")}
+                className="px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-medium transition shadow-2xs active:scale-[0.98]"
+              >
+                Voltar para Profissionais
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
