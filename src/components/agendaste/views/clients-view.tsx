@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -27,6 +27,7 @@ import {
 import {
   StudioState,
   ClientProfile,
+  CalendarEventItem,
   formatBRL,
   formatDateBR,
   createClientProfile,
@@ -40,6 +41,8 @@ import {
   deleteCalendarEvent,
   importStudioMigrationData,
   generateUuid,
+  getTodayDateISO,
+  partitionClientAppointments,
 } from "@/lib/agendaste-store";
 
 interface ClientsViewProps {
@@ -84,8 +87,9 @@ export function ClientsView({
   const [newAnamnesis, setNewAnamnesis] = useState("");
 
   // Selected client object
-  const selectedClient: ClientProfile | undefined = state.clients.find(
-    (c) => c.id === selectedClientId
+  const selectedClient: ClientProfile | undefined = useMemo(
+    () => state.clients.find((c) => c.id === selectedClientId),
+    [state.clients, selectedClientId]
   );
 
   // Notes editing state synced with selected client
@@ -111,6 +115,15 @@ export function ClientsView({
     notes?: string;
   } | null>(null);
 
+  // Editorial Confirmation Modal state (Anti-AI Slop)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   const handleSelectClient = (client: ClientProfile) => {
     setSelectedClientId(client.id);
     setAnamnesisDraft(client.notesAndForms.anamnesis);
@@ -124,17 +137,15 @@ export function ClientsView({
     }
   };
 
-  const filteredClients = filterClientsByRetention(
-    state,
-    retentionFilter,
-    searchQuery
+  const filteredClients = useMemo(
+    () => filterClientsByRetention(state, retentionFilter, searchQuery),
+    [state.clients, retentionFilter, searchQuery]
   );
 
-  const absentCount = filterClientsByRetention(
-    state,
-    "absent_30_45",
-    ""
-  ).length;
+  const absentCount = useMemo(
+    () => filterClientsByRetention(state, "absent_30_45", "").length,
+    [state.clients]
+  );
 
   const handleCreateClient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,12 +170,23 @@ export function ClientsView({
     setNewAnamnesis("");
   };
 
-  const clientAppointments = state.calendarEvents.filter(
-    (e) =>
-      selectedClient &&
-      (e.clientId === selectedClient.id ||
-        e.clientName.toLowerCase() === selectedClient.fullName.toLowerCase())
-  );
+  const todayISO = useMemo(() => getTodayDateISO(), []);
+
+  const {
+    upcoming: upcomingAppointments,
+    past: pastAppointments,
+    canceled: canceledAppointments,
+    total: clientAppointmentsTotal,
+  } = useMemo(() => {
+    if (!selectedClient) {
+      return { upcoming: [], past: [], canceled: [], total: 0 };
+    }
+    return partitionClientAppointments(
+      state.calendarEvents,
+      selectedClient,
+      todayISO
+    );
+  }, [state.calendarEvents, selectedClient, todayISO]);
 
   return (
     <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
@@ -179,7 +201,7 @@ export function ClientsView({
           </h1>
           <button
             onClick={() => setShowEditorialHero((v) => !v)}
-            className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] bg-white text-[#1C1C1E] text-[12px] font-semibold hover:bg-[#F5F5F7] transition"
+            className="min-h-[44px] sm:min-h-[36px] px-3.5 py-2 inline-flex items-center justify-center rounded-full border border-[#E5E5EA] bg-white text-[#1C1C1E] text-[12px] font-semibold hover:bg-[#F5F5F7] transition active:scale-[0.98]"
           >
             {showEditorialHero
               ? "Ocultar Apresentação Editorial"
@@ -195,7 +217,7 @@ export function ClientsView({
                 lastToastMessage: `Diretório de ${prev.clients.length} clientes exportado em CSV!`,
               }))
             }
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[#E5E5EA] bg-white hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition"
+            className="min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-[#E5E5EA] bg-white hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition active:scale-[0.98]"
           >
             <span>Exportar clientes</span>
           </button>
@@ -209,14 +231,14 @@ export function ClientsView({
                 })
               )
             }
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[#E5E5EA] bg-white hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition"
+            className="min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-[#E5E5EA] bg-white hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition active:scale-[0.98]"
           >
             <Upload className="w-4 h-4" />
             <span>Importar</span>
           </button>
           <button
             onClick={() => setAddClientModalOpen(true)}
-            className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition"
+            className="min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition active:scale-[0.98]"
           >
             <Plus className="w-4 h-4" />
             <span>Adicionar cliente</span>
@@ -287,20 +309,25 @@ export function ClientsView({
       {/* Search + Retention Filter Strip */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="relative flex-1 min-w-[260px] max-w-md">
-          <Search className="w-4 h-4 text-[#8E8E93] absolute left-4 top-1/2 -translate-y-1/2" />
+          <label htmlFor="clients-search-input" className="sr-only">
+            Buscar cliente por nome, telefone ou e-mail
+          </label>
+          <Search className="w-4 h-4 text-[#8E8E93] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
+            id="clients-search-input"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar cliente por nome, telefone ou e-mail..."
-            className="w-full pl-11 pr-4 py-2.5 rounded-full border border-[#E5E5EA] bg-white text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#6E56CF]"
+            aria-label="Buscar cliente por nome, telefone ou e-mail"
+            className="w-full pl-11 pr-4 py-2.5 min-h-[44px] rounded-full border border-[#E5E5EA] bg-white text-[14px] sm:text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#6E56CF] focus:ring-2 focus:ring-[#6E56CF]/20 transition"
           />
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setRetentionFilter("all")}
-            className={`px-4 py-2 rounded-full text-[12px] font-semibold transition ${
+            className={`min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center justify-center rounded-full text-[12.5px] sm:text-[12px] font-semibold transition active:scale-[0.98] ${
               retentionFilter === "all"
                 ? "bg-[#1C1C1E] text-white"
                 : "bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1C1C1E]"
@@ -310,7 +337,7 @@ export function ClientsView({
           </button>
           <button
             onClick={() => setRetentionFilter("absent_30_45")}
-            className={`px-4 py-2 rounded-full text-[12px] font-semibold transition flex items-center gap-1.5 ${
+            className={`min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center justify-center gap-1.5 rounded-full text-[12.5px] sm:text-[12px] font-semibold transition active:scale-[0.98] ${
               retentionFilter === "absent_30_45"
                 ? "bg-[#E11D8F] text-white shadow-sm"
                 : "bg-white border border-[#E5E5EA] text-[#1C1C1E] hover:bg-[#F5F5F7]"
@@ -320,7 +347,7 @@ export function ClientsView({
           </button>
           <button
             onClick={() => setRetentionFilter("vip")}
-            className={`px-4 py-2 rounded-full text-[12px] font-semibold transition ${
+            className={`min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center justify-center rounded-full text-[12.5px] sm:text-[12px] font-semibold transition active:scale-[0.98] ${
               retentionFilter === "vip"
                 ? "bg-[#1C1C1E] text-white shadow-sm"
                 : "bg-white border border-[#E5E5EA] text-[#1C1C1E] hover:bg-[#F5F5F7]"
@@ -340,86 +367,115 @@ export function ClientsView({
           } bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-card overflow-hidden`}
         >
           <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
-            {filteredClients.map((client) => {
-              const isSelected = selectedClient?.id === client.id;
-              const initials = client.fullName
-                .split(" ")
-                .map((p) => p[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase();
-              const isAbsentAlert = (client.daysSinceLastVisit ?? 0) >= 30;
-
-              return (
-                <div
-                  key={client.id}
-                  onClick={() => handleSelectClient(client)}
-                  className={`p-4 px-5 flex items-center justify-between gap-4 cursor-pointer transition ${
-                    isSelected ? "bg-[#F5F3FF] dark:bg-[#27272a]" : "hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60"
-                  }`}
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold text-zinc-950 dark:text-zinc-950 shrink-0"
-                      style={{ backgroundColor: client.avatarColor }}
-                    >
-                      {initials}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[15px] font-bold text-[#1C1C1E] truncate">
-                          {client.fullName}
-                        </p>
-                        {isAbsentAlert && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-[#D97706] text-white text-[10px] font-bold shadow-sm">
-                            Ausente há {client.daysSinceLastVisit}d · Reativar
-                          </span>
-                        )}
-                        {client.memberships.length > 0 && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-[#E11D8F] text-white text-[10px] font-bold shadow-sm">
-                            Assinante VIP
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[12px] text-[#6E6E73] truncate">
-                        {client.phone} · {client.email}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      type="button"
-                      title="Adição rápida de foto Antes & Depois"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectClient(client);
-                        setActiveTab("photos");
-                        onUpdateState((prev) =>
-                          uploadAutoSortedClientPhoto(prev, client.id, {
-                            photoUrl:
-                              "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80",
-                            beforeLabel: "Antes",
-                            afterLabel: "Depois",
-                          })
-                        );
-                      }}
-                      className="w-8 h-8 rounded-full border border-[#E5E5EA] hover:bg-[#1C1C1E] hover:text-white flex items-center justify-center text-[#6E6E73] transition"
-                    >
-                      <Camera className="w-4 h-4" />
-                    </button>
-                    <div className="text-right">
-                      <p className="text-[14px] font-mono font-bold text-[#1C1C1E]">
-                        {formatBRL(client.totalSpentCents)}
-                      </p>
-                      <p className="text-[11px] text-[#8E8E93]">
-                        {client.visitsCount} visita(s)
-                      </p>
-                    </div>
-                  </div>
+            {filteredClients.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#6E6E73] dark:text-[#a1a1aa] mx-auto flex items-center justify-center shadow-2xs">
+                  <Search className="w-5 h-5 stroke-[1.75]" />
                 </div>
-              );
-            })}
+                <p className="text-[14px] font-bold text-[#1C1C1E] dark:text-white">
+                  Nenhum cliente encontrado
+                </p>
+                <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                  Tente alterar os termos da busca ou os filtros de retenção.
+                </p>
+              </div>
+            ) : (
+              filteredClients.map((client) => {
+                const isSelected = selectedClient?.id === client.id;
+                const initials = client.fullName
+                  .split(" ")
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+                const isAbsentAlert = (client.daysSinceLastVisit ?? 0) >= 30;
+
+                return (
+                  <div
+                    key={client.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSelectClient(client)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleSelectClient(client);
+                      }
+                    }}
+                    aria-pressed={isSelected}
+                    aria-label={`Selecionar cliente ${client.fullName}`}
+                    className={`p-4 px-5 flex items-center justify-between gap-4 cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E56CF] focus-visible:ring-inset ${
+                      isSelected
+                        ? "bg-[#F5F3FF] dark:bg-[#27272a]"
+                        : "hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div
+                        className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold text-zinc-950 dark:text-zinc-950 shrink-0"
+                        style={{ backgroundColor: client.avatarColor }}
+                      >
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-[15px] font-bold text-[#1C1C1E] dark:text-white truncate">
+                            {client.fullName}
+                          </p>
+                          {isAbsentAlert && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-zinc-200 text-[10.5px] font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                              Ausente há {client.daysSinceLastVisit}d
+                            </span>
+                          )}
+                          {client.memberships.length > 0 && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-zinc-200 text-[10.5px] font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#6E56CF] ring-2 ring-[#6E56CF]/20" />
+                              VIP
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] truncate">
+                          {client.phone} · {client.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        type="button"
+                        title="Adição rápida de foto Antes & Depois"
+                        aria-label={`Adicionar foto rápida para ${client.fullName}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectClient(client);
+                          setActiveTab("photos");
+                          onUpdateState((prev) =>
+                            uploadAutoSortedClientPhoto(prev, client.id, {
+                              photoUrl:
+                                "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80",
+                              beforeLabel: "Antes",
+                              afterLabel: "Depois",
+                            })
+                          );
+                        }}
+                        className="w-10 h-10 sm:w-8 sm:h-8 min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 rounded-full border border-[#E5E5EA] dark:border-[#3F3F46] hover:bg-[#1C1C1E] hover:text-white dark:hover:bg-white dark:hover:text-[#18181b] flex items-center justify-center text-[#6E6E73] dark:text-zinc-400 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E56CF]"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                      <div className="text-right">
+                        <p className="text-[14px] font-mono font-bold text-[#1C1C1E] dark:text-white">
+                          {formatBRL(client.totalSpentCents)}
+                        </p>
+                        <p className="text-[11px] text-[#8E8E93] dark:text-[#71717a]">
+                          {client.visitsCount} visita(s)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -451,19 +507,20 @@ export function ClientsView({
                     onClick={() =>
                       onNavigateToCalendarWithClient?.(selectedClient.id)
                     }
-                    className="px-3.5 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12px] font-semibold transition"
+                    className="min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center justify-center rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-semibold transition active:scale-[0.98]"
                   >
                     Agendar horário
                   </button>
                   <button
                     onClick={() => onOpenQuickSale?.()}
-                    className="px-3.5 py-2 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12px] font-semibold transition"
+                    className="min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center justify-center rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-semibold transition active:scale-[0.98]"
                   >
                     Venda rápida
                   </button>
                   <button
                     onClick={() => setSelectedClientId(null)}
-                    className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E]"
+                    aria-label="Fechar perfil do cliente"
+                    className="w-11 h-11 sm:w-9 sm:h-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] transition active:scale-95"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -487,10 +544,14 @@ export function ClientsView({
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                <span className="text-[13px] font-medium text-[#1C1C1E]">
+                <span id="automatic-reminders-label" className="text-[13px] font-medium text-[#1C1C1E] dark:text-white">
                   Enviar lembretes automáticos (WhatsApp 24h/2h e SMS)
                 </span>
                 <button
+                  type="button"
+                  role="switch"
+                  aria-checked={Boolean(selectedClient.sendAutomaticReminders)}
+                  aria-labelledby="automatic-reminders-label"
                   onClick={() =>
                     onUpdateState((prev) => ({
                       ...prev,
@@ -504,10 +565,10 @@ export function ClientsView({
                       ),
                     }))
                   }
-                  className={`w-11 h-6 rounded-full transition p-0.5 ${
+                  className={`w-11 h-6 rounded-full transition p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E56CF] focus-visible:ring-offset-2 ${
                     selectedClient.sendAutomaticReminders
                       ? "bg-[#6E56CF]"
-                      : "bg-[#D1D1D6]"
+                      : "bg-[#D1D1D6] dark:bg-[#3F3F46]"
                   }`}
                 >
                   <div
@@ -555,7 +616,7 @@ export function ClientsView({
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`py-2.5 px-1 rounded-[12px] flex flex-col items-center gap-1 text-[11px] font-semibold transition ${
+                      className={`min-h-[50px] py-2 px-1 rounded-[12px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition active:scale-[0.98] ${
                         active
                           ? "bg-[#1C1C1E] text-white shadow-sm"
                           : "text-[#6E6E73] hover:bg-[#F5F5F7]"
@@ -572,110 +633,186 @@ export function ClientsView({
             {/* Tab Content Area */}
             <div className="p-6 space-y-4 max-h-[520px] overflow-y-auto">
               {/* TAB 1: APPOINTMENTS with Próximos | Cancelados | Anteriores sub-tabs */}
-              {activeTab === "appointments" && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      {[
-                        { id: "upcoming" as const, label: "Próximos" },
-                        { id: "canceled" as const, label: "Cancelados" },
-                        { id: "past" as const, label: "Anteriores" },
-                      ].map((st) => (
-                        <button
-                          key={st.id}
-                          onClick={() => setAppointmentsSubTab(st.id)}
-                          className={`px-3 py-1 rounded-full text-[11px] font-semibold transition ${
-                            appointmentsSubTab === st.id
-                              ? "bg-[#1C1C1E] text-white"
-                              : "bg-[#F5F5F7] text-[#6E6E73]"
-                          }`}
-                        >
-                          {st.label}
-                        </button>
-                      ))}
-                    </div>
-                    <span className="text-[12px] text-[#6E6E73]">
-                      {clientAppointments.length} registro(s)
-                    </span>
-                  </div>
+              {activeTab === "appointments" && (() => {
+                const subTabsConfig = [
+                  {
+                    id: "upcoming" as const,
+                    label: "Próximos",
+                    count: upcomingAppointments.length,
+                  },
+                  {
+                    id: "canceled" as const,
+                    label: "Cancelados",
+                    count: canceledAppointments.length,
+                  },
+                  {
+                    id: "past" as const,
+                    label: "Anteriores",
+                    count: pastAppointments.length,
+                  },
+                ];
 
-                  {clientAppointments.filter((ev) =>
-                    appointmentsSubTab === "canceled"
-                      ? ev.status === "canceled"
-                      : appointmentsSubTab === "past"
-                        ? ev.status === "completed"
-                        : ev.status !== "canceled"
-                  ).length === 0 ? (
-                    <div className="p-8 rounded-[18px] bg-[#F5F5F7] border border-[#E5E5EA] text-center space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center shadow-2xs">
-                        <Calendar className="w-5 h-5 stroke-[1.75]" />
-                      </div>
-                      <p className="text-[14px] font-bold text-[#1C1C1E]">
-                        Nenhum agendamento nesta aba
-                      </p>
-                      <p className="text-[12px] text-[#6E6E73]">
-                        Agende o atendimento de {selectedClient.fullName} em 1 toque.
-                      </p>
-                      <button
-                        onClick={() =>
-                          onNavigateToCalendarWithClient?.(selectedClient.id)
-                        }
-                        className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold"
-                      >
-                        Criar agendamento
-                      </button>
-                    </div>
-                  ) : (
-                    clientAppointments
-                      .filter((ev) =>
-                        appointmentsSubTab === "canceled"
-                          ? ev.status === "canceled"
-                          : appointmentsSubTab === "past"
-                            ? ev.status === "completed"
-                            : ev.status !== "canceled"
-                      )
-                      .map((ev) => (
-                        <div
-                          key={ev.id}
-                          className="p-4 rounded-[16px] border border-[#E5E5EA] flex items-center justify-between gap-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[13px] font-bold text-[#1C1C1E] truncate">
-                              {ev.serviceNames.join(" + ")}
-                            </p>
-                            <p className="text-[12px] text-[#6E6E73] mt-0.5">
-                              {formatDateBR(ev.dateISO)} · {ev.startTime} – {ev.endTime}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2.5 shrink-0">
-                            <span className="font-mono text-[13px] font-bold text-[#1C1C1E]">
-                              {formatBRL(ev.totalCents)}
-                            </span>
+                const currentList =
+                  appointmentsSubTab === "upcoming"
+                    ? upcomingAppointments
+                    : appointmentsSubTab === "canceled"
+                      ? canceledAppointments
+                      : pastAppointments;
+
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {subTabsConfig.map((st) => {
+                          const active = appointmentsSubTab === st.id;
+                          return (
                             <button
+                              key={st.id}
                               type="button"
-                              onClick={() => {
-                                if (
-                                  confirm(
-                                    `Deseja realmente excluir o agendamento de ${ev.clientName} (${formatDateBR(ev.dateISO)} às ${ev.startTime})?`
-                                  )
-                                ) {
-                                  onUpdateState((prev) =>
-                                    deleteCalendarEvent(prev, ev.id, "delete").state
-                                  );
-                                }
-                              }}
-                              title="Excluir agendamento"
-                              aria-label="Excluir agendamento"
-                              className="w-7 h-7 rounded-full border border-transparent hover:border-[#E5E5EA] hover:bg-rose-50 text-[#8E8E93] hover:text-rose-600 flex items-center justify-center transition"
+                              onClick={() => setAppointmentsSubTab(st.id)}
+                              className={`min-h-[40px] sm:min-h-[34px] px-3.5 py-2 inline-flex items-center gap-1.5 rounded-full text-[12px] sm:text-[11px] font-semibold transition active:scale-[0.98] ${
+                                active
+                                  ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-2xs"
+                                  : "bg-[#F5F5F7] dark:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                              }`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{st.label}</span>
+                              <span
+                                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                  active
+                                    ? "bg-white/20 text-white dark:bg-black/15 dark:text-[#18181b]"
+                                    : "bg-black/5 dark:bg-white/10 text-[#6E6E73] dark:text-[#a1a1aa]"
+                                }`}
+                              >
+                                {st.count}
+                              </span>
                             </button>
-                          </div>
+                          );
+                        })}
+                      </div>
+                      <span className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium">
+                        {currentList.length}{" "}
+                        {currentList.length === 1 ? "registro" : "registros"}
+                      </span>
+                    </div>
+
+                    {currentList.length === 0 ? (
+                      <div className="p-8 rounded-[18px] bg-[#F5F5F7] dark:bg-[#27272a]/50 border border-[#E5E5EA] dark:border-[#27272a] text-center space-y-3">
+                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white mx-auto flex items-center justify-center shadow-2xs">
+                          <Calendar className="w-5 h-5 stroke-[1.75]" />
                         </div>
-                      ))
-                  )}
-                </div>
-              )}
+                        <p className="text-[14px] font-bold text-[#1C1C1E] dark:text-white">
+                          {appointmentsSubTab === "upcoming"
+                            ? "Nenhum agendamento futuro"
+                            : appointmentsSubTab === "canceled"
+                              ? "Nenhum agendamento cancelado"
+                              : "Nenhum agendamento anterior"}
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-xs mx-auto">
+                          {appointmentsSubTab === "upcoming"
+                            ? `Agende o próximo atendimento de ${selectedClient.fullName} em 1 toque.`
+                            : appointmentsSubTab === "canceled"
+                              ? `Não há registros de cancelamento para ${selectedClient.fullName}.`
+                              : `O histórico de atendimentos anteriores de ${selectedClient.fullName} aparecerá aqui.`}
+                        </p>
+                        {appointmentsSubTab === "upcoming" && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onNavigateToCalendarWithClient?.(selectedClient.id)
+                            }
+                            className="min-h-[44px] sm:min-h-[38px] px-5 py-2.5 inline-flex items-center justify-center rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-semibold hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition active:scale-[0.98]"
+                          >
+                            Criar agendamento
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      currentList.map((ev) => {
+                        const isToday = ev.dateISO === todayISO;
+                        const isCanceled = ev.status === "canceled";
+                        const isCompleted = ev.status === "completed";
+
+                        return (
+                          <div
+                            key={ev.id}
+                            className={`p-4 rounded-[16px] border flex items-center justify-between gap-3 transition ${
+                              isCanceled
+                                ? "border-red-100 dark:border-red-900/30 bg-red-50/25 dark:bg-red-950/10"
+                                : isToday
+                                  ? "border-purple-200 dark:border-purple-900/40 bg-purple-50/20 dark:bg-purple-950/10"
+                                  : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]"
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p
+                                  className={`text-[13px] font-bold truncate ${
+                                    isCanceled
+                                      ? "text-[#6E6E73] dark:text-[#a1a1aa] line-through"
+                                      : "text-[#1C1C1E] dark:text-white"
+                                  }`}
+                                >
+                                  {ev.serviceNames.join(" + ")}
+                                </p>
+                                {isToday && !isCanceled && !isCompleted && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white text-[10.5px] font-medium">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#6E56CF] ring-2 ring-[#6E56CF]/20" />
+                                    Hoje
+                                  </span>
+                                )}
+                                {isCompleted && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white text-[10.5px] font-medium">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                                    Concluído
+                                  </span>
+                                )}
+                                {isCanceled && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#6E6E73] dark:text-[#a1a1aa] text-[10.5px] font-medium">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 ring-2 ring-zinc-400/20" />
+                                    Cancelado
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                                {formatDateBR(ev.dateISO)} · {ev.startTime} – {ev.endTime}
+                                {ev.providerName ? ` · com ${ev.providerName}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <span className="font-mono text-[13px] font-bold text-[#1C1C1E] dark:text-white">
+                                {formatBRL(ev.totalCents)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmModal({
+                                    isOpen: true,
+                                    title: "Excluir agendamento",
+                                    description: `Deseja realmente excluir o agendamento de ${ev.clientName} (${formatDateBR(ev.dateISO)} às ${ev.startTime})?`,
+                                    confirmLabel: "Excluir agendamento",
+                                    onConfirm: () => {
+                                      onUpdateState((prev) =>
+                                        deleteCalendarEvent(prev, ev.id, "delete").state
+                                      );
+                                      setConfirmModal(null);
+                                    },
+                                  });
+                                }}
+                                title="Excluir agendamento"
+                                aria-label="Excluir agendamento"
+                                className="w-10 h-10 sm:w-8 sm:h-8 min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 rounded-full border border-transparent hover:border-[#E5E5EA] dark:hover:border-[#3F3F46] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white flex items-center justify-center transition active:scale-95"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* TAB 2: NOTES & FORMS (05-3-notes.png) */}
               {activeTab === "notes" && (
@@ -684,39 +821,51 @@ export function ClientsView({
                     Notas de Atendimento &amp; Ficha de Anamnese
                   </h3>
                   <div>
-                    <label className="block text-[11px] font-semibold uppercase text-[#8E8E93] mb-1">
+                    <label
+                      htmlFor="notes-anamnesis-input"
+                      className="block text-[11px] font-semibold uppercase text-[#8E8E93] mb-1"
+                    >
                       Anamnese &amp; Histórico Clínico/Capilar
                     </label>
                     <textarea
+                      id="notes-anamnesis-input"
                       rows={2}
                       value={anamnesisDraft}
                       onChange={(e) => setAnamnesisDraft(e.target.value)}
                       placeholder="Ex: Fios descoloridos há 4 meses, boa elasticidade..."
-                      className="w-full p-3 rounded-[12px] border border-[#E5E5EA] text-[13px]"
+                      className="w-full p-3 rounded-[12px] border border-[#E5E5EA] text-[13px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold uppercase text-[#8E8E93] mb-1">
+                    <label
+                      htmlFor="notes-allergies-input"
+                      className="block text-[11px] font-semibold uppercase text-[#8E8E93] mb-1"
+                    >
                       Alergias / Restrições
                     </label>
                     <input
+                      id="notes-allergies-input"
                       type="text"
                       value={allergiesDraft}
                       onChange={(e) => setAllergiesDraft(e.target.value)}
                       placeholder="Ex: Sensibilidade a amônia..."
-                      className="w-full p-3 rounded-[12px] border border-[#E5E5EA] text-[13px]"
+                      className="w-full p-3 rounded-[12px] border border-[#E5E5EA] text-[13px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold uppercase text-[#8E8E93] mb-1">
+                    <label
+                      htmlFor="notes-formulas-input"
+                      className="block text-[11px] font-semibold uppercase text-[#8E8E93] mb-1"
+                    >
                       Fórmulas &amp; Preferências Pessoais
                     </label>
                     <textarea
+                      id="notes-formulas-input"
                       rows={2}
                       value={formulasDraft}
                       onChange={(e) => setFormulasDraft(e.target.value)}
                       placeholder="Ex: Tonalizante 9.89 + OX 6 vol · Gosta de cappuccino..."
-                      className="w-full p-3 rounded-[12px] border border-[#E5E5EA] text-[13px]"
+                      className="w-full p-3 rounded-[12px] border border-[#E5E5EA] text-[13px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                     />
                   </div>
                   <button
@@ -730,7 +879,7 @@ export function ClientsView({
                         })
                       )
                     }
-                    className="w-full py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-[#2C2C2E] transition"
+                    className="w-full min-h-[44px] py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-[#2C2C2E] transition active:scale-[0.98] flex items-center justify-center"
                   >
                     Salvar Notas e Ficha
                   </button>
@@ -738,7 +887,7 @@ export function ClientsView({
                   <div className="pt-2 border-t border-[#E5E5EA]">
                     <a
                       href={`/app?view=charts&clientId=${selectedClient.id}`}
-                      className="w-full py-2.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-medium text-[#1C1C1E] flex items-center justify-center gap-2 transition"
+                      className="w-full min-h-[44px] py-2.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12.5px] font-medium text-[#1C1C1E] flex items-center justify-center gap-2 transition active:scale-[0.98]"
                     >
                       <FileText className="w-4 h-4 text-[#1C1C1E]" />
                       <span>Ver Prontuário Clínico &amp; Versões</span>
@@ -763,10 +912,11 @@ export function ClientsView({
                     </p>
                     <div className="flex flex-col gap-2 pt-1">
                       <label
-                        className={`w-full py-2.5 px-4 rounded-full text-[12px] font-semibold text-center cursor-pointer transition flex items-center justify-center gap-2 ${
+                        htmlFor="client-photos-file-input"
+                        className={`w-full min-h-[44px] py-2.5 px-4 rounded-full text-[12.5px] font-semibold text-center cursor-pointer transition flex items-center justify-center gap-2 ${
                           isUploadingPhoto
                             ? "bg-[#2C2C2E] text-white opacity-85 cursor-wait pointer-events-none"
-                            : "bg-[#1C1C1E] text-white hover:bg-[#2C2C2E] active:scale-95"
+                            : "bg-[#1C1C1E] text-white hover:bg-[#2C2C2E] active:scale-[0.98]"
                         }`}
                       >
                         {isUploadingPhoto ? (
@@ -781,9 +931,11 @@ export function ClientsView({
                           </>
                         )}
                         <input
+                          id="client-photos-file-input"
                           type="file"
                           accept="image/*"
                           multiple
+                          aria-label="Upload de fotos de antes e depois"
                           disabled={isUploadingPhoto}
                           className="hidden"
                           onChange={async (e) => {
@@ -892,7 +1044,7 @@ export function ClientsView({
                             );
                           })
                         }
-                        className="w-full py-2 rounded-full border border-[#D1D1D6] bg-white text-[11.5px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7] transition"
+                        className="w-full min-h-[44px] sm:min-h-[38px] py-2.5 rounded-full border border-[#D1D1D6] bg-white text-[12px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7] transition active:scale-[0.98] flex items-center justify-center"
                       >
                         Exemplo de demonstração rápida
                       </button>
@@ -940,7 +1092,7 @@ export function ClientsView({
                                     )
                                   )
                                 }
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11px] font-medium text-[#1C1C1E] transition active:scale-95"
+                                className="inline-flex items-center gap-1.5 min-h-[36px] sm:min-h-[30px] px-3 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] transition active:scale-95"
                                 title="Inverter a ordem entre Antes e Depois"
                               >
                                 <ArrowLeftRight className="w-3 h-3 text-[#6E6E73]" />
@@ -987,17 +1139,25 @@ export function ClientsView({
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm("Excluir esta foto da cliente?")) {
-                                          onUpdateState((prev) =>
-                                            deleteClientPhoto(
-                                              prev,
-                                              selectedClient.id,
-                                              url
-                                            )
-                                          );
-                                        }
+                                        setConfirmModal({
+                                          isOpen: true,
+                                          title: "Excluir foto",
+                                          description:
+                                            "Tem certeza que deseja remover esta foto da cliente? Esta ação não poderá ser desfeita.",
+                                          confirmLabel: "Excluir foto",
+                                          onConfirm: () => {
+                                            onUpdateState((prev) =>
+                                              deleteClientPhoto(
+                                                prev,
+                                                selectedClient.id,
+                                                url
+                                              )
+                                            );
+                                            setConfirmModal(null);
+                                          },
+                                        });
                                       }}
-                                      className="w-7 h-7 rounded-full bg-black/55 hover:bg-black/80 backdrop-blur-xs text-white/90 hover:text-white flex items-center justify-center transition shadow-xs pointer-events-auto"
+                                      className="w-9 h-9 sm:w-8 sm:h-8 min-h-[36px] min-w-[36px] rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-xs text-white flex items-center justify-center transition shadow-xs pointer-events-auto active:scale-95"
                                       title="Excluir foto"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
@@ -1026,7 +1186,7 @@ export function ClientsView({
                                         );
                                       }}
                                       title="Toque para alternar a etiqueta (Antes / Depois / Durante)"
-                                      className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 backdrop-blur-xs border border-white/15 text-[11px] font-semibold text-white transition active:scale-95 max-w-full truncate"
+                                      className="pointer-events-auto inline-flex items-center gap-1.5 min-h-[36px] sm:min-h-[30px] px-3 py-1.5 rounded-full bg-black/75 hover:bg-black/90 backdrop-blur-xs border border-white/15 text-[11px] font-semibold text-white transition active:scale-95 max-w-full truncate"
                                     >
                                       <span
                                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${
@@ -1136,7 +1296,8 @@ export function ClientsView({
               </h2>
               <button
                 onClick={() => setAddClientModalOpen(false)}
-                className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#6E6E73]"
+                aria-label="Fechar modal de adicionar cliente"
+                className="w-11 h-11 sm:w-8 sm:h-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] transition active:scale-95"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1144,66 +1305,86 @@ export function ClientsView({
 
             <form onSubmit={handleCreateClient} className="space-y-4">
               <div>
-                <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                <label
+                  htmlFor="new-client-fullname"
+                  className="block text-[12px] font-semibold text-[#6E6E73] mb-1"
+                >
                   Nome completo *
                 </label>
                 <input
+                  id="new-client-fullname"
                   type="text"
                   required
                   value={newFullName}
                   onChange={(e) => setNewFullName(e.target.value)}
                   placeholder="Ex: Stefany Costa"
-                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
+                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                  <label
+                    htmlFor="new-client-phone"
+                    className="block text-[12px] font-semibold text-[#6E6E73] mb-1"
+                  >
                     Telefone / WhatsApp
                   </label>
                   <input
+                    id="new-client-phone"
                     type="text"
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
                     placeholder="(11) 99888-7766"
-                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
+                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                  <label
+                    htmlFor="new-client-birthday"
+                    className="block text-[12px] font-semibold text-[#6E6E73] mb-1"
+                  >
                     Data de aniversário
                   </label>
                   <input
+                    id="new-client-birthday"
                     type="text"
                     value={newBirthday}
                     onChange={(e) => setNewBirthday(e.target.value)}
                     placeholder="DD/MM"
-                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
+                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                <label
+                  htmlFor="new-client-email"
+                  className="block text-[12px] font-semibold text-[#6E6E73] mb-1"
+                >
                   E-mail
                 </label>
                 <input
+                  id="new-client-email"
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="cliente@email.com.br"
-                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
+                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                 />
               </div>
               <div>
-                <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                <label
+                  htmlFor="new-client-anamnesis"
+                  className="block text-[12px] font-semibold text-[#6E6E73] mb-1"
+                >
                   Notas iniciais / Anamnese
                 </label>
                 <textarea
+                  id="new-client-anamnesis"
                   rows={2}
                   value={newAnamnesis}
                   onChange={(e) => setNewAnamnesis(e.target.value)}
                   placeholder="Preferências, histórico ou alergias..."
-                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[13px]"
+                  className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[13px] focus:outline-none focus:border-[#6E56CF] focus:ring-1 focus:ring-[#6E56CF]"
                 />
               </div>
 
@@ -1211,13 +1392,13 @@ export function ClientsView({
                 <button
                   type="button"
                   onClick={() => setAddClientModalOpen(false)}
-                  className="px-5 py-2.5 rounded-full border border-[#E5E5EA] text-[13px] font-semibold text-[#1C1C1E]"
+                  className="min-h-[44px] px-5 py-2.5 inline-flex items-center justify-center rounded-full border border-[#E5E5EA] text-[13px] font-semibold text-[#1C1C1E] hover:bg-[#F5F5F7] transition active:scale-[0.98]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-[#2C2C2E]"
+                  className="min-h-[44px] px-6 py-2.5 inline-flex items-center justify-center rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-[#2C2C2E] transition active:scale-[0.98]"
                 >
                   Salvar cliente
                 </button>
@@ -1253,8 +1434,9 @@ export function ClientsView({
             <button
               type="button"
               onClick={() => setPreviewPhoto(null)}
-              className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition shrink-0"
+              className="w-11 h-11 sm:w-9 sm:h-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition shrink-0 active:scale-95"
               title="Fechar"
+              aria-label="Fechar visualização de foto"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1281,7 +1463,7 @@ export function ClientsView({
               href={previewPhoto.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-[12px] font-semibold flex items-center gap-1.5 transition"
+              className="min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[12px] font-semibold transition active:scale-[0.98]"
             >
               <ExternalLink className="w-4 h-4" />
               <span>Abrir original</span>
@@ -1306,7 +1488,7 @@ export function ClientsView({
                     window.open(previewPhoto.url, "_blank");
                   }
                 }}
-                className="px-4 py-2 rounded-full bg-white text-[#1C1C1E] text-[12.5px] font-bold hover:bg-[#F5F5F7] flex items-center gap-1.5 transition active:scale-95 shadow-md"
+                className="min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center gap-1.5 rounded-full bg-white text-[#1C1C1E] text-[12.5px] font-bold hover:bg-[#F5F5F7] transition active:scale-95 shadow-md"
               >
                 <Download className="w-4 h-4" />
                 <span>Baixar foto</span>
@@ -1316,19 +1498,90 @@ export function ClientsView({
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm("Tem certeza que deseja excluir esta foto permanentemente?")) {
-                      onUpdateState((prev) =>
-                        deleteClientPhoto(prev, selectedClient.id, previewPhoto.url)
-                      );
-                      setPreviewPhoto(null);
-                    }
+                    setConfirmModal({
+                      isOpen: true,
+                      title: "Excluir foto permanentemente",
+                      description:
+                        "A foto selecionada será removida da galeria e do histórico da cliente.",
+                      confirmLabel: "Excluir foto",
+                      onConfirm: () => {
+                        onUpdateState((prev) =>
+                          deleteClientPhoto(
+                            prev,
+                            selectedClient.id,
+                            previewPhoto.url
+                          )
+                        );
+                        setPreviewPhoto(null);
+                        setConfirmModal(null);
+                      },
+                    });
                   }}
-                  className="px-4 py-2 rounded-full bg-[#EF4444] hover:bg-[#DC2626] text-white text-[12.5px] font-bold flex items-center gap-1.5 transition active:scale-95 shadow-md"
+                  className="min-h-[44px] sm:min-h-[38px] px-4 py-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[12.5px] font-semibold transition active:scale-95 shadow-md"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>Excluir foto</span>
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Editorial Confirmation Modal (Anti-AI Slop) */}
+      {confirmModal?.isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-modal-title"
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="bg-white dark:bg-[#18181b] rounded-[24px] max-w-sm sm:max-w-md w-full p-6 border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-modal space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] flex items-center justify-center text-[#1C1C1E] dark:text-white shrink-0">
+                <Trash2 className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                aria-label="Fechar confirmação"
+                className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#3F3F46] flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white transition active:scale-95"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <h3
+                id="confirm-modal-title"
+                className="text-[17px] font-bold text-[#1C1C1E] dark:text-white tracking-tight"
+              >
+                {confirmModal.title}
+              </h3>
+              <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                {confirmModal.description}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="min-h-[44px] sm:min-h-[40px] px-5 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white text-[13px] font-semibold hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition active:scale-[0.98]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmModal.onConfirm}
+                className="min-h-[44px] sm:min-h-[40px] px-5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-black dark:hover:bg-zinc-200 text-white dark:text-[#18181b] text-[13px] font-semibold transition active:scale-[0.98] shadow-xs"
+              >
+                {confirmModal.confirmLabel || "Confirmar"}
+              </button>
             </div>
           </div>
         </div>

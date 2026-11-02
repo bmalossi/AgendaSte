@@ -15,12 +15,17 @@ import {
   savePhysicalResource,
   skipCalendarByWeeks,
   validateAndCreateCalendarEvent,
+  addWaitlistEntry,
+  updateWaitlistEntry,
+  deleteWaitlistEntry,
+  isWaitlistEntryExpired,
   bookFromWaitlistEntry,
   rebookAppointmentOneTap,
   rescheduleCalendarEvent,
   deleteCalendarEvent,
   createClientProfile,
   filterClientsByRetention,
+  partitionClientAppointments,
   updateClientNotesAndForms,
   uploadAutoSortedClientPhoto,
   deleteClientPhoto,
@@ -311,6 +316,118 @@ describe("Ticket 03 — Agenda Inteligente (Calendar), Salto de Semanas, Trava d
     assert.equal(rebooked.calendarEvents[0].dateISO, "2026-11-16");
   });
 
+  it("adds a waitlist entry without polluting calendar events, supporting validUntil, housecall, and multiple services", () => {
+    const initial = createInitialStudioState();
+    const initialEventsCount = initial.calendarEvents.length;
+    const initialWaitlistCount = initial.waitlist.length;
+
+    const result = addWaitlistEntry(initial, {
+      clientId: "cli-mariana",
+      providerId: "staff-bruno",
+      serviceIds: ["srv-hydration", "srv-haircut"],
+      validUntilISO: "2026-11-30",
+      isHousecall: true,
+      notes: "Cliente tem disponibilidade apenas após as 16h.",
+      notifyClient: true,
+      preferredDateISO: "2026-10-30",
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.state.waitlist.length, initialWaitlistCount + 1);
+    // Calendar events must remain untouched (no phantom blocking slot!)
+    assert.equal(result.state.calendarEvents.length, initialEventsCount);
+
+    const added = result.state.waitlist[0];
+    assert.equal(added.clientId, "cli-mariana");
+    assert.equal(added.validUntilISO, "2026-11-30");
+    assert.equal(added.isHousecall, true);
+    assert.deepEqual(added.serviceIds, ["srv-hydration", "srv-haircut"]);
+    assert.equal(added.notifyClient, true);
+  });
+
+  it("edits, updates, and deletes waitlist entries cleanly", () => {
+    const initial = createInitialStudioState();
+    const addResult = addWaitlistEntry(initial, {
+      clientId: "cli-mariana",
+      providerId: "staff-bruno",
+      serviceIds: ["srv-hydration"],
+      validUntilISO: "2026-11-15",
+      notes: "Nota inicial",
+      preferredDateISO: "2026-11-01",
+    });
+    const entryId = addResult.entry.id;
+
+    // 1. Edita a entrada existente
+    const updateResult = updateWaitlistEntry(addResult.state, entryId, {
+      validUntilISO: "2026-12-01",
+      notes: "Nota atualizada e reagendada",
+      isHousecall: true,
+      serviceIds: ["srv-hydration", "srv-haircut"],
+    });
+
+    assert.equal(updateResult.ok, true);
+    const updated = updateResult.state.waitlist.find((w) => w.id === entryId);
+    assert.ok(updated);
+    assert.equal(updated.validUntilISO, "2026-12-01");
+    assert.equal(updated.notes, "Nota atualizada e reagendada");
+    assert.equal(updated.isHousecall, true);
+    assert.deepEqual(updated.serviceIds, ["srv-hydration", "srv-haircut"]);
+
+    // 2. Deleta a entrada
+    const deletedState = deleteWaitlistEntry(updateResult.state, entryId);
+    assert.equal(deletedState.waitlist.some((w) => w.id === entryId), false);
+    assert.ok(deletedState.lastToastMessage?.includes("removido"));
+  });
+
+  it("detects expired waitlist entries when validUntil or preferredDate has passed", () => {
+    const todayISO = "2026-10-30";
+
+    // Expired by validUntilISO in the past
+    const expiredEntry1 = {
+      id: "wl-exp-1",
+      clientId: "cli-1",
+      clientName: "Cliente A",
+      clientPhone: "1199999999",
+      providerId: "staff-1",
+      providerName: "Bruno",
+      serviceId: "srv-1",
+      serviceName: "Corte",
+      preferredDateISO: "2026-10-20",
+      validUntilISO: "2026-10-25",
+      notes: "",
+      createdAtISO: "2026-10-15",
+    };
+    assert.equal(isWaitlistEntryExpired(expiredEntry1, todayISO), true);
+
+    // Not expired (validUntil in the future or today)
+    const validEntry1 = {
+      ...expiredEntry1,
+      validUntilISO: "2026-10-30",
+    };
+    assert.equal(isWaitlistEntryExpired(validEntry1, todayISO), false);
+
+    const validEntry2 = {
+      ...expiredEntry1,
+      validUntilISO: "2026-11-05",
+    };
+    assert.equal(isWaitlistEntryExpired(validEntry2, todayISO), false);
+
+    // Fallback to preferredDateISO when validUntilISO is undefined
+    const expiredByPreferredDate = {
+      ...expiredEntry1,
+      validUntilISO: undefined,
+      preferredDateISO: "2026-10-29",
+    };
+    assert.equal(isWaitlistEntryExpired(expiredByPreferredDate, todayISO), true);
+
+    const validByPreferredDate = {
+      ...expiredEntry1,
+      validUntilISO: undefined,
+      preferredDateISO: "2026-11-01",
+    };
+    assert.equal(isWaitlistEntryExpired(validByPreferredDate, todayISO), false);
+  });
+
   it("creates an inline client with a valid UUID and reuses existing client without creating duplicates", () => {
     const initial = createInitialStudioState();
     const initialClientCount = initial.clients.length;
@@ -590,6 +707,128 @@ describe("Ticket 04 — Clientes (Clients), Drawer 5 Abas, Notas/Fichas e Fotos 
     stefany = state.clients.find((c) => c.id === "cli-stefany")!;
     assert.ok(!stefany.autoSortedPhotos.some((g) => g.photoUrls.includes(photoUrl)));
     assert.match(state.lastToastMessage ?? "", /Foto removida com sucesso/i);
+  });
+
+  it("partitions and sorts client appointments chronologically into upcoming, past, and canceled using reference date", () => {
+    const client = { id: "cli-teste", fullName: "Teste" };
+    const referenceTodayISO = "2026-11-02";
+
+    const mockEvents: any[] = [
+      // Passados (outubro 2026) que antes apareciam indevidamente em 'upcoming'
+      {
+        id: "evt-1",
+        clientId: "cli-teste",
+        clientName: "Teste",
+        serviceNames: ["Protocolo Facial Glow & Laser"],
+        dateISO: "2026-10-21",
+        startTime: "16:00",
+        endTime: "17:10",
+        totalCents: 35800,
+        status: "confirmed",
+      },
+      {
+        id: "evt-2",
+        clientId: "cli-teste",
+        clientName: "Teste",
+        serviceNames: ["Loiro Iluminado & Glossing"],
+        dateISO: "2026-10-22",
+        startTime: "12:00",
+        endTime: "14:30",
+        totalCents: 48800,
+        status: "confirmed",
+      },
+      // Evento de hoje concluído
+      {
+        id: "evt-3",
+        clientId: "cli-teste",
+        clientName: "Teste",
+        serviceNames: ["Corte Editorial"],
+        dateISO: "2026-11-02",
+        startTime: "09:00",
+        endTime: "10:00",
+        totalCents: 18000,
+        status: "completed",
+      },
+      // Evento de hoje à tarde (futuro)
+      {
+        id: "evt-4",
+        clientId: "cli-teste",
+        clientName: "Teste",
+        serviceNames: ["Hidratação Profunda"],
+        dateISO: "2026-11-02",
+        startTime: "16:30",
+        endTime: "17:30",
+        totalCents: 22000,
+        status: "confirmed",
+      },
+      // Evento futuro em novembro
+      {
+        id: "evt-5",
+        clientId: "cli-teste",
+        clientName: "Teste",
+        serviceNames: ["Manicure Luxo"],
+        dateISO: "2026-11-05",
+        startTime: "14:00",
+        endTime: "15:00",
+        totalCents: 9000,
+        status: "confirmed",
+      },
+      // Eventos cancelados
+      {
+        id: "evt-6",
+        clientId: "cli-teste",
+        clientName: "Teste",
+        serviceNames: ["Escova Modelada"],
+        dateISO: "2026-10-25",
+        startTime: "11:00",
+        endTime: "12:00",
+        totalCents: 12000,
+        status: "canceled",
+      },
+      {
+        id: "evt-7",
+        clientId: "cli-teste",
+        clientName: "Teste",
+        serviceNames: ["Pedicure Spa"],
+        dateISO: "2026-11-08",
+        startTime: "10:00",
+        endTime: "11:00",
+        totalCents: 11000,
+        status: "canceled",
+      },
+      // Outro cliente (não deve ser incluído)
+      {
+        id: "evt-other",
+        clientId: "cli-mariana",
+        clientName: "Mariana Albuquerque",
+        serviceNames: ["Massagem"],
+        dateISO: "2026-11-03",
+        startTime: "10:00",
+        endTime: "11:00",
+        totalCents: 20000,
+        status: "confirmed",
+      },
+    ];
+
+    const result = partitionClientAppointments(mockEvents, client, referenceTodayISO);
+
+    assert.equal(result.total, 7);
+
+    // 1. Próximos: devem ser evt-4 (hoje às 16:30) e evt-5 (05/11 às 14:00) em ordem crescente
+    assert.equal(result.upcoming.length, 2);
+    assert.equal(result.upcoming[0].id, "evt-4");
+    assert.equal(result.upcoming[1].id, "evt-5");
+
+    // 2. Anteriores: devem ser evt-3 (hoje 09:00 completed), evt-2 (22/10) e evt-1 (21/10) em ordem decrescente
+    assert.equal(result.past.length, 3);
+    assert.equal(result.past[0].id, "evt-3");
+    assert.equal(result.past[1].id, "evt-2");
+    assert.equal(result.past[2].id, "evt-1");
+
+    // 3. Cancelados: devem ser evt-7 (08/11) e evt-6 (25/10) em ordem decrescente
+    assert.equal(result.canceled.length, 2);
+    assert.equal(result.canceled[0].id, "evt-7");
+    assert.equal(result.canceled[1].id, "evt-6");
   });
 });
 
@@ -1374,11 +1613,20 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     assert.ok(found2);
     assert.equal(found2.name, "Máscara Wella Nutri-Enrich");
 
-    // 3. Código não cadastrado retorna undefined
+    // 3. Busca com pontuação/espaçamento ou formato GTIN-14 com zero à esquerda
+    const foundWithZero = findInventoryProductByBarcode(state, "07891234567890");
+    assert.ok(foundWithZero, "GTIN-14 com zero à esquerda deve localizar EAN-13 correspondente");
+    assert.equal(foundWithZero.name, "Shampoo L'Oréal Absolut Repair");
+
+    const foundFormatted = findInventoryProductByBarcode(state, "789-987-654-3210");
+    assert.ok(foundFormatted, "Código com hífens deve ser normalizado e localizado");
+    assert.equal(foundFormatted.name, "Máscara Wella Nutri-Enrich");
+
+    // 4. Código não cadastrado retorna undefined
     const notFound = findInventoryProductByBarcode(state, "0000000000000");
     assert.equal(notFound, undefined);
 
-    // 4. Entradas inválidas ou vazias retornam undefined de forma segura
+    // 5. Entradas inválidas ou vazias retornam undefined de forma segura
     assert.equal(findInventoryProductByBarcode(state, ""), undefined);
     assert.equal(findInventoryProductByBarcode(state, "   "), undefined);
   });

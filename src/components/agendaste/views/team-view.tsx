@@ -24,6 +24,8 @@ import {
   Shield,
   Trash2,
   Crown,
+  AlertCircle,
+  Lock,
 } from "lucide-react";
 import {
   StudioState,
@@ -44,6 +46,7 @@ interface TeamViewProps {
     | "team_time_tracking";
   state: StudioState;
   onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
+  onSelectSection?: (section: any) => void;
 }
 
 function formatSecondsHMS(totalSec: number): string {
@@ -56,7 +59,12 @@ function formatSecondsHMS(totalSec: number): string {
   )}:${String(secs).padStart(2, "0")}`;
 }
 
-export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
+export function TeamView({
+  section,
+  state,
+  onUpdateState,
+  onSelectSection,
+}: TeamViewProps) {
   // Staff Directory & Drawer state
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
     state.staff[0]?.id ?? null
@@ -1354,257 +1362,60 @@ export function TeamView({ section, state, onUpdateState }: TeamViewProps) {
   }
 
   // ===========================================================================
-  // 4. TIME TRACKING (06-5-time-tracking.png & 06-5-1.png)
+  // 4. TIME TRACKING (TRANCADO / EM BREVE)
   // ===========================================================================
-  const sessionStatus = state.timeTracking.activeSessionStatus;
-  const elapsedFormatted = formatSecondsHMS(
-    state.timeTracking.activeElapsedSeconds || 15678
-  );
-
   return (
-    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-      {/* Editorial Hero + Live Dark Timeclock Widget (06-5-time-tracking.png) */}
-      <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
-        <div className="lg:col-span-7 space-y-4">
-          <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[42px] leading-[1.12] sm:leading-[1.06] text-[#1C1C1E]">
-            Controle de ponto simplificado
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[26px] sm:text-[28px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+            Controle de ponto
           </h1>
-          <p className="text-[15px] text-[#6E6E73] max-w-xl">
-            Gerencie entradas, intervalos e folhas de ponto da equipe em um só lugar, sincronizando automaticamente as horas trabalhadas com o fechamento de repasse.
-          </p>
-        </div>
-
-        {/* Dark Timeclock 04:21:18 Card from 06-5-time-tracking.png */}
-        <div className="lg:col-span-5 bg-[#1C1C1E] text-white rounded-[22px] p-6 space-y-4 shadow-gg-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] uppercase tracking-wider text-[#A1A1AA] font-semibold">
-              Relógio de Ponto (Timeclock)
+          <div className="relative group inline-flex items-center">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 shadow-2xs select-none">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Em breve</span>
             </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-semibold">
-              {sessionStatus === "clocked_in"
-                ? "Em turno ativo"
-                : sessionStatus === "on_break"
-                  ? "Em intervalo (Break)"
-                  : "Turno encerrado"}
-            </span>
-          </div>
-
-          <p className="text-[36px] font-mono font-bold tracking-wider text-white">
-            {elapsedFormatted}
-          </p>
-
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            {sessionStatus === "idle" ? (
-              <button
-                onClick={() =>
-                  onUpdateState((prev) =>
-                    toggleTimeclockAction(prev, "check_in")
-                  )
-                }
-                className="col-span-2 py-2.5 rounded-full bg-[#6E56CF] hover:opacity-95 text-white text-[13px] font-semibold"
-              >
-                Registrar Entrada (Check in)
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() =>
-                    onUpdateState((prev) =>
-                      toggleTimeclockAction(
-                        prev,
-                        sessionStatus === "on_break"
-                          ? "resume_work"
-                          : "take_break"
-                      )
-                    )
-                  }
-                  className="py-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[13px] font-semibold"
-                >
-                  {sessionStatus === "on_break"
-                    ? "Retornar do intervalo"
-                    : "Iniciar intervalo (Take break)"}
-                </button>
-                <button
-                  onClick={() =>
-                    onUpdateState((prev) =>
-                      toggleTimeclockAction(prev, "check_out")
-                    )
-                  }
-                  className="py-2.5 rounded-full bg-[#E11D8F] hover:opacity-95 text-white text-[13px] font-semibold"
-                >
-                  Registrar Saída (Check out)
-                </button>
-              </>
-            )}
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -bottom-8 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+              <span>Em breve</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Settings & Timesheets Layout matching 06-5-1.png */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Anchor Nav */}
-        <div className="lg:col-span-3 space-y-1">
-          <div className="px-4 py-2.5 rounded-[12px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-semibold text-[13px] shadow-sm">
-            Configurações gerais
-          </div>
-          <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium text-[13px]">
-            Membros da equipe
-          </div>
-          <div className="px-4 py-2.5 rounded-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium text-[13px]">
-            Folhas de ponto (Timesheets)
-          </div>
+      {/* Luxury Editorial Locked Card */}
+      <div className="bg-white dark:bg-[#18181b] rounded-[24px] border border-[#E5E5EA] dark:border-[#27272a] p-8 sm:p-14 text-center max-w-2xl mx-auto shadow-gg-card space-y-5 my-6">
+        <div className="w-14 h-14 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white flex items-center justify-center mx-auto shadow-2xs">
+          <Lock className="w-6 h-6 text-[#6E6E73] dark:text-[#a1a1aa]" />
         </div>
 
-        {/* Right Cards (06-5-1.png) */}
-        <div className="lg:col-span-9 space-y-6">
-          {/* Card 1: General Settings & Break Rules */}
-          <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4">
-            <h2 className="text-[18px] font-bold text-[#1C1C1E]">
-              Configurações gerais (General settings)
-            </h2>
-
-            <div className="flex items-center justify-between py-2 border-b border-[#EFEFF4]">
-              <div>
-                <p className="text-[14px] font-bold text-[#1C1C1E]">
-                  Ativar controle de ponto (Enable time tracking)
-                </p>
-                <p className="text-[12px] text-[#6E6E73]">
-                  Permite que membros da equipe registrem entrada, intervalos e saída.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={state.timeTracking.enabled}
-                onChange={(e) =>
-                  onUpdateState((prev) => ({
-                    ...prev,
-                    timeTracking: {
-                      ...prev.timeTracking,
-                      enabled: e.target.checked,
-                    },
-                  }))
-                }
-                className="w-5 h-5 accent-[#6E56CF]"
-              />
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-[14px] font-bold text-[#1C1C1E]">
-                  1º tipo de intervalo padrão (1st break type)
-                </p>
-                <p className="text-[12px] text-[#6E6E73]">
-                  Duração padrão do intervalo de almoço/descanso (minutos).
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  value={state.timeTracking.firstBreakDurationMinutes}
-                  onChange={(e) =>
-                    onUpdateState((prev) => ({
-                      ...prev,
-                      timeTracking: {
-                        ...prev.timeTracking,
-                        firstBreakDurationMinutes: Math.max(
-                          10,
-                          parseInt(e.target.value || "30", 10)
-                        ),
-                      },
-                    }))
-                  }
-                  className="w-20 px-3 py-1.5 rounded-lg border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-mono font-bold text-[#1C1C1E] dark:text-white"
-                />
-                <input
-                  type="checkbox"
-                  checked={state.timeTracking.firstBreakTypeEnabled}
-                  onChange={(e) =>
-                    onUpdateState((prev) => ({
-                      ...prev,
-                      timeTracking: {
-                        ...prev.timeTracking,
-                        firstBreakTypeEnabled: e.target.checked,
-                      },
-                    }))
-                  }
-                  className="w-5 h-5 accent-[#6E56CF]"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Team Members Notifications (06-5-1.png) */}
-          <div className="bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] p-6 shadow-gg-card space-y-4">
-            <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
-              Notificações de entrada/saída por membro
-            </h2>
-            <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
-              {state.staff.map((member) => (
-                <div
-                  key={member.id}
-                  className="py-3.5 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-zinc-950 dark:text-zinc-950"
-                      style={{ backgroundColor: member.avatarColor }}
-                    >
-                      {member.initials}
-                    </div>
-                    <span className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white">
-                      {member.fullName}
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={member.clockInNotificationsEnabled}
-                    onChange={(e) =>
-                      onUpdateState((prev) => ({
-                        ...prev,
-                        staff: prev.staff.map((s) =>
-                          s.id === member.id
-                            ? {
-                                ...s,
-                                clockInNotificationsEnabled: e.target.checked,
-                              }
-                            : s
-                        ),
-                      }))
-                    }
-                    className="w-5 h-5 accent-[#6E56CF]"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 3: Recorded Timesheet Logs */}
-          <div className="bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] p-6 shadow-gg-card space-y-3">
-            <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
-              Folhas de Ponto Registradas ({state.timeTracking.logs.length})
-            </h2>
-            <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
-              {state.timeTracking.logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="py-3 flex items-center justify-between text-[13px]"
-                >
-                  <div>
-                    <p className="font-bold text-[#1C1C1E]">{log.staffName}</p>
-                    <p className="text-[12px] text-[#6E6E73]">
-                      Data: {log.dateISO} · Entrada {log.checkInTime} – Saída{" "}
-                      {log.checkOutTime ?? "Em andamento"} ({log.breakMinutes}m
-                      intervalo)
-                    </p>
-                  </div>
-                  <span className="font-mono font-bold text-[#6E56CF]">
-                    {formatSecondsHMS(log.totalWorkedSeconds)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="space-y-2 max-w-md mx-auto">
+          <h2 className="text-[20px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
+            Módulo em aprimoramento
+          </h2>
+          <p className="text-[13.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+            Estamos redesenhando a experiência de registro de ponto, intervalos e folhas de frequência para entregar máxima precisão e eficiência no dia a dia da equipe.
+          </p>
         </div>
+
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FAF9F6] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#3f3f46] text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+          <Clock className="w-3.5 h-3.5 text-[#6E56CF] dark:text-[#A494F7]" />
+          <span>Disponível em atualizações futuras</span>
+        </div>
+
+        {onSelectSection && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => onSelectSection("team_staff")}
+              className="px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-medium transition shadow-2xs active:scale-[0.98]"
+            >
+              Voltar para Profissionais
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -683,17 +683,24 @@ export function LuveaSidebar({
                 >
                   Comissões
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onSelectSection("team_time_tracking")}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-[13px] transition-colors ${
-                    activeSection === "team_time_tracking"
-                      ? "bg-[#ECE9FE] text-[#18181B] dark:bg-[#27272a] dark:text-white font-semibold"
-                      : "text-zinc-700 dark:text-[#a1a1aa] hover:bg-zinc-100 dark:hover:bg-[#27272a] dark:hover:text-white"
-                  }`}
-                >
-                  Controle de ponto
-                </button>
+                <div className="relative group">
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium text-zinc-400 dark:text-zinc-500 cursor-not-allowed select-none opacity-80 hover:bg-zinc-50 dark:hover:bg-[#1f1f23] transition-colors"
+                  >
+                    <span>Controle de ponto</span>
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 px-2 py-0.5 rounded-full">
+                      <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
+                      <span>Em breve</span>
+                    </span>
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-8 px-2.5 py-1 rounded-[8px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#1C1C1E] text-[11px] font-medium shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center gap-1.5">
+                    <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>Em breve</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>

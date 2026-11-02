@@ -234,13 +234,19 @@ export interface WaitlistEntryItem {
   clientId: string;
   clientName: string;
   clientPhone: string;
+  clientEmail?: string;
   providerId: string;
   providerName: string;
   serviceId: string;
   serviceName: string;
+  serviceIds?: string[];
+  serviceNames?: string[];
   preferredDateISO: string;
-  preferredTimeWindow: string;
+  preferredTimeWindow?: string;
+  validUntilISO?: string;
+  isHousecall?: boolean;
   notes: string;
+  notifyClient?: boolean;
   createdAtISO: string;
 }
 
@@ -2958,12 +2964,180 @@ export function validateAndCreateCalendarEvent(
       ...state,
       clients: updatedClients,
       waitlist: updatedWaitlist,
-      calendarEvents: [newEvent, ...state.calendarEvents],
+      calendarEvents:
+        input.eventType === "waitlist_entry"
+          ? state.calendarEvents
+          : [newEvent, ...state.calendarEvents],
       lastToastMessage:
         input.eventType === "appointment"
           ? `Agendamento de ${newEvent.clientName} criado às ${newEvent.startTime}!`
+          : input.eventType === "waitlist_entry"
+          ? `${client?.fullName ?? "Cliente"} adicionado(a) à lista de espera!`
           : `Evento (${input.eventType}) registrado na agenda!`,
     },
+  };
+}
+
+export function addWaitlistEntry(
+  state: StudioState,
+  input: {
+    clientId: string;
+    providerId: string;
+    serviceIds: string[];
+    validUntilISO?: string;
+    isHousecall?: boolean;
+    notes?: string;
+    notifyClient?: boolean;
+    preferredDateISO?: string;
+  }
+): { ok: true; state: StudioState; entry: WaitlistEntryItem } {
+  const client = state.clients.find((c) => c.id === input.clientId);
+  const provider =
+    state.staff.find((s) => s.id === input.providerId) ?? state.staff[0];
+  const selectedServices = state.services.filter((s) =>
+    input.serviceIds.includes(s.id)
+  );
+  const primaryService = selectedServices[0] ?? state.services[0];
+
+  const newEntry: WaitlistEntryItem = {
+    id: `wl-${Date.now()}`,
+    clientId: client?.id || "cli-unknown",
+    clientName: client?.fullName || "Cliente",
+    clientPhone: client?.phone || "",
+    clientEmail: client?.email || "",
+    providerId: provider.id,
+    providerName: provider.fullName,
+    serviceId: primaryService?.id || "srv-default",
+    serviceName: primaryService?.name || "Serviço",
+    serviceIds: input.serviceIds,
+    serviceNames:
+      selectedServices.length > 0
+        ? selectedServices.map((s) => s.name)
+        : [primaryService?.name || "Serviço"],
+    preferredDateISO: input.preferredDateISO || new Date().toISOString().split("T")[0],
+    preferredTimeWindow: input.validUntilISO
+      ? `Válido até ${formatDateBR(input.validUntilISO)}`
+      : "Horário flexível",
+    validUntilISO: input.validUntilISO,
+    isHousecall: input.isHousecall,
+    notes: input.notes || "",
+    notifyClient: input.notifyClient,
+    createdAtISO: new Date().toISOString().split("T")[0],
+  };
+
+  return {
+    ok: true,
+    entry: newEntry,
+    state: {
+      ...state,
+      waitlist: [newEntry, ...state.waitlist],
+      lastToastMessage: `${newEntry.clientName} adicionado(a) à lista de espera!`,
+    },
+  };
+}
+
+export function isWaitlistEntryExpired(
+  entry: WaitlistEntryItem,
+  referenceDateISO?: string
+): boolean {
+  const todayISO = referenceDateISO || getTodayDateISO();
+  const limitDate = entry.validUntilISO || entry.preferredDateISO;
+  return Boolean(limitDate && limitDate < todayISO);
+}
+
+export function updateWaitlistEntry(
+  state: StudioState,
+  waitlistId: string,
+  input: {
+    clientId?: string;
+    providerId?: string;
+    serviceIds?: string[];
+    validUntilISO?: string;
+    isHousecall?: boolean;
+    notes?: string;
+    notifyClient?: boolean;
+    preferredDateISO?: string;
+  }
+): { ok: boolean; state: StudioState; entry?: WaitlistEntryItem } {
+  const existing = state.waitlist.find((w) => w.id === waitlistId);
+  if (!existing) {
+    return { ok: false, state };
+  }
+
+  const clientId = input.clientId ?? existing.clientId;
+  const client = state.clients.find((c) => c.id === clientId);
+
+  const providerId = input.providerId ?? existing.providerId;
+  const provider =
+    state.staff.find((s) => s.id === providerId) ?? state.staff[0];
+
+  const serviceIds =
+    input.serviceIds !== undefined
+      ? input.serviceIds
+      : existing.serviceIds ?? [existing.serviceId];
+  const selectedServices = state.services.filter((s) =>
+    serviceIds.includes(s.id)
+  );
+  const primaryService =
+    selectedServices[0] ??
+    state.services.find((s) => s.id === existing.serviceId) ??
+    state.services[0];
+
+  const preferredDateISO = input.preferredDateISO ?? existing.preferredDateISO;
+  const validUntilISO =
+    input.validUntilISO !== undefined ? input.validUntilISO : existing.validUntilISO;
+
+  const updatedEntry: WaitlistEntryItem = {
+    ...existing,
+    clientId: client?.id || existing.clientId,
+    clientName: client?.fullName || existing.clientName,
+    clientPhone: client?.phone || existing.clientPhone,
+    clientEmail: client?.email || existing.clientEmail,
+    providerId: provider.id,
+    providerName: provider.fullName,
+    serviceId: primaryService?.id || existing.serviceId,
+    serviceName: primaryService?.name || existing.serviceName,
+    serviceIds,
+    serviceNames:
+      selectedServices.length > 0
+        ? selectedServices.map((s) => s.name)
+        : existing.serviceNames,
+    preferredDateISO,
+    preferredTimeWindow: validUntilISO
+      ? `Válido até ${formatDateBR(validUntilISO)}`
+      : "Horário flexível",
+    validUntilISO,
+    isHousecall:
+      input.isHousecall !== undefined ? input.isHousecall : existing.isHousecall,
+    notes: input.notes !== undefined ? input.notes : existing.notes,
+    notifyClient:
+      input.notifyClient !== undefined ? input.notifyClient : existing.notifyClient,
+  };
+
+  return {
+    ok: true,
+    entry: updatedEntry,
+    state: {
+      ...state,
+      waitlist: state.waitlist.map((w) =>
+        w.id === waitlistId ? updatedEntry : w
+      ),
+      lastToastMessage: `Lista de espera atualizada para ${updatedEntry.clientName}!`,
+    },
+  };
+}
+
+export function deleteWaitlistEntry(
+  state: StudioState,
+  waitlistId: string
+): StudioState {
+  const entry = state.waitlist.find((w) => w.id === waitlistId);
+  return {
+    ...state,
+    waitlist: state.waitlist.filter((w) => w.id !== waitlistId),
+    lastToastMessage: entry
+      ? `${entry.clientName} removido(a) da lista de espera.`
+      : "Entrada removida da lista de espera.",
   };
 }
 
@@ -3352,6 +3526,76 @@ export function filterClientsByRetention(
     }
     return true;
   });
+}
+
+export interface ClientAppointmentsPartition {
+  upcoming: CalendarEventItem[];
+  past: CalendarEventItem[];
+  canceled: CalendarEventItem[];
+  total: number;
+}
+
+/**
+ * Segrega e ordena cronologicamente os agendamentos do cliente em:
+ * - upcoming: eventos futuros ou de hoje não concluídos e não cancelados (ordem crescente: mais próximo primeiro)
+ * - past: eventos com data anterior a todayISO ou já concluídos (ordem decrescente: mais recente primeiro)
+ * - canceled: eventos cancelados (ordem decrescente: mais recente primeiro)
+ */
+export function partitionClientAppointments(
+  events: CalendarEventItem[],
+  client: { id: string; fullName: string },
+  referenceDateISO?: string
+): ClientAppointmentsPartition {
+  const todayISO = referenceDateISO || getTodayDateISO();
+  const clientNameLower = client.fullName.trim().toLowerCase();
+
+  const clientEvents = events.filter(
+    (e) =>
+      e.clientId === client.id ||
+      e.clientName.trim().toLowerCase() === clientNameLower
+  );
+
+  const upcoming: CalendarEventItem[] = [];
+  const canceled: CalendarEventItem[] = [];
+  const past: CalendarEventItem[] = [];
+
+  for (const ev of clientEvents) {
+    if (ev.status === "canceled") {
+      canceled.push(ev);
+    } else if (ev.status === "completed" || ev.dateISO < todayISO) {
+      past.push(ev);
+    } else {
+      upcoming.push(ev);
+    }
+  }
+
+  // Próximos: ordem crescente (mais iminente primeiro)
+  upcoming.sort((a, b) => {
+    const d = a.dateISO.localeCompare(b.dateISO);
+    if (d !== 0) return d;
+    return a.startTime.localeCompare(b.startTime);
+  });
+
+  // Cancelados: ordem decrescente (mais recente primeiro)
+  canceled.sort((a, b) => {
+    const d = b.dateISO.localeCompare(a.dateISO);
+    if (d !== 0) return d;
+    return b.startTime.localeCompare(a.startTime);
+  });
+
+  // Anteriores: ordem decrescente (mais recente primeiro)
+  past.sort((a, b) => {
+    const d = b.dateISO.localeCompare(a.dateISO);
+    if (d !== 0) return d;
+    return b.startTime.localeCompare(a.startTime);
+  });
+
+  return {
+    upcoming,
+    canceled,
+    past,
+    total: clientEvents.length,
+  };
 }
 
 export function updateClientNotesAndForms(
@@ -4443,7 +4687,16 @@ export function resolveProductIntendedUse(
 }
 
 /**
- * Localiza um produto no estoque pelo código de barras (EAN/UPC/Code128) ou SKU.
+ * Normaliza um número de código de barras ou SKU removendo pontuação e espaços
+ */
+export function normalizeBarcodeNumber(barcode: string | undefined | null): string {
+  if (!barcode) return "";
+  return barcode.trim().replace(/[\s\-_.]/g, "");
+}
+
+/**
+ * Localiza um produto no estoque pelo código de barras (EAN/UPC/Code128) ou SKU,
+ * com tolerância a espaços, formatações e zeros à esquerda de GTIN (ex: GTIN-14 vs EAN-13).
  */
 export function findInventoryProductByBarcode(
   state: StudioState,
@@ -4453,11 +4706,49 @@ export function findInventoryProductByBarcode(
   const clean = rawBarcode.trim();
   if (!clean) return undefined;
 
-  return state.inventory.find(
-    (item) =>
-      (item.barcode && item.barcode.trim() === clean) ||
-      (item.sku && item.sku.trim() === clean)
-  );
+  const cleanLower = clean.toLowerCase();
+  const cleanNormalized = normalizeBarcodeNumber(clean).toLowerCase();
+  const cleanDigits = clean.replace(/\D/g, "");
+  const cleanStrippedZeros = cleanDigits.replace(/^0+/, "");
+
+  return state.inventory.find((item) => {
+    const itemBarcode = item.barcode ? item.barcode.trim() : "";
+    const itemSku = item.sku ? item.sku.trim() : "";
+
+    // 1. Verificação exata (case-insensitive)
+    if (itemBarcode && itemBarcode.toLowerCase() === cleanLower) return true;
+    if (itemSku && itemSku.toLowerCase() === cleanLower) return true;
+
+    // 2. Verificação com pontuação/espaços removidos
+    const itemBarcodeNorm = normalizeBarcodeNumber(itemBarcode).toLowerCase();
+    const itemSkuNorm = normalizeBarcodeNumber(itemSku).toLowerCase();
+    if (itemBarcodeNorm && itemBarcodeNorm === cleanNormalized) return true;
+    if (itemSkuNorm && itemSkuNorm === cleanNormalized) return true;
+
+    // 3. Verificação de GTIN/EAN numérico com tolerância a zeros à esquerda (GTIN-14 vs EAN-13 vs UPC-A)
+    if (cleanDigits.length >= 8) {
+      const itemBarcodeDigits = itemBarcode.replace(/\D/g, "");
+      const itemSkuDigits = itemSku.replace(/\D/g, "");
+
+      if (itemBarcodeDigits === cleanDigits) return true;
+      if (itemSkuDigits === cleanDigits) return true;
+
+      if (
+        cleanStrippedZeros &&
+        itemBarcodeDigits.replace(/^0+/, "") === cleanStrippedZeros
+      ) {
+        return true;
+      }
+      if (
+        cleanStrippedZeros &&
+        itemSkuDigits.replace(/^0+/, "") === cleanStrippedZeros
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  });
 }
 
 export interface SaveInventoryProductInput {

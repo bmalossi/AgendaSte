@@ -28,18 +28,26 @@ import {
   EllipsisVertical,
   GripVertical,
   Trash2,
+  ArrowLeft,
+  Phone,
+  Mail,
 } from "lucide-react";
 import {
   StudioState,
   CalendarEventItem,
   CalendarEventType,
   DayBusinessHours,
+  WaitlistEntryItem,
   formatBRL,
   formatDateBR,
   parseTimeMinutes,
   formatMinutesToHHMM,
   skipCalendarByWeeks,
   validateAndCreateCalendarEvent,
+  addWaitlistEntry,
+  updateWaitlistEntry,
+  deleteWaitlistEntry,
+  isWaitlistEntryExpired,
   bookFromWaitlistEntry,
   rebookAppointmentOneTap,
   rescheduleCalendarEvent,
@@ -53,6 +61,7 @@ import {
   checkCalendarSlotConflict,
 } from "@/lib/agendaste-store";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
+import { EditorialDatePicker } from "@/components/ui/editorial-date-picker";
 
 interface CalendarViewProps {
   state: StudioState;
@@ -204,6 +213,8 @@ export function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(
     null
   );
+
+  const todayDateISO = getTodayDateISO();
 
   const visibleStartHour =
     state.calendarView?.visibleStartHour ?? DEFAULT_START_HOUR;
@@ -425,6 +436,15 @@ export function CalendarView({
   const [durationDropdownOpen, setDurationDropdownOpen] = useState(false);
   const [activeServiceMenuId, setActiveServiceMenuId] = useState<string | null>(null);
 
+  // Waitlist Entry Form State (Print Model Reference)
+  const [editingWaitlistId, setEditingWaitlistId] = useState<string | null>(null);
+  const [validUntilISO, setValidUntilISO] = useState<string>("");
+  const [isHousecall, setIsHousecall] = useState<boolean>(false);
+  const [waitlistNotes, setWaitlistNotes] = useState<string>("");
+  const [waitlistConfirmModalOpen, setWaitlistConfirmModalOpen] = useState(false);
+  const [notifyClientOnWaitlist, setNotifyClientOnWaitlist] = useState(true);
+  const [convertingWaitlistId, setConvertingWaitlistId] = useState<string | null>(null);
+
   // Dynamic real-time tracking (updates every 30s, hydration-safe)
   const [currentTime, setCurrentTime] = useState<{
     hours: number;
@@ -577,6 +597,12 @@ export function CalendarView({
     e: React.MouseEvent<HTMLDivElement>,
     dateISO: string
   ) => {
+    const todayISO = getTodayDateISO();
+    if (dateISO < todayISO) {
+      setHoveredSlot(null);
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const totalMinutes = visibleStartHour * 60 + (y / HOUR_HEIGHT) * 60;
@@ -602,6 +628,14 @@ export function CalendarView({
   };
 
   const handleColumnClick = (dateISO: string) => {
+    const todayISO = getTodayDateISO();
+    if (dateISO < todayISO) {
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: "Não é permitido agendar ou reservar em datas passadas.",
+      }));
+      return;
+    }
     if (hoveredSlot && hoveredSlot.dateISO === dateISO) {
       openNewDrawerAtSlot(hoveredSlot.timeHHMM, "appointment", dateISO);
     }
@@ -621,10 +655,23 @@ export function CalendarView({
     presetDateISO?: string,
     overrideProviderId?: string
   ) => {
+    const todayISO = getTodayDateISO();
+    const targetDateISO = presetDateISO ?? selectedDateISO;
+
+    // Trancar agendamento e reserva em datas passadas
+    if (targetDateISO < todayISO && presetType !== "working_hours") {
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: "Não é permitido agendar ou reservar em datas passadas.",
+      }));
+      return;
+    }
+
     setConflictError(null);
+    setEditingWaitlistId(null);
     const chosenType = presetType ?? "appointment";
     setEventType(chosenType);
-    setEventDateISO(presetDateISO ?? selectedDateISO);
+    setEventDateISO(targetDateISO < todayISO ? todayISO : targetDateISO);
     setStartTime(timeHHMM);
     setCustomDurationMinutes(null);
     setCustomEndTime(null);
@@ -639,10 +686,58 @@ export function CalendarView({
     setProviderId(targetProviderId);
     if (chosenType === "personal_block") {
       setSelectedServiceIds([]);
+    } else if (chosenType === "waitlist_entry") {
+      setValidUntilISO(presetDateISO ?? selectedDateISO);
+      setIsHousecall(false);
+      setWaitlistNotes("");
+      if (!clientId && state.clients[0]) {
+        setClientId(state.clients[0].id);
+      }
+      if (selectedServiceIds.length === 0 && state.services[0]) {
+        setSelectedServiceIds([state.services[0].id]);
+      }
     } else if (selectedServiceIds.length === 0 && state.services[0]) {
       setSelectedServiceIds([state.services[0].id]);
     }
     setNewAppointmentDrawerOpen(true);
+  };
+
+  const handleOpenEditWaitlist = (wl: WaitlistEntryItem, isReschedule = false) => {
+    const todayISO = getTodayDateISO();
+    setEditingWaitlistId(wl.id);
+    setConflictError(null);
+    setEventType("waitlist_entry");
+    setClientId(wl.clientId);
+    setProviderId(wl.providerId);
+    if (wl.serviceIds && wl.serviceIds.length > 0) {
+      setSelectedServiceIds(wl.serviceIds);
+    } else if (wl.serviceId) {
+      setSelectedServiceIds([wl.serviceId]);
+    } else if (state.services[0]) {
+      setSelectedServiceIds([state.services[0].id]);
+    }
+
+    // Se estiver expirado ou for reagendamento, sugere a data de hoje para renovação válida
+    const isPast = Boolean(
+      (wl.validUntilISO && wl.validUntilISO < todayISO) ||
+      (!wl.validUntilISO && wl.preferredDateISO < todayISO)
+    );
+    const newDateISO = isPast || isReschedule
+      ? todayISO
+      : (wl.validUntilISO || wl.preferredDateISO || todayISO);
+
+    setValidUntilISO(newDateISO);
+    setEventDateISO(newDateISO);
+    setIsHousecall(Boolean(wl.isHousecall));
+    setWaitlistNotes(wl.notes || "");
+    setNotifyClientOnWaitlist(wl.notifyClient ?? true);
+    setShowInlineNewClient(false);
+    setWaitlistDrawerOpen(false);
+    setNewAppointmentDrawerOpen(true);
+  };
+
+  const handleDeleteWaitlist = (waitlistId: string) => {
+    onUpdateState((prev) => deleteWaitlistEntry(prev, waitlistId));
   };
 
   const selectedServicesObjects = state.services.filter((s) =>
@@ -762,13 +857,22 @@ export function CalendarView({
       return;
     }
 
+    const finalWaitlist = convertingWaitlistId
+      ? result.state.waitlist.filter((w) => w.id !== convertingWaitlistId)
+      : result.state.waitlist;
+
     onUpdateState(() => ({
       ...result.state,
+      waitlist: finalWaitlist,
       calendarView: {
         ...result.state.calendarView,
         selectedDateISO: eventDateISO,
       },
+      lastToastMessage: convertingWaitlistId
+        ? `Agendamento de ${result.createdEvent.clientName} confirmado e convertido da lista de espera!`
+        : result.state.lastToastMessage,
     }));
+    setConvertingWaitlistId(null);
     setNewAppointmentDrawerOpen(false);
     setShowInlineNewClient(false);
     setInlineClientName("");
@@ -776,6 +880,112 @@ export function CalendarView({
     setInlineClientEmail("");
     setAddressOrNotes("");
     setIsSubmittingEvent(false);
+  };
+
+  const handleConfirmSaveWaitlist = () => {
+    let resolvedClientId = clientId;
+    let updatedClients = state.clients;
+
+    if (showInlineNewClient && inlineClientName.trim()) {
+      const existing = state.clients.find(
+        (c) =>
+          c.fullName.trim().toLowerCase() ===
+          inlineClientName.trim().toLowerCase()
+      );
+      if (existing) {
+        resolvedClientId = existing.id;
+      } else {
+        const newClient = {
+          id: `cli-${Date.now()}`,
+          fullName: inlineClientName.trim(),
+          email: inlineClientEmail.trim() || "",
+          phone: inlineClientPhone.trim() || "",
+          avatarColor: "#FBCFE8",
+          createdAtISO: eventDateISO,
+          lastVisitISO: eventDateISO,
+          daysSinceLastVisit: 0,
+          totalSpentCents: 0,
+          visitsCount: 1,
+          noShowCount: 0,
+          sendAutomaticReminders: true,
+          notesAndForms: {
+            anamnesis: "",
+            allergies: "",
+            formulasAndPreferences: "",
+            birthday: "",
+          },
+          autoSortedPhotos: [],
+          packages: [],
+          memberships: [],
+        };
+        updatedClients = [newClient, ...state.clients];
+        resolvedClientId = newClient.id;
+      }
+    }
+
+    if (!resolvedClientId && updatedClients[0]) {
+      resolvedClientId = updatedClients[0].id;
+    }
+
+    const effectiveServiceIds =
+      selectedServiceIds.length > 0
+        ? selectedServiceIds
+        : state.services[0]
+        ? [state.services[0].id]
+        : [];
+
+    if (editingWaitlistId) {
+      const result = updateWaitlistEntry(
+        {
+          ...state,
+          clients: updatedClients,
+        },
+        editingWaitlistId,
+        {
+          clientId: resolvedClientId,
+          providerId: providerId || state.staff[0]?.id || "staff-bruno",
+          serviceIds: effectiveServiceIds,
+          validUntilISO: validUntilISO || undefined,
+          isHousecall,
+          notes: waitlistNotes.trim(),
+          notifyClient: notifyClientOnWaitlist,
+          preferredDateISO: eventDateISO,
+        }
+      );
+      onUpdateState(() => result.state);
+    } else {
+      const result = addWaitlistEntry(
+        {
+          ...state,
+          clients: updatedClients,
+        },
+        {
+          clientId: resolvedClientId,
+          providerId: providerId || state.staff[0]?.id || "staff-bruno",
+          serviceIds: effectiveServiceIds,
+          validUntilISO: validUntilISO || undefined,
+          isHousecall,
+          notes: waitlistNotes.trim(),
+          notifyClient: notifyClientOnWaitlist,
+          preferredDateISO: eventDateISO,
+        }
+      );
+      onUpdateState(() => result.state);
+    }
+
+    setEditingWaitlistId(null);
+    setWaitlistConfirmModalOpen(false);
+    setNewAppointmentDrawerOpen(false);
+    setShowInlineNewClient(false);
+    setInlineClientName("");
+    setInlineClientPhone("");
+    setInlineClientEmail("");
+    setWaitlistNotes("");
+    setValidUntilISO("");
+    setIsHousecall(false);
+
+    // Retorna para o drawer da lista de espera
+    setWaitlistDrawerOpen(true);
   };
 
   const renderDatePopover = (positionClass: string) => {
@@ -1959,27 +2169,35 @@ export function CalendarView({
          ===================================================================== */}
       {waitlistDrawerOpen && (
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex justify-end">
-          <div className="w-full max-w-[430px] bg-white h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
+          <div className="w-full max-w-[430px] bg-white dark:bg-[#18181b] h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
             <div>
               {/* Drawer Header */}
-              <div className="px-6 py-5 border-b border-[#E5E5EA] flex items-center justify-between">
-                <h2 className="text-[20px] font-bold text-[#1C1C1E]">
-                  Lista de espera
-                </h2>
+              <div className="px-6 py-5 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-[20px] font-bold text-[#1C1C1E] dark:text-white">
+                    Lista de espera
+                  </h2>
+                  {state.waitlist.length > 0 && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[11px] font-bold text-[#1C1C1E] dark:text-white">
+                      {state.waitlist.length}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
+                      setEditingWaitlistId(null);
                       setWaitlistDrawerOpen(false);
                       openNewDrawerAtSlot("14:00", "waitlist_entry");
                     }}
                     title="Adicionar à lista de espera"
-                    className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setWaitlistDrawerOpen(false)}
-                    className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                    className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1987,9 +2205,9 @@ export function CalendarView({
               </div>
 
               {/* Filter Pill + Provider Filter */}
-              <div className="px-6 py-3 border-b border-[#EFEFF4] flex items-center justify-between gap-2">
-                <span className="px-3 py-1 rounded-full bg-[#F5F5F7] text-[12px] font-semibold text-[#1C1C1E]">
-                  Hoje · Outubro 2026
+              <div className="px-6 py-3 border-b border-[#EFEFF4] dark:border-[#27272a] flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                  {formatDateBR(selectedDateISO)}
                 </span>
                 <DropdownSelect
                   variant="inline"
@@ -2015,14 +2233,14 @@ export function CalendarView({
                   w.providerId === waitlistProviderFilter
               ).length === 0 ? (
                 <div className="text-center py-16">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E5EA] text-[#1C1C1E] mx-auto flex items-center justify-center mb-3 shadow-2xs">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white mx-auto flex items-center justify-center mb-3 shadow-2xs">
                     <CalendarIcon className="w-5 h-5 stroke-[1.75]" />
                   </div>
-                  <h3 className="text-[15px] font-bold text-[#1C1C1E] mb-1">
+                  <h3 className="text-[15px] font-bold text-[#1C1C1E] dark:text-white mb-1">
                     Nenhuma solicitação na lista de espera
                   </h3>
-                  <p className="text-[13px] text-[#6E6E73] mb-6">
-                    Adicione clientes que aguardam vaga para preenchimento imediato em 1 toque.
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mb-6">
+                    Cadastre clientes interessados para preenchimento de desistências e encaixes.
                   </p>
                 </div>
               ) : (
@@ -2032,59 +2250,190 @@ export function CalendarView({
                       waitlistProviderFilter === "all" ||
                       w.providerId === waitlistProviderFilter
                   )
-                  .map((wl) => (
-                    <div
-                      key={wl.id}
-                      className="p-4 rounded-[18px] border border-[#E5E5EA] bg-[#FAFAFC] space-y-3"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="text-[15px] font-bold text-[#1C1C1E]">
-                            {wl.clientName}
-                          </h4>
-                          <p className="text-[12px] text-[#6E6E73]">
-                            {wl.serviceName} · com {wl.providerName}
-                          </p>
-                        </div>
-                        <span className="px-3 py-1 rounded-full bg-[#1C1C1E] text-white text-[11px] font-semibold shadow-sm">
-                          {wl.preferredTimeWindow}
-                        </span>
-                      </div>
-                      <p className="text-[12px] text-[#6E6E73]">{wl.notes}</p>
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          onClick={() => {
-                            onUpdateState((prev) =>
-                              bookFromWaitlistEntry(prev, wl.id, "14:00")
-                            );
-                            setWaitlistDrawerOpen(false);
-                          }}
-                          className="flex-1 py-2 px-4 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold hover:bg-[#2C2C2E] transition"
+                  .map((wl) => {
+                    const todayISO = getTodayDateISO();
+                    const isExpired = isWaitlistEntryExpired(wl, todayISO);
+                    const limitDate = wl.validUntilISO || wl.preferredDateISO;
+
+                    if (isExpired) {
+                      return (
+                        <div
+                          key={wl.id}
+                          className="p-4 rounded-[18px] border border-red-200 dark:border-red-900/50 bg-[#FEF2F2]/75 dark:bg-red-950/25 space-y-3 transition-colors"
                         >
-                          Agendar às 14:00 (1-Toque)
-                        </button>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-[15px] font-bold text-[#1C1C1E] dark:text-white">
+                                  {wl.clientName}
+                                </h4>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-[#18181b] border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 text-[11px] font-semibold shadow-2xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                  Expirado
+                                </span>
+                              </div>
+                              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                                {wl.serviceNames && wl.serviceNames.length > 0
+                                  ? wl.serviceNames.join(", ")
+                                  : wl.serviceName}{" "}
+                                · com {wl.providerName}
+                              </p>
+                              {limitDate && (
+                                <p className="text-[11px] text-red-600/90 dark:text-red-400/90 font-medium mt-1">
+                                  Limite expirou em {formatDateBR(limitDate)}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                              {wl.isHousecall && (
+                                <span className="px-2 py-0.5 rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-zinc-200 text-[10.5px] font-medium">
+                                  Domicílio
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteWaitlist(wl.id)}
+                                className="w-7 h-7 rounded-full border border-red-200 dark:border-red-900/40 bg-white dark:bg-[#18181b] text-[#6E6E73] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 flex items-center justify-center transition"
+                                title="Apagar da lista de espera"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          {wl.notes && (
+                            <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] bg-white/80 dark:bg-[#18181b] p-2.5 rounded-[12px] border border-red-100 dark:border-red-900/30">
+                              {wl.notes}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditWaitlist(wl, true)}
+                              className="flex-1 py-2 px-4 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-semibold hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition flex items-center justify-center gap-1.5 shadow-xs"
+                            >
+                              <CalendarIcon className="w-3.5 h-3.5" />
+                              <span>Reagendar</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteWaitlist(wl.id)}
+                              className="py-2 px-3.5 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[#6E6E73] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 text-[12.5px] font-medium hover:bg-white dark:hover:bg-[#27272a] transition flex items-center justify-center gap-1.5"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Apagar</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={wl.id}
+                        className="p-4 rounded-[18px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#27272a]/50 space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="text-[15px] font-bold text-[#1C1C1E] dark:text-white">
+                              {wl.clientName}
+                            </h4>
+                            <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                              {wl.serviceNames && wl.serviceNames.length > 0
+                                ? wl.serviceNames.join(", ")
+                                : wl.serviceName}{" "}
+                              · com {wl.providerName}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            {wl.isHousecall && (
+                              <span className="px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-zinc-200 text-[10.5px] font-medium">
+                                Domicílio
+                              </span>
+                            )}
+                            <span className="px-2.5 py-1 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[11px] font-semibold shadow-xs">
+                              {wl.validUntilISO
+                                ? `Válido até ${formatDateBR(wl.validUntilISO)}`
+                                : wl.preferredTimeWindow || "Horário flexível"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditWaitlist(wl, false)}
+                              className="w-7 h-7 rounded-full border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[#6E6E73] hover:text-[#1C1C1E] dark:text-zinc-400 dark:hover:text-white flex items-center justify-center transition"
+                              title="Editar cadastro"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteWaitlist(wl.id)}
+                              className="w-7 h-7 rounded-full border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[#6E6E73] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 flex items-center justify-center transition"
+                              title="Apagar da lista de espera"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        {wl.notes && (
+                          <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] bg-white dark:bg-[#18181b] p-2.5 rounded-[12px] border border-[#E5E5EA]/50 dark:border-[#27272a]">
+                            {wl.notes}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditWaitlist(wl, false)}
+                            className="py-2 px-3.5 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition flex items-center justify-center gap-1.5"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConvertingWaitlistId(wl.id);
+                              setClientId(wl.clientId);
+                              setProviderId(wl.providerId);
+                              if (wl.serviceIds && wl.serviceIds.length > 0) {
+                                setSelectedServiceIds(wl.serviceIds);
+                              } else if (wl.serviceId) {
+                                setSelectedServiceIds([wl.serviceId]);
+                              }
+                              setAddressOrNotes(wl.notes ? `Encaixe lista de espera: ${wl.notes}` : "");
+                              setWaitlistDrawerOpen(false);
+                              openNewDrawerAtSlot(
+                                "14:00",
+                                "appointment",
+                                wl.preferredDateISO || selectedDateISO,
+                                wl.providerId
+                              );
+                            }}
+                            className="flex-1 py-2 px-4 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-semibold hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition flex items-center justify-center gap-1.5 shadow-xs"
+                          >
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            <span>Converter em agendamento</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
               )}
 
-              {/* Editorial Promo Card at Bottom of Waitlist Drawer (03-3-calendar.png) */}
-              <div className="p-5 rounded-[20px] bg-[#F5F3FF] border border-[#DDD6FE] space-y-3">
-                <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#6E56CF] text-white text-[10px] font-bold uppercase tracking-wider">
-                  Preencha horários vagos
-                </span>
-                <h4 className="text-[15px] font-bold text-[#1C1C1E]">
-                  Adicione clientes à lista de espera e mantenha sua agenda lotada
+              {/* Editorial Clean Card at Bottom of Waitlist Drawer */}
+              <div className="p-4 rounded-[18px] bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] space-y-2">
+                <h4 className="text-[13.5px] font-bold text-[#1C1C1E] dark:text-white">
+                  Preencha horários vagos com a lista de espera
                 </h4>
-                <p className="text-[12px] text-[#6E6E73]">
-                  Clientes também podem entrar na lista direto pelo seu Site de Agendamento Online quando um dia estiver cheio.
+                <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                  Cadastre clientes interessados e converta-os em agendamentos assim que um horário for liberado.
                 </p>
                 <button
+                  type="button"
                   onClick={() => {
+                    setEditingWaitlistId(null);
                     setWaitlistDrawerOpen(false);
-                    openNewDrawerAtSlot("15:00", "waitlist_entry");
+                    openNewDrawerAtSlot("14:00", "waitlist_entry");
                   }}
-                  className="w-full py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-semibold hover:bg-[#2C2C2E] transition"
+                  className="w-full py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white text-[12.5px] font-semibold hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
                 >
                   Adicionar à lista de espera
                 </button>
@@ -2101,13 +2450,34 @@ export function CalendarView({
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex justify-end">
           <div className="w-full max-w-[460px] bg-white h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
             {/* Header */}
-            <div className="px-6 py-5 border-b border-[#E5E5EA] flex items-center justify-between">
-              <h2 className="text-[20px] font-bold text-[#1C1C1E]">
-                Novo agendamento
-              </h2>
+            <div className="px-6 py-5 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                {eventType === "waitlist_entry" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewAppointmentDrawerOpen(false);
+                      setEditingWaitlistId(null);
+                      setWaitlistDrawerOpen(true);
+                    }}
+                    title="Voltar à lista de espera"
+                    className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                )}
+                <h2 className="text-[20px] font-bold text-[#1C1C1E] dark:text-white">
+                  {eventType === "waitlist_entry"
+                    ? (editingWaitlistId ? "Editar lista de espera" : "Entrada na lista de espera")
+                    : "Novo agendamento"}
+                </h2>
+              </div>
               <button
-                onClick={() => setNewAppointmentDrawerOpen(false)}
-                className="w-8 h-8 rounded-full border border-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                onClick={() => {
+                  setNewAppointmentDrawerOpen(false);
+                  setEditingWaitlistId(null);
+                }}
+                className="w-8 h-8 rounded-full border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2151,17 +2521,335 @@ export function CalendarView({
                 />
               </div>
 
-              {/* Date, Start time, End time - 3 Column Layout (Screenshot 1 & 2) */}
+              {eventType === "waitlist_entry" ? (
+                /* =========================================================
+                   WAITLIST ENTRY SPECIFIC FORM (Print Model Reference)
+                   ========================================================= */
+                <div className="space-y-4">
+                  {/* Client Selector */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Cliente *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowInlineNewClient((v) => !v)}
+                        className="text-[12px] font-semibold text-[#6E56CF] dark:text-[#a78bfa] hover:underline flex items-center gap-1"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        {showInlineNewClient
+                          ? "Selecionar existente"
+                          : "+ Adicionar novo"}
+                      </button>
+                    </div>
+
+                    {showInlineNewClient ? (
+                      <div className="p-4 rounded-[16px] bg-[#F5F5F7] dark:bg-[#27272a] space-y-2.5">
+                        <input
+                          type="text"
+                          placeholder="Nome completo do cliente"
+                          value={inlineClientName}
+                          onChange={(e) => setInlineClientName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Telefone / WhatsApp"
+                            value={inlineClientPhone}
+                            onChange={(e) => setInlineClientPhone(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
+                          />
+                          <input
+                            type="email"
+                            placeholder="E-mail"
+                            value={inlineClientEmail}
+                            onChange={(e) => setInlineClientEmail(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3F3F46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <DropdownSelect
+                          value={clientId || state.clients[0]?.id || ""}
+                          onChange={(val) => setClientId(val)}
+                          placeholder="Selecione o cliente..."
+                          options={state.clients.map((cli) => ({
+                            value: cli.id,
+                            label: cli.fullName,
+                            sublabel: cli.phone || undefined,
+                          }))}
+                        />
+                        {/* Selected Client Card Info (Phone + Email) */}
+                        {(() => {
+                          const activeClient =
+                            state.clients.find((c) => c.id === clientId) ||
+                            state.clients[0];
+                          if (!activeClient) return null;
+                          return (
+                            <div className="mt-2.5 p-3 rounded-[14px] bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA]/60 dark:border-[#3F3F46]/40 space-y-1.5 text-[12.5px]">
+                              {activeClient.phone && (
+                                <div className="flex items-center gap-2 text-[#6E6E73] dark:text-[#a1a1aa]">
+                                  <Phone className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="font-mono text-[#1C1C1E] dark:text-white">
+                                    {activeClient.phone}
+                                  </span>
+                                </div>
+                              )}
+                              {activeClient.email && (
+                                <div className="flex items-center gap-2 text-[#6E6E73] dark:text-[#a1a1aa]">
+                                  <Mail className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="text-[#1C1C1E] dark:text-white truncate">
+                                    {activeClient.email}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Provider Selector */}
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1.5">
+                      Profissional *
+                    </label>
+                    <DropdownSelect
+                      value={providerId}
+                      onChange={(val) => setProviderId(val)}
+                      placeholder="Selecione o profissional..."
+                      options={state.staff.map((st) => ({
+                        value: st.id,
+                        label: st.fullName,
+                        sublabel: st.role,
+                      }))}
+                    />
+                  </div>
+
+                  {/* Services Multi-Select Chips (Print Model) */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Serviços *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPendingServiceIds([...selectedServiceIds]);
+                          setServicesPopoverOpen((v) => !v);
+                        }}
+                        className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white hover:underline flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar serviço</span>
+                      </button>
+                    </div>
+
+                    <div
+                      onClick={() => {
+                        setPendingServiceIds([...selectedServiceIds]);
+                        setServicesPopoverOpen(true);
+                      }}
+                      className="min-h-[46px] p-2 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-between gap-2 cursor-pointer hover:border-[#1C1C1E] dark:hover:border-white transition"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {selectedServicesObjects.length === 0 ? (
+                          <span className="text-[13px] text-[#8E8E93] dark:text-[#71717a] px-1.5">
+                            Selecione um ou mais serviços...
+                          </span>
+                        ) : (
+                          selectedServicesObjects.map((srv) => (
+                            <span
+                              key={srv.id}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[12px] font-medium text-[#1C1C1E] dark:text-white"
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-[4px] shrink-0"
+                                style={{ backgroundColor: srv.calendarColor || "#E11D8F" }}
+                              />
+                              <span className="truncate max-w-[180px]">{srv.name}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveService(srv.id);
+                                }}
+                                className="w-3.5 h-3.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white ml-0.5"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-[#8E8E93] shrink-0 mr-1" />
+                    </div>
+
+                    {/* Popover Selection */}
+                    {servicesPopoverOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30"
+                          onClick={() => setServicesPopoverOpen(false)}
+                        />
+                        <div className="absolute right-0 top-full mt-2 w-[min(320px,calc(100vw-3rem))] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] rounded-[18px] shadow-2xl p-3 z-40 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="flex items-center justify-between px-1 pb-1 border-b border-[#E5E5EA] dark:border-[#27272a]">
+                            <span className="text-[12px] font-bold text-[#1C1C1E] dark:text-white">
+                              Selecionar serviços
+                            </span>
+                          </div>
+
+                          <div className="max-h-52 overflow-y-auto space-y-1 pr-0.5">
+                            {state.services.map((srv) => {
+                              const isChecked = pendingServiceIds.includes(srv.id);
+                              return (
+                                <div
+                                  key={srv.id}
+                                  onClick={() =>
+                                    setPendingServiceIds((prev) =>
+                                      isChecked
+                                        ? prev.filter((id) => id !== srv.id)
+                                        : [...prev, srv.id]
+                                    )
+                                  }
+                                  className={`p-2.5 rounded-[12px] border cursor-pointer transition flex items-center justify-between ${
+                                    isChecked
+                                      ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]"
+                                      : "border-[#E5E5EA]/60 dark:border-[#27272a] hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/40"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <span
+                                      className="w-1.5 h-6 rounded-full shrink-0"
+                                      style={{
+                                        backgroundColor: srv.calendarColor || "#E11D8F",
+                                      }}
+                                    />
+                                    <div className="min-w-0">
+                                      <p className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white truncate">
+                                        {srv.name}
+                                      </p>
+                                      <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                                        {srv.durationMinutes} mins · {formatBRL(srv.priceCents)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div
+                                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-2 ${
+                                      isChecked
+                                        ? "border-[#1C1C1E] dark:border-white bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b]"
+                                        : "border-[#D4D4D8] dark:border-[#3F3F46]"
+                                    }`}
+                                  >
+                                    {isChecked && <Check className="w-2.5 h-2.5" />}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="pt-2 border-t border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setServicesPopoverOpen(false)}
+                              className="px-3 py-1.5 rounded-full text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedServiceIds(pendingServiceIds);
+                                setServicesPopoverOpen(false);
+                              }}
+                              disabled={pendingServiceIds.length === 0}
+                              className="px-4 py-1.5 rounded-full text-[12px] font-semibold text-white bg-[#1C1C1E] dark:bg-white dark:text-[#18181b] hover:bg-[#2C2C2E] disabled:opacity-40 transition"
+                            >
+                              Confirmar ({pendingServiceIds.length})
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Valid until Input (Editorial Date Picker com bloqueio de datas passadas) */}
+                  <EditorialDatePicker
+                    label="Válido até"
+                    placeholder="Selecione a data limite..."
+                    value={validUntilISO}
+                    onChange={(val) => setValidUntilISO(val)}
+                    minDateISO={todayDateISO}
+                    lockPastDates={true}
+                    allowClear={true}
+                  />
+
+                  {/* Make a housecall Toggle Switch */}
+                  <div className="flex items-center justify-between p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]">
+                    <div>
+                      <span className="text-[13px] font-medium text-[#1C1C1E] dark:text-white">
+                        Atendimento em domicílio
+                      </span>
+                      <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Atendimento externo no endereço do cliente
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isHousecall}
+                      onClick={() => setIsHousecall(!isHousecall)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                        isHousecall ? "bg-[#1C1C1E] dark:bg-white" : "bg-[#E5E5EA] dark:bg-[#3F3F46]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#18181b] shadow-sm transition duration-200 ease-in-out ${
+                          isHousecall ? "translate-x-5" : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Preferred times & other notes */}
+                  <div className="space-y-1.5">
+                    <div className="rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-3 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
+                      <label className="block text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] mb-1">
+                        Horários preferidos e outras observações
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="Adicione preferências de horário, restrições ou notas..."
+                        value={waitlistNotes}
+                        onChange={(e) => setWaitlistNotes(e.target.value)}
+                        className="w-full bg-transparent text-[13px] text-[#1C1C1E] dark:text-white outline-none resize-none placeholder:text-[#8E8E93]"
+                      />
+                    </div>
+                    <p className="text-[11.5px] text-[#8E8E93] dark:text-[#71717a] px-1">
+                      As preferências de horário do cliente serão geradas automaticamente a partir destas notas
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* =========================================================
+                   APPOINTMENT / PERSONAL BLOCK / WORKING HOURS FORM
+                   ========================================================= */
+                <>
+                  {/* Date, Start time, End time - 3 Column Layout (Screenshot 1 & 2) */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
-                <div className="col-span-2 sm:col-span-1 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
-                  <label className="block text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] mb-1">
-                    Date *
-                  </label>
-                  <input
-                    type="date"
+                <div className="col-span-2 sm:col-span-1">
+                  <EditorialDatePicker
+                    label="Data *"
+                    placeholder="Selecione a data..."
                     value={eventDateISO}
-                    onChange={(e) => setEventDateISO(e.target.value)}
-                    className="w-full bg-transparent text-[12.5px] sm:text-[13px] font-medium text-[#1C1C1E] dark:text-white outline-none"
+                    onChange={(val) => setEventDateISO(val)}
+                    minDateISO={todayDateISO}
+                    lockPastDates={true}
                   />
                 </div>
                 <div className="rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
@@ -2734,44 +3422,125 @@ export function CalendarView({
                   className="w-full px-3.5 py-2.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white"
                 />
               </div>
-            </div>
+            </>
+          )}
+        </div>
 
             {/* Sticky Bottom Bar */}
-            <div className="px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b] flex items-center justify-between">
-              {eventType !== "personal_block" ? (
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
-                    Total estimado
-                  </p>
-                  <p className="text-[20px] font-mono font-bold text-[#1C1C1E] dark:text-white">
-                    {formatBRL(computedTotalCents)}
-                  </p>
-                </div>
+            <div className="px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#E5E5EA] dark:border-[#27272a] bg-[#FAFAFC] dark:bg-[#18181b]">
+              {eventType === "waitlist_entry" ? (
+                <button
+                  type="button"
+                  onClick={() => setWaitlistConfirmModalOpen(true)}
+                  className="w-full py-3.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 dark:text-[#18181b] text-white text-[14px] font-semibold transition shadow-sm"
+                >
+                  Salvar
+                </button>
               ) : (
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
-                    Tipo
-                  </p>
-                  <p className="text-[14px] font-bold text-[#1C1C1E] dark:text-white">
-                    Horário reservado
-                  </p>
+                <div className="flex items-center justify-between">
+                  {eventType !== "personal_block" ? (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                        Total estimado
+                      </p>
+                      <p className="text-[20px] font-mono font-bold text-[#1C1C1E] dark:text-white">
+                        {formatBRL(computedTotalCents)}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                        Tipo
+                      </p>
+                      <p className="text-[14px] font-bold text-[#1C1C1E] dark:text-white">
+                        Horário reservado
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleCreateEvent}
+                    disabled={isSubmittingEvent}
+                    className="px-7 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 dark:text-[#18181b] disabled:opacity-50 text-white text-[14px] font-semibold transition"
+                  >
+                    {isSubmittingEvent
+                      ? "Salvando..."
+                      : eventType === "personal_block"
+                      ? "Reservar horário"
+                      : "Book appointment"}
+                  </button>
                 </div>
               )}
-              <button
-                onClick={handleCreateEvent}
-                disabled={isSubmittingEvent}
-                className="px-7 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 dark:text-[#18181b] disabled:opacity-50 text-white text-[14px] font-semibold transition"
-              >
-                {isSubmittingEvent
-                  ? "Salvando..."
-                  : eventType === "personal_block"
-                  ? "Reservar horário"
-                  : "Book appointment"}
-              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* =====================================================================
+          MODAL: CONFIRMAÇÃO DE ENTRADA NA LISTA DE ESPERA (Print Model Flow)
+         ===================================================================== */}
+      {waitlistConfirmModalOpen && (() => {
+        const targetClient =
+          showInlineNewClient && inlineClientName.trim()
+            ? {
+                fullName: inlineClientName.trim(),
+                phone: inlineClientPhone,
+                email: inlineClientEmail,
+              }
+            : state.clients.find((c) => c.id === clientId) || state.clients[0];
+        const targetProvider =
+          state.staff.find((s) => s.id === providerId) || state.staff[0];
+        const serviceSummary =
+          selectedServicesObjects.length > 0
+            ? selectedServicesObjects.map((s) => s.name).join(", ")
+            : "Serviço padrão";
+
+        return (
+          <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-[420px] bg-white dark:bg-[#1c1c1e] rounded-[24px] shadow-2xl border border-[#E5E5EA] dark:border-[#2c2c2e] p-6 space-y-5 animate-in zoom-in-95 duration-150">
+              <div>
+                <h3 className="text-[17px] font-bold text-[#1C1C1E] dark:text-white">
+                  {editingWaitlistId ? "Atualizar lista de espera" : "Adicionar à lista de espera"}
+                </h3>
+                <p className="text-[16px] font-semibold text-[#1C1C1E] dark:text-zinc-100 mt-2.5">
+                  {targetClient?.fullName || "Cliente"}
+                </p>
+                <p className="text-[13px] text-[#6E6E73] dark:text-zinc-400 mt-0.5">
+                  {serviceSummary} com {targetProvider?.fullName}
+                </p>
+              </div>
+
+              <label className="flex items-center gap-3 p-3.5 rounded-[14px] bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#333] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notifyClientOnWaitlist}
+                  onChange={(e) => setNotifyClientOnWaitlist(e.target.checked)}
+                  className="w-4 h-4 rounded accent-[#1C1C1E] dark:accent-white cursor-pointer"
+                />
+                <span className="text-[12.5px] text-[#1C1C1E] dark:text-white font-medium select-none">
+                  Notificar cliente por WhatsApp e e-mail
+                </span>
+              </label>
+
+              <div className="flex items-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setWaitlistConfirmModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#333] transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSaveWaitlist}
+                  className="flex-1 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 dark:text-[#18181b] text-white text-[13px] font-semibold transition"
+                >
+                  {editingWaitlistId ? "Salvar alterações" : "Adicionar à lista de espera"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* =====================================================================
           DRAWER 3: APPOINTMENT DETAILS (Confirmed vs Completed)
@@ -3471,11 +4240,13 @@ export function CalendarView({
                     })}
                   </div>
                   <div>
-                    <input
-                      type="date"
+                    <EditorialDatePicker
+                      label="Nova data"
+                      placeholder="Selecione a nova data..."
                       value={rescheduleDateISO}
-                      onChange={(e) => setRescheduleDateISO(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3F3F46] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white"
+                      onChange={(val) => setRescheduleDateISO(val)}
+                      minDateISO={todayDateISO}
+                      lockPastDates={true}
                     />
                   </div>
                 </div>

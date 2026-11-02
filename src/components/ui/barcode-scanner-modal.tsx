@@ -47,8 +47,16 @@ export function BarcodeScannerModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scannerContainerId = "luvea-barcode-reader";
 
+  // Buffer de consenso temporal para evitar falsos positivos de ruído óptico (ex: ler EAN-13 como EAN-8)
+  const consensusRef = useRef<{
+    lastCode: string;
+    count: number;
+    lastTimestamp: number;
+  }>({ lastCode: "", count: 0, lastTimestamp: 0 });
+
   // Desativa e libera todos os recursos de câmera e decodificadores
   const cleanupScanner = () => {
+    consensusRef.current = { lastCode: "", count: 0, lastTimestamp: 0 };
     if (nativeIntervalRef.current) {
       clearInterval(nativeIntervalRef.current);
       nativeIntervalRef.current = null;
@@ -163,12 +171,10 @@ export function BarcodeScannerModal({
               numOfWorkers: 0,
               decoder: {
                 readers: [
-                  "ean_reader",
-                  "ean_8_reader",
-                  "code_128_reader",
-                  "code_39_reader",
-                  "upc_reader",
-                  "upc_e_reader",
+                  "ean_reader",      // EAN-13 (Padrão comercial brasileiro e livros)
+                  "code_128_reader",  // Código 128 (padrão logístico e industrial)
+                  "code_39_reader",   // Código 39
+                  "upc_reader",       // UPC-A (12 dígitos compatível)
                 ],
               },
               locate: true,
@@ -191,11 +197,60 @@ export function BarcodeScannerModal({
         Quagga.start();
         setIsInitializing(false);
 
-        // Listener de códigos 1D via Quagga
+        // Listener de códigos 1D via Quagga com filtro de taxa de erro e consenso temporal
         handleDetectedRef.current = (result: any) => {
-          const code = result?.codeResult?.code;
-          if (code && !isScannedRef.current) {
-            handleSuccess(code);
+          if (isScannedRef.current) return;
+
+          const rawCode = result?.codeResult?.code;
+          if (!rawCode) return;
+          const clean = rawCode.trim();
+          if (!clean) return;
+
+          // 1. Descarte por taxa de erro médio (avgError > 0.10)
+          const decodedCodes = result?.codeResult?.decodedCodes || [];
+          const errors = decodedCodes
+            .filter((c: any) => typeof c?.error === "number")
+            .map((c: any) => c.error);
+
+          if (errors.length > 0) {
+            const avgError =
+              errors.reduce((sum: number, val: number) => sum + val, 0) /
+              errors.length;
+            if (avgError > 0.10) {
+              // Ruído óptico ou foco instável -> ignora este quadro
+              return;
+            }
+          }
+
+          // 2. Filtro de Consenso Temporal: Exige confirmação de pelo menos 2 quadros consecutivos idênticos
+          const now = performance.now();
+          const prev = consensusRef.current;
+
+          // Se passou mais de 650ms sem nova leitura, reseta o acumulador
+          if (now - prev.lastTimestamp > 650) {
+            consensusRef.current = {
+              lastCode: clean,
+              count: 1,
+              lastTimestamp: now,
+            };
+            return;
+          }
+
+          if (prev.lastCode === clean) {
+            prev.count += 1;
+            prev.lastTimestamp = now;
+
+            // Limiar atingido (2 quadros idênticos consecutivos confirmam a leitura real)
+            if (prev.count >= 2 && !isScannedRef.current) {
+              handleSuccess(clean);
+            }
+          } else {
+            // Mudou de código (descarta ruído esparso e inicia contagem para o novo código)
+            consensusRef.current = {
+              lastCode: clean,
+              count: 1,
+              lastTimestamp: now,
+            };
           }
         };
         Quagga.onDetected(handleDetectedRef.current);
@@ -243,12 +298,13 @@ export function BarcodeScannerModal({
                     if (barcodes && barcodes.length > 0) {
                       const detected = barcodes[0]?.rawValue?.trim();
                       if (detected && !isScannedRef.current) {
+                        // Hardware detector possui 0% de falso positivo: aceita imediatamente
                         handleSuccess(detected);
                       }
                     }
                   } catch {}
                 }
-              }, 100);
+              }, 60);
             } catch {}
           }
         }
@@ -377,7 +433,7 @@ export function BarcodeScannerModal({
         } catch {}
       }
 
-      // 2. Tenta decodificação 1D com Quagga2
+      // 2. Tenta decodificação 1D com Quagga2 (leitores EAN-13, Code 128 e UPC)
       const Quagga = (await import("@ericblade/quagga2")).default;
       const quaggaResult = await new Promise<any>((resolve) => {
         Quagga.decodeSingle(
@@ -388,11 +444,9 @@ export function BarcodeScannerModal({
             decoder: {
               readers: [
                 "ean_reader",
-                "ean_8_reader",
                 "code_128_reader",
                 "code_39_reader",
                 "upc_reader",
-                "upc_e_reader",
               ],
             },
             locate: true,
@@ -402,9 +456,21 @@ export function BarcodeScannerModal({
       });
 
       if (quaggaResult?.codeResult?.code) {
-        URL.revokeObjectURL(fileUrl);
-        handleSuccess(quaggaResult.codeResult.code.trim());
-        return;
+        const decodedCodes = quaggaResult.codeResult.decodedCodes || [];
+        const errors = decodedCodes
+          .filter((c: any) => typeof c?.error === "number")
+          .map((c: any) => c.error);
+        const avgError =
+          errors.length > 0
+            ? errors.reduce((sum: number, val: number) => sum + val, 0) /
+              errors.length
+            : 0;
+
+        if (avgError <= 0.12) {
+          URL.revokeObjectURL(fileUrl);
+          handleSuccess(quaggaResult.codeResult.code.trim());
+          return;
+        }
       }
 
       // 3. Tenta decodificação de QR Code com ZXing

@@ -3713,39 +3713,100 @@ function InventorySection({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Barcode Scanner Modal State
+  // Barcode Scanner Modal State & Auto-Lookup
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const [scannerTarget, setScannerTarget] = useState<"lookup" | "field">("lookup");
+  const [isLookingUpBarcode, setIsLookingUpBarcode] = useState(false);
 
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const imageFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  const handleBarcodeScanned = (scannedCode: string) => {
+  /**
+   * Consulta a API de catálogo de produtos com fallback multi-provedor (Open Beauty/Products/Food Facts & Open Library)
+   */
+  const lookupBarcodeInfo = async (codeToLookup: string) => {
+    const clean = codeToLookup.trim();
+    if (!clean || clean.length < 6) return null;
+
+    setIsLookingUpBarcode(true);
+    try {
+      const res = await fetch(`/api/inventory/lookup?barcode=${encodeURIComponent(clean)}`);
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.found && data?.product) {
+          const p = data.product;
+          if (p.name) setProductName(p.name);
+          if (p.brand) setBrandName(p.brand);
+          if (p.imageUrl) setImageUrl(p.imageUrl);
+          if (p.category) setProductCategory(p.category);
+          if (p.size) setSize(p.size);
+          if (p.description) setProductDescription(p.description);
+          if (p.intendedUse && drawerMode === "add") {
+            setIntendedUse(p.intendedUse);
+          }
+
+          onUpdateState((prev) => ({
+            ...prev,
+            lastToastMessage: `Catálogo: ${p.name} preenchido automaticamente!`,
+          }));
+          return p;
+        }
+      }
+    } catch {
+      // Silencioso se offline ou erro de rede
+    } finally {
+      setIsLookingUpBarcode(false);
+    }
+    return null;
+  };
+
+  /**
+   * Processa código lido por câmera ou leitor físico USB/Bluetooth.
+   * Se o produto já existir no estoque, SEMPRE abre o modo de edição.
+   * Se for um produto novo, abre a gaveta de cadastro e preenche automaticamente via API pública.
+   */
+  const handleBarcodeScanned = async (scannedCode: string) => {
     const trimmed = scannedCode.trim();
     if (!trimmed) return;
 
-    // Se estiver com a gaveta aberta (adicionando ou editando) ou foco no campo: vincula ao campo
-    if (drawerMode !== null || scannerTarget === "field") {
-      setBarcode(trimmed);
-      onUpdateState((prev) => ({
-        ...prev,
-        lastToastMessage: `Código vinculado: ${trimmed}`,
-      }));
-      return;
-    }
-
-    // Se estiver na lista geral: busca no estoque
+    // 1. SEMPRE verifica primeiro se o produto já está cadastrado no estoque
     const existing = findInventoryProductByBarcode(state, trimmed);
 
     if (existing) {
+      // Localizou produto existente -> abre imediatamente em modo de edição
       openEditDrawer(existing);
+      setScannerTarget("lookup");
       onUpdateState((prev) => ({
         ...prev,
         lastToastMessage: `Produto localizado: ${existing.name}`,
       }));
-    } else {
-      openAddDrawer();
+      return;
+    }
+
+    // 2. Se o usuário estiver editando um produto existente e escaneou um novo código
+    if (drawerMode === "edit" && editingProductId) {
       setBarcode(trimmed);
+      setScannerTarget("lookup");
+      onUpdateState((prev) => ({
+        ...prev,
+        lastToastMessage: `Código ${trimmed} vinculado ao produto em edição.`,
+      }));
+      return;
+    }
+
+    // 3. Produto não cadastrado: abre gaveta de novo produto
+    openAddDrawer();
+    setBarcode(trimmed);
+    setScannerTarget("lookup");
+
+    onUpdateState((prev) => ({
+      ...prev,
+      lastToastMessage: `Consultando catálogo para ${trimmed}...`,
+    }));
+
+    // 4. Executa consulta automática à API pública brasileira
+    const fetched = await lookupBarcodeInfo(trimmed);
+    if (!fetched) {
       onUpdateState((prev) => ({
         ...prev,
         lastToastMessage: `Novo código detectado (${trimmed}). Preencha os dados para salvar.`,
@@ -3803,6 +3864,8 @@ function InventorySection({
   const closeDrawer = () => {
     setDrawerMode(null);
     setEditingProductId(null);
+    setScannerTarget("lookup");
+    setIsLookingUpBarcode(false);
     setFormError(null);
   };
 
@@ -4084,6 +4147,19 @@ function InventorySection({
                     className="w-full pl-9 pr-4 py-2 rounded-full border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition-colors"
                   />
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScannerTarget("lookup");
+                    setIsScannerModalOpen(true);
+                  }}
+                  title="Escanear código de barras (Câmera ou Leitor)"
+                  aria-label="Escanear código de barras do produto via câmera ou leitor físico"
+                  className="w-10 h-10 min-w-[44px] min-h-[44px] rounded-full border border-[#D1D1D6] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white flex items-center justify-center transition shrink-0 cursor-pointer shadow-2xs"
+                >
+                  <ScanLine className="w-4 h-4" />
+                </button>
 
                 <button
                   type="button"
@@ -4791,17 +4867,37 @@ function InventorySection({
                       <label className="block text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
                         Código de barras
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setScannerTarget("field");
-                          setIsScannerModalOpen(true);
-                        }}
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-[#1C1C1E] dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition"
-                      >
-                        <ScanLine className="w-3 h-3 text-[#1C1C1E] dark:text-white" />
-                        <span>Escanear câmera</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {barcode.trim().length >= 6 && (
+                          <button
+                            type="button"
+                            disabled={isLookingUpBarcode}
+                            aria-busy={isLookingUpBarcode}
+                            aria-label="Consultar catálogo público de produtos"
+                            onClick={() => lookupBarcodeInfo(barcode.trim())}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-[#1C1C1E] dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition disabled:opacity-50 cursor-pointer"
+                          >
+                            {isLookingUpBarcode ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-[#1C1C1E] dark:text-white" />
+                            ) : (
+                              <Sparkles className="w-3 h-3 text-amber-500" />
+                            )}
+                            <span>{isLookingUpBarcode ? "Buscando..." : "Consultar catálogo"}</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label="Escanear código de barras com a câmera"
+                          onClick={() => {
+                            setScannerTarget("field");
+                            setIsScannerModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-[#1C1C1E] dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition cursor-pointer"
+                        >
+                          <ScanLine className="w-3 h-3 text-[#1C1C1E] dark:text-white" />
+                          <span>Escanear câmera</span>
+                        </button>
+                      </div>
                     </div>
                     <input
                       type="text"
@@ -4879,7 +4975,10 @@ function InventorySection({
       {/* Modal de Leitura de Código de Barras (Câmera & Entrada Manual) */}
       <BarcodeScannerModal
         isOpen={isScannerModalOpen}
-        onClose={() => setIsScannerModalOpen(false)}
+        onClose={() => {
+          setIsScannerModalOpen(false);
+          setScannerTarget("lookup");
+        }}
         onScan={handleBarcodeScanned}
         title={
           scannerTarget === "field"

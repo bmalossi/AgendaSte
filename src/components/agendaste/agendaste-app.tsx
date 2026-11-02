@@ -1111,6 +1111,7 @@ export function LuveaApp({
             section={activeSection}
             state={state}
             onUpdateState={handleUpdateStudioState}
+            onSelectSection={setActiveSection}
           />
         )}
 

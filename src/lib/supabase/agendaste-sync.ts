@@ -202,6 +202,16 @@ export async function loadStudioStateFromSupabase(
         );
       }
 
+      // Restaura dados de Estoque persistidos nas configurações da organização
+      if (orgSettings?.inventory && Array.isArray(orgSettings.inventory)) {
+        updated.inventory = orgSettings.inventory;
+      }
+
+      // Restaura dados de Prontuários Clínicos se persistidos nas configurações
+      if (orgSettings?.clinicalCharts && Array.isArray(orgSettings.clinicalCharts)) {
+        updated.clinicalCharts = orgSettings.clinicalCharts;
+      }
+
       // Sincronização dinâmica de Plano e Dias de Avaliação
       const planTierRaw = (orgData.plan_tier || "gold").toLowerCase();
       const planTierFormatted =
