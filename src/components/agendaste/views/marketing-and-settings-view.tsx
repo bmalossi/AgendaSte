@@ -21,7 +21,6 @@ import {
   Calendar,
   ChevronDown,
   Info,
-  ArrowUp,
   Banknote,
   ShoppingCart,
   ShoppingBag,
@@ -599,8 +598,6 @@ function renderReportCardIcon(id: ReportCardId) {
 
 function InsightsAnalyticsSection({ state }: { state: StudioState }) {
   const [periodId, setPeriodId] = useState<AnalyticsPeriodId>("this_month");
-  const [question, setQuestion] = useState("");
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null);
 
   const selectedPeriod =
@@ -683,32 +680,6 @@ function InsightsAnalyticsSection({ state }: { state: StudioState }) {
     Math.round((totalBookedMinutes / 480) * 100)
   );
 
-  const handleAskDataQuestion = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = question.trim();
-    if (!trimmed) return;
-
-    const lower = trimmed.toLowerCase();
-    if (lower.includes("cliente") || lower.includes("valioso") || lower.includes("vip")) {
-      const topClient = [...state.clients].sort(
-        (a, b) => b.totalSpentCents - a.totalSpentCents
-      )[0];
-      setAiResponse(
-        topClient
-          ? `Sua cliente com maior faturamento acumulado é ${topClient.fullName} (${formatBRL(topClient.totalSpentCents)} em ${topClient.visitsCount} visitas). A taxa de retenção geral está em ${clientRetentionPercent}%.`
-          : "Ainda não há clientes suficientes para ranquear."
-      );
-    } else if (lower.includes("serviço") || lower.includes("ticket")) {
-      setAiResponse(
-        `Em "${selectedPeriod.label}", sua receita de serviços é de ${formatBRL(scaledServiceRevenueCents)} com ticket médio de ${formatBRL(averageTicketCents)} em ${totalBookingsCount} agendamentos.`
-      );
-    } else {
-      setAiResponse(
-        `Resumo para "${selectedPeriod.label}": Receita líquida de ${formatBRL(scaledNetRevenueCents)}, receita projetada de ${formatBRL(scaledProjectedRevenueCents)}, retenção de clientes em ${clientRetentionPercent}% e taxa de ocupação da agenda em ${bookingUtilizationPercent}%.`
-      );
-    }
-  };
-
   const secondaryMetrics = [
     {
       id: "projected_revenue",
@@ -781,57 +752,6 @@ function InsightsAnalyticsSection({ state }: { state: StudioState }) {
           }))}
         />
       </div>
-
-      {/* Ask Anything AI Search Bar */}
-      <form
-        onSubmit={handleAskDataQuestion}
-        className="flex items-center gap-3 w-full rounded-full border border-[#E5E5EA] bg-white px-4 py-2.5 focus-within:border-[#1C1C1E] transition-colors"
-      >
-        <Sparkles className="w-4 h-4 text-[#1C1C1E] shrink-0" />
-        <input
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Pergunte qualquer coisa sobre seus dados..."
-          className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none"
-        />
-        <button
-          type="submit"
-          aria-label="Enviar pergunta sobre dados"
-          className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-            question.trim()
-              ? "bg-[#1C1C1E] text-white hover:bg-[#2C2C2E]"
-              : "bg-[#F2F2F7] text-[#8E8E93]"
-          }`}
-        >
-          <ArrowUp className="w-3.5 h-3.5" />
-        </button>
-      </form>
-
-      {aiResponse && (
-        <div className="rounded-[14px] border border-[#1C1C1E] bg-white p-4 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-7 h-7 rounded-full bg-[#C5D82D] flex items-center justify-center shrink-0 mt-0.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#1C1C1E]" />
-            </div>
-            <div>
-              <p className="text-[12px] font-bold uppercase tracking-wider text-[#6E6E73]">
-                Analista de Crescimento LUVEA
-              </p>
-              <p className="text-[13.5px] text-[#1C1C1E] mt-1 leading-relaxed">
-                {aiResponse}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAiResponse(null)}
-            className="text-[#8E8E93] hover:text-[#1C1C1E] p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Top Full-Width Card: Net Revenue */}
       <div className="bg-white rounded-[14px] border border-[#E5E5EA] p-5">
