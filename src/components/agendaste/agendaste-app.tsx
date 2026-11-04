@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -39,6 +39,7 @@ import {
   getTodayDateISO,
   getBookingSiteUrl,
 } from "@/lib/agendaste-store";
+import { evaluateOrganizationEntitlements } from "@/lib/billing/entitlements";
 import { LuveaSidebar } from "@/components/agendaste/sidebar";
 import {
   GetStartedView,
@@ -102,6 +103,29 @@ export function LuveaApp({
   const [mounted, setMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [tenantOrgId, setTenantOrgId] = useState<string | null>(null);
+  const [selectedClientForView, setSelectedClientForView] =
+    useState<string | null>(null);
+
+  // Avaliação memoizada das permissões e bloqueios de governança SaaS (Anti-AI Slop & Alta Performance)
+  const entitlements = useMemo(() => {
+    const trialDaysLeft = state.onboarding?.trialDaysLeft;
+    return evaluateOrganizationEntitlements({
+      subscriptionStatus: state.onboarding?.subscriptionStatus,
+      planTier: state.onboarding?.planTier,
+      trialEndsAt:
+        trialDaysLeft !== undefined && trialDaysLeft > 0
+          ? new Date(Date.now() + trialDaysLeft * 86400000)
+          : null,
+      gracePeriodEndsAt: (state.onboarding as any)?.gracePeriodEndsAt,
+      currentPeriodEnd: (state.onboarding as any)?.currentPeriodEnd,
+    });
+  }, [
+    state.onboarding?.subscriptionStatus,
+    state.onboarding?.planTier,
+    state.onboarding?.trialDaysLeft,
+    (state.onboarding as any)?.gracePeriodEndsAt,
+    (state.onboarding as any)?.currentPeriodEnd,
+  ]);
 
   useEffect(() => {
     setMounted(true);
@@ -476,7 +500,7 @@ export function LuveaApp({
   }
 
   return (
-    <div className="luvea-dashboard min-h-screen flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-[#1C1C1E] dark:text-[#f4f4f5]">
+    <div className="luvea-dashboard min-h-screen flex flex-col md:flex-row bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-[#f4f4f5]">
       {/* Mobile Top Header (<768px): Studio & Section Identity + Quick Access */}
       <header className="md:hidden sticky top-0 inset-x-0 z-30 bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border-b border-[#E5E5EA] dark:border-[#27272a] px-3.5 py-2.5 flex items-center justify-between gap-2 select-none">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -575,7 +599,7 @@ export function LuveaApp({
             <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[13.5px] bg-white dark:bg-[#18181b]">
               {/* Grupo 1: Atendimento & Recepção */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#6E6E73] dark:text-[#a1a1aa]">
                   Atendimento &amp; Agenda
                 </p>
                 <div className="space-y-0.5">
@@ -595,7 +619,7 @@ export function LuveaApp({
                       <Calendar className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Agenda Inteligente</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -614,7 +638,7 @@ export function LuveaApp({
                       <Contact className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Clientes &amp; Fichas</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -633,7 +657,7 @@ export function LuveaApp({
                       <ClipboardList className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Prontuários (Anamnese)</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -652,14 +676,14 @@ export function LuveaApp({
                       <Sparkles className="w-4 h-4 text-[#6E56CF] dark:text-[#A494F7]" />
                       <span>Recepção IA &amp; WhatsApp</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
                 </div>
               </div>
 
               {/* Grupo 2: Financeiro */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#6E6E73] dark:text-[#a1a1aa]">
                   Financeiro &amp; PDV
                 </p>
                 <div className="space-y-0.5">
@@ -696,7 +720,7 @@ export function LuveaApp({
                       <Banknote className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Histórico de Vendas</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -715,7 +739,7 @@ export function LuveaApp({
                       <CreditCard className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Faturas &amp; Cobranças</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -734,7 +758,7 @@ export function LuveaApp({
                       <BarChart3 className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Análises &amp; Métricas</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -753,14 +777,14 @@ export function LuveaApp({
                       <BarChart3 className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Relatórios (12 Modelos)</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
                 </div>
               </div>
 
               {/* Grupo 3: Gestão & Catálogo */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#6E6E73] dark:text-[#a1a1aa]">
                   Gestão &amp; Catálogo
                 </p>
                 <div className="space-y-0.5">
@@ -780,7 +804,7 @@ export function LuveaApp({
                       <Package className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Catálogo &amp; Serviços</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -799,7 +823,7 @@ export function LuveaApp({
                       <Users className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Equipe &amp; Comissões</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -818,7 +842,7 @@ export function LuveaApp({
                       <Package className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Estoque &amp; Backbar</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <div className="relative group">
@@ -847,7 +871,7 @@ export function LuveaApp({
 
               {/* Grupo 4: Sistema & Preferências */}
               <div>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#6E6E73] dark:text-[#a1a1aa]">
                   Sistema
                 </p>
                 <div className="space-y-0.5">
@@ -867,7 +891,7 @@ export function LuveaApp({
                       <Settings className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Configurações</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -886,7 +910,7 @@ export function LuveaApp({
                       <ShieldCheck className="w-4 h-4 text-[#5B43D6] dark:text-[#A494F7]" />
                       <span>Primeiros Passos ({completedOnboardingCount}/{totalOnboardingCount})</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -905,7 +929,7 @@ export function LuveaApp({
                       <Gift className="w-4 h-4 text-[#1C1C1E] dark:text-[#a1a1aa]" />
                       <span>Indique e Ganhe R$ 150</span>
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#71717a]" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
                   </button>
 
                   <button
@@ -956,7 +980,7 @@ export function LuveaApp({
                     className="w-full h-11 px-3 rounded-[10px] flex items-center justify-between font-medium text-[#6E6E73] dark:text-[#71717a] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] active:scale-95 transition-transform"
                   >
                     <span className="flex items-center gap-3">
-                      <LogOut className="w-4 h-4 text-[#8E8E93] dark:text-zinc-500" />
+                      <LogOut className="w-4 h-4 text-[#6E6E73] dark:text-[#a1a1aa]" />
                       <span>Sair da conta</span>
                     </span>
                   </button>
@@ -978,7 +1002,7 @@ export function LuveaApp({
                     setMobileMenuOpen(false);
                     pwa.install();
                   }}
-                  className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#71717a] hover:text-[#1C1C1E] dark:hover:text-white transition"
+                  className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition"
                 >
                   LUVEA PWA · Toque para instalar
                 </button>
@@ -1001,51 +1025,103 @@ export function LuveaApp({
       />
 
       {/* Main Content Workspace with safe area padding for bottom navigation */}
-      <main className="flex-1 min-w-0 pb-[calc(5.2rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden bg-white dark:bg-[#09090b] flex flex-col">
-        {/* Top Banner de Avaliação Gratuita (Anti-AI Slop) */}
-        {!trialBannerDismissed &&
-          state.onboarding.subscriptionStatus !== "active" &&
-          state.onboarding.trialDaysLeft <= 3 && (
-            <div
-              className={`px-4 py-2.5 text-[12.5px] font-medium flex items-center justify-between transition-colors border-b shrink-0 ${
-                state.onboarding.trialDaysLeft === 0
-                  ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50 text-rose-900 dark:text-rose-200"
-                  : "bg-[#F5F5F7] dark:bg-[#18181b] border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-[#f4f4f5]"
-              }`}
-            >
-              <div className="flex items-center gap-2 truncate">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    state.onboarding.trialDaysLeft === 0 ? "bg-rose-500" : "bg-amber-500"
-                  }`}
-                />
-                <span className="truncate">
-                  {state.onboarding.trialDaysLeft === 0
-                    ? "Seu teste gratuito de 14 dias expirou. Escolha um plano para manter sua agenda e automações ativas."
-                    : `Restam apenas ${state.onboarding.trialDaysLeft} ${
-                        state.onboarding.trialDaysLeft === 1 ? "dia" : "dias"
-                      } de teste gratuito no Plano ${state.onboarding.planTier || "Gold"}.`}
-                </span>
+      <main className="flex-1 min-w-0 pb-[calc(5.2rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden bg-white dark:bg-[#18181b] flex flex-col">
+        {/* Top Banner de Governança SaaS: Bloqueio Operacional, Carência e Avaliação (Anti-AI Slop) */}
+        {(() => {
+          if (entitlements.isSoftLocked) {
+            return (
+              <div className="px-4 py-2.5 sm:py-2 text-[12.5px] font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 transition-colors border-b shrink-0 bg-[#F5F5F7] dark:bg-[#18181b] border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-[#f4f4f5]">
+                <div className="flex items-start sm:items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full shrink-0 bg-rose-500 ring-2 ring-rose-500/20 mt-1 sm:mt-0" />
+                  <p className="leading-snug sm:leading-normal">
+                    <strong className="font-semibold">Bloqueio Operacional:</strong> Seu plano está com pagamentos pendentes. Novas reservas, agendamento online e campanhas estão suspensos. Conclusão de agendamentos confirmados e exportação LGPD continuam liberadas.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("settings", "subscription")}
+                    className="inline-flex items-center min-h-[44px] px-3.5 py-2 sm:px-0 sm:py-0 sm:min-h-0 rounded-full sm:rounded-none bg-white sm:bg-transparent dark:bg-[#27272a] dark:sm:bg-transparent border border-[#E5E5EA] sm:border-0 dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white sm:underline hover:opacity-80 transition font-semibold text-[12.5px]"
+                  >
+                    Regularizar plano
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0 ml-4">
-                <button
-                  type="button"
-                  onClick={() => handleNavigate("settings", "subscription")}
-                  className="underline hover:opacity-80 transition font-semibold text-[12.5px]"
-                >
-                  {state.onboarding.trialDaysLeft === 0 ? "Escolher plano" : "Salvar cartão"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrialBannerDismissed(true)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition"
-                  aria-label="Dispensar aviso"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+            );
+          }
+
+          if (entitlements.isGracePeriod) {
+            return (
+              <div className="px-4 py-2.5 sm:py-2 text-[12.5px] font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 transition-colors border-b shrink-0 bg-[#F5F5F7] dark:bg-[#18181b] border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-[#f4f4f5]">
+                <div className="flex items-start sm:items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500 ring-2 ring-amber-500/20 mt-1 sm:mt-0" />
+                  <p className="leading-snug sm:leading-normal">
+                    <strong className="font-semibold">Período de Carência:</strong> Pendência na última renovação. Regularize seu plano nos próximos {entitlements.graceDaysLeft} {entitlements.graceDaysLeft === 1 ? "dia" : "dias"} para manter o agendamento online ativo.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("settings", "subscription")}
+                    className="inline-flex items-center min-h-[44px] px-3.5 py-2 sm:px-0 sm:py-0 sm:min-h-0 rounded-full sm:rounded-none bg-white sm:bg-transparent dark:bg-[#27272a] dark:sm:bg-transparent border border-[#E5E5EA] sm:border-0 dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white sm:underline hover:opacity-80 transition font-semibold text-[12.5px]"
+                  >
+                    Regularizar plano
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          }
+
+          if (
+            !trialBannerDismissed &&
+            state.onboarding.subscriptionStatus !== "active" &&
+            state.onboarding.trialDaysLeft <= 3
+          ) {
+            return (
+              <div
+                className={`px-4 py-2.5 sm:py-2 text-[12.5px] font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 transition-colors border-b shrink-0 ${
+                  state.onboarding.trialDaysLeft === 0
+                    ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50 text-rose-900 dark:text-rose-200"
+                    : "bg-[#F5F5F7] dark:bg-[#18181b] border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-[#f4f4f5]"
+                }`}
+              >
+                <div className="flex items-start sm:items-center gap-2 min-w-0">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 mt-1 sm:mt-0 ${
+                      state.onboarding.trialDaysLeft === 0 ? "bg-rose-500" : "bg-amber-500"
+                    }`}
+                  />
+                  <p className="leading-snug sm:leading-normal">
+                    {state.onboarding.trialDaysLeft === 0
+                      ? "Seu teste gratuito de 14 dias expirou. Escolha um plano para manter sua agenda e automações ativas."
+                      : `Restam apenas ${state.onboarding.trialDaysLeft} ${
+                          state.onboarding.trialDaysLeft === 1 ? "dia" : "dias"
+                        } de teste gratuito no Plano ${state.onboarding.planTier || "Gold"}.`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("settings", "subscription")}
+                    className="inline-flex items-center min-h-[44px] px-3.5 py-2 sm:px-0 sm:py-0 sm:min-h-0 rounded-full sm:rounded-none bg-white sm:bg-transparent dark:bg-[#27272a] dark:sm:bg-transparent border border-[#E5E5EA] sm:border-0 dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white sm:underline hover:opacity-80 transition font-semibold text-[12.5px]"
+                  >
+                    {state.onboarding.trialDaysLeft === 0 ? "Escolher plano" : "Salvar cartão"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrialBannerDismissed(true)}
+                    className="w-11 h-11 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition"
+                    aria-label="Dispensar aviso"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
 
         {activeSection === "get_started" && (
           <GetStartedView
@@ -1078,6 +1154,7 @@ export function LuveaApp({
             onUpdateState={handleUpdateStudioState}
             onNavigateToCalendarWithClient={() => setActiveSection("calendar")}
             onOpenQuickSale={() => handleOpenQuickSale()}
+            initialClientId={selectedClientForView}
           />
         )}
 
@@ -1089,6 +1166,10 @@ export function LuveaApp({
             state={state}
             onUpdateState={handleUpdateStudioState}
             onOpenQuickSale={handleOpenQuickSale}
+            onNavigateToClient={(clientId) => {
+              setSelectedClientForView(clientId);
+              setActiveSection("clients");
+            }}
           />
         )}
 

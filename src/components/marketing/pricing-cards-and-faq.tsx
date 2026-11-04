@@ -71,8 +71,8 @@ export function PricingCardsAndFaq() {
                 }`}
               >
                 <span>Cobrança Anual</span>
-                <span className="px-2 py-0.5 rounded-full bg-zinc-200/80 dark:bg-[#27272a] text-zinc-800 dark:text-zinc-200 text-[10.5px] font-mono font-bold">
-                  Economize ~14%
+                <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                  -15%
                 </span>
               </button>
             </div>

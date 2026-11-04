@@ -36,6 +36,8 @@ interface PublicBookingWebsiteProps {
   onUpdateState?: (updater: StudioState | ((prev: StudioState) => StudioState)) => void;
   onClose?: () => void;
   isModal?: boolean;
+  isSoftLocked?: boolean;
+  contactPhone?: string;
 }
 
 // 6 Temas Editoriais de Luxo
@@ -52,6 +54,10 @@ const THEME_STYLES: Record<
     badgeBg: string;
     badgeText: string;
     fontFamily: string;
+    softLockBadgeBg: string;
+    softLockBadgeText: string;
+    softLockBadgeBorder: string;
+    softLockIndicator: string;
   }
 > = {
   classic: {
@@ -65,6 +71,10 @@ const THEME_STYLES: Record<
     badgeBg: "bg-emerald-950/60",
     badgeText: "text-emerald-300",
     fontFamily: "font-serif",
+    softLockBadgeBg: "bg-rose-950/60",
+    softLockBadgeText: "text-rose-300",
+    softLockBadgeBorder: "border-rose-800/40",
+    softLockIndicator: "bg-rose-400 ring-2 ring-rose-400/20",
   },
   billboard: {
     bg: "bg-[#18181B]",
@@ -77,6 +87,10 @@ const THEME_STYLES: Record<
     badgeBg: "bg-zinc-800",
     badgeText: "text-zinc-200",
     fontFamily: "font-mono",
+    softLockBadgeBg: "bg-zinc-800/90",
+    softLockBadgeText: "text-rose-300",
+    softLockBadgeBorder: "border-rose-900/50",
+    softLockIndicator: "bg-rose-400 ring-2 ring-rose-400/20",
   },
   canvas: {
     bg: "bg-[#FAFAFA]",
@@ -89,6 +103,10 @@ const THEME_STYLES: Record<
     badgeBg: "bg-zinc-100",
     badgeText: "text-zinc-800",
     fontFamily: "font-sans",
+    softLockBadgeBg: "bg-rose-50",
+    softLockBadgeText: "text-rose-700",
+    softLockBadgeBorder: "border-rose-200/80",
+    softLockIndicator: "bg-rose-500 ring-2 ring-rose-500/20",
   },
   energy: {
     bg: "bg-[#100B20]",
@@ -101,6 +119,10 @@ const THEME_STYLES: Record<
     badgeBg: "bg-purple-950/70",
     badgeText: "text-pink-300",
     fontFamily: "font-sans",
+    softLockBadgeBg: "bg-purple-950/80",
+    softLockBadgeText: "text-rose-300",
+    softLockBadgeBorder: "border-rose-800/40",
+    softLockIndicator: "bg-rose-400 ring-2 ring-rose-400/20",
   },
   organic: {
     bg: "bg-[#F7F4EE]",
@@ -113,6 +135,10 @@ const THEME_STYLES: Record<
     badgeBg: "bg-[#E2DDD2]",
     badgeText: "text-[#2D4030]",
     fontFamily: "font-serif",
+    softLockBadgeBg: "bg-[#EFEAE1]",
+    softLockBadgeText: "text-rose-800",
+    softLockBadgeBorder: "border-rose-200/80",
+    softLockIndicator: "bg-rose-600 ring-2 ring-rose-600/20",
   },
   play: {
     bg: "bg-[#F3F4F6]",
@@ -125,6 +151,10 @@ const THEME_STYLES: Record<
     badgeBg: "bg-blue-50",
     badgeText: "text-blue-700",
     fontFamily: "font-sans",
+    softLockBadgeBg: "bg-rose-50",
+    softLockBadgeText: "text-rose-700",
+    softLockBadgeBorder: "border-rose-200",
+    softLockIndicator: "bg-rose-500 ring-2 ring-rose-500/20",
   },
 };
 
@@ -133,6 +163,8 @@ export function PublicBookingWebsite({
   onUpdateState,
   onClose,
   isModal = false,
+  isSoftLocked = false,
+  contactPhone,
 }: PublicBookingWebsiteProps) {
   const websiteConfig: WebsiteBookingSetupConfig =
     state.settings.website ??
@@ -270,6 +302,15 @@ export function PublicBookingWebsite({
     if (!selectedService) return;
     setBookingError(null);
 
+    if (isSoftLocked) {
+      setBookingError(
+        `O agendamento online deste estúdio está temporariamente suspenso para novas reservas. Para agendar ou tirar dúvidas, entre em contato diretamente pelo WhatsApp${
+          contactPhone ? `: ${contactPhone}` : "."
+        }`
+      );
+      return;
+    }
+
     if (!clientName.trim() || !clientPhone.trim()) {
       setBookingError("Por favor, preencha seu nome e WhatsApp.");
       return;
@@ -340,6 +381,33 @@ export function PublicBookingWebsite({
 
       {/* Main Public Website Content */}
       <div className="max-w-5xl mx-auto px-6 py-10 sm:py-16 space-y-16">
+        {/* Soft-Lock Restriction Banner (Acceptance Criterion 4) */}
+        {isSoftLocked && (
+          <div className={`p-5 sm:p-6 rounded-2xl border ${theme.cardBg} ${theme.cardBorder} text-center space-y-3 max-w-2xl mx-auto shadow-xs backdrop-blur-xs`}>
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11.5px] font-medium ${theme.softLockBadgeBg} ${theme.softLockBadgeText} border ${theme.softLockBadgeBorder}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${theme.softLockIndicator}`} />
+              <span>Agendamento Online Temporariamente Suspenso</span>
+            </div>
+            <p className={`text-xs sm:text-[13px] ${theme.textMuted} leading-relaxed`}>
+              O agendamento online deste estúdio está temporariamente suspenso para novas reservas. Para agendar ou tirar dúvidas, entre em contato diretamente pelo WhatsApp
+              {contactPhone ? `: ${contactPhone}` : "."}
+            </p>
+            {contactPhone && (
+              <div className="pt-1 flex justify-center">
+                <a
+                  href={`https://wa.me/${contactPhone.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-full ${theme.accentBtn} ${theme.accentBtnHover} transition-colors min-h-[44px]`}
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Falar no WhatsApp</span>
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Hero Header */}
         <div className="space-y-6 text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold tracking-wider uppercase border border-current opacity-80">
@@ -567,8 +635,8 @@ export function PublicBookingWebsite({
 
             {/* Error Message */}
             {bookingError && (
-              <div className="p-3 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-xs flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-center gap-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-rose-500/20 shrink-0" />
                 <span>{bookingError}</span>
               </div>
             )}

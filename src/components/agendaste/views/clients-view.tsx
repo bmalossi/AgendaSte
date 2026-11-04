@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -50,6 +50,7 @@ interface ClientsViewProps {
   onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
   onNavigateToCalendarWithClient?: (clientId: string) => void;
   onOpenQuickSale?: () => void;
+  initialClientId?: string | null;
 }
 
 type ClientDrawerTab =
@@ -64,6 +65,7 @@ export function ClientsView({
   onUpdateState,
   onNavigateToCalendarWithClient,
   onOpenQuickSale,
+  initialClientId,
 }: ClientsViewProps) {
   const [showEditorialHero, setShowEditorialHero] = useState(false);
   const [retentionFilter, setRetentionFilter] = useState<
@@ -71,7 +73,7 @@ export function ClientsView({
   >("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(
-    state.clients[0]?.id ?? null
+    () => initialClientId || state.clients[0]?.id || null
   );
   const [activeTab, setActiveTab] = useState<ClientDrawerTab>("appointments");
   const [appointmentsSubTab, setAppointmentsSubTab] = useState<
@@ -137,6 +139,18 @@ export function ClientsView({
     }
   };
 
+  // Sincroniza seleção de cliente quando navegado externamente (ex: Detalhes da venda)
+  useEffect(() => {
+    if (initialClientId) {
+      const target = state.clients.find((c) => c.id === initialClientId);
+      if (target) {
+        setRetentionFilter("all");
+        setSearchQuery("");
+        handleSelectClient(target);
+      }
+    }
+  }, [initialClientId, state.clients]);
+
   const filteredClients = useMemo(
     () => filterClientsByRetention(state, retentionFilter, searchQuery),
     [state.clients, retentionFilter, searchQuery]
@@ -189,7 +203,7 @@ export function ClientsView({
   }, [state.calendarEvents, selectedClient, todayISO]);
 
   return (
-    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
       {/* Top Header Bar (05-3-clients-added.png) */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">

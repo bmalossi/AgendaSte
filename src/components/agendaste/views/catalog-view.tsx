@@ -626,7 +626,7 @@ export function CatalogView({
 
     // Default Services Landing + Suggested Services + Active List (06-1-services.png)
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
         {/* Editorial Hero Card (06-1-services.png) */}
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
@@ -809,7 +809,7 @@ export function CatalogView({
   // ---------------------------------------------------------------------------
   if (section === "catalog_packages") {
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[28px] font-bold text-[#1C1C1E]">
@@ -966,7 +966,7 @@ export function CatalogView({
   // ---------------------------------------------------------------------------
   if (section === "catalog_memberships") {
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
         <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 flex flex-wrap items-center justify-between gap-6 shadow-gg-card">
           <div className="max-w-xl space-y-3">
             <span className="inline-block px-3 py-1 rounded-full bg-white/80 text-[12px] font-semibold text-[#1C1C1E]">
@@ -1094,7 +1094,7 @@ export function CatalogView({
   const roomsList = state.resources.filter((r) => r.category === "room");
 
   return (
-    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
       {/* Editorial Hero matching 06-4-resources.png */}
       <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">

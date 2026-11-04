@@ -9,7 +9,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#FAFAFC] dark:bg-[#09090b] text-[#1C1C1E] dark:text-[#f4f4f5] flex flex-col justify-between selection:bg-[#1C1C1E] dark:selection:bg-[#27272a] selection:text-white transition-colors">
+    <div className="min-h-screen bg-[#FAFAFC] dark:bg-[#18181b] text-[#1C1C1E] dark:text-[#f4f4f5] flex flex-col justify-between selection:bg-[#1C1C1E] dark:selection:bg-[#27272a] selection:text-white transition-colors">
       {/* Top Header */}
       <header className="w-full px-6 py-6 sm:px-10 flex items-center justify-between">
         <Link

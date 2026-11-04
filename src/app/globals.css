@@ -15,16 +15,20 @@
   --gg-purple: #6e56cf;
   --gg-magenta: #e11d8f;
   --gg-gold: #c69214;
+  --calendar-blocked-bg: rgba(244, 244, 245, 0.65);
+  --calendar-blocked-stripe: rgba(148, 163, 184, 0.28);
 }
 
 .dark {
-  --bg-canvas: #09090b;
+  --bg-canvas: #18181b;
   --bg-surface: #18181b;
   --bg-subtle: #18181b;
   --text-primary: #ffffff;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
   --border-subtle: #27272a;
+  --calendar-blocked-bg: rgba(24, 24, 27, 0.75);
+  --calendar-blocked-stripe: rgba(255, 255, 255, 0.16);
   color-scheme: dark;
 }
 
@@ -40,7 +44,7 @@
 }
 
 .dark body {
-  background-color: #09090b;
+  background-color: #18181b;
   color: #f4f4f5;
 }
 
@@ -110,7 +114,7 @@
 
 /* ==========================================================================
    LUVEA STUDIO DASHBOARD — MODO ESCURO DE LUXO (Email Luxury Standard)
-   Canvas: #09090b
+   Canvas: #18181b
    Cards / Superfícies / Gavetas / Modais: #18181b
    Bordas / Linhas divisórias: #27272a
    Títulos / Cabeçalhos / Textos primários: #ffffff
@@ -122,7 +126,7 @@
 
 .dark .luvea-dashboard,
 .dark .luvea-dashboard main {
-  background-color: #09090b !important;
+  background-color: #18181b !important;
   color: #f4f4f5 !important;
 }
 
@@ -154,7 +158,7 @@
 .dark .luvea-dashboard .bg-gg-hero-gradient,
 .dark .luvea-dashboard .bg-luvea-hero-gradient {
   background-image: none !important;
-  background-color: #121214 !important;
+  background-color: #18181b !important;
   border-color: #27272a !important;
 }
 
@@ -295,31 +299,31 @@
 }
 
 /* 7. Botões Primários (Pretos no Claro -> Brancos com Texto Escuro no Escuro) */
-.dark .luvea-dashboard button.bg-\[\#1C1C1E\],
-.dark .luvea-dashboard button.bg-\[\#18181B\],
-.dark .luvea-dashboard a.bg-\[\#1C1C1E\],
-.dark .luvea-dashboard a.bg-\[\#18181B\],
-.dark .luvea-dashboard button.bg-black,
-.dark .luvea-dashboard a.bg-black {
+.dark .luvea-dashboard button.bg-\[\#1C1C1E\]:not([class*="dark:bg-"]),
+.dark .luvea-dashboard button.bg-\[\#18181B\]:not([class*="dark:bg-"]),
+.dark .luvea-dashboard a.bg-\[\#1C1C1E\]:not([class*="dark:bg-"]),
+.dark .luvea-dashboard a.bg-\[\#18181B\]:not([class*="dark:bg-"]),
+.dark .luvea-dashboard button.bg-black:not([class*="dark:bg-"]),
+.dark .luvea-dashboard a.bg-black:not([class*="dark:bg-"]) {
   background-color: #ffffff;
   color: #09090b;
 }
 
-.dark .luvea-dashboard button.bg-\[\#1C1C1E\]:hover,
-.dark .luvea-dashboard button.bg-\[\#18181B\]:hover,
-.dark .luvea-dashboard a.bg-\[\#1C1C1E\]:hover,
-.dark .luvea-dashboard a.bg-\[\#18181B\]:hover,
-.dark .luvea-dashboard button.bg-black:hover,
-.dark .luvea-dashboard a.bg-black:hover {
+.dark .luvea-dashboard button.bg-\[\#1C1C1E\]:not([class*="dark:bg-"]):hover,
+.dark .luvea-dashboard button.bg-\[\#18181B\]:not([class*="dark:bg-"]):hover,
+.dark .luvea-dashboard a.bg-\[\#1C1C1E\]:not([class*="dark:bg-"]):hover,
+.dark .luvea-dashboard a.bg-\[\#18181B\]:not([class*="dark:bg-"]):hover,
+.dark .luvea-dashboard button.bg-black:not([class*="dark:bg-"]):hover,
+.dark .luvea-dashboard a.bg-black:not([class*="dark:bg-"]):hover {
   background-color: #e4e4e7;
 }
 
-.dark .luvea-dashboard button.bg-\[\#1C1C1E\] *,
-.dark .luvea-dashboard button.bg-\[\#18181B\] *,
-.dark .luvea-dashboard a.bg-\[\#1C1C1E\] *,
-.dark .luvea-dashboard a.bg-\[\#18181B\] *,
-.dark .luvea-dashboard button.bg-black *,
-.dark .luvea-dashboard a.bg-black * {
+.dark .luvea-dashboard button.bg-\[\#1C1C1E\]:not([class*="dark:bg-"]) *,
+.dark .luvea-dashboard button.bg-\[\#18181B\]:not([class*="dark:bg-"]) *,
+.dark .luvea-dashboard a.bg-\[\#1C1C1E\]:not([class*="dark:bg-"]) *,
+.dark .luvea-dashboard a.bg-\[\#18181B\]:not([class*="dark:bg-"]) *,
+.dark .luvea-dashboard button.bg-black:not([class*="dark:bg-"]) *,
+.dark .luvea-dashboard a.bg-black:not([class*="dark:bg-"]) * {
   color: #09090b;
 }
 
@@ -440,9 +444,107 @@
   border-radius: 12px;
 }
 
+/* 13. Grade Bloqueada para Reserva / Horários Não Úteis (Calendar Hatched Slot Pattern) */
+.calendar-blocked-slot {
+  background-color: var(--calendar-blocked-bg);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--calendar-blocked-stripe) 0,
+    var(--calendar-blocked-stripe) 1.5px,
+    transparent 1.5px,
+    transparent 8px
+  );
+}
+
+.dark .calendar-blocked-slot {
+  background-color: rgba(24, 24, 27, 0.75) !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.16) 0,
+    rgba(255, 255, 255, 0.16) 1.5px,
+    transparent 1.5px,
+    transparent 8px
+  ) !important;
+}
+
 @layer utilities {
   .outline-hidden {
     outline: 2px solid transparent;
     outline-offset: 2px;
+  }
+}
+
+/* 14. Impressão de Comprovante Oficial de Pagamento (Thermal / A4) */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #sale-receipt-printable,
+  #sale-receipt-printable * {
+    visibility: visible;
+  }
+  #sale-receipt-printable {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 24px;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 99999;
+  }
+}
+
+/* ==========================================================================
+   15. Acessibilidade Motora & Redução de Movimento (WCAG 2.2 / AAA Standard)
+   @media (prefers-reduced-motion: reduce)
+   Garante que usuários com sensibilidade vestibular e cinetose naveguem
+   sem transições bruscas, modais com escala/deslize ou indicadores pulsantes.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Desativa pulsações contínuas em badges e micro-indicadores mantendo opacidade estável */
+  .animate-pulse,
+  [class*="animate-pulse"] {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Desativa rotações contínuas (spinners e ícones de carregamento) mantendo o ícone estático */
+  .animate-spin,
+  [class*="animate-spin"],
+  .animate-ping,
+  [class*="animate-ping"],
+  .animate-bounce,
+  [class*="animate-bounce"] {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  /* Modais, Gavetas e Menus Dropdown abrem instantaneamente sem zoom ou slide */
+  [role="dialog"],
+  [role="alertdialog"],
+  [role="menu"],
+  dialog,
+  .animate-in,
+  [class*="animate-in"],
+  [class*="slide-in-from"],
+  [class*="zoom-in"],
+  [class*="fade-in"] {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+    opacity: 1 !important;
   }
 }

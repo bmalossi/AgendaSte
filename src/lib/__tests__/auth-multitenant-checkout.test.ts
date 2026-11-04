@@ -63,8 +63,8 @@ describe("Módulo de Autenticação, Checkout & Multi-Tenant (Luvea.app)", () =>
       assert.equal(result.success, true);
     });
 
-    it("exige dados de cartão de crédito quando o método for credit_card", () => {
-      const incompleteCardData = {
+    it("não exige dados brutos de cartão de crédito no schema (Conformidade PCI-DSS SAQ-A com Stripe Elements)", () => {
+      const cardData = {
         fullName: "Camila Valente",
         email: "camila@estudio.com.br",
         whatsapp: "(11) 98765-4321",
@@ -74,17 +74,14 @@ describe("Módulo de Autenticação, Checkout & Multi-Tenant (Luvea.app)", () =>
         planTier: "gold",
         billingCycle: "monthly",
         paymentMethod: "credit_card",
-        // faltando cardNumber, cardName, etc.
       };
 
-      const result = checkoutFormSchema.safeParse(incompleteCardData);
-      assert.equal(result.success, false);
-      if (!result.success) {
-        const errorPaths = (result.error?.issues || []).map((e) => e.path.join("."));
-        assert.ok(errorPaths.includes("cardNumber"));
-        assert.ok(errorPaths.includes("cardName"));
-        assert.ok(errorPaths.includes("cardExp"));
-        assert.ok(errorPaths.includes("cardCvc"));
+      const result = checkoutFormSchema.safeParse(cardData);
+      assert.equal(result.success, true);
+      if (result.success) {
+        const keys = Object.keys(result.data);
+        assert.equal(keys.includes("cardNumber"), false);
+        assert.equal(keys.includes("cardCvc"), false);
       }
     });
 

@@ -57,6 +57,7 @@ import {
   executeQuickSaleCheckout,
   saveCatalogService,
   getTodayDateISO,
+  getPendingCheckoutAppointments,
   addDaysToDateISO,
   checkCalendarSlotConflict,
 } from "@/lib/agendaste-store";
@@ -213,6 +214,8 @@ export function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(
     null
   );
+  const [pendingCheckoutPopoverOpen, setPendingCheckoutPopoverOpen] =
+    useState(false);
 
   const todayDateISO = getTodayDateISO();
 
@@ -481,6 +484,32 @@ export function CalendarView({
     return () => clearInterval(interval);
   }, []);
 
+  const pendingCheckoutAppointments = useMemo(
+    () =>
+      getPendingCheckoutAppointments(
+        state.calendarEvents,
+        todayDateISO,
+        currentTime?.totalMinutes
+      ),
+    [state.calendarEvents, todayDateISO, currentTime?.totalMinutes]
+  );
+
+  const pendingCheckoutIds = useMemo(
+    () => new Set(pendingCheckoutAppointments.map((p) => p.id)),
+    [pendingCheckoutAppointments]
+  );
+
+  useEffect(() => {
+    if (!pendingCheckoutPopoverOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPendingCheckoutPopoverOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pendingCheckoutPopoverOpen]);
+
   const selectedDateISO = state.calendarView.selectedDateISO;
   const viewMode = state.calendarView.mode;
 
@@ -656,10 +685,10 @@ export function CalendarView({
     overrideProviderId?: string
   ) => {
     const todayISO = getTodayDateISO();
-    const targetDateISO = presetDateISO ?? selectedDateISO;
+    const targetDateISO = presetDateISO ?? (selectedDateISO < todayISO ? todayISO : selectedDateISO);
 
-    // Trancar agendamento e reserva em datas passadas
-    if (targetDateISO < todayISO && presetType !== "working_hours") {
+    // Trancar agendamento e reserva em datas passadas apenas quando clicado em um slot explicitamente no passado
+    if (presetDateISO && presetDateISO < todayISO && presetType !== "working_hours") {
       onUpdateState((prev) => ({
         ...prev,
         lastToastMessage: "Não é permitido agendar ou reservar em datas passadas.",
@@ -687,7 +716,7 @@ export function CalendarView({
     if (chosenType === "personal_block") {
       setSelectedServiceIds([]);
     } else if (chosenType === "waitlist_entry") {
-      setValidUntilISO(presetDateISO ?? selectedDateISO);
+      setValidUntilISO(presetDateISO ?? (selectedDateISO < todayISO ? todayISO : selectedDateISO));
       setIsHousecall(false);
       setWaitlistNotes("");
       if (!clientId && state.clients[0]) {
@@ -696,10 +725,41 @@ export function CalendarView({
       if (selectedServiceIds.length === 0 && state.services[0]) {
         setSelectedServiceIds([state.services[0].id]);
       }
-    } else if (selectedServiceIds.length === 0 && state.services[0]) {
-      setSelectedServiceIds([state.services[0].id]);
+    } else {
+      if (!clientId && state.clients[0]) {
+        setClientId(state.clients[0].id);
+      }
+      if (selectedServiceIds.length === 0 && state.services[0]) {
+        setSelectedServiceIds([state.services[0].id]);
+      }
     }
     setNewAppointmentDrawerOpen(true);
+  };
+
+  const handleHeaderOpenNewAppointment = () => {
+    const todayISO = getTodayDateISO();
+    const effectiveDateISO = selectedDateISO < todayISO ? todayISO : selectedDateISO;
+
+    // Horário de início inteligente:
+    // Se for para hoje, sugere o próximo bloco de 30 minutos (entre 08:00 e 19:30). Caso contrário, 10:00 padrão.
+    let defaultTime = "10:00";
+    if (effectiveDateISO === todayISO) {
+      const now = new Date();
+      const currentHours = now.getHours();
+      const currentMinutes = now.getMinutes();
+      let nextMinutes = currentMinutes < 30 ? 30 : 0;
+      let nextHours = currentMinutes < 30 ? currentHours : currentHours + 1;
+      if (nextHours < 8) {
+        nextHours = 9;
+        nextMinutes = 0;
+      } else if (nextHours >= 20) {
+        nextHours = 10;
+        nextMinutes = 0;
+      }
+      defaultTime = `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
+    }
+
+    openNewDrawerAtSlot(defaultTime, "appointment", effectiveDateISO);
   };
 
   const handleOpenEditWaitlist = (wl: WaitlistEntryItem, isReschedule = false) => {
@@ -1113,6 +1173,133 @@ export function CalendarView({
     );
   };
 
+  const renderPendingCheckoutContent = () => {
+    const totalPendingCents = pendingCheckoutAppointments.reduce(
+      (sum, e) => sum + (e.totalCents || 0),
+      0
+    );
+
+    return (
+      <div className="flex flex-col w-full">
+        {/* Header */}
+        <div className="p-4 sm:p-4.5 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
+              Fila de Baixa
+            </h3>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-zinc-200 border border-[#E5E5EA] dark:border-[#3F3F46]">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+              <span>
+                {pendingCheckoutAppointments.length}{" "}
+                {pendingCheckoutAppointments.length === 1 ? "pendente" : "pendentes"}
+              </span>
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPendingCheckoutPopoverOpen(false)}
+            title="Fechar fila de baixa"
+            aria-label="Fechar fila de baixa"
+            className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-full flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Subtitle / Tip */}
+        <div className="px-4 py-2 bg-[#FAFAFC] dark:bg-[#1a1a1e] border-b border-[#E5E5EA] dark:border-[#27272a] text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+          Atendimentos concluídos pendentes de baixa no PDV.
+        </div>
+
+        {/* List of overdue appointments */}
+        {pendingCheckoutAppointments.length === 0 ? (
+          <div className="p-8 text-center text-[#6E6E73] dark:text-[#a1a1aa] text-[13px]">
+            Nenhum atendimento aguardando baixa no momento.
+          </div>
+        ) : (
+          <div className="max-h-[380px] overflow-y-auto divide-y divide-[#E5E5EA] dark:divide-[#27272a]">
+            {pendingCheckoutAppointments.map((ev) => {
+              const clientInitials = ev.clientName
+                ? ev.clientName
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((p) => p[0]?.toUpperCase())
+                    .join("")
+                : "CL";
+
+              const isToday = ev.dateISO === todayDateISO;
+              const timeDesc = isToday
+                ? `Terminou às ${ev.endTime}`
+                : `Concluído em ${formatDateBR(ev.dateISO)} às ${ev.endTime}`;
+
+              const servicesText =
+                ev.serviceNames && ev.serviceNames.length > 0
+                  ? ev.serviceNames.join(", ")
+                  : "Atendimento";
+
+              return (
+                <div
+                  key={ev.id}
+                  className="p-3.5 sm:p-4 hover:bg-[#FAFAFA] dark:hover:bg-[#202024] transition flex flex-col gap-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white flex items-center justify-center font-bold text-[12px] shrink-0">
+                        {clientInitials}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white truncate">
+                          {ev.clientName}
+                        </h4>
+                        <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] truncate">
+                          {servicesText} · {ev.providerName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-[13.5px] font-bold text-[#1C1C1E] dark:text-white">
+                        {formatBRL(ev.totalCents || 0)}
+                      </div>
+                      <div className="text-[10.5px] text-amber-600 dark:text-amber-400 font-medium flex items-center justify-end gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        <span>{timeDesc}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingCheckoutPopoverOpen(false);
+                        onOpenQuickSale(ev);
+                      }}
+                      className="flex items-center gap-2 min-h-[44px] px-4 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition shadow-xs cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white"
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Dar baixa (POS)</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Footer */}
+        {pendingCheckoutAppointments.length > 0 && (
+          <div className="p-3.5 px-4 bg-[#F5F5F7]/80 dark:bg-[#1f1f23] border-t border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+            <span>Total pendente:</span>
+            <span className="font-bold text-[#1C1C1E] dark:text-white text-[13px]">
+              {formatBRL(totalPendingCents)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderViewModeDropdown = () => {
     return (
       <div className="relative">
@@ -1123,7 +1310,7 @@ export function CalendarView({
             setProviderFilterDropdownOpen(false);
             setDatePopoverOpen(false);
           }}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition shadow-2xs shrink-0"
+          className="flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition shadow-2xs shrink-0 cursor-pointer"
           aria-expanded={viewModeDropdownOpen}
           title="Alterar modo de visualização"
         >
@@ -1155,7 +1342,7 @@ export function CalendarView({
                   }));
                   setViewModeDropdownOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-medium text-left transition ${
+                className={`w-full flex items-center justify-between min-h-[44px] px-3 py-2.5 rounded-xl text-[13px] font-medium text-left transition ${
                   viewMode === "day"
                     ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
                     : "text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/50"
@@ -1175,7 +1362,7 @@ export function CalendarView({
                   }));
                   setViewModeDropdownOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-medium text-left transition ${
+                className={`w-full flex items-center justify-between min-h-[44px] px-3 py-2.5 rounded-xl text-[13px] font-medium text-left transition ${
                   viewMode === "week"
                     ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold"
                     : "text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/50"
@@ -1208,7 +1395,7 @@ export function CalendarView({
             setViewModeDropdownOpen(false);
             setDatePopoverOpen(false);
           }}
-          className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition shadow-2xs shrink-0"
+          className="flex items-center gap-1.5 sm:gap-2 min-h-[44px] px-3.5 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition shadow-2xs shrink-0 cursor-pointer"
           aria-expanded={providerFilterDropdownOpen}
           title="Filtrar agenda por profissional"
         >
@@ -1264,7 +1451,7 @@ export function CalendarView({
                   }));
                   setProviderFilterDropdownOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition ${
+                className={`w-full flex items-center justify-between min-h-[44px] px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
                   isAll
                     ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white"
                     : "hover:bg-[#F5F5F7]/70 dark:hover:bg-[#27272a]/50 text-[#1C1C1E] dark:text-white"
@@ -1310,7 +1497,7 @@ export function CalendarView({
                         setProviderId(st.id);
                         setProviderFilterDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition ${
+                      className={`w-full flex items-center justify-between min-h-[44px] px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
                         isSelected
                           ? "bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white"
                           : "hover:bg-[#F5F5F7]/70 dark:hover:bg-[#27272a]/50 text-[#1C1C1E] dark:text-white"
@@ -1349,13 +1536,13 @@ export function CalendarView({
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col h-[calc(100dvh-53px-calc(5.2rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] max-h-full bg-white dark:bg-[#09090b] overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col h-[calc(100dvh-53px-calc(5.2rem+env(safe-area-inset-bottom,0px)))] md:h-[calc(100vh-1rem)] max-h-full bg-white dark:bg-[#18181b] overflow-hidden">
       {/* Top Calendar Header Matching Reference Screenshot (media_1792845742688_c1165d63.png) */}
       <header className="relative z-20 px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]">
         {/* Desktop Header Layout (>= md) */}
-        <div className="hidden md:flex items-center justify-between gap-4">
+        <div className="hidden md:flex items-center justify-between gap-3 xl:gap-4 overflow-x-auto no-scrollbar py-0.5">
           {/* Left: Out + [📅] + < Sáb, 24 de Out, 2026 > */}
-          <div className="relative flex items-center gap-2.5 sm:gap-3">
+          <div className="relative flex items-center gap-2.5 sm:gap-3 shrink-0">
             <span className="text-[20px] font-bold text-[#1C1C1E] dark:text-white tracking-tight">
               {getMonthShort(selectedDateISO)}
             </span>
@@ -1365,19 +1552,20 @@ export function CalendarView({
               type="button"
               onClick={() => setDatePopoverOpen((v) => !v)}
               title="Abrir calendário"
-              className="p-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white transition flex items-center justify-center"
+              aria-label="Abrir calendário"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white transition flex items-center justify-center cursor-pointer"
             >
               <CalendarIcon className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
             </button>
 
             {/* Integrated Navigation Pill: < [ Date Text ] > */}
-            <div className="flex items-center rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-2xs">
+            <div className="flex items-center min-h-[44px] h-11 rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-2xs">
               <button
                 type="button"
                 onClick={handleNavigatePrev}
                 title="Retroceder"
                 aria-label="Retroceder"
-                className="px-2.5 py-1.5 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-l-full transition flex items-center justify-center"
+                className="h-full min-w-[44px] px-3 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-l-full transition flex items-center justify-center cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -1386,7 +1574,7 @@ export function CalendarView({
                 type="button"
                 onClick={() => setDatePopoverOpen((v) => !v)}
                 title="Selecionar data"
-                className="px-3.5 py-1.5 text-[13px] font-semibold text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition whitespace-nowrap"
+                className="h-full px-3.5 text-[13px] font-semibold text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition whitespace-nowrap flex items-center cursor-pointer"
               >
                 {formatNavDate(selectedDateISO)}
               </button>
@@ -1396,7 +1584,7 @@ export function CalendarView({
                 onClick={handleNavigateNext}
                 title="Avançar"
                 aria-label="Avançar"
-                className="px-2.5 py-1.5 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-r-full transition flex items-center justify-center"
+                className="h-full min-w-[44px] px-3 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-r-full transition flex items-center justify-center cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -1407,7 +1595,7 @@ export function CalendarView({
           </div>
 
           {/* Right: [⚙] [Semana ⌄] [(Avatar) Bruno ⌄] [Lista de espera] [Venda rápida] [+ Agendar] */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 xl:gap-2.5 shrink-0 pl-1">
             {/* Settings Icon */}
             <button
               type="button"
@@ -1419,7 +1607,7 @@ export function CalendarView({
               }}
               title="Configurações de exibição da agenda"
               aria-label="Configurações de exibição da agenda"
-              className="p-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer shrink-0"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -1434,21 +1622,55 @@ export function CalendarView({
             <button
               type="button"
               onClick={() => setWaitlistDrawerOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white transition"
+              className="min-h-[44px] h-11 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] sm:text-[13px] font-medium text-[#1C1C1E] dark:text-white transition cursor-pointer shrink-0 whitespace-nowrap"
             >
               <span>Lista de espera</span>
               {state.waitlist.length > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
+                <span className="px-2 py-0.5 text-[10.5px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
                   {state.waitlist.length}
                 </span>
               )}
             </button>
 
+            {/* Pílula de Alerta de Baixa (se houver agendamentos aguardando checkout) */}
+            {pendingCheckoutAppointments.length > 0 && (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPendingCheckoutPopoverOpen((v) => !v)}
+                  aria-expanded={pendingCheckoutPopoverOpen}
+                  aria-label={`${pendingCheckoutAppointments.length} atendimentos aguardando baixa`}
+                  className="min-h-[44px] h-11 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] hover:bg-[#EAEAEA] dark:hover:bg-[#3F3F46] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white text-[12.5px] sm:text-[13px] font-medium transition cursor-pointer shrink-0 whitespace-nowrap"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+                  <span>{pendingCheckoutAppointments.length} aguardando baixa</span>
+                </button>
+
+                {pendingCheckoutPopoverOpen && (
+                  <div className="hidden md:block">
+                    <div
+                      className="fixed inset-0 z-40 bg-black/10 dark:bg-black/30"
+                      onClick={() => setPendingCheckoutPopoverOpen(false)}
+                      aria-hidden="true"
+                    />
+                    <div
+                      className="absolute right-0 top-full mt-2 w-[420px] bg-white dark:bg-[#18181b] rounded-2xl border border-[#E5E5EA] dark:border-[#27272a] shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Fila de Baixa Financeira"
+                    >
+                      {renderPendingCheckoutContent()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Botão Venda rápida */}
             <button
               type="button"
               onClick={() => onOpenQuickSale()}
-              className="px-3.5 py-1.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-medium text-[#1C1C1E] dark:text-white transition"
+              className="min-h-[44px] h-11 px-3.5 sm:px-4 py-2 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] sm:text-[13px] font-medium text-[#1C1C1E] dark:text-white transition cursor-pointer flex items-center justify-center shrink-0 whitespace-nowrap"
             >
               Venda rápida
             </button>
@@ -1456,10 +1678,11 @@ export function CalendarView({
             {/* Botão + Agendar */}
             <button
               type="button"
-              onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
-              className="px-4 py-1.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition shadow-sm"
+              onClick={handleHeaderOpenNewAppointment}
+              className="min-h-[44px] h-11 px-5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#18181b] text-[13px] sm:text-[13.5px] font-semibold transition-all shadow-sm cursor-pointer flex items-center justify-center shrink-0 whitespace-nowrap active:scale-[0.98]"
             >
-              + Agendar
+              <Plus className="w-4 h-4 mr-1.5 shrink-0 stroke-[2.25]" />
+              <span>Agendar</span>
             </button>
           </div>
         </div>
@@ -1476,17 +1699,17 @@ export function CalendarView({
                 onClick={() => setDatePopoverOpen((v) => !v)}
                 title="Abrir calendário"
                 aria-label="Abrir calendário"
-                className="w-9 h-9 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white flex items-center justify-center hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
+                className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white flex items-center justify-center hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition cursor-pointer"
               >
                 <CalendarIcon className="w-4 h-4" />
               </button>
-              <div className="flex items-center h-9 rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[12px]">
+              <div className="flex items-center min-h-[44px] h-11 rounded-full border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px]">
                 <button
                   type="button"
                   onClick={handleNavigatePrev}
                   title="Retroceder"
                   aria-label="Retroceder"
-                  className="h-full px-3 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-l-full flex items-center justify-center"
+                  className="h-full min-w-[44px] px-3 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-l-full flex items-center justify-center cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1494,7 +1717,7 @@ export function CalendarView({
                   type="button"
                   onClick={() => setDatePopoverOpen((v) => !v)}
                   title="Selecionar data"
-                  className="h-full px-3 font-semibold text-[#1C1C1E] dark:text-white whitespace-nowrap flex items-center"
+                  className="h-full px-3.5 font-semibold text-[#1C1C1E] dark:text-white whitespace-nowrap flex items-center cursor-pointer"
                 >
                   {formatNavDate(selectedDateISO)}
                 </button>
@@ -1503,7 +1726,7 @@ export function CalendarView({
                   onClick={handleNavigateNext}
                   title="Avançar"
                   aria-label="Avançar"
-                  className="h-full px-3 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-r-full flex items-center justify-center"
+                  className="h-full min-w-[44px] px-3 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-r-full flex items-center justify-center cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1524,41 +1747,57 @@ export function CalendarView({
                 }}
                 title="Configurações de exibição da agenda"
                 aria-label="Configurações de exibição da agenda"
-                className="w-9 h-9 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer"
+                className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition flex items-center justify-center cursor-pointer"
               >
                 <Settings className="w-4 h-4" />
               </button>
               <button
                 type="button"
-                onClick={() => openNewDrawerAtSlot("11:30", "appointment")}
-                className="h-9 px-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12px] font-semibold shrink-0 flex items-center"
+                onClick={handleHeaderOpenNewAppointment}
+                className="min-h-[44px] h-11 px-4 sm:px-4.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#18181b] text-[13px] font-semibold shrink-0 flex items-center justify-center cursor-pointer whitespace-nowrap active:scale-[0.98] shadow-sm"
               >
-                + Agendar
+                <Plus className="w-4 h-4 mr-1 shrink-0 stroke-[2.25]" />
+                <span>Agendar</span>
               </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-[12px] pb-0.5">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-[12.5px] pb-1">
             {renderViewModeDropdown()}
             {renderProviderFilterDropdown("left-0")}
 
             <button
               type="button"
               onClick={() => setWaitlistDrawerOpen(true)}
-              className="flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0"
+              className="flex items-center gap-2 min-h-[44px] h-11 px-4 rounded-full border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0 cursor-pointer font-medium"
             >
               <span>Lista de espera</span>
               {state.waitlist.length > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
+                <span className="px-2 py-0.5 text-[10.5px] rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] font-bold">
                   {state.waitlist.length}
                 </span>
               )}
             </button>
 
+            {/* Mobile Pílula de Alerta de Baixa */}
+            {pendingCheckoutAppointments.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setPendingCheckoutPopoverOpen(true)}
+                aria-label={`${pendingCheckoutAppointments.length} atendimentos aguardando baixa`}
+                className="flex items-center gap-2 min-h-[44px] h-11 px-3.5 sm:px-4 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] text-[#1C1C1E] dark:text-white shrink-0 font-medium text-[12.5px] cursor-pointer"
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+                <span className="font-semibold">{pendingCheckoutAppointments.length}</span>
+                <span className="hidden sm:inline">aguardando baixa</span>
+                <span className="sm:hidden">baixa</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => onOpenQuickSale()}
-              className="px-3 py-1.5 rounded-full border border-[#E5E5EA] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0"
+              className="min-h-[44px] h-11 px-4 rounded-full border border-[#E5E5EA] text-[#1C1C1E] dark:text-white bg-white dark:bg-[#18181b] shrink-0 flex items-center justify-center font-medium cursor-pointer"
             >
               Venda rápida
             </button>
@@ -1568,7 +1807,7 @@ export function CalendarView({
 
       {/* Week Mode Full 7-Day Matrix or Day Mode View */}
       {viewMode === "week" ? (
-        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#09090b] overflow-x-auto">
+        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#18181b] overflow-x-auto">
           <div className="flex-1 flex flex-col min-w-[760px] md:min-w-0 min-h-0">
             {/* 7-Day Header Strip */}
             <div className="flex border-b border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] shrink-0 sticky top-0 z-30">
@@ -1706,22 +1945,16 @@ export function CalendarView({
                       {!workingHours.isOpen ? (
                         // Entire day closed
                         <div
-                          className="absolute inset-0 pointer-events-none z-0"
-                          style={{
-                            backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
-                            backgroundColor: "rgba(244, 244, 245, 0.65)",
-                          }}
+                          className="absolute inset-0 pointer-events-none z-0 calendar-blocked-slot"
                         />
                       ) : (
                         <>
                           {/* Top hatched area: Before working hours (e.g. before 8am) */}
                           {workingHours.startMinutes > visibleStartHour * 60 && (
                             <div
-                              className="absolute left-0 right-0 top-0 pointer-events-none z-0"
+                              className="absolute left-0 right-0 top-0 pointer-events-none z-0 calendar-blocked-slot"
                               style={{
                                 height: `${((workingHours.startMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
-                                backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
-                                backgroundColor: "rgba(244, 244, 245, 0.65)",
                               }}
                             />
                           )}
@@ -1729,12 +1962,10 @@ export function CalendarView({
                           {workingHours.endMinutes <
                             (visibleStartHour + calendarHours.length) * 60 && (
                             <div
-                              className="absolute left-0 right-0 pointer-events-none z-0"
+                              className="absolute left-0 right-0 pointer-events-none z-0 calendar-blocked-slot"
                               style={{
                                 top: `${((workingHours.endMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
                                 height: `${(((visibleStartHour + calendarHours.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
-                                backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
-                                backgroundColor: "rgba(244, 244, 245, 0.65)",
                               }}
                             />
                           )}
@@ -1771,6 +2002,7 @@ export function CalendarView({
                         );
                         const isCompleted = ev.status === "completed";
                         const isPending = ev.status === "pending";
+                        const isAwaitingCheckout = pendingCheckoutIds.has(ev.id);
 
                         const shouldSplitServices =
                           multiServiceDisplayMode === "multiple_cards" &&
@@ -1811,18 +2043,47 @@ export function CalendarView({
                                     key={`${ev.id}-${sIdx}`}
                                     className={`flex-1 rounded-[10px] p-2 flex flex-col justify-start overflow-hidden border shadow-xs transition hover:shadow-md ${
                                       isCompleted
-                                        ? "bg-[#E2E8F0] dark:bg-[#27272a] border-[#94A3B8] dark:border-[#52525b] text-[#1C1C1E] dark:text-zinc-100"
+                                        ? "bg-[#F1F5F9] dark:bg-[#27272a] border-[#CBD5E1] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-zinc-100"
+                                        : isAwaitingCheckout
+                                        ? "bg-white dark:bg-[#18181b] border-amber-300/80 dark:border-amber-500/40 text-[#1C1C1E] dark:text-zinc-100 shadow-2xs hover:border-amber-400 dark:hover:border-amber-500/60"
                                         : isPending
                                         ? "bg-[#FEF3C7] dark:bg-[#451a03] border-[#F59E0B] dark:border-[#b45309] text-[#78350F] dark:text-[#fef3c7]"
                                         : "bg-[#FCE7F3] dark:bg-[#3b1228] border-[#F472B6] dark:border-[#9d174d] text-[#1C1C1E] dark:text-pink-50"
                                     }`}
                                   >
-                                    <span className="text-[10px] font-medium opacity-80 leading-none">
-                                      {sliceTimeStr}
-                                    </span>
+                                    <div className="flex items-center justify-between gap-1 leading-none">
+                                      <span className="text-[10px] font-medium opacity-80 text-[#6E6E73] dark:text-zinc-400">
+                                        {sliceTimeStr}
+                                      </span>
+                                      {isAwaitingCheckout && sIdx === 0 && (
+                                        <span
+                                          className="relative flex items-center justify-center p-0.5"
+                                          title="Aguardando baixa"
+                                        >
+                                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 ring-2 ring-amber-400/20 shrink-0" />
+                                        </span>
+                                      )}
+                                    </div>
                                     <span className="font-semibold text-[11px] truncate mt-0.5">
                                       {sName}
                                     </span>
+                                    {isAwaitingCheckout && sIdx === numSrv - 1 && heightPx >= 84 && (
+                                      <div className="mt-auto pt-0.5 flex justify-end">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onOpenQuickSale(ev);
+                                          }}
+                                          title="Dar baixa no PDV"
+                                          aria-label={`Dar baixa do atendimento de ${ev.clientName}`}
+                                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#1C1C1E] dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:border dark:border-zinc-700/80 text-white dark:text-zinc-200 text-[10px] font-semibold hover:bg-[#2C2C2E] transition active:scale-[0.96] shadow-2xs cursor-pointer"
+                                        >
+                                          <CreditCard className="w-2.5 h-2.5" />
+                                          <span>Baixar</span>
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}
@@ -1843,7 +2104,9 @@ export function CalendarView({
                             }}
                             className={`absolute z-10 left-1 right-1 rounded-[10px] p-2 cursor-pointer transition select-none flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
                               isCompleted
-                                ? "bg-[#E2E8F0] dark:bg-[#27272a] border border-[#94A3B8] dark:border-[#52525b] text-[#1C1C1E] dark:text-zinc-100"
+                                ? "bg-[#F1F5F9] dark:bg-[#27272a] border border-[#CBD5E1] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-zinc-100"
+                                : isAwaitingCheckout
+                                ? "bg-white dark:bg-[#18181b] border border-amber-300/80 dark:border-amber-500/40 text-[#1C1C1E] dark:text-zinc-100 shadow-2xs hover:border-amber-400 dark:hover:border-amber-500/60"
                                 : isPending
                                 ? "bg-[#FEF3C7] dark:bg-[#451a03] border border-[#F59E0B] dark:border-[#b45309] text-[#78350F] dark:text-[#fef3c7]"
                                 : "bg-[#FCE7F3] dark:bg-[#3b1228] border border-[#F472B6] dark:border-[#9d174d] text-[#1C1C1E] dark:text-pink-50"
@@ -1851,24 +2114,56 @@ export function CalendarView({
                           >
                             <div className="flex items-start justify-between gap-1 leading-tight">
                               <div className="min-w-0 flex-1">
-                                <span className="font-bold text-[11.5px] truncate block leading-none">
+                                <span className="font-bold text-[11.5px] truncate block leading-none text-[#1C1C1E] dark:text-zinc-100">
                                   {ev.clientName}
                                 </span>
-                                <span className="text-[10.5px] opacity-75 truncate block mt-0.5">
-                                  {ev.serviceNames.join(", ")}
-                                </span>
+                                {heightPx >= 44 && (
+                                  <span className="text-[10px] opacity-75 truncate block mt-0.5 text-[#71717A] dark:text-zinc-400">
+                                    {ev.serviceNames.join(", ")}
+                                  </span>
+                                )}
                               </div>
                               <div className="shrink-0 mt-0.5">
-                                {isCompleted ? (
+                                {isAwaitingCheckout ? (
+                                  <span
+                                    className="relative flex items-center justify-center p-0.5"
+                                    title="Atendimento concluído · Aguardando baixa"
+                                  >
+                                    <span className="w-2 h-2 rounded-full bg-amber-400 ring-4 ring-amber-400/25 shrink-0" />
+                                  </span>
+                                ) : isCompleted ? (
                                   <FileText className="w-3.5 h-3.5 text-[#475569] dark:text-zinc-300" />
                                 ) : (
                                   <CheckCircle2 className="w-3.5 h-3.5 text-[#E11D8F] dark:text-[#f472b6]" />
                                 )}
                               </div>
                             </div>
-                            {heightPx >= 52 && (
-                              <div className="text-[10px] font-mono opacity-70 truncate mt-auto">
-                                {ev.startTime} – {ev.endTime}
+                            {heightPx >= 46 && (
+                              <div className="flex items-center justify-between gap-1 mt-auto pt-0.5 text-[9.5px]">
+                                <span className="font-mono opacity-70 truncate text-[#6E6E73] dark:text-zinc-400">
+                                  {ev.startTime} – {ev.endTime}
+                                </span>
+                                {isAwaitingCheckout && (
+                                  heightPx >= 84 ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onOpenQuickSale(ev);
+                                      }}
+                                      title="Dar baixa no PDV (Venda Rápida)"
+                                      aria-label={`Dar baixa do atendimento de ${ev.clientName} no valor de ${formatBRL(ev.totalCents)}`}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1C1C1E] dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:border dark:border-zinc-700/80 text-white dark:text-zinc-200 text-[9.5px] font-semibold hover:bg-[#2C2C2E] transition active:scale-[0.96] shadow-2xs cursor-pointer shrink-0"
+                                    >
+                                      <CreditCard className="w-2.5 h-2.5" />
+                                      <span>Baixar</span>
+                                    </button>
+                                  ) : (
+                                    <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 shrink-0">
+                                      {formatBRL(ev.totalCents)}
+                                    </span>
+                                  )
+                                )}
                               </div>
                             )}
                           </div>
@@ -1884,7 +2179,7 @@ export function CalendarView({
       </div>
       ) : (
         /* Day Mode Single Day Timeline */
-        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#09090b]">
+        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#18181b]">
           {/* Day Mode Subheader */}
           <div className="px-3.5 sm:px-6 py-2 bg-[#FAFAFC] dark:bg-[#18181b] border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar text-[11px] sm:text-[12px]">
             <div className="flex items-center gap-2 shrink-0">
@@ -1906,7 +2201,7 @@ export function CalendarView({
                       setProviderId(member.id);
                     }}
                     title={`Filtrar agenda por ${member.fullName}`}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition cursor-pointer shrink-0 ${
+                    className={`relative flex items-center gap-1.5 min-h-[38px] sm:min-h-[44px] px-3 py-1.5 rounded-full transition cursor-pointer shrink-0 before:absolute before:-inset-1 before:content-[''] ${
                       isSelected
                         ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-xs"
                         : "bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#323238]"
@@ -1980,33 +2275,25 @@ export function CalendarView({
                   <>
                     {!workingHours.isOpen ? (
                       <div
-                        className="absolute inset-0 pointer-events-none z-0 left-14 sm:left-20"
-                        style={{
-                          backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
-                          backgroundColor: "rgba(244, 244, 245, 0.65)",
-                        }}
+                        className="absolute inset-0 pointer-events-none z-0 left-14 sm:left-20 calendar-blocked-slot"
                       />
                     ) : (
                       <>
                         {workingHours.startMinutes > visibleStartHour * 60 && (
                           <div
-                            className="absolute left-14 sm:left-20 right-0 top-0 pointer-events-none z-0"
+                            className="absolute left-14 sm:left-20 right-0 top-0 pointer-events-none z-0 calendar-blocked-slot"
                             style={{
                               height: `${((workingHours.startMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
-                              backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
-                              backgroundColor: "rgba(244, 244, 245, 0.65)",
                             }}
                           />
                         )}
                         {workingHours.endMinutes <
                           (visibleStartHour + calendarHours.length) * 60 && (
                           <div
-                            className="absolute left-14 sm:left-20 right-0 pointer-events-none z-0"
+                            className="absolute left-14 sm:left-20 right-0 pointer-events-none z-0 calendar-blocked-slot"
                             style={{
                               top: `${((workingHours.endMinutes - visibleStartHour * 60) / 60) * HOUR_HEIGHT}px`,
                               height: `${(((visibleStartHour + calendarHours.length) * 60 - workingHours.endMinutes) / 60) * HOUR_HEIGHT}px`,
-                              backgroundImage: `repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 0, rgba(148, 163, 184, 0.22) 1.5px, transparent 1.5px, transparent 8px)`,
-                              backgroundColor: "rgba(244, 244, 245, 0.65)",
                             }}
                           />
                         )}
@@ -2056,6 +2343,7 @@ export function CalendarView({
                 );
                 const isCompleted = ev.status === "completed";
                 const isPending = ev.status === "pending";
+                const isAwaitingCheckout = pendingCheckoutIds.has(ev.id);
 
                 const isAllProviders =
                   state.calendarView.selectedProviderId === "all";
@@ -2094,68 +2382,140 @@ export function CalendarView({
                         : "left-[3.75rem] sm:left-[5.5rem] right-2 sm:right-4"
                     } rounded-[12px] p-2.5 sm:p-3 cursor-pointer transition select-none flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
                       isCompleted
-                        ? "bg-[#E2E8F0] dark:bg-[#27272a] border border-[#94A3B8] dark:border-[#52525b] text-[#1C1C1E] dark:text-zinc-100"
+                        ? "bg-[#F1F5F9] dark:bg-[#27272a] border border-[#CBD5E1] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-zinc-100"
+                        : isAwaitingCheckout
+                        ? "bg-white dark:bg-[#18181b] border border-amber-300/80 dark:border-amber-500/40 text-[#1C1C1E] dark:text-zinc-100 shadow-2xs hover:border-amber-400 dark:hover:border-amber-500/60"
                         : isPending
                         ? "bg-[#FEF3C7] dark:bg-[#451a03] border border-[#F59E0B] dark:border-[#b45309] text-[#78350F] dark:text-[#fef3c7]"
                         : "bg-[#FCE7F3] dark:bg-[#3b1228] border border-[#F472B6] dark:border-[#9d174d] text-[#1C1C1E] dark:text-pink-50"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-1.5">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[12px] sm:text-[13px] font-bold truncate">
+                    {heightPx < 58 ? (
+                      <div className="flex items-center justify-between gap-2 h-full">
+                        <div className="min-w-0 flex-1 flex items-center gap-1.5 truncate">
+                          {isAwaitingCheckout && (
+                            <span className="w-2 h-2 rounded-full bg-amber-400 ring-4 ring-amber-400/25 shrink-0" />
+                          )}
+                          <span className="text-[12px] sm:text-[13px] font-bold truncate text-[#1C1C1E] dark:text-zinc-100">
                             {ev.clientName}
                           </span>
-                          <span className="text-[11px] sm:text-[12px] font-mono opacity-80 shrink-0">
-                            · {ev.startTime} – {ev.endTime}
+                          <span className="text-[11px] opacity-75 truncate hidden sm:inline text-[#6E6E73] dark:text-zinc-400">
+                            · {ev.serviceNames.join(" + ")}
+                          </span>
+                          <span className="text-[11px] font-mono opacity-80 shrink-0 text-[#6E6E73] dark:text-zinc-400">
+                            · {ev.startTime}
                           </span>
                         </div>
-                        <p className="text-[11px] sm:text-[12px] opacity-80 font-medium truncate mt-0.5">
-                          {ev.serviceNames.join(" + ")} · {ev.providerName}
-                        </p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-mono font-bold text-[11px] sm:text-[12px] text-[#1C1C1E] dark:text-zinc-100">
+                            {formatBRL(ev.totalCents)}
+                          </span>
+                          {isAwaitingCheckout ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenQuickSale(ev);
+                              }}
+                              title="Iniciar checkout e dar baixa direta no PDV (Venda Rápida)"
+                              aria-label={`Iniciar checkout e dar baixa de ${ev.clientName} no valor de ${formatBRL(ev.totalCents)}`}
+                              className="relative inline-flex items-center gap-1 min-h-[26px] px-2.5 py-0.5 rounded-full bg-[#1C1C1E] dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:border dark:border-zinc-700 text-white dark:text-zinc-200 text-[10.5px] font-semibold transition active:scale-[0.97] shadow-2xs cursor-pointer before:absolute before:-inset-2 before:content-['']"
+                            >
+                              <CreditCard className="w-2.5 h-2.5" />
+                              <span>Baixar</span>
+                            </button>
+                          ) : isCompleted ? (
+                            <FileText className="w-3.5 h-3.5 text-[#475569] dark:text-zinc-300" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#E11D8F] dark:text-[#f472b6]" />
+                          )}
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[12px] sm:text-[13px] font-bold truncate text-[#1C1C1E] dark:text-zinc-100">
+                                {ev.clientName}
+                              </span>
+                              <span className="text-[11px] sm:text-[12px] font-mono opacity-80 shrink-0 text-[#6E6E73] dark:text-zinc-400">
+                                · {ev.startTime} – {ev.endTime}
+                              </span>
+                            </div>
+                            <p className="text-[11px] sm:text-[12px] opacity-80 font-medium truncate mt-0.5 text-[#6E6E73] dark:text-zinc-400">
+                              {ev.serviceNames.join(" + ")} · {ev.providerName}
+                            </p>
+                          </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                        {isCompleted ? (
-                          <FileText className="w-4 h-4 text-[#475569] dark:text-zinc-300" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4 text-[#E11D8F] dark:text-[#f472b6]" />
+                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                            {isAwaitingCheckout ? (
+                              <div
+                                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-200 text-[10.5px] font-medium"
+                                title="Atendimento concluído · Aguardando baixa"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 ring-2 ring-amber-400/20 shrink-0" />
+                                <span>Aguardando baixa</span>
+                              </div>
+                            ) : isCompleted ? (
+                              <FileText className="w-4 h-4 text-[#475569] dark:text-zinc-300" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4 text-[#E11D8F] dark:text-[#f472b6]" />
+                            )}
+                          </div>
+                        </div>
+
+                        {hasProcessingWindow && (
+                          <div className="my-1 px-2.5 py-1 rounded-lg bg-[#F5F3FF] border border-dashed border-[#6E56CF]/50 flex items-center justify-between gap-1 text-[11px] text-[#6E56CF]">
+                            <span className="inline-flex items-center gap-1.5 truncate">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              Pausa ({ev.processingDurationMinutes} min livres p/
+                              encaixe)
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const gapStartHHMM = formatMinutesToHHMM(
+                                  startMin + ev.processingStartOffsetMinutes
+                                );
+                                openNewDrawerAtSlot(gapStartHHMM, "appointment");
+                              }}
+                              className="underline font-bold hover:text-[#1C1C1E] shrink-0"
+                            >
+                              + Encaixar
+                            </button>
+                          </div>
                         )}
-                      </div>
-                    </div>
 
-                    {hasProcessingWindow && (
-                      <div className="my-1 px-2.5 py-1 rounded-lg bg-[#F5F3FF] border border-dashed border-[#6E56CF]/50 flex items-center justify-between gap-1 text-[11px] text-[#6E56CF]">
-                        <span className="inline-flex items-center gap-1.5 truncate">
-                          <Clock className="w-3 h-3 shrink-0" />
-                          Pausa ({ev.processingDurationMinutes} min livres p/
-                          encaixe)
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const gapStartHHMM = formatMinutesToHHMM(
-                              startMin + ev.processingStartOffsetMinutes
-                            );
-                            openNewDrawerAtSlot(gapStartHHMM, "appointment");
-                          }}
-                          className="underline font-bold hover:text-[#1C1C1E] shrink-0"
-                        >
-                          + Encaixar
-                        </button>
-                      </div>
+                        <div className="flex items-center justify-between gap-2 text-[10.5px] sm:text-[11px] pt-1.5 border-t border-black/5 dark:border-white/5">
+                          <span className="truncate flex-1 min-w-0 opacity-75">
+                            {resourcesUsed.length > 0
+                              ? `Recursos: ${resourcesUsed.map((r) => r.name).join(", ")}`
+                              : ev.addressOrNotes || (isAwaitingCheckout ? "Atendimento concluído" : "1-Toque para Detalhes")}
+                          </span>
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <span className="font-mono font-bold">
+                              {formatBRL(ev.totalCents)}
+                            </span>
+                            {isAwaitingCheckout && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenQuickSale(ev);
+                                }}
+                                title="Iniciar checkout e dar baixa direta no PDV (Venda Rápida)"
+                                aria-label={`Iniciar checkout e dar baixa de ${ev.clientName} no valor de ${formatBRL(ev.totalCents)}`}
+                                className="relative inline-flex items-center gap-1.5 min-h-[36px] sm:min-h-[44px] px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#1C1C1E] dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:border dark:border-zinc-700 text-white dark:text-zinc-200 text-[11px] sm:text-[12px] font-semibold transition shadow-xs active:scale-[0.98] cursor-pointer before:absolute before:-inset-1 before:content-['']"
+                              >
+                                <CreditCard className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                <span>Dar baixa (POS)</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </>
                     )}
-
-                    <div className="flex items-center justify-between gap-2 text-[10.5px] sm:text-[11px] pt-1 border-t border-black/5 dark:border-white/5">
-                      <span className="truncate flex-1 min-w-0 opacity-75">
-                        {resourcesUsed.length > 0
-                          ? `Recursos: ${resourcesUsed.map((r) => r.name).join(", ")}`
-                          : ev.addressOrNotes || "1-Toque para Retorno ou Baixa"}
-                      </span>
-                      <span className="font-mono font-bold shrink-0">
-                        {formatBRL(ev.totalCents)}
-                      </span>
-                    </div>
                   </div>
                 );
               })}
@@ -2448,7 +2808,7 @@ export function CalendarView({
          ===================================================================== */}
       {newAppointmentDrawerOpen && (
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex justify-end">
-          <div className="w-full max-w-[460px] bg-white h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
+          <div className="w-full max-w-[460px] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white h-full shadow-gg-drawer flex flex-col justify-between animate-in slide-in-from-right duration-200">
             {/* Header */}
             <div className="px-6 py-5 border-b border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -3937,7 +4297,7 @@ export function CalendarView({
                     setEventToDelete(selectedEvent);
                     setDeleteMode("delete");
                   }}
-                  className="p-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:border-rose-300 dark:hover:border-rose-800 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/60 dark:hover:bg-rose-950/20 transition shrink-0"
+                  className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:border-rose-300 dark:hover:border-rose-800 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/60 dark:hover:bg-rose-950/20 transition shrink-0 flex items-center justify-center cursor-pointer"
                   title="Excluir agendamento"
                   aria-label="Excluir agendamento"
                 >
@@ -3951,7 +4311,7 @@ export function CalendarView({
                     setSelectedEvent(null);
                     openNewDrawerAtSlot(ev.startTime, ev.eventType, ev.dateISO, ev.providerId);
                   }}
-                  className="px-4 py-3 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-semibold transition"
+                  className="min-h-[44px] px-4 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#3F3F46] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[13px] font-semibold transition cursor-pointer flex items-center justify-center"
                 >
                   Editar
                 </button>
@@ -3960,35 +4320,27 @@ export function CalendarView({
                   <button
                     type="button"
                     onClick={() => {
-                      onUpdateState((prev) => ({
-                        ...prev,
-                        calendarEvents: prev.calendarEvents.map((e) =>
-                          e.id === selectedEvent.id
-                            ? {
-                                ...e,
-                                status: "completed",
-                                depositPaid: true,
-                              }
-                            : e
-                        ),
-                      }));
-                      setSelectedEvent((prev) =>
-                        prev ? { ...prev, status: "completed", depositPaid: true } : null
-                      );
+                      onOpenQuickSale(selectedEvent);
+                      setSelectedEvent(null);
                     }}
-                    className="flex-1 py-3 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13.5px] font-semibold transition shadow-sm flex items-center justify-center gap-2"
+                    aria-label={`Iniciar checkout e dar baixa de ${selectedEvent.clientName} no valor de ${formatBRL(selectedEvent.totalCents)}`}
+                    className="flex-1 min-h-[44px] py-2.5 px-4 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
-                    <span>Checkout {formatBRL(selectedEvent.totalCents)}</span>
+                    <CreditCard className="w-4 h-4" />
+                    <span>Dar baixa · {formatBRL(selectedEvent.totalCents)}</span>
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => {
-                      alert(`Comprovante de ${selectedEvent.clientName} enviado com sucesso!`);
+                      onUpdateState((prev) => ({
+                        ...prev,
+                        lastToastMessage: `Comprovante de ${selectedEvent.clientName} enviado com sucesso!`,
+                      }));
                       setSelectedEvent(null);
                     }}
-                    className="flex-1 py-3 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13.5px] font-semibold transition shadow-sm flex items-center justify-center gap-2"
+                    aria-label={`Enviar comprovante para ${selectedEvent.clientName}`}
+                    className="flex-1 min-h-[44px] py-2.5 px-4 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <FileText className="w-4 h-4" />
                     <span>Enviar comprovante</span>
@@ -4589,6 +4941,26 @@ export function CalendarView({
                 Concluído
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Sheet Modal for Fila de Baixa */}
+      {pendingCheckoutPopoverOpen && (
+        <div className="md:hidden">
+          <div
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setPendingCheckoutPopoverOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="fixed inset-x-0 bottom-0 max-h-[85vh] bg-white dark:bg-[#18181b] rounded-t-3xl border-t border-[#E5E5EA] dark:border-[#27272a] shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Fila de Baixa Financeira"
+          >
+            <div className="w-10 h-1 bg-[#D1D1D6] dark:bg-zinc-700 rounded-full mx-auto mt-2.5 mb-1 shrink-0" />
+            {renderPendingCheckoutContent()}
           </div>
         </div>
       )}

@@ -122,7 +122,7 @@ export function MarketingView({ state, onUpdateState }: MarketingViewProps) {
   ).length;
 
   return (
-    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
       {/* Top Bar matching 07-1-marketing.png */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -733,7 +733,7 @@ function InsightsAnalyticsSection({ state }: { state: StudioState }) {
   ];
 
   return (
-    <div className="w-full px-6 lg:px-10 xl:px-12 py-7 space-y-5">
+    <div className="w-full px-6 lg:px-10 xl:px-12 py-7 space-y-5 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
       {/* Header Row */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[22px] font-semibold text-[#1C1C1E] tracking-tight">
@@ -1109,7 +1109,7 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
   const previewRecordCount = Math.max(0, previewRows.length - 1);
 
   return (
-    <div className="w-full min-h-[calc(100vh-56px)] flex flex-col lg:flex-row">
+    <div className="w-full min-h-[calc(100vh-56px)] flex flex-col lg:flex-row bg-[#FBFBFC] dark:bg-[#18181b]">
       {/* Main Left/Center Report Cards Grid */}
       <div className="flex-1 px-6 lg:px-10 xl:px-12 py-7">
         <h1 className="text-[22px] font-semibold text-[#1C1C1E] tracking-tight mb-6">
@@ -1277,7 +1277,7 @@ function InsightsReportsSection({ state }: { state: StudioState }) {
             </div>
 
             {/* Summary Preview Box */}
-            <div className="rounded-[12px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#121214] p-3.5 space-y-1.5">
+            <div className="rounded-[12px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] p-3.5 space-y-1.5">
               <div className="flex items-center justify-between text-[12px]">
                 <span className="font-semibold text-[#1C1C1E] dark:text-white">
                   Registros encontrados
@@ -1986,22 +1986,22 @@ function ClinicalChartsSection({
     const totalVersionsCount = (activeChart.history?.length || 0) + 1;
 
     return (
-      <div className="w-full min-h-[calc(100vh-56px)] bg-white flex flex-col">
+      <div className="w-full min-h-[calc(100vh-56px)] bg-white dark:bg-[#18181b] flex flex-col">
         {/* Top Sticky Header Bar */}
-        <div className="w-full border-b border-[#EFEFF4] bg-white px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
+        <div className="w-full border-b border-[#EFEFF4] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
           <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => setActiveChartId(null)}
-              className="inline-flex items-center gap-2 text-[#1C1C1E] hover:opacity-75 transition-opacity"
+              className="inline-flex items-center gap-2 text-[#1C1C1E] dark:text-white hover:opacity-75 transition-opacity"
               title="Voltar para todos os prontuários"
             >
-              <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
-              <span className="text-[15px] sm:text-[16px] font-medium tracking-tight text-[#1C1C1E]">
+              <ArrowLeft className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
+              <span className="text-[15px] sm:text-[16px] font-medium tracking-tight text-[#1C1C1E] dark:text-white">
                 Chart entries - {activeChart.chartName}
               </span>
             </button>
-            <span className="px-2 py-0.5 rounded-full border border-[#D1D1D6] text-[#6E6E73] text-[11px] font-medium">
+            <span className="px-2 py-0.5 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] bg-[#F5F5F7] dark:bg-[#27272a]/60 text-[11px] font-medium">
               v{activeChart.version}
             </span>
           </div>
@@ -2010,10 +2010,10 @@ function ClinicalChartsSection({
             <button
               type="button"
               onClick={() => setVersionHistoryOpen((prev) => !prev)}
-              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium border transition-colors ${
+              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium border transition-colors shadow-2xs ${
                 versionHistoryOpen
-                  ? "bg-[#F5F5F7] border-[#1C1C1E] text-[#1C1C1E]"
-                  : "bg-white border-[#D4D4D8] text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                  ? "bg-[#1C1C1E] dark:bg-[#27272a] border-[#1C1C1E] dark:border-[#3f3f46] text-white dark:text-white"
+                  : "bg-white dark:bg-[#18181b] border-[#D4D4D8] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] dark:hover:text-white"
               }`}
             >
               Version history
@@ -2021,7 +2021,7 @@ function ClinicalChartsSection({
             <button
               type="button"
               onClick={() => setActiveChartId(null)}
-              className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors"
+              className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-zinc-200 dark:hover:text-white text-[12.5px] font-medium transition-colors shadow-2xs"
             >
               All charts
             </button>
@@ -2030,7 +2030,7 @@ function ClinicalChartsSection({
               <button
                 type="button"
                 onClick={() => handleMarkAsComplete(activeChart.id)}
-                className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-medium transition-colors shadow-2xs"
+                className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[12.5px] font-semibold transition-colors shadow-2xs"
               >
                 Marcar como concluído
               </button>
@@ -2038,7 +2038,7 @@ function ClinicalChartsSection({
               <button
                 type="button"
                 onClick={() => handleAmendChart(activeChart.id)}
-                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors shadow-2xs"
+                className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-zinc-200 dark:hover:text-white text-[12.5px] font-medium transition-colors shadow-2xs"
               >
                 Amend chart
               </button>
@@ -2049,7 +2049,7 @@ function ClinicalChartsSection({
         {/* Main 3-Column Content (Left Anchor Nav + Center Form + Right Version History) */}
         <div className="w-full flex-1 flex flex-col lg:flex-row items-stretch">
           {/* Left Sticky Section Anchor Navigation */}
-          <nav className="w-full lg:w-[180px] shrink-0 p-6 lg:p-8 flex lg:flex-col gap-1.5 overflow-x-auto lg:sticky lg:top-14 h-fit border-b lg:border-b-0">
+          <nav className="w-full lg:w-[190px] shrink-0 p-5 lg:p-6 flex lg:flex-col gap-1 overflow-x-auto lg:sticky lg:top-[57px] h-fit border-b lg:border-b-0 lg:border-r border-[#EFEFF4] dark:border-[#27272a]">
             {anchorItems.map((item) => {
               const isActive = activeAnchor === item.id;
               return (
@@ -2057,10 +2057,10 @@ function ClinicalChartsSection({
                   key={item.id}
                   type="button"
                   onClick={() => scrollToChartSection(item.id)}
-                  className={`text-left px-3.5 py-2 rounded-[8px] text-[13px] whitespace-nowrap transition-all ${
+                  className={`text-left px-3.5 py-2 rounded-xl text-[13px] whitespace-nowrap transition-all ${
                     isActive
-                      ? "bg-[#D1D1D6] text-[#1C1C1E] font-medium"
-                      : "text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] font-normal"
+                      ? "bg-[#1C1C1E] dark:bg-[#27272a] text-white font-medium shadow-2xs"
+                      : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] font-normal"
                   }`}
                 >
                   {item.label}
@@ -2070,17 +2070,18 @@ function ClinicalChartsSection({
           </nav>
 
           {/* Center Form Body */}
-          <div className="flex-1 max-w-[680px] w-full p-6 lg:py-8 lg:px-6 space-y-9 pb-24">
+          <div className="flex-1 min-w-0 p-6 lg:py-8 lg:px-8 pb-24 flex justify-center">
+            <div className="w-full max-w-[720px] space-y-9">
             {/* Mode Indicator Banner */}
             {isEditing && (
-              <div className="rounded-[12px] border border-[#E5E5EA] bg-[#F5F5F7] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="rounded-[12px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#18181b] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-start sm:items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0 mt-1 sm:mt-0" />
                   <div>
-                    <p className="text-[13px] font-semibold text-[#1C1C1E]">
+                    <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                       Modo de retificação ativo · Versão v{activeChart.version} em edição
                     </p>
-                    <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
                       Edite livremente os campos clínicos, produtos e notas. Ao finalizar, clique em &quot;Marcar como concluído&quot;.
                     </p>
                   </div>
@@ -2088,7 +2089,7 @@ function ClinicalChartsSection({
                 <button
                   type="button"
                   onClick={() => handleMarkAsComplete(activeChart.id)}
-                  className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12px] font-medium transition-colors shrink-0 self-end sm:self-auto"
+                  className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[12px] font-semibold transition-colors shrink-0 self-end sm:self-auto shadow-2xs"
                 >
                   Concluir versão v{activeChart.version}
                 </button>
@@ -2096,14 +2097,14 @@ function ClinicalChartsSection({
             )}
 
             {isCompleted && (
-              <div className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="rounded-[12px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-start sm:items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0 mt-1 sm:mt-0" />
                   <div>
-                    <p className="text-[13px] font-semibold text-[#1C1C1E]">
+                    <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                       Prontuário concluído e selado (v{activeChart.version})
                     </p>
-                    <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
                       Registro clínico bloqueado contra alterações diretas. Para retificar qualquer dado, utilize &quot;Amend chart&quot;.
                     </p>
                   </div>
@@ -2111,7 +2112,7 @@ function ClinicalChartsSection({
                 <button
                   type="button"
                   onClick={() => handleAmendChart(activeChart.id)}
-                  className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12px] font-medium transition-colors shrink-0 self-end sm:self-auto"
+                  className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-zinc-200 dark:hover:text-white text-[12.5px] font-medium transition-colors shrink-0 self-end sm:self-auto shadow-2xs"
                 >
                   Retificar (Amend chart)
                 </button>
@@ -2127,25 +2128,25 @@ function ClinicalChartsSection({
               {/* Client Meta Header */}
               <div className="space-y-2.5">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-full bg-[#F6C6EA] flex items-center justify-center text-[#9D174D] shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-[#F6C6EA] dark:bg-[#831843]/40 flex items-center justify-center text-[#9D174D] dark:text-[#FBCFE8] shrink-0">
                     <User className="w-5 h-5 stroke-[2.25]" />
                   </div>
-                  <h1 className="text-[28px] sm:text-[32px] font-normal tracking-tight text-[#1C1C1E] leading-none">
+                  <h1 className="text-[28px] sm:text-[32px] font-normal tracking-tight text-[#1C1C1E] dark:text-white leading-none">
                     {activeChart.clientName}
                   </h1>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-[13px] text-[#6E6E73]">
+                <div className="flex flex-wrap items-center gap-2 text-[13px] text-[#6E6E73] dark:text-[#a1a1aa]">
                   <span>
                     {activeChart.createdDateLabel} | Provider: {activeChart.providerName}
                   </span>
                   {isCompleted ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11.5px] font-medium">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-zinc-200 text-[11.5px] font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                       <span>Completed</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[11.5px] font-medium">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] text-[11.5px] font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
                       <span>Em edição (v{activeChart.version})</span>
                     </span>
@@ -2157,7 +2158,7 @@ function ClinicalChartsSection({
               <div className="space-y-1.5 pt-2">
                 <label
                   htmlFor="chart-name-input"
-                  className="block text-[13px] font-medium text-[#1C1C1E]"
+                  className="block text-[13px] font-medium text-[#1C1C1E] dark:text-white"
                 >
                   Chart name
                 </label>
@@ -2173,10 +2174,10 @@ function ClinicalChartsSection({
                       }))
                     }
                     placeholder="Oct 17, 2026"
-                    className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white px-3.5 py-2.5 text-[14px] font-medium text-[#1C1C1E] transition-all"
+                    className="w-full rounded-[10px] border border-[#D1D1D6] dark:border-[#3f3f46] focus:border-[#1C1C1E] dark:focus:border-white focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white bg-white dark:bg-[#18181b] px-3.5 py-2.5 text-[14px] font-medium text-[#1C1C1E] dark:text-white transition-all"
                   />
                 ) : (
-                  <p className="text-[14px] text-[#1C1C1E] font-medium py-1">
+                  <p className="text-[14px] text-[#1C1C1E] dark:text-white font-medium py-1">
                     {activeChart.chartName || "Sem título"}
                   </p>
                 )}
@@ -2189,24 +2190,24 @@ function ClinicalChartsSection({
                     <button
                       type="button"
                       onClick={() => setServicesDropdownOpen((prev) => !prev)}
-                      className="w-full rounded-[10px] border border-[#E5E5EA] bg-white px-3.5 py-2.5 text-left flex items-center justify-between gap-3 hover:border-[#D1D1D6] transition-colors"
+                      className="w-full rounded-[10px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] px-3.5 py-2.5 text-left flex items-center justify-between gap-3 hover:border-[#D1D1D6] dark:hover:border-zinc-500 transition-colors"
                     >
                       <span
                         className={`text-[13px] ${
                           activeChart.serviceNames.length > 0
-                            ? "font-normal text-[#1C1C1E]"
-                            : "text-[#8E8E93]"
+                            ? "font-normal text-[#1C1C1E] dark:text-white"
+                            : "text-[#8E8E93] dark:text-[#71717a]"
                         }`}
                       >
                         {activeChart.serviceNames.length > 0
                           ? activeChart.serviceNames.join(", ")
                           : "Selecionar serviços deste atendimento (opcional)"}
                       </span>
-                      <ChevronDown className="w-4 h-4 text-[#8E8E93] shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-[#8E8E93] dark:text-[#71717a] shrink-0" />
                     </button>
 
                     {servicesDropdownOpen && (
-                      <div className="absolute left-0 right-0 mt-1.5 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-2 z-20 max-h-60 overflow-y-auto">
+                      <div className="absolute left-0 right-0 mt-1.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] shadow-lg py-2 z-20 max-h-60 overflow-y-auto">
                         {state.services.map((srv) => {
                           const checked = activeChart.serviceIds.includes(srv.id);
                           return (
@@ -2229,16 +2230,16 @@ function ClinicalChartsSection({
                                   };
                                 });
                               }}
-                              className="w-full px-4 py-2 text-left text-[13px] flex items-center justify-between hover:bg-[#F5F5F7]"
+                              className="w-full px-4 py-2 text-left text-[13px] flex items-center justify-between hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                             >
-                              <span className="font-normal text-[#1C1C1E]">
+                              <span className="font-normal text-[#1C1C1E] dark:text-zinc-200">
                                 {srv.name}
                               </span>
                               <span
                                 className={`w-4 h-4 rounded flex items-center justify-center border ${
                                   checked
-                                    ? "bg-[#1C1C1E] border-[#1C1C1E] text-white"
-                                    : "border-[#C7C7CC] bg-white"
+                                    ? "bg-[#1C1C1E] dark:bg-white border-[#1C1C1E] dark:border-white text-white dark:text-[#18181b]"
+                                    : "border-[#C7C7CC] dark:border-[#3f3f46] bg-white dark:bg-[#27272a]"
                                 }`}
                               >
                                 {checked && <Check className="w-3 h-3" />}
@@ -2251,10 +2252,10 @@ function ClinicalChartsSection({
                   </>
                 ) : (
                   <div>
-                    <span className="block text-[12px] text-[#6E6E73] mb-1">
+                    <span className="block text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                       Serviços associados
                     </span>
-                    <p className="text-[13px] text-[#1C1C1E]">
+                    <p className="text-[13px] text-[#1C1C1E] dark:text-zinc-200">
                       {activeChart.serviceNames.length > 0
                         ? activeChart.serviceNames.join(", ")
                         : "Nenhum serviço selecionado neste atendimento."}
@@ -2271,11 +2272,11 @@ function ClinicalChartsSection({
               className="space-y-3.5 scroll-mt-20"
             >
               <div>
-                <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
+                <h2 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
                   Photos and markup
                 </h2>
                 {activeChart.photos.length === 0 ? (
-                  <p className="text-[13px] text-[#6E6E73] mt-1">
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1">
                     No photos added
                   </p>
                 ) : null}
@@ -2284,13 +2285,13 @@ function ClinicalChartsSection({
               {isEditing && (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <label
-                    className={`cursor-pointer px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors inline-flex items-center gap-2 ${
+                    className={`cursor-pointer px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 dark:hover:text-white transition-colors inline-flex items-center gap-2 ${
                       isUploadingPhoto ? "opacity-60 pointer-events-none" : ""
                     }`}
                   >
                     {isUploadingPhoto ? (
                       <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E]" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1C1E] dark:text-white" />
                         <span>Enviando...</span>
                       </>
                     ) : (
@@ -2309,7 +2310,7 @@ function ClinicalChartsSection({
                     type="button"
                     disabled={isUploadingPhoto}
                     onClick={handleAddPhotoFromGallery}
-                    className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[12px] font-medium text-[#1C1C1E] transition-colors"
+                    className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 dark:hover:text-white transition-colors"
                   >
                     Adicionar da galeria da cliente
                   </button>
@@ -2322,10 +2323,10 @@ function ClinicalChartsSection({
                   {activeChart.photos.map((photo) => (
                     <div
                       key={photo.id}
-                      className="rounded-[12px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 space-y-3"
+                      className="rounded-[12px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] p-4 space-y-3"
                     >
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="text-[12.5px] font-medium text-[#1C1C1E] truncate max-w-[200px] sm:max-w-md">
+                        <span className="text-[12.5px] font-medium text-[#1C1C1E] dark:text-white truncate max-w-[200px] sm:max-w-md">
                           {photo.caption}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -2337,7 +2338,7 @@ function ClinicalChartsSection({
                                 title: photo.caption,
                               })
                             }
-                            className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
+                            className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] text-[11.5px] font-medium text-[#1C1C1E] dark:text-zinc-200 dark:hover:text-white inline-flex items-center gap-1 transition-colors"
                           >
                             <Maximize2 className="w-3.5 h-3.5" />
                             Ampliar
@@ -2347,7 +2348,7 @@ function ClinicalChartsSection({
                             download={`prontuario-${photo.id}.jpg`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] inline-flex items-center gap-1 transition-colors"
+                            className="px-2.5 py-1 rounded-[6px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] text-[11.5px] font-medium text-[#1C1C1E] dark:text-zinc-200 dark:hover:text-white inline-flex items-center gap-1 transition-colors"
                           >
                             <Download className="w-3.5 h-3.5" />
                             Baixar
@@ -2367,7 +2368,7 @@ function ClinicalChartsSection({
                                   }));
                                 }
                               }}
-                              className="px-3 py-1 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[11.5px] font-medium text-[#1C1C1E] hover:text-rose-600 inline-flex items-center gap-1 transition-colors shadow-2xs"
+                              className="px-3 py-1 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] text-[11.5px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:text-rose-600 dark:hover:text-rose-400 inline-flex items-center gap-1 transition-colors shadow-2xs"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               Excluir
@@ -2385,7 +2386,7 @@ function ClinicalChartsSection({
                             ? "Clique em qualquer ponto da foto para adicionar uma marcação anatômica"
                             : "Visualização com marcações anatômicas"
                         }
-                        className={`relative w-full max-h-[340px] overflow-hidden rounded-[10px] border border-[#D1D1D6] bg-[#1C1C1E] ${
+                        className={`relative w-full max-h-[340px] overflow-hidden rounded-[10px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-[#1C1C1E] ${
                           isEditing ? "cursor-crosshair" : "cursor-default"
                         }`}
                       >
@@ -2411,7 +2412,7 @@ function ClinicalChartsSection({
 
                       {photo.pins.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[11.5px] font-medium text-[#6E6E73]">
+                          <p className="text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
                             {isEditing
                               ? "Pontos mapeados na imagem (clique na foto para adicionar mais):"
                               : "Pontos mapeados nesta imagem:"}
@@ -2444,7 +2445,7 @@ function ClinicalChartsSection({
                                         ),
                                       }));
                                     }}
-                                    className="flex-1 rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-1.5 text-[12.5px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                                    className="flex-1 rounded-[8px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] px-3 py-1.5 text-[12.5px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                                   />
                                   <button
                                     type="button"
@@ -2461,13 +2462,13 @@ function ClinicalChartsSection({
                                         ),
                                       }))
                                     }
-                                    className="p-1 text-[#8E8E93] hover:text-[#1C1C1E]"
+                                    className="p-1 text-[#8E8E93] dark:text-[#71717a] hover:text-[#1C1C1E] dark:hover:text-white"
                                   >
                                     <X className="w-3.5 h-3.5" />
                                   </button>
                                 </>
                               ) : (
-                                <span className="text-[12.5px] text-[#1C1C1E] font-medium">
+                                <span className="text-[12.5px] text-[#1C1C1E] dark:text-zinc-200 font-medium">
                                   {pin.label}
                                 </span>
                               )}
@@ -2488,10 +2489,10 @@ function ClinicalChartsSection({
               className="space-y-3.5 scroll-mt-20"
             >
               <div>
-                <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
+                <h2 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
                   Product details
                 </h2>
-                <p className="text-[12.5px] text-[#6E6E73] mt-0.5">
+                <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
                   Track products used during treatment for compliance and inventory.
                 </p>
               </div>
@@ -2500,7 +2501,7 @@ function ClinicalChartsSection({
               <div className="w-full overflow-x-auto">
                 <table className="w-full text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="border-b border-[#E5E5EA] text-[12px] text-[#6E6E73]">
+                    <tr className="border-b border-[#E5E5EA] dark:border-[#27272a] text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                       <th className="py-2.5 font-normal w-1/3">Product name</th>
                       <th className="py-2.5 font-normal w-1/5">Units/Dosage</th>
                       <th className="py-2.5 font-normal w-1/5">Lot #</th>
@@ -2508,20 +2509,20 @@ function ClinicalChartsSection({
                       {isEditing && <th className="py-2.5 w-16 text-right">Ações</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#F2F2F7]">
+                  <tbody className="divide-y divide-[#F2F2F7] dark:divide-[#27272a]">
                     {activeChart.productsUsed.map((p) => (
-                      <tr key={p.id} className="text-[#1C1C1E] group">
+                      <tr key={p.id} className="text-[#1C1C1E] dark:text-zinc-200 group">
                         <td className="py-3 font-normal">{p.productName}</td>
                         <td className="py-3 font-normal">{p.quantity}</td>
-                        <td className="py-3 font-normal text-[#6E6E73]">{p.skuOrLot || "—"}</td>
-                        <td className="py-3 font-normal text-[#6E6E73]">{p.expirationDate || "—"}</td>
+                        <td className="py-3 font-normal text-[#6E6E73] dark:text-[#a1a1aa]">{p.skuOrLot || "—"}</td>
+                        <td className="py-3 font-normal text-[#6E6E73] dark:text-[#a1a1aa]">{p.expirationDate || "—"}</td>
                         {isEditing && (
                           <td className="py-3 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 type="button"
                                 onClick={() => handleStartEditProduct(p)}
-                                className="p-1.5 rounded text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                                className="p-1.5 rounded text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors"
                                 title="Editar produto"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -2534,7 +2535,7 @@ function ClinicalChartsSection({
                                     productsUsed: c.productsUsed.filter((item) => item.id !== p.id),
                                   }))
                                 }
-                                className="p-1.5 rounded text-[#6E6E73] hover:text-rose-600 hover:bg-[#F5F5F7] transition-colors"
+                                className="p-1.5 rounded text-[#6E6E73] dark:text-[#a1a1aa] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors"
                                 title="Remover produto"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -2546,7 +2547,7 @@ function ClinicalChartsSection({
                     ))}
                     {activeChart.productsUsed.length === 0 && (
                       <tr>
-                        <td colSpan={isEditing ? 5 : 4} className="py-3 text-[12.5px] text-[#8E8E93]">
+                        <td colSpan={isEditing ? 5 : 4} className="py-3 text-[12.5px] text-[#8E8E93] dark:text-[#71717a]">
                           {isEditing
                             ? "Nenhum produto registrado. Clique abaixo para registrar insumo."
                             : "Nenhum produto registrado neste prontuário."}
@@ -2561,15 +2562,15 @@ function ClinicalChartsSection({
               {isEditing && (
                 <>
                   {addingProductOpen ? (
-                    <div className="rounded-[12px] border border-[#1C1C1E] bg-white p-4 space-y-3 mt-3">
+                    <div className="rounded-[12px] border border-[#1C1C1E] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] p-4 space-y-3 mt-3 shadow-sm">
                       <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                        <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                           {editingProductId ? "Editar produto utilizado" : "Adicionar produto utilizado"}
                         </span>
                         <button
                           type="button"
                           onClick={handleCancelProductForm}
-                          className="text-[#8E8E93] hover:text-[#1C1C1E]"
+                          className="text-[#8E8E93] dark:text-[#71717a] hover:text-[#1C1C1E] dark:hover:text-white"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -2577,7 +2578,7 @@ function ClinicalChartsSection({
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                             Selecionar do estoque
                           </label>
                           <DropdownSelect
@@ -2598,7 +2599,7 @@ function ClinicalChartsSection({
                         </div>
 
                         <div>
-                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                             Units / Dosage
                           </label>
                           <input
@@ -2606,14 +2607,14 @@ function ClinicalChartsSection({
                             value={productQuantity}
                             onChange={(e) => setProductQuantity(e.target.value)}
                             placeholder="Ex.: 2, 30ml, 50g"
-                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] px-3 py-2 text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                           />
                         </div>
                       </div>
 
                       {selectedInventoryId === "custom" && (
                         <div>
-                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                             Product name
                           </label>
                           <input
@@ -2621,14 +2622,14 @@ function ClinicalChartsSection({
                             value={customProductName}
                             onChange={(e) => setCustomProductName(e.target.value)}
                             placeholder="Ex.: Colorante, Pigmento 8.31"
-                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] px-3 py-2 text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                           />
                         </div>
                       )}
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                             Lot #
                           </label>
                           <input
@@ -2636,11 +2637,11 @@ function ClinicalChartsSection({
                             value={productLotSku}
                             onChange={(e) => setProductLotSku(e.target.value)}
                             placeholder="Ex.: LOTE-9942A"
-                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] px-3 py-2 text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                          <label className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                             Exp. date
                           </label>
                           <input
@@ -2648,13 +2649,13 @@ function ClinicalChartsSection({
                             value={productExpDate}
                             onChange={(e) => setProductExpDate(e.target.value)}
                             placeholder="Ex.: 12/2027"
-                            className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                            className="w-full rounded-[8px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] px-3 py-2 text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-[11.5px] font-medium text-[#6E6E73] mb-1">
+                        <label className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                           Observações de aplicação (opcional)
                         </label>
                         <input
@@ -2662,7 +2663,7 @@ function ClinicalChartsSection({
                           value={productNotes}
                           onChange={(e) => setProductNotes(e.target.value)}
                           placeholder="Ex.: Diluição 1:1.5 com oxidante 20v"
-                          className="w-full rounded-[8px] border border-[#D1D1D6] bg-white px-3 py-2 text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                          className="w-full rounded-[8px] border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] px-3 py-2 text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                         />
                       </div>
 
@@ -2670,14 +2671,14 @@ function ClinicalChartsSection({
                         <button
                           type="button"
                           onClick={handleCancelProductForm}
-                          className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] text-[12px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                          className="px-3.5 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors"
                         >
                           Cancelar
                         </button>
                         <button
                           type="button"
                           onClick={handleConfirmAddProduct}
-                          className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12px] font-medium transition-colors"
+                          className="px-4 py-1.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[12px] font-medium transition-colors shadow-2xs"
                         >
                           {editingProductId ? "Salvar alterações" : "Adicionar produto"}
                         </button>
@@ -2687,7 +2688,7 @@ function ClinicalChartsSection({
                     <button
                       type="button"
                       onClick={handleOpenAddProduct}
-                      className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#1C1C1E] hover:underline pt-1"
+                      className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:text-black dark:hover:text-white hover:underline pt-1 transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Adicionar produto</span>
@@ -2705,15 +2706,15 @@ function ClinicalChartsSection({
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-[15px] font-semibold text-[#1C1C1E]">
+                  <h2 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
                     Treatment note
                   </h2>
-                  <p className="text-[12px] text-[#6E6E73] mt-0.5">
+                  <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
                     Estrutura clínica padrão SOAP (Subjetivo, Objetivo, Avaliação e Plano)
                   </p>
                 </div>
                 {isCompleted && (
-                  <span className="text-[11.5px] font-medium text-[#6E6E73] font-mono">
+                  <span className="text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] font-mono">
                     {activeChart.soapNoteName || "SOAP note"}
                   </span>
                 )}
@@ -2725,7 +2726,7 @@ function ClinicalChartsSection({
                   <div className="space-y-1.5">
                     <label
                       htmlFor="soap-note-name-input"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-white"
                     >
                       Nome da evolução clínica
                     </label>
@@ -2740,7 +2741,7 @@ function ClinicalChartsSection({
                         }))
                       }
                       placeholder="SOAP note"
-                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white px-3.5 py-2 text-[13px] text-[#1C1C1E] transition-all"
+                      className="w-full rounded-[10px] border border-[#D1D1D6] dark:border-[#3f3f46] focus:border-[#1C1C1E] dark:focus:border-white focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white bg-white dark:bg-[#18181b] px-3.5 py-2 text-[13px] text-[#1C1C1E] dark:text-white transition-all"
                     />
                   </div>
 
@@ -2749,11 +2750,11 @@ function ClinicalChartsSection({
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="soap-subjective-input"
-                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-white"
                       >
                         Subjective (Queixas e histórico relatado)
                       </label>
-                      <span className="text-[11px] text-[#8E8E93]">Relato da cliente</span>
+                      <span className="text-[11px] text-[#8E8E93] dark:text-[#71717a]">Relato da cliente</span>
                     </div>
                     <textarea
                       id="soap-subjective-input"
@@ -2766,7 +2767,7 @@ function ClinicalChartsSection({
                         }))
                       }
                       placeholder="Queixas relatadas pela cliente, histórico recente, hábitos de cuidado em casa..."
-                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                      className="w-full rounded-[10px] border border-[#D1D1D6] dark:border-[#3f3f46] focus:border-[#1C1C1E] dark:focus:border-white focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white bg-white dark:bg-[#18181b] p-3 text-[13px] text-[#1C1C1E] dark:text-white leading-relaxed resize-y transition-all"
                     />
                   </div>
 
@@ -2775,11 +2776,11 @@ function ClinicalChartsSection({
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="soap-objective-input"
-                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-white"
                       >
                         Objective (Achados do exame físico)
                       </label>
-                      <span className="text-[11px] text-[#8E8E93]">Inspeção e testes</span>
+                      <span className="text-[11px] text-[#8E8E93] dark:text-[#71717a]">Inspeção e testes</span>
                     </div>
                     <textarea
                       id="soap-objective-input"
@@ -2792,7 +2793,7 @@ function ClinicalChartsSection({
                         }))
                       }
                       placeholder="Exame físico, teste de mecha, elasticidade capilar, sensibilidade de couro cabeludo..."
-                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                      className="w-full rounded-[10px] border border-[#D1D1D6] dark:border-[#3f3f46] focus:border-[#1C1C1E] dark:focus:border-white focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white bg-white dark:bg-[#18181b] p-3 text-[13px] text-[#1C1C1E] dark:text-white leading-relaxed resize-y transition-all"
                     />
                   </div>
 
@@ -2801,11 +2802,11 @@ function ClinicalChartsSection({
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="soap-assessment-input"
-                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-white"
                       >
                         Assessment (Avaliação e diagnóstico)
                       </label>
-                      <span className="text-[11px] text-[#8E8E93]">Diagnóstico profissional</span>
+                      <span className="text-[11px] text-[#8E8E93] dark:text-[#71717a]">Diagnóstico profissional</span>
                     </div>
                     <textarea
                       id="soap-assessment-input"
@@ -2818,7 +2819,7 @@ function ClinicalChartsSection({
                         }))
                       }
                       placeholder="Avaliação diagnóstica do estado dos fios/pele e resposta ao protocolo aplicado..."
-                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                      className="w-full rounded-[10px] border border-[#D1D1D6] dark:border-[#3f3f46] focus:border-[#1C1C1E] dark:focus:border-white focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white bg-white dark:bg-[#18181b] p-3 text-[13px] text-[#1C1C1E] dark:text-white leading-relaxed resize-y transition-all"
                     />
                   </div>
 
@@ -2827,11 +2828,11 @@ function ClinicalChartsSection({
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="soap-plan-input"
-                        className="block text-[12.5px] font-medium text-[#1C1C1E]"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-white"
                       >
                         Plan (Plano terapêutico e orientações)
                       </label>
-                      <span className="text-[11px] text-[#8E8E93]">Conduta e retorno</span>
+                      <span className="text-[11px] text-[#8E8E93] dark:text-[#71717a]">Conduta e retorno</span>
                     </div>
                     <textarea
                       id="soap-plan-input"
@@ -2844,61 +2845,62 @@ function ClinicalChartsSection({
                         }))
                       }
                       placeholder="Plano de tratamento, orientações de manutenção em casa, data de retorno recomendada..."
-                      className="w-full rounded-[10px] border border-[#D1D1D6] focus:border-[#1C1C1E] focus:ring-1 focus:ring-[#1C1C1E] bg-white p-3 text-[13px] text-[#1C1C1E] leading-relaxed resize-y transition-all"
+                      className="w-full rounded-[10px] border border-[#D1D1D6] dark:border-[#3f3f46] focus:border-[#1C1C1E] dark:focus:border-white focus:ring-1 focus:ring-[#1C1C1E] dark:focus:ring-white bg-white dark:bg-[#18181b] p-3 text-[13px] text-[#1C1C1E] dark:text-white leading-relaxed resize-y transition-all"
                     />
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
-                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                  <div className="rounded-[10px] bg-[#FAF9F6] dark:bg-[#18181b] border border-[#EFEFF4] dark:border-[#27272a] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] uppercase tracking-wider block">
                       Subjective
                     </span>
-                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                    <p className="text-[13.5px] text-[#1C1C1E] dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
                       {activeChart.subjective || "Nenhum relato subjetivo registrado."}
                     </p>
                   </div>
-                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
-                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                  <div className="rounded-[10px] bg-[#FAF9F6] dark:bg-[#18181b] border border-[#EFEFF4] dark:border-[#27272a] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] uppercase tracking-wider block">
                       Objective
                     </span>
-                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                    <p className="text-[13.5px] text-[#1C1C1E] dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
                       {activeChart.objective || "Nenhum exame objetivo registrado."}
                     </p>
                   </div>
-                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
-                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                  <div className="rounded-[10px] bg-[#FAF9F6] dark:bg-[#18181b] border border-[#EFEFF4] dark:border-[#27272a] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] uppercase tracking-wider block">
                       Assessment
                     </span>
-                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                    <p className="text-[13.5px] text-[#1C1C1E] dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
                       {activeChart.assessment || "Nenhuma avaliação diagnóstica registrada."}
                     </p>
                   </div>
-                  <div className="rounded-[10px] bg-[#FAF9F6] border border-[#EFEFF4] p-3.5 space-y-1">
-                    <span className="text-[11px] font-semibold text-[#6E6E73] uppercase tracking-wider block">
+                  <div className="rounded-[10px] bg-[#FAF9F6] dark:bg-[#18181b] border border-[#EFEFF4] dark:border-[#27272a] p-3.5 space-y-1">
+                    <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] uppercase tracking-wider block">
                       Plan
                     </span>
-                    <p className="text-[13.5px] text-[#1C1C1E] leading-relaxed whitespace-pre-wrap">
+                    <p className="text-[13.5px] text-[#1C1C1E] dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
                       {activeChart.plan || "Nenhum plano terapêutico registrado."}
                     </p>
                   </div>
                 </div>
               )}
             </section>
+            </div>
           </div>
 
           {/* Right Column: Version History Drawer matching screenshot */}
           {versionHistoryOpen && (
-            <aside className="w-full lg:w-[350px] xl:w-[380px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#EFEFF4] bg-white p-6 lg:p-7 flex flex-col space-y-6 lg:sticky lg:top-14 lg:h-[calc(100vh-56px)] overflow-y-auto">
+            <aside className="w-full lg:w-[350px] xl:w-[380px] shrink-0 lg:ml-auto border-t lg:border-t-0 lg:border-l border-[#EFEFF4] dark:border-[#27272a] bg-white dark:bg-[#18181b] p-6 lg:p-7 flex flex-col space-y-6 lg:sticky lg:top-[57px] lg:h-[calc(100vh-57px)] overflow-y-auto">
               {/* Drawer Top */}
               <div className="flex items-center justify-between">
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E] tracking-tight">
+                <h3 className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
                   Version history
                 </h3>
                 <button
                   type="button"
                   onClick={() => setVersionHistoryOpen(false)}
-                  className="p-1 rounded-full text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                  className="p-1 rounded-full text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition-colors"
                   title="Fechar histórico de versões"
                 >
                   <X className="w-4 h-4" />
@@ -2906,29 +2908,29 @@ function ClinicalChartsSection({
               </div>
 
               {/* Summary Subline */}
-              <p className="text-[12px] text-[#6E6E73] leading-snug">
+              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-snug">
                 {totalVersionsCount} versions · v{activeChart.version} amended by {activeChart.providerName} and completed
               </p>
 
               {/* Current Version */}
               <div className="space-y-2">
-                <span className="block text-[11.5px] font-medium text-[#6E6E73]">
+                <span className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
                   Current version
                 </span>
 
-                <div className="rounded-[10px] bg-[#F5F5F7] border border-[#E5E5EA] p-3 space-y-2.5">
+                <div className="rounded-[10px] bg-[#F5F5F7] dark:bg-[#27272a]/50 border border-[#E5E5EA] dark:border-[#3f3f46] p-3 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                      <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                         v{activeChart.version}
                       </span>
                       {activeChart.status === "completed" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-zinc-200 text-[11px] font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                           <span>Completed</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] text-[11px] font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
                           <span>Em edição</span>
                         </span>
@@ -2944,21 +2946,21 @@ function ClinicalChartsSection({
                               prev === activeChart.version ? null : activeChart.version
                             )
                           }
-                          className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-white transition-colors"
+                          className="p-1 rounded-md text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-white dark:hover:bg-[#3f3f46] transition-colors"
                           title="Opções da versão atual"
                         >
                           <MoreHorizontal className="w-4 h-4" />
                         </button>
 
                         {activeVersionMenu === activeChart.version && (
-                          <div className="absolute right-0 top-7 w-48 rounded-[10px] bg-white border border-[#E5E5EA] shadow-md py-1 z-30 text-[12px]">
+                          <div className="absolute right-0 top-7 w-48 rounded-[10px] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] shadow-md py-1 z-30 text-[12px]">
                             <button
                               type="button"
                               onClick={() => {
                                 handleAmendChart(activeChart.id);
                                 setActiveVersionMenu(null);
                               }}
-                              className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                              className="w-full px-3 py-1.5 text-left text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                             >
                               Retificar (Amend chart)
                             </button>
@@ -2974,7 +2976,7 @@ function ClinicalChartsSection({
                                   lastToastMessage: "Resumo copiado!",
                                 }));
                               }}
-                              className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                              className="w-full px-3 py-1.5 text-left text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                             >
                               Copiar resumo
                             </button>
@@ -2989,7 +2991,7 @@ function ClinicalChartsSection({
                             prev === activeChart.version ? null : activeChart.version
                           )
                         }
-                        className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-white transition-colors"
+                        className="p-1 rounded-md text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-white dark:hover:bg-[#3f3f46] transition-colors"
                       >
                         {expandedVersionId === activeChart.version ? (
                           <ChevronUp className="w-3.5 h-3.5" />
@@ -3001,7 +3003,7 @@ function ClinicalChartsSection({
                   </div>
 
                   {expandedVersionId === activeChart.version && (
-                    <div className="pt-2 border-t border-[#E5E5EA] text-[11.5px] text-[#6E6E73] space-y-1">
+                    <div className="pt-2 border-t border-[#E5E5EA] dark:border-[#3f3f46] text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] space-y-1">
                       <p>Profissional: {activeChart.providerName}</p>
                       <p>Data: {activeChart.lastModifiedLabel}</p>
                       <p>Produtos: {activeChart.productsUsed.length} item(ns)</p>
@@ -3013,7 +3015,7 @@ function ClinicalChartsSection({
 
               {/* Past Versions */}
               <div className="space-y-2 pt-2">
-                <span className="block text-[11.5px] font-medium text-[#6E6E73]">
+                <span className="block text-[11.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
                   Past versions
                 </span>
 
@@ -3022,14 +3024,14 @@ function ClinicalChartsSection({
                     {activeChart.history.map((snap) => (
                       <div
                         key={snap.version}
-                        className="rounded-[10px] bg-white border border-[#E5E5EA] p-3 space-y-2 hover:border-[#D1D1D6] transition-colors"
+                        className="rounded-[10px] bg-white dark:bg-[#27272a]/30 border border-[#E5E5EA] dark:border-[#3f3f46]/70 p-3 space-y-2 hover:border-[#D1D1D6] dark:hover:border-[#52525b] transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-[13px] font-semibold text-[#1C1C1E]">
+                            <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
                               v{snap.version}
                             </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[10.5px] font-medium">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] text-[10.5px] font-medium">
                               Superseded
                             </span>
                           </div>
@@ -3043,21 +3045,21 @@ function ClinicalChartsSection({
                                     prev === snap.version ? null : snap.version
                                   )
                                 }
-                                className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                                className="p-1 rounded-md text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-colors"
                                 title="Opções desta versão histórica"
                               >
                                 <MoreHorizontal className="w-4 h-4" />
                               </button>
 
                               {activeVersionMenu === snap.version && (
-                                <div className="absolute right-0 top-7 w-48 rounded-[10px] bg-white border border-[#E5E5EA] shadow-md py-1 z-30 text-[12px]">
+                                <div className="absolute right-0 top-7 w-48 rounded-[10px] bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] shadow-md py-1 z-30 text-[12px]">
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setPreviewingSnapshot(snap);
                                       setActiveVersionMenu(null);
                                     }}
-                                    className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                                    className="w-full px-3 py-1.5 text-left text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                                   >
                                     Visualizar snapshot
                                   </button>
@@ -3067,7 +3069,7 @@ function ClinicalChartsSection({
                                       handleRestoreSnapshot(snap);
                                       setActiveVersionMenu(null);
                                     }}
-                                    className="w-full px-3 py-1.5 text-left text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                                    className="w-full px-3 py-1.5 text-left text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                                   >
                                     Restaurar como atual
                                   </button>
@@ -3082,7 +3084,7 @@ function ClinicalChartsSection({
                                   prev === snap.version ? null : snap.version
                                 )
                               }
-                              className="p-1 rounded-md text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7] transition-colors"
+                              className="p-1 rounded-md text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-colors"
                             >
                               {expandedVersionId === snap.version ? (
                                 <ChevronUp className="w-3.5 h-3.5" />
@@ -3094,7 +3096,7 @@ function ClinicalChartsSection({
                         </div>
 
                         {expandedVersionId === snap.version && (
-                          <div className="pt-2 border-t border-[#E5E5EA] text-[11.5px] text-[#6E6E73] space-y-1.5">
+                          <div className="pt-2 border-t border-[#E5E5EA] dark:border-[#3f3f46] text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] space-y-1.5">
                             <p>Substituída em: {snap.savedAtLabel}</p>
                             <p>Autor: {snap.amendedBy}</p>
                             {snap.amendReason && <p className="italic">{snap.amendReason}</p>}
@@ -3102,7 +3104,7 @@ function ClinicalChartsSection({
                               <button
                                 type="button"
                                 onClick={() => setPreviewingSnapshot(snap)}
-                                className="text-[11px] font-medium text-[#1C1C1E] hover:underline"
+                                className="text-[11px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:underline"
                               >
                                 Visualizar snapshot
                               </button>
@@ -3110,7 +3112,7 @@ function ClinicalChartsSection({
                               <button
                                 type="button"
                                 onClick={() => handleRestoreSnapshot(snap)}
-                                className="text-[11px] font-medium text-[#1C1C1E] hover:underline"
+                                className="text-[11px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:underline"
                               >
                                 Restaurar como atual
                               </button>
@@ -3121,7 +3123,7 @@ function ClinicalChartsSection({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[12px] text-[#8E8E93]">
+                  <p className="text-[12px] text-[#8E8E93] dark:text-[#71717a]">
                     Nenhuma versão anterior registrada.
                   </p>
                 )}
@@ -3191,103 +3193,103 @@ function ClinicalChartsSection({
             onClick={() => setPreviewingSnapshot(null)}
           >
             <div
-              className="bg-white rounded-[16px] border border-[#E5E5EA] shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-5"
+              className="bg-white dark:bg-[#18181b] rounded-[16px] border border-[#E5E5EA] dark:border-[#27272a] shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-5"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-[#EFEFF4] pb-3">
+              <div className="flex items-center justify-between border-b border-[#EFEFF4] dark:border-[#27272a] pb-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-medium text-[#1C1C1E]">
+                  <h3 className="text-[17px] font-medium text-[#1C1C1E] dark:text-white">
                     Snapshot Histórico · Versão v{previewingSnapshot.version}
                   </h3>
-                  <span className="px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73] text-[11px] font-medium">
+                  <span className="px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa] text-[11px] font-medium">
                     Superseded
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setPreviewingSnapshot(null)}
-                  className="p-1 text-[#6E6E73] hover:text-[#1C1C1E] rounded-full hover:bg-[#F5F5F7]"
+                  className="p-1 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-full hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="text-[12.5px] text-[#6E6E73] space-y-1 bg-[#F5F5F7] rounded-[10px] p-3">
-                <p>Salvo em: <span className="text-[#1C1C1E] font-medium">{previewingSnapshot.savedAtLabel}</span></p>
-                <p>Autor: <span className="text-[#1C1C1E] font-medium">{previewingSnapshot.amendedBy}</span></p>
+              <div className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] space-y-1 bg-[#F5F5F7] dark:bg-[#27272a]/50 rounded-[10px] p-3 border border-[#E5E5EA] dark:border-[#3f3f46]">
+                <p>Salvo em: <span className="text-[#1C1C1E] dark:text-white font-medium">{previewingSnapshot.savedAtLabel}</span></p>
+                <p>Autor: <span className="text-[#1C1C1E] dark:text-white font-medium">{previewingSnapshot.amendedBy}</span></p>
                 {previewingSnapshot.amendReason && (
-                  <p>Motivo: <span className="text-[#1C1C1E]">{previewingSnapshot.amendReason}</span></p>
+                  <p>Motivo: <span className="text-[#1C1C1E] dark:text-white">{previewingSnapshot.amendReason}</span></p>
                 )}
               </div>
 
               {/* Products in Snapshot */}
               <div className="space-y-2">
-                <h4 className="text-[13px] font-medium text-[#1C1C1E]">
+                <h4 className="text-[13px] font-medium text-[#1C1C1E] dark:text-white">
                   Produtos utilizados nesta versão ({previewingSnapshot.productsUsed.length})
                 </h4>
                 {previewingSnapshot.productsUsed.length > 0 ? (
                   <table className="w-full text-left text-[12px] border-collapse">
                     <thead>
-                      <tr className="border-b border-[#E5E5EA] text-[#6E6E73]">
+                      <tr className="border-b border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]">
                         <th className="py-2 font-normal">Produto</th>
                         <th className="py-2 font-normal">Qtd/Dose</th>
                         <th className="py-2 font-normal">Lote</th>
                         <th className="py-2 font-normal">Validade</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#F2F2F7]">
+                    <tbody className="divide-y divide-[#F2F2F7] dark:divide-[#27272a]">
                       {previewingSnapshot.productsUsed.map((p) => (
                         <tr key={p.id}>
-                          <td className="py-2 font-medium text-[#1C1C1E]">{p.productName}</td>
-                          <td className="py-2 text-[#6E6E73]">{p.quantity}</td>
-                          <td className="py-2 text-[#6E6E73]">{p.skuOrLot || "—"}</td>
-                          <td className="py-2 text-[#6E6E73]">{p.expirationDate || "—"}</td>
+                          <td className="py-2 font-medium text-[#1C1C1E] dark:text-zinc-200">{p.productName}</td>
+                          <td className="py-2 text-[#6E6E73] dark:text-[#a1a1aa]">{p.quantity}</td>
+                          <td className="py-2 text-[#6E6E73] dark:text-[#a1a1aa]">{p.skuOrLot || "—"}</td>
+                          <td className="py-2 text-[#6E6E73] dark:text-[#a1a1aa]">{p.expirationDate || "—"}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : (
-                  <p className="text-[12px] text-[#8E8E93]">Nenhum produto registrado nesta versão.</p>
+                  <p className="text-[12px] text-[#8E8E93] dark:text-[#71717a]">Nenhum produto registrado nesta versão.</p>
                 )}
               </div>
 
               {/* SOAP note in Snapshot */}
-              <div className="space-y-3 pt-2 border-t border-[#EFEFF4]">
-                <h4 className="text-[13px] font-medium text-[#1C1C1E]">
+              <div className="space-y-3 pt-2 border-t border-[#EFEFF4] dark:border-[#27272a]">
+                <h4 className="text-[13px] font-medium text-[#1C1C1E] dark:text-white">
                   Nota de evolução ({previewingSnapshot.soapNoteName || "SOAP note"})
                 </h4>
                 <div className="grid grid-cols-1 gap-2 text-[12.5px]">
-                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
-                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Subjective</span>
-                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.subjective || "—"}</p>
+                  <div className="bg-[#FAF9F6] dark:bg-[#27272a]/30 p-2.5 rounded-[8px] border border-[#EFEFF4] dark:border-[#27272a]">
+                    <span className="font-semibold text-[#1C1C1E] dark:text-white block text-[11.5px]">Subjective</span>
+                    <p className="text-[#1C1C1E] dark:text-zinc-200 mt-0.5">{previewingSnapshot.subjective || "—"}</p>
                   </div>
-                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
-                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Objective</span>
-                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.objective || "—"}</p>
+                  <div className="bg-[#FAF9F6] dark:bg-[#27272a]/30 p-2.5 rounded-[8px] border border-[#EFEFF4] dark:border-[#27272a]">
+                    <span className="font-semibold text-[#1C1C1E] dark:text-white block text-[11.5px]">Objective</span>
+                    <p className="text-[#1C1C1E] dark:text-zinc-200 mt-0.5">{previewingSnapshot.objective || "—"}</p>
                   </div>
-                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
-                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Assessment</span>
-                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.assessment || "—"}</p>
+                  <div className="bg-[#FAF9F6] dark:bg-[#27272a]/30 p-2.5 rounded-[8px] border border-[#EFEFF4] dark:border-[#27272a]">
+                    <span className="font-semibold text-[#1C1C1E] dark:text-white block text-[11.5px]">Assessment</span>
+                    <p className="text-[#1C1C1E] dark:text-zinc-200 mt-0.5">{previewingSnapshot.assessment || "—"}</p>
                   </div>
-                  <div className="bg-[#FAF9F6] p-2.5 rounded-[8px]">
-                    <span className="font-semibold text-[#1C1C1E] block text-[11.5px]">Plan</span>
-                    <p className="text-[#1C1C1E] mt-0.5">{previewingSnapshot.plan || "—"}</p>
+                  <div className="bg-[#FAF9F6] dark:bg-[#27272a]/30 p-2.5 rounded-[8px] border border-[#EFEFF4] dark:border-[#27272a]">
+                    <span className="font-semibold text-[#1C1C1E] dark:text-white block text-[11.5px]">Plan</span>
+                    <p className="text-[#1C1C1E] dark:text-zinc-200 mt-0.5">{previewingSnapshot.plan || "—"}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#EFEFF4]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#EFEFF4] dark:border-[#27272a]">
                 <button
                   type="button"
                   onClick={() => setPreviewingSnapshot(null)}
-                  className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition-colors"
+                  className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-zinc-200 transition-colors"
                 >
                   Fechar
                 </button>
                 <button
                   type="button"
                   onClick={() => handleRestoreSnapshot(previewingSnapshot)}
-                  className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] font-medium transition-colors"
+                  className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[12.5px] font-medium transition-colors shadow-2xs"
                 >
                   Restaurar como atual
                 </button>
@@ -3311,10 +3313,10 @@ function ClinicalChartsSection({
   });
 
   return (
-    <div className="w-full min-h-[calc(100vh-56px)] bg-white px-6 lg:px-10 xl:px-12 py-7 space-y-5">
+    <div className="w-full min-h-[calc(100vh-56px)] bg-white dark:bg-[#18181b] px-6 lg:px-10 xl:px-12 py-7 space-y-5">
       {/* Top Header Row */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[22px] font-semibold text-[#1C1C1E] tracking-tight">
+        <h1 className="text-[22px] font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
           Prontuários
         </h1>
 
@@ -3323,7 +3325,7 @@ function ClinicalChartsSection({
             type="button"
             onClick={() => setSettingsModalOpen((prev) => !prev)}
             aria-label="Configurações de modelos de prontuário"
-            className="w-9 h-9 rounded-full border border-[#D1D1D6] bg-white hover:bg-[#F5F5F7] flex items-center justify-center text-[#1C1C1E] transition-colors"
+            className="w-9 h-9 rounded-full border border-[#D1D1D6] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white transition-colors"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -3331,7 +3333,7 @@ function ClinicalChartsSection({
           <button
             type="button"
             onClick={handleCreateNewChart}
-            className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition-colors"
+            className="px-4 py-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold transition-colors shadow-2xs"
           >
             Criar prontuário
           </button>
@@ -3339,19 +3341,19 @@ function ClinicalChartsSection({
       </div>
 
       {settingsModalOpen && (
-        <div className="rounded-[14px] border border-[#E5E5EA] bg-[#FAF9F6] p-4 flex items-center justify-between gap-4">
+        <div className="rounded-[14px] border border-[#E5E5EA] dark:border-[#27272a] bg-[#FAF9F6] dark:bg-[#18181b] p-4 flex items-center justify-between gap-4">
           <div>
-            <p className="text-[13px] font-semibold text-[#1C1C1E]">
+            <p className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
               Modelos de Prontuário &amp; Conformidade Clínica
             </p>
-            <p className="text-[12px] text-[#6E6E73]">
+            <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
               Modelo padrão ativo: Nota SOAP (Subjetivo, Objetivo, Avaliação e Plano). Prontuários concluídos são bloqueados contra exclusão e exigem retificação versionada (v1, v2).
             </p>
           </div>
           <button
             type="button"
             onClick={() => setSettingsModalOpen(false)}
-            className="p-1 text-[#6E6E73] hover:text-[#1C1C1E]"
+            className="p-1 text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white rounded-full"
           >
             <X className="w-4 h-4" />
           </button>
@@ -3410,39 +3412,39 @@ function ClinicalChartsSection({
       <div className="w-full overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-[#E5E5EA] text-[12px] font-medium text-[#6E6E73]">
+            <tr className="border-b border-[#E5E5EA] dark:border-[#27272a] text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
               <th className="py-3 px-3 font-medium">Cliente</th>
               <th className="py-3 px-3 font-medium">
                 <span className="inline-flex items-center gap-1">
                   Nome do prontuário
-                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93] dark:text-[#71717a]" />
                 </span>
               </th>
               <th className="py-3 px-3 font-medium">Serviços</th>
               <th className="py-3 px-3 font-medium">
                 <span className="inline-flex items-center gap-1">
                   Status
-                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93] dark:text-[#71717a]" />
                 </span>
               </th>
               <th className="py-3 px-3 font-medium">Enviado por</th>
               <th className="py-3 px-3 font-medium">
                 <span className="inline-flex items-center gap-1">
                   Versão
-                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93] dark:text-[#71717a]" />
                 </span>
               </th>
               <th className="py-3 px-3 font-medium">
                 <span className="inline-flex items-center gap-1">
                   Última modificação
-                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93]" />
+                  <ChevronsUpDown className="w-3 h-3 text-[#8E8E93] dark:text-[#71717a]" />
                 </span>
               </th>
               <th className="py-3 px-3 font-medium text-right">Ações</th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px] text-[#1C1C1E] dark:text-white">
+          <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px] text-[#1C1C1E] dark:text-zinc-200">
             {filteredCharts.map((chart) => {
               const menuOpen = openRowMenuId === chart.id;
               return (
@@ -3452,27 +3454,27 @@ function ClinicalChartsSection({
                     setActiveChartId(chart.id);
                     setActiveAnchor("chart_details");
                   }}
-                  className="hover:bg-[#F5F6F7] transition-colors cursor-pointer"
+                  className="hover:bg-[#F5F6F7] dark:hover:bg-[#18181b]/80 transition-colors cursor-pointer"
                 >
                   {/* Client */}
                   <td className="py-3.5 px-3">
                     <div className="flex items-center gap-2.5">
-                      <span className="w-6 h-6 rounded-full bg-[#ECEEF0] text-[#1C1C1E] text-[10.5px] font-bold flex items-center justify-center shrink-0">
+                      <span className="w-6 h-6 rounded-full bg-[#ECEEF0] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[10.5px] font-bold flex items-center justify-center shrink-0">
                         {getInitials(chart.clientName)}
                       </span>
-                      <span className="font-medium text-[#1C1C1E]">
+                      <span className="font-medium text-[#1C1C1E] dark:text-white">
                         {chart.clientName}
                       </span>
                     </div>
                   </td>
 
                   {/* Chart Name */}
-                  <td className="py-3.5 px-3 text-[#1C1C1E]">
+                  <td className="py-3.5 px-3 text-[#1C1C1E] dark:text-zinc-200">
                     {chart.chartName}
                   </td>
 
                   {/* Services */}
-                  <td className="py-3.5 px-3 text-[#6E6E73]">
+                  <td className="py-3.5 px-3 text-[#6E6E73] dark:text-[#a1a1aa]">
                     {chart.serviceNames.length > 0
                       ? chart.serviceNames.join(", ")
                       : ""}
@@ -3481,12 +3483,12 @@ function ClinicalChartsSection({
                   {/* Status */}
                   <td className="py-3.5 px-3">
                     {chart.status === "completed" ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E]">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-zinc-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                         <span>Concluído</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-medium bg-[#F5F5F7] border border-[#E5E5EA] text-[#6E6E73]">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-medium bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa]">
                         Criado
                       </span>
                     )}
@@ -3495,22 +3497,22 @@ function ClinicalChartsSection({
                   {/* Submitted by */}
                   <td className="py-3.5 px-3">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-[#ECEEF0] text-[#1C1C1E] text-[10px] font-bold flex items-center justify-center shrink-0">
+                      <span className="w-6 h-6 rounded-full bg-[#ECEEF0] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[10px] font-bold flex items-center justify-center shrink-0">
                         {getInitials(chart.providerName)}
                       </span>
-                      <span className="text-[#1C1C1E] leading-snug max-w-[180px]">
+                      <span className="text-[#1C1C1E] dark:text-zinc-200 leading-snug max-w-[180px]">
                         {chart.providerName}
                       </span>
                     </div>
                   </td>
 
                   {/* Version */}
-                  <td className="py-3.5 px-3 text-[#1C1C1E]">
+                  <td className="py-3.5 px-3 text-[#1C1C1E] dark:text-zinc-200">
                     v{chart.version}
                   </td>
 
                   {/* Last modified */}
-                  <td className="py-3.5 px-3 text-[#1C1C1E]">
+                  <td className="py-3.5 px-3 text-[#1C1C1E] dark:text-zinc-200">
                     {chart.lastModifiedLabel}
                   </td>
 
@@ -3527,15 +3529,15 @@ function ClinicalChartsSection({
                       aria-label="Ações do prontuário"
                       className={`w-8 h-8 rounded-full inline-flex items-center justify-center transition-colors ${
                         menuOpen
-                          ? "border border-[#1C1C1E] bg-white"
-                          : "border border-transparent hover:border-[#D1D1D6] hover:bg-white"
+                          ? "border border-[#1C1C1E] dark:border-white/40 bg-white dark:bg-[#27272a]"
+                          : "border border-transparent hover:border-[#D1D1D6] dark:hover:border-[#3f3f46] hover:bg-white dark:hover:bg-[#27272a]"
                       }`}
                     >
-                      <MoreVertical className="w-4 h-4 text-[#1C1C1E]" />
+                      <MoreVertical className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
                     </button>
 
                     {menuOpen && (
-                      <div className="absolute right-3 mt-1.5 w-36 rounded-[12px] border border-[#E5E5EA] bg-white shadow-lg py-1.5 text-left z-30">
+                      <div className="absolute right-3 mt-1.5 w-36 rounded-[12px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] shadow-lg py-1.5 text-left z-30">
                         <button
                           type="button"
                           onClick={() => {
@@ -3543,14 +3545,14 @@ function ClinicalChartsSection({
                             setActiveAnchor("chart_details");
                             setOpenRowMenuId(null);
                           }}
-                          className="w-full px-4 py-2 text-[13px] text-[#1C1C1E] hover:bg-[#F5F5F7] block"
+                          className="w-full px-4 py-2 text-[13px] text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] block"
                         >
                           Visualizar
                         </button>
                         <button
                           type="button"
                           onClick={() => handleAmendChart(chart.id)}
-                          className="w-full px-4 py-2 text-[13px] text-[#1C1C1E] hover:bg-[#F5F5F7] block"
+                          className="w-full px-4 py-2 text-[13px] text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] block"
                         >
                           Retificar
                         </button>
@@ -3560,8 +3562,8 @@ function ClinicalChartsSection({
                           onClick={() => handleDeleteChart(chart)}
                           className={`w-full px-4 py-2 text-[13px] block ${
                             chart.status === "completed"
-                              ? "text-[#C7C7CC] cursor-not-allowed"
-                              : "text-[#B91C1C] hover:bg-[#F5F5F7]"
+                              ? "text-[#C7C7CC] dark:text-[#52525b] cursor-not-allowed"
+                              : "text-[#B91C1C] dark:text-rose-400 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
                           }`}
                         >
                           Excluir
@@ -3914,7 +3916,7 @@ function InventorySection({
       : "Disponível para uso interno em serviços.";
 
   return (
-    <div className="w-full min-h-[calc(100vh-56px)] bg-white dark:bg-[#09090b] flex flex-col lg:flex-row relative">
+    <div className="w-full min-h-[calc(100vh-56px)] bg-white dark:bg-[#18181b] flex flex-col lg:flex-row relative">
       {/* ===================================================================== */}
       {/* COLUNA PRINCIPAL (ESQUERDA / CENTRO): ESTADO VAZIO OU TABELA DE ESTOQUE */}
       {/* ===================================================================== */}
@@ -4508,7 +4510,7 @@ function InventorySection({
               {/* Corpo Rolável do Formulário */}
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                 {/* 1. Upload de Imagem do Produto */}
-                <div className="rounded-[14px] border border-dashed border-[#D1D1D6] dark:border-[#3f3f46] p-5 flex flex-col items-center justify-center gap-3.5 bg-[#FAFAFC]/60 dark:bg-[#121214]">
+                <div className="rounded-[14px] border border-dashed border-[#D1D1D6] dark:border-[#3f3f46] p-5 flex flex-col items-center justify-center gap-3.5 bg-[#FAFAFC]/60 dark:bg-[#18181b]">
                   <input
                     ref={imageFileInputRef}
                     type="file"

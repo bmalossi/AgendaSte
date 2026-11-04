@@ -30,7 +30,7 @@ export interface AppointmentConfirmationEmailProps {
 
 export function AppointmentConfirmationEmail({
   clientName = "Cliente",
-  studioName = "Studio de Beleza",
+  studioName = "Luvea Studio",
   serviceName = "Corte & Finalização Editorial",
   professionalName = "Especialista Luvea",
   formattedDate = "24/10/2026",
@@ -48,69 +48,71 @@ export function AppointmentConfirmationEmail({
   return (
     <Html lang="pt-BR">
       <Head>
-        <meta name="color-scheme" content="light" />
-        <meta name="supported-color-schemes" content="light" />
+        <meta charSet="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Agendamento Confirmado | {studioName}</title>
       </Head>
-      <Preview>
-        Agendamento confirmado no {studioName} para {formattedDate} às {formattedTime}
-      </Preview>
+      <Preview>{`Agendamento confirmado no ${studioName} para ${formattedDate} às ${formattedTime}`}</Preview>
       <Body style={mainStyle}>
         <Container style={containerStyle}>
-          {/* Header */}
-          <Section style={headerStyle}>
-            <Text style={logoStyle}>LUVEA</Text>
-            <Text style={subtitleBadgeStyle}>RECIBO &amp; CONFIRMAÇÃO</Text>
+          {/* Header / Brand */}
+          <Section style={headerSectionStyle}>
+            <Text style={brandLogoStyle}>LUVEA</Text>
+            <Text style={brandSubtitleStyle}>{studioName}</Text>
           </Section>
 
-          {/* Content */}
-          <Section style={contentSectionStyle}>
-            <div style={statusBadgeContainerStyle}>
-              <span style={indicatorDotStyle} />
-              <span style={statusTextStyle}>Agendamento Confirmado</span>
-            </div>
+          {/* Divisor */}
+          <Section style={dividerSectionStyle}>
+            <Hr style={dividerStyle} />
+          </Section>
 
-            <Heading as="h1" style={headingStyle}>
+          {/* Título */}
+          <Section style={titleSectionStyle}>
+            <Heading as="h1" style={titleStyle}>
               Tudo pronto, {clientName}.
             </Heading>
+          </Section>
 
+          {/* Conteúdo */}
+          <Section style={contentSectionStyle}>
             <Text style={paragraphStyle}>
-              Seu horário no <strong>{studioName}</strong> foi agendado e garantido na agenda oficial.
+              Seu horário no <strong style={boldHighlightStyle}>{studioName}</strong> foi
+              agendado e confirmado com sucesso na agenda oficial.
             </Text>
 
-            {/* Appointment Details Grid */}
-            <Section style={detailsCardStyle}>
-              <Row style={detailRowStyle}>
-                <Column style={detailLabelColStyle}>
-                  <Text style={detailLabelStyle}>SERVIÇO</Text>
-                  <Text style={detailValueStyle}>{serviceName}</Text>
+            {/* Card com Detalhes do Agendamento */}
+            <Section style={cardStyle}>
+              <Row style={cardRowStyle}>
+                <Column style={cardColStyle}>
+                  <Text style={cardFieldLabelStyle}>SERVIÇO</Text>
+                  <Text style={cardFieldValueStyle}>{serviceName}</Text>
                 </Column>
-                <Column style={detailValueColStyle}>
-                  <Text style={detailLabelStyle}>PROFISSIONAL</Text>
-                  <Text style={detailValueStyle}>{professionalName}</Text>
-                </Column>
-              </Row>
-
-              <Row style={detailRowStyle}>
-                <Column style={detailLabelColStyle}>
-                  <Text style={detailLabelStyle}>DATA</Text>
-                  <Text style={detailValueStyle}>{formattedDate}</Text>
-                </Column>
-                <Column style={detailValueColStyle}>
-                  <Text style={detailLabelStyle}>HORÁRIO</Text>
-                  <Text style={detailValueStyle}>{formattedTime}</Text>
+                <Column style={cardColStyle}>
+                  <Text style={cardFieldLabelStyle}>PROFISSIONAL</Text>
+                  <Text style={cardFieldValueStyle}>{professionalName}</Text>
                 </Column>
               </Row>
 
-              <Row style={detailRowLastStyle}>
-                <Column style={detailFullColStyle}>
-                  <Text style={detailLabelStyle}>LOCAL</Text>
-                  <Text style={detailValueMutedStyle}>{studioAddress}</Text>
+              <Row style={cardRowStyle}>
+                <Column style={cardColStyle}>
+                  <Text style={cardFieldLabelStyle}>DATA</Text>
+                  <Text style={cardFieldValueStyle}>{formattedDate}</Text>
+                </Column>
+                <Column style={cardColStyle}>
+                  <Text style={cardFieldLabelStyle}>HORÁRIO</Text>
+                  <Text style={cardFieldValueStyle}>{formattedTime}</Text>
                 </Column>
               </Row>
-            </Section>
 
-            {/* Financial Summary */}
-            <Section style={financialCardStyle}>
+              <Row style={cardRowLastStyle}>
+                <Column style={{ width: "100%" }}>
+                  <Text style={cardFieldLabelStyle}>LOCAL</Text>
+                  <Text style={cardFieldAddressStyle}>{studioAddress}</Text>
+                </Column>
+              </Row>
+
+              <Hr style={innerDividerStyle} />
+
               <Row style={financialRowStyle}>
                 <Column>
                   <Text style={financialItemTitleStyle}>Valor do serviço</Text>
@@ -124,7 +126,6 @@ export function AppointmentConfirmationEmail({
                 <Row style={financialRowStyle}>
                   <Column>
                     <Text style={financialItemTitleStyle}>Sinal Pix antecipado</Text>
-                    <Text style={financialItemSubStyle}>Garantia anti-no-show paga</Text>
                   </Column>
                   <Column style={{ textAlign: "right" }}>
                     <Text style={financialItemPaidStyle}>- {formatReais(depositCents)}</Text>
@@ -132,39 +133,49 @@ export function AppointmentConfirmationEmail({
                 </Row>
               )}
 
-              <Hr style={innerDividerStyle} />
-
-              <Row style={financialRowStyle}>
+              <Row style={financialRowLastStyle}>
                 <Column>
-                  <Text style={financialTotalLabelStyle}>Restante a pagar no local</Text>
+                  <Text style={financialTotalLabelStyle}>Restante no atendimento</Text>
                 </Column>
                 <Column style={{ textAlign: "right" }}>
                   <Text style={financialTotalValueStyle}>{formatReais(remainingCents)}</Text>
                 </Column>
               </Row>
             </Section>
+          </Section>
 
-            {/* CTA */}
-            <Section style={buttonContainerStyle}>
-              <Button href={manageBookingUrl} style={buttonStyle}>
-                Gerenciar meu agendamento
-              </Button>
-            </Section>
+          {/* Botão CTA */}
+          <Section style={buttonSectionStyle}>
+            <Button href={manageBookingUrl} style={buttonStyle}>
+              Gerenciar meu agendamento
+            </Button>
+          </Section>
 
-            <Text style={footerNoticeStyle}>
-              Caso precise reagendar ou cancelar, solicitamos a gentileza de avisar com pelo
-              menos 2 horas de antecedência através do link acima ou pelo WhatsApp do estúdio.
+          {/* Link alternativo */}
+          <Section style={altLinkSectionStyle}>
+            <Text style={altLinkTextStyle}>
+              Se o botão acima não funcionar, copie e cole o link abaixo no seu navegador:
+              <br />
+              <Link href={manageBookingUrl} style={altLinkAnchorStyle}>
+                {manageBookingUrl}
+              </Link>
             </Text>
           </Section>
 
+          {/* Divisor Footer */}
+          <Section style={footerDividerSectionStyle}>
+            <Hr style={dividerStyle} />
+          </Section>
+
           {/* Footer */}
-          <Hr style={dividerStyle} />
-          <Section style={footerStyle}>
+          <Section style={footerSectionStyle}>
             <Text style={footerTextStyle}>
-              {studioName} · Agendamento gerenciado via Luvea Studio.
-            </Text>
-            <Text style={footerLinksStyle}>
-              <Link href="https://luvea.app" style={footerLinkItemStyle}>
+              Caso precise reagendar ou cancelar, solicitamos avisar com antecedência pelo link acima
+              ou pelo WhatsApp oficial do estúdio.
+              <br />
+              <br />
+              &copy; {studioName} &bull;{" "}
+              <Link href="https://luvea.app" style={footerLinkStyle}>
                 luvea.app
               </Link>
             </Text>
@@ -178,251 +189,240 @@ export function AppointmentConfirmationEmail({
 export default AppointmentConfirmationEmail;
 
 const mainStyle: React.CSSProperties = {
-  backgroundColor: "#FAFAFC",
+  margin: 0,
+  padding: "40px 20px",
+  backgroundColor: "#09090b",
   fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  margin: "0 auto",
-  padding: "36px 16px",
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  color: "#f4f4f5",
 };
 
 const containerStyle: React.CSSProperties = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "16px",
-  border: "1px solid #E5E5EA",
-  maxWidth: "560px",
+  backgroundColor: "#18181b",
+  border: "1px solid #27272a",
+  borderRadius: "12px",
+  maxWidth: "500px",
   margin: "0 auto",
-  padding: "40px 36px",
-  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.02)",
+  padding: "40px 32px",
+  textAlign: "center",
 };
 
-const headerStyle: React.CSSProperties = {
-  textAlign: "center",
+const headerSectionStyle: React.CSSProperties = {
   paddingBottom: "24px",
-  borderBottom: "1px solid #F0F0F2",
+  textAlign: "center",
 };
 
-const logoStyle: React.CSSProperties = {
-  fontSize: "20px",
+const brandLogoStyle: React.CSSProperties = {
+  fontSize: "24px",
   fontWeight: "700",
-  letterSpacing: "0.18em",
-  color: "#1C1C1E",
-  margin: "0 0 4px 0",
+  letterSpacing: "3px",
+  color: "#ffffff",
+  textTransform: "uppercase",
+  margin: 0,
 };
 
-const subtitleBadgeStyle: React.CSSProperties = {
-  fontSize: "10px",
-  fontWeight: "600",
-  letterSpacing: "0.12em",
-  color: "#8E8E93",
-  margin: "0",
-};
-
-const contentSectionStyle: React.CSSProperties = {
-  paddingTop: "28px",
-};
-
-const statusBadgeContainerStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "8px",
-  backgroundColor: "#F5F5F7",
-  border: "1px solid #E5E5EA",
-  borderRadius: "9999px",
-  padding: "5px 12px",
-  marginBottom: "16px",
-};
-
-const indicatorDotStyle: React.CSSProperties = {
-  width: "7px",
-  height: "7px",
-  borderRadius: "50%",
-  backgroundColor: "#10B981",
-  display: "inline-block",
-};
-
-const statusTextStyle: React.CSSProperties = {
+const brandSubtitleStyle: React.CSSProperties = {
   fontSize: "11px",
-  fontWeight: "600",
-  color: "#1C1C1E",
-  margin: "0",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: "22px",
-  fontWeight: "600",
-  letterSpacing: "-0.02em",
-  color: "#1C1C1E",
-  lineHeight: "1.3",
-  margin: "0 0 14px 0",
-};
-
-const paragraphStyle: React.CSSProperties = {
-  fontSize: "13.5px",
-  color: "#48484A",
-  lineHeight: "1.6",
-  margin: "0 0 20px 0",
-};
-
-const detailsCardStyle: React.CSSProperties = {
-  backgroundColor: "#F5F5F7",
-  border: "1px solid #E5E5EA",
-  borderRadius: "12px",
-  padding: "16px 20px",
-  margin: "20px 0 16px 0",
-};
-
-const detailRowStyle: React.CSSProperties = {
-  borderBottom: "1px solid #EBEBF0",
-  paddingBottom: "12px",
-  marginBottom: "12px",
-};
-
-const detailRowLastStyle: React.CSSProperties = {
-  margin: "0",
-};
-
-const detailLabelColStyle: React.CSSProperties = {
-  width: "50%",
-};
-
-const detailValueColStyle: React.CSSProperties = {
-  width: "50%",
-};
-
-const detailFullColStyle: React.CSSProperties = {
-  width: "100%",
-};
-
-const detailLabelStyle: React.CSSProperties = {
-  fontSize: "10px",
-  fontWeight: "600",
-  letterSpacing: "0.08em",
-  color: "#8E8E93",
-  margin: "0 0 4px 0",
-};
-
-const detailValueStyle: React.CSSProperties = {
-  fontSize: "13.5px",
-  fontWeight: "600",
-  color: "#1C1C1E",
-  margin: "0",
-};
-
-const detailValueMutedStyle: React.CSSProperties = {
-  fontSize: "12.5px",
-  color: "#48484A",
-  margin: "0",
-};
-
-const financialCardStyle: React.CSSProperties = {
-  backgroundColor: "#FFFFFF",
-  border: "1px solid #E5E5EA",
-  borderRadius: "12px",
-  padding: "16px 20px",
-  margin: "0 0 24px 0",
-};
-
-const financialRowStyle: React.CSSProperties = {
-  marginBottom: "8px",
-};
-
-const financialItemTitleStyle: React.CSSProperties = {
-  fontSize: "12.5px",
-  color: "#48484A",
-  margin: "0",
-};
-
-const financialItemSubStyle: React.CSSProperties = {
-  fontSize: "11px",
-  color: "#10B981",
   fontWeight: "500",
-  margin: "2px 0 0 0",
+  letterSpacing: "1.5px",
+  color: "#a1a1aa",
+  display: "block",
+  marginTop: "4px",
+  textTransform: "uppercase",
+  margin: "4px 0 0 0",
 };
 
-const financialItemValueStyle: React.CSSProperties = {
-  fontSize: "13px",
-  color: "#1C1C1E",
-  fontFamily: 'ui-monospace, Menlo, Monaco, "Cascadia Mono", monospace',
-  margin: "0",
-};
-
-const financialItemPaidStyle: React.CSSProperties = {
-  fontSize: "13px",
-  color: "#10B981",
-  fontWeight: "600",
-  fontFamily: 'ui-monospace, Menlo, Monaco, "Cascadia Mono", monospace',
-  margin: "0",
-};
-
-const innerDividerStyle: React.CSSProperties = {
-  borderTop: "1px solid #F0F0F2",
-  borderBottom: "none",
-  margin: "10px 0",
-};
-
-const financialTotalLabelStyle: React.CSSProperties = {
-  fontSize: "13px",
-  fontWeight: "600",
-  color: "#1C1C1E",
-  margin: "0",
-};
-
-const financialTotalValueStyle: React.CSSProperties = {
-  fontSize: "14px",
-  fontWeight: "700",
-  color: "#1C1C1E",
-  fontFamily: 'ui-monospace, Menlo, Monaco, "Cascadia Mono", monospace',
-  margin: "0",
-};
-
-const buttonContainerStyle: React.CSSProperties = {
-  textAlign: "center",
-  margin: "28px 0 16px 0",
-};
-
-const buttonStyle: React.CSSProperties = {
-  backgroundColor: "#1C1C1E",
-  color: "#FFFFFF",
-  borderRadius: "9999px",
-  fontSize: "13px",
-  fontWeight: "600",
-  letterSpacing: "0.02em",
-  padding: "13px 32px",
-  textDecoration: "none",
-  display: "inline-block",
-};
-
-const footerNoticeStyle: React.CSSProperties = {
-  fontSize: "12px",
-  color: "#8E8E93",
-  textAlign: "center",
-  lineHeight: "1.5",
-  margin: "0",
+const dividerSectionStyle: React.CSSProperties = {
+  paddingBottom: "24px",
 };
 
 const dividerStyle: React.CSSProperties = {
-  borderTop: "1px solid #E5E5EA",
-  borderBottom: "none",
-  margin: "32px 0 20px 0",
+  height: "1px",
+  backgroundColor: "#27272a",
+  border: "none",
+  margin: 0,
+  width: "100%",
 };
 
-const footerStyle: React.CSSProperties = {
+const titleSectionStyle: React.CSSProperties = {
+  paddingBottom: "16px",
+};
+
+const titleStyle: React.CSSProperties = {
+  fontSize: "20px",
+  fontWeight: "600",
+  color: "#ffffff",
+  margin: 0,
+  textAlign: "center",
+};
+
+const contentSectionStyle: React.CSSProperties = {
+  paddingBottom: "32px",
+};
+
+const paragraphStyle: React.CSSProperties = {
+  fontSize: "14px",
+  lineHeight: "1.6",
+  color: "#a1a1aa",
+  margin: "0 0 20px 0",
+  textAlign: "center",
+};
+
+const boldHighlightStyle: React.CSSProperties = {
+  color: "#ffffff",
+};
+
+const cardStyle: React.CSSProperties = {
+  backgroundColor: "#121214",
+  border: "1px solid #27272a",
+  borderRadius: "8px",
+  padding: "18px 20px",
+  textAlign: "left",
+  margin: "16px 0",
+};
+
+const cardRowStyle: React.CSSProperties = {
+  paddingBottom: "12px",
+};
+
+const cardRowLastStyle: React.CSSProperties = {
+  paddingBottom: "14px",
+};
+
+const cardColStyle: React.CSSProperties = {
+  width: "50%",
+};
+
+const cardFieldLabelStyle: React.CSSProperties = {
+  fontSize: "10px",
+  fontWeight: "600",
+  letterSpacing: "1px",
+  color: "#71717a",
+  textTransform: "uppercase",
+  margin: "0 0 4px 0",
+};
+
+const cardFieldValueStyle: React.CSSProperties = {
+  fontSize: "13px",
+  fontWeight: "600",
+  color: "#ffffff",
+  margin: 0,
+};
+
+const cardFieldAddressStyle: React.CSSProperties = {
+  fontSize: "12px",
+  color: "#a1a1aa",
+  margin: 0,
+  lineHeight: "1.4",
+};
+
+const innerDividerStyle: React.CSSProperties = {
+  height: "1px",
+  backgroundColor: "#27272a",
+  border: "none",
+  margin: "4px 0 12px 0",
+  width: "100%",
+};
+
+const financialRowStyle: React.CSSProperties = {
+  paddingBottom: "8px",
+};
+
+const financialRowLastStyle: React.CSSProperties = {
+  paddingTop: "6px",
+  borderTop: "1px solid #27272a",
+};
+
+const financialItemTitleStyle: React.CSSProperties = {
+  fontSize: "12px",
+  color: "#a1a1aa",
+  margin: 0,
+};
+
+const financialItemValueStyle: React.CSSProperties = {
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#ffffff",
+  margin: 0,
+  fontFamily: "monospace",
+};
+
+const financialItemPaidStyle: React.CSSProperties = {
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#34d399",
+  margin: 0,
+  fontFamily: "monospace",
+};
+
+const financialTotalLabelStyle: React.CSSProperties = {
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#ffffff",
+  margin: 0,
+};
+
+const financialTotalValueStyle: React.CSSProperties = {
+  fontSize: "13px",
+  fontWeight: "700",
+  color: "#ffffff",
+  margin: 0,
+  fontFamily: "monospace",
+};
+
+const buttonSectionStyle: React.CSSProperties = {
+  paddingBottom: "32px",
+  textAlign: "center",
+};
+
+const buttonStyle: React.CSSProperties = {
+  backgroundColor: "#ffffff",
+  color: "#09090b",
+  fontSize: "14px",
+  fontWeight: "600",
+  textDecoration: "none",
+  padding: "14px 28px",
+  borderRadius: "8px",
+  display: "inline-block",
+  letterSpacing: "0.5px",
+};
+
+const altLinkSectionStyle: React.CSSProperties = {
+  textAlign: "center",
+};
+
+const altLinkTextStyle: React.CSSProperties = {
+  fontSize: "12px",
+  color: "#71717a",
+  lineHeight: "1.5",
+  margin: 0,
+  textAlign: "center",
+};
+
+const altLinkAnchorStyle: React.CSSProperties = {
+  color: "#a1a1aa",
+  wordBreak: "break-all",
+  textDecoration: "underline",
+};
+
+const footerDividerSectionStyle: React.CSSProperties = {
+  paddingTop: "32px",
+  paddingBottom: "24px",
+};
+
+const footerSectionStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
 const footerTextStyle: React.CSSProperties = {
-  fontSize: "11px",
-  color: "#8E8E93",
-  margin: "0 0 6px 0",
+  fontSize: "12px",
+  color: "#52525b",
+  lineHeight: "1.5",
+  margin: 0,
+  textAlign: "center",
 };
 
-const footerLinksStyle: React.CSSProperties = {
-  fontSize: "11px",
-  color: "#8E8E93",
-  margin: "0",
-};
-
-const footerLinkItemStyle: React.CSSProperties = {
-  color: "#6E6E73",
-  textDecoration: "underline",
+const footerLinkStyle: React.CSSProperties = {
+  color: "#71717a",
+  textDecoration: "none",
 };

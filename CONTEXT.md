@@ -100,6 +100,22 @@ _Avoid_: Pacote (reservado a Package), Assinatura (reservado a Membership), Lice
 Período inicial de 14 dias em que o estúdio usa a LUVEA sem cobrança e sem cartão, antes de escolher um Plano.
 _Avoid_: Plano gratuito, Freemium
 
+**Ciclo de Plano (Plan Subscription)**:
+Vínculo recorrente (mensal ou anual) pelo qual o estúdio mantém um Plano ativo na LUVEA, regido por estados de vigência, carência e bloqueio operacional.
+_Avoid_: Assinatura (reservado a Membership de cliente final), Mensalidade do sistema
+
+**Fatura do Plano (Plan Invoice)**:
+Ordem de cobrança emitida pela LUVEA contra o estúdio (via Cartão na Stripe ou Pix no Mercado Pago) referente à contratação, renovação ou prorrata de um Ciclo de Plano.
+_Avoid_: Fatura (reservado a Invoice de cliente final), Boleto SaaS
+
+**Período de Carência (Grace Period)**:
+Janela de 3 dias corridos após a falha de renovação de uma Fatura do Plano em que o estúdio permanece com operação integral ativa enquanto é notificado para regularizar o pagamento.
+_Avoid_: Tolerância solta, Atraso livre
+
+**Bloqueio Operacional (Operational Soft-Lock)**:
+Estado restrito aplicado após o fim do Teste Grátis sem contratação ou após o término do Período de Carência sem pagamento, que suspende novas reservas e o Site de Agendamento Online, mas preserva o acesso à conta para exportação de dados (LGPD), regularização do Plano e conclusão de agendamentos já confirmados.
+_Avoid_: Conta banida, Hard-lock, Bloqueio total
+
 **Encarregado de Dados (DPO)**:
 Pessoa ou canal indicado pela LUVEA como ponto de contato com titulares de dados e com a ANPD, nos termos da LGPD.
 _Avoid_: Suporte de privacidade

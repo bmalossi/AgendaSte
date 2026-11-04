@@ -51,7 +51,11 @@ export async function middleware(req: NextRequest) {
 
   // 3. Roteamento dinâmico Multi-Tenant por subdomínio de estúdio (ex: bruno.luvea.app)
   if (subdomain) {
-    if (url.pathname.startsWith("/site")) {
+    if (
+      url.pathname.startsWith("/site") ||
+      url.pathname.startsWith("/comprovante") ||
+      url.pathname.startsWith("/receipt")
+    ) {
       return supabaseResponse;
     }
     // Reescreve internamente para /site/[subdomain] preservando cookies

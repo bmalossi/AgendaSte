@@ -22,75 +22,36 @@ export function isValidCpfCnpj(val: string): boolean {
   return digits.length === 11 || digits.length === 14;
 }
 
-export const checkoutFormSchema = z
-  .object({
-    fullName: z
-      .string()
-      .min(3, "Nome completo deve ter pelo menos 3 caracteres.")
-      .max(100, "Nome muito longo."),
-    email: z.string().email("E-mail corporativo ou pessoal inválido."),
-    whatsapp: z
-      .string()
-      .min(10, "Informe o WhatsApp com DDD.")
-      .regex(/^[\d\s()+-]+$/, "Formato de telefone inválido."),
-    cpfCnpj: z
-      .string()
-      .min(11, "Informe um CPF ou CNPJ válido.")
-      .refine(isValidCpfCnpj, "CPF (11 dígitos) ou CNPJ (14 dígitos) inválido."),
-    businessName: z
-      .string()
-      .min(2, "Nome do estúdio deve ter pelo menos 2 caracteres.")
-      .max(80, "Nome do estúdio muito longo."),
-    subdomain: z
-      .string()
-      .min(3, "O subdomínio deve ter pelo menos 3 caracteres.")
-      .max(30, "Subdomínio muito longo (máximo 30 caracteres).")
-      .regex(
-        /^[a-z0-9]+(-[a-z0-9]+)*$/,
-        "Subdomínio pode conter apenas letras minúsculas, números e hífens."
-      ),
-    planTier: z.enum(["essencial", "gold", "platinum"]),
-    billingCycle: z.enum(["monthly", "yearly"]),
-    paymentMethod: z.enum(["credit_card", "pix"]),
-    // Campos condicionais para cartão de crédito
-    cardNumber: z.string().optional(),
-    cardName: z.string().optional(),
-    cardExp: z.string().optional(),
-    cardCvc: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.paymentMethod === "credit_card") {
-      const cardClean = (data.cardNumber || "").replace(/\D/g, "");
-      if (cardClean.length < 13 || cardClean.length > 19) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["cardNumber"],
-          message: "Número de cartão de crédito inválido.",
-        });
-      }
-      if (!data.cardName || data.cardName.trim().length < 3) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["cardName"],
-          message: "Nome impresso no cartão é obrigatório.",
-        });
-      }
-      if (!data.cardExp || !/^\d{2}\/\d{2}$/.test(data.cardExp)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["cardExp"],
-          message: "Validade inválida (use MM/AA).",
-        });
-      }
-      if (!data.cardCvc || data.cardCvc.replace(/\D/g, "").length < 3) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["cardCvc"],
-          message: "CVC deve ter 3 ou 4 dígitos.",
-        });
-      }
-    }
-  });
+export const checkoutFormSchema = z.object({
+  fullName: z
+    .string()
+    .min(3, "Nome completo deve ter pelo menos 3 caracteres.")
+    .max(100, "Nome muito longo."),
+  email: z.string().email("E-mail corporativo ou pessoal inválido."),
+  whatsapp: z
+    .string()
+    .min(10, "Informe o WhatsApp com DDD.")
+    .regex(/^[\d\s()+-]+$/, "Formato de telefone inválido."),
+  cpfCnpj: z
+    .string()
+    .min(11, "Informe um CPF ou CNPJ válido.")
+    .refine(isValidCpfCnpj, "CPF (11 dígitos) ou CNPJ (14 dígitos) inválido."),
+  businessName: z
+    .string()
+    .min(2, "Nome do estúdio deve ter pelo menos 2 caracteres.")
+    .max(80, "Nome do estúdio muito longo."),
+  subdomain: z
+    .string()
+    .min(3, "O subdomínio deve ter pelo menos 3 caracteres.")
+    .max(30, "Subdomínio muito longo (máximo 30 caracteres).")
+    .regex(
+      /^[a-z0-9]+(-[a-z0-9]+)*$/,
+      "Subdomínio pode conter apenas letras minúsculas, números e hífens."
+    ),
+  planTier: z.enum(["essencial", "gold", "platinum"]),
+  billingCycle: z.enum(["monthly", "yearly"]),
+  paymentMethod: z.enum(["credit_card", "pix"]),
+});
 
 export type CheckoutFormData = z.infer<typeof checkoutFormSchema>;
 

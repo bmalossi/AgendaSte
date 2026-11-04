@@ -299,8 +299,9 @@ export function verifyMercadoPagoWebhookSignature(params: {
   xRequestId: string | null;
   dataId: string;
   secret: string;
+  toleranceSeconds?: number;
 }): boolean {
-  const { xSignature, xRequestId, dataId, secret } = params;
+  const { xSignature, xRequestId, dataId, secret, toleranceSeconds } = params;
   if (!xSignature || !secret) return false;
 
   const parts = xSignature.split(",");
@@ -314,6 +315,16 @@ export function verifyMercadoPagoWebhookSignature(params: {
   }
 
   if (!ts || !v1) return false;
+
+  if (toleranceSeconds && toleranceSeconds > 0) {
+    const parsedTs = parseInt(ts, 10);
+    if (isNaN(parsedTs)) return false;
+    const tsSeconds = ts.length > 11 ? Math.floor(parsedTs / 1000) : parsedTs;
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (Math.abs(nowSeconds - tsSeconds) > toleranceSeconds) {
+      return false;
+    }
+  }
 
   const manifest = `id:${dataId.toLowerCase()};request-id:${xRequestId || ""};ts:${ts};`;
   const computed = crypto

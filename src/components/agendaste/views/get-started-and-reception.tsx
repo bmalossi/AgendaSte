@@ -995,7 +995,7 @@ export function ReceptionView({
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#09090b]">
+    <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#18181b]">
       {/* Top 3-step progress bar identical to 02-reception-ia.png */}
       <div className="w-full px-6 lg:px-8 xl:px-10 pt-6">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6">

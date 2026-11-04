@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Globe,
@@ -40,6 +40,7 @@ import {
 import { useAppTheme } from "@/lib/theme";
 import { PLANS_CATALOG } from "@/lib/marketing-content";
 import { TvKioskSettingsSection } from "@/components/agendaste/tv-kiosk-settings-section";
+import { SubscriptionSettingsSection } from "@/components/agendaste/subscription-settings-section";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
 import type {
   StudioState,
@@ -313,6 +314,153 @@ export function SettingsView({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const handleToggleNotification = (id: string) => {
+    setNotificationsConfig((prev) => {
+      const updatedItems = prev.items.map((it) =>
+        it.id === id ? { ...it, enabled: !it.enabled } : it
+      );
+      const updated = { ...prev, items: updatedItems };
+      onUpdateState((st) =>
+        updateWebsiteSetupConfig(st, { clientNotifications: updated })
+      );
+      return updated;
+    });
+  };
+
+  const handleToggleChannel = (id: string, channel: "email" | "whatsapp") => {
+    setNotificationsConfig((prev) => {
+      const updatedItems = prev.items.map((it) => {
+        if (it.id !== id) return it;
+        const exists = it.channels.includes(channel);
+        const newChannels = exists
+          ? it.channels.filter((c) => c !== channel)
+          : [...it.channels, channel];
+        return {
+          ...it,
+          channels: newChannels,
+          enabled: newChannels.length > 0 ? it.enabled : false,
+        };
+      });
+      const updated = { ...prev, items: updatedItems };
+      onUpdateState((st) =>
+        updateWebsiteSetupConfig(st, { clientNotifications: updated })
+      );
+      return updated;
+    });
+  };
+
+  // =========================================================================
+  // GERENCIAMENTO ACESSÍVEL DE MODAIS (Escape, Foco Inicial, Trap & Scroll Lock)
+  // =========================================================================
+  const isAnyModalOpen = Boolean(
+    previewNotification || editNotification || activeTaxModal || activePayoutModal
+  );
+
+  const closeCurrentModal = () => {
+    if (previewNotification) setPreviewNotification(null);
+    else if (editNotification) setEditNotification(null);
+    else if (activeTaxModal) setActiveTaxModal(null);
+    else if (activePayoutModal) setActivePayoutModal(null);
+  };
+
+  const activeDialogRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const editTemplateTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleInsertVariable = (tag: string) => {
+    if (!editNotification) return;
+    const textarea = editTemplateTextareaRef.current;
+    if (!textarea) {
+      setEditNotification({
+        ...editNotification,
+        templateBody: editNotification.templateBody ? `${editNotification.templateBody} ${tag}` : tag,
+      });
+      return;
+    }
+
+    const start = textarea.selectionStart ?? editNotification.templateBody.length;
+    const end = textarea.selectionEnd ?? editNotification.templateBody.length;
+    const currentText = editNotification.templateBody || "";
+    const newText = currentText.substring(0, start) + tag + currentText.substring(end);
+
+    setEditNotification({
+      ...editNotification,
+      templateBody: newText,
+    });
+
+    setTimeout(() => {
+      textarea.focus();
+      const nextPos = start + tag.length;
+      textarea.setSelectionRange(nextPos, nextPos);
+    }, 0);
+  };
+
+  useEffect(() => {
+    if (!isAnyModalOpen) return;
+
+    // Salva o elemento previamente ativo para devolver o foco ao fechar
+    previousActiveElementRef.current = document.activeElement as HTMLElement;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Mover foco inicial para o diálogo ou primeiro elemento interativo
+    const timer = setTimeout(() => {
+      if (activeDialogRef.current) {
+        const focusable = activeDialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length > 0) {
+          focusable[0].focus();
+        } else {
+          activeDialogRef.current.focus();
+        }
+      }
+    }, 50);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Fecha o diálogo com a tecla Escape
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeCurrentModal();
+        return;
+      }
+
+      // Armadilha de Foco (Focus Trap)
+      if (e.key === "Tab" && activeDialogRef.current) {
+        const focusable = activeDialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+
+        const firstElement = focusable[0];
+        const lastElement = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      clearTimeout(timer);
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === "function") {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, [isAnyModalOpen, previewNotification, editNotification, activeTaxModal, activePayoutModal]);
+
   const handleSaveAll = () => {
     setIsSaving(true);
     onUpdateState((prev) => {
@@ -371,22 +519,22 @@ export function SettingsView({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 font-sans text-[#1C1C1E]">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 font-sans text-[#1C1C1E] dark:text-white">
       {/* Toast de Confirmação Flutuante */}
       {saveToast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 dark:bg-emerald-600 ring-2 ring-emerald-400/20 dark:ring-emerald-600/20" />
           <span>{saveToast}</span>
         </div>
       )}
 
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E5E5EA] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E5E5EA] dark:border-[#27272a] pb-5">
         <div>
-          <h1 className="text-[26px] sm:text-[30px] font-serif font-normal tracking-tight text-[#1C1C1E]">
+          <h1 className="text-[26px] sm:text-[30px] font-serif font-normal tracking-tight text-[#1C1C1E] dark:text-white">
             Configurações
           </h1>
-          <p className="text-[13px] text-[#6E6E73] mt-0.5">
+          <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
             Gerenciamento geral do estúdio, regras de agendamento online, rastreamento e notificações.
           </p>
         </div>
@@ -395,14 +543,14 @@ export function SettingsView({
           type="button"
           onClick={handleSaveAll}
           disabled={isSaving}
-          className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-[#1C1C1E] text-white text-[13px] font-medium shadow-sm hover:bg-[#2C2C2E] active:scale-[0.98] transition-all disabled:opacity-50 shrink-0"
+          className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[13px] font-medium shadow-sm hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 active:scale-[0.98] transition-all disabled:opacity-50 shrink-0"
         >
           {isSaving ? "Salvando..." : "Salvar alterações"}
         </button>
       </div>
 
       {/* Abas Superiores Principais */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-[#E5E5EA]">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-[#E5E5EA] dark:border-[#27272a]">
         {[
           { id: "business" as const, label: "Negócio", icon: Building2 },
           { id: "personal" as const, label: "Pessoal", icon: User },
@@ -420,8 +568,8 @@ export function SettingsView({
               onClick={() => setTopTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium transition-colors shrink-0 ${
                 isActive
-                  ? "bg-[#1C1C1E] text-white shadow-sm"
-                  : "bg-transparent text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                  ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-sm"
+                  : "bg-transparent text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -508,7 +656,7 @@ export function SettingsView({
                     Personalize as confirmações, lembretes e avisos automáticos enviados aos clientes antes e depois de
                     cada atendimento.
                   </p>
-                  <p className="text-[11.5px] text-[#8E8E93] mt-2">
+                  <p className="text-[11.5px] text-[#6E6E73] mt-2">
                     Os dados clínicos e prontuários permanecem sigilosos e protegidos pela LGPD.
                   </p>
                 </div>
@@ -570,32 +718,98 @@ export function SettingsView({
                         return (
                           <div
                             key={notif.id}
-                            className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#FAFAFA] dark:hover:bg-[#27272a] transition-colors px-2 rounded-xl"
+                            className={`py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-colors px-3 rounded-2xl ${
+                              notif.enabled
+                                ? "hover:bg-[#FAFAFA] dark:hover:bg-[#27272a]/60"
+                                : "opacity-75 bg-[#FAFAFC]/60 dark:bg-[#18181b]/40 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/40"
+                            }`}
                           >
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">{ptTitle}</h4>
-                                {notif.badge === "novo" && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#ECE9FE] text-[#6D28D9]">
-                                    Novo
+                            <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                              {/* Interruptor Liga / Desliga (Accessible Switch) */}
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={notif.enabled}
+                                aria-label={`Ativar ou pausar ${ptTitle}`}
+                                onClick={() => handleToggleNotification(notif.id)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1C1C1E] dark:focus:ring-white focus:ring-offset-2 mt-0.5 ${
+                                  notif.enabled
+                                    ? "bg-[#1C1C1E] dark:bg-white"
+                                    : "bg-[#E5E5EA] dark:bg-[#3f3f46]"
+                                }`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#18181b] shadow ring-0 transition duration-200 ease-in-out ${
+                                    notif.enabled ? "translate-x-5" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                                    {ptTitle}
+                                  </h4>
+                                  {notif.badge === "novo" && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#ECE9FE] text-[#6D28D9]">
+                                      Novo
+                                    </span>
+                                  )}
+                                  {/* Micro-indicador de Status */}
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[11px] font-medium text-[#1C1C1E] dark:text-white">
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        notif.enabled
+                                          ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                                          : "bg-[#6E6E73] dark:bg-[#a1a1aa]"
+                                      }`}
+                                    />
+                                    <span>{notif.enabled ? "Ativo" : "Pausado"}</span>
                                   </span>
+                                </div>
+
+                                <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                                  {ptDesc}
+                                </p>
+
+                                {ptTiming && (
+                                  <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] pt-0.5">
+                                    Disparo programado: <span className="font-medium text-[#1C1C1E] dark:text-white">{ptTiming}</span>
+                                  </p>
                                 )}
-                              </div>
-                              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">{ptDesc}</p>
-                              <div className="flex items-center gap-2 pt-1 text-[11px] text-[#8E8E93] dark:text-[#71717a]">
-                                <span>
-                                  Envio via:{" "}
-                                  <strong className="font-medium text-[#1C1C1E] dark:text-white">
-                                    {notif.channels
-                                      .map((c) => (c === "whatsapp" ? "WhatsApp" : c === "email" ? "E-mail" : "SMS"))
-                                      .join(" e ")}
-                                  </strong>
-                                </span>
-                                {ptTiming && <span>• {ptTiming}</span>}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
+                            {/* Controles: Seleção Dinâmica de Canais & Ações */}
+                            <div className="flex flex-wrap items-center gap-2.5 shrink-0 pl-14 lg:pl-0">
+                              {/* Canais Interativos */}
+                              <div className="flex items-center gap-1 p-1 bg-[#F5F5F7] dark:bg-[#27272a] rounded-full border border-[#E5E5EA] dark:border-[#3f3f46]">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleChannel(notif.id, "whatsapp")}
+                                  className={`px-3 py-1 rounded-full text-[11.5px] font-medium transition ${
+                                    notif.channels.includes("whatsapp")
+                                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-2xs"
+                                      : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                                  }`}
+                                  title="Ativar/desativar envio via WhatsApp"
+                                >
+                                  WhatsApp
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleChannel(notif.id, "email")}
+                                  className={`px-3 py-1 rounded-full text-[11.5px] font-medium transition ${
+                                    notif.channels.includes("email")
+                                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-2xs"
+                                      : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                                  }`}
+                                  title="Ativar/desativar envio via E-mail"
+                                >
+                                  E-mail
+                                </button>
+                              </div>
+
                               <button
                                 type="button"
                                 onClick={() => setEditNotification(notif)}
@@ -688,32 +902,98 @@ export function SettingsView({
                         return (
                           <div
                             key={notif.id}
-                            className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#FAFAFA] dark:hover:bg-[#27272a] transition-colors px-2 rounded-xl"
+                            className={`py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-colors px-3 rounded-2xl ${
+                              notif.enabled
+                                ? "hover:bg-[#FAFAFA] dark:hover:bg-[#27272a]/60"
+                                : "opacity-75 bg-[#FAFAFC]/60 dark:bg-[#18181b]/40 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]/40"
+                            }`}
                           >
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">{ptTitle}</h4>
-                                {notif.badge === "gold" && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#FBF8EF] dark:bg-[#27272a] border border-[#F3E8C4] dark:border-[#3f3f46] text-[#8C6D1F] dark:text-[#f4f4f5]">
-                                    Gold
+                            <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                              {/* Interruptor Liga / Desliga (Accessible Switch) */}
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={notif.enabled}
+                                aria-label={`Ativar ou pausar ${ptTitle}`}
+                                onClick={() => handleToggleNotification(notif.id)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1C1C1E] dark:focus:ring-white focus:ring-offset-2 mt-0.5 ${
+                                  notif.enabled
+                                    ? "bg-[#1C1C1E] dark:bg-white"
+                                    : "bg-[#E5E5EA] dark:bg-[#3f3f46]"
+                                }`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#18181b] shadow ring-0 transition duration-200 ease-in-out ${
+                                    notif.enabled ? "translate-x-5" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                                    {ptTitle}
+                                  </h4>
+                                  {notif.badge === "gold" && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#FBF8EF] dark:bg-[#27272a] border border-[#F3E8C4] dark:border-[#3f3f46] text-[#8C6D1F] dark:text-[#f4f4f5]">
+                                      Gold
+                                    </span>
+                                  )}
+                                  {/* Micro-indicador de Status */}
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[11px] font-medium text-[#1C1C1E] dark:text-white">
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        notif.enabled
+                                          ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                                          : "bg-[#6E6E73] dark:bg-[#a1a1aa]"
+                                      }`}
+                                    />
+                                    <span>{notif.enabled ? "Ativo" : "Pausado"}</span>
                                   </span>
+                                </div>
+
+                                <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                                  {ptDesc}
+                                </p>
+
+                                {notif.timingLabel && (
+                                  <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] pt-0.5">
+                                    Disparo programado: <span className="font-medium text-[#1C1C1E] dark:text-white">{notif.timingLabel}</span>
+                                  </p>
                                 )}
-                              </div>
-                              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">{ptDesc}</p>
-                              <div className="flex items-center gap-2 pt-1 text-[11px] text-[#8E8E93] dark:text-[#71717a]">
-                                <span>
-                                  Envio via:{" "}
-                                  <strong className="font-medium text-[#1C1C1E] dark:text-white">
-                                    {notif.channels
-                                      .map((c) => (c === "whatsapp" ? "WhatsApp" : c === "email" ? "E-mail" : "SMS"))
-                                      .join(" e ")}
-                                  </strong>
-                                </span>
-                                {notif.timingLabel && <span>• {notif.timingLabel}</span>}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
+                            {/* Controles: Seleção Dinâmica de Canais & Ações */}
+                            <div className="flex flex-wrap items-center gap-2.5 shrink-0 pl-14 lg:pl-0">
+                              {/* Canais Interativos */}
+                              <div className="flex items-center gap-1 p-1 bg-[#F5F5F7] dark:bg-[#27272a] rounded-full border border-[#E5E5EA] dark:border-[#3f3f46]">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleChannel(notif.id, "whatsapp")}
+                                  className={`px-3 py-1 rounded-full text-[11.5px] font-medium transition ${
+                                    notif.channels.includes("whatsapp")
+                                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-2xs"
+                                      : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                                  }`}
+                                  title="Ativar/desativar envio via WhatsApp"
+                                >
+                                  WhatsApp
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleChannel(notif.id, "email")}
+                                  className={`px-3 py-1 rounded-full text-[11.5px] font-medium transition ${
+                                    notif.channels.includes("email")
+                                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-2xs"
+                                      : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
+                                  }`}
+                                  title="Ativar/desativar envio via E-mail"
+                                >
+                                  E-mail
+                                </button>
+                              </div>
+
                               <button
                                 type="button"
                                 onClick={() => setEditNotification(notif)}
@@ -821,7 +1101,7 @@ export function SettingsView({
                     O identificador exclusivo do seu estúdio dentro do domínio oficial Luvea.
                   </p>
                   <div className="flex items-center rounded-xl border border-[#E5E5EA] bg-white px-3 py-2 max-w-lg focus-within:border-[#1C1C1E] focus-within:ring-1 focus-within:ring-[#1C1C1E]">
-                    <span className="text-[13px] text-[#8E8E93] font-mono select-none">https://</span>
+                    <span className="text-[13px] text-[#6E6E73] font-mono select-none">https://</span>
                     <input
                       type="text"
                       value={subdomainSlug}
@@ -829,7 +1109,7 @@ export function SettingsView({
                       className="flex-1 bg-transparent border-0 outline-none px-1 text-[13px] font-mono text-[#1C1C1E]"
                       placeholder="seuestudio"
                     />
-                    <span className="text-[13px] text-[#8E8E93] font-mono select-none">.luvea.app</span>
+                    <span className="text-[13px] text-[#6E6E73] font-mono select-none">.luvea.app</span>
                   </div>
                 </div>
 
@@ -1571,7 +1851,7 @@ export function SettingsView({
                             }}
                             className="w-4 h-4 rounded text-[#1C1C1E] focus:ring-0"
                           />
-                          <span className={`text-[13px] font-medium ${h.isOpen ? "text-[#1C1C1E]" : "text-[#8E8E93]"}`}>
+                          <span className={`text-[13px] font-medium ${h.isOpen ? "text-[#1C1C1E]" : "text-[#6E6E73]"}`}>
                             {h.label}
                           </span>
                         </div>
@@ -1588,7 +1868,7 @@ export function SettingsView({
                               }}
                               className="px-2.5 py-1 rounded-lg border border-[#E5E5EA] bg-white text-[12px] font-mono text-[#1C1C1E]"
                             />
-                            <span className="text-[#8E8E93]">às</span>
+                            <span className="text-[#6E6E73]">às</span>
                             <input
                               type="time"
                               value={h.endTime}
@@ -1601,7 +1881,7 @@ export function SettingsView({
                             />
                           </div>
                         ) : (
-                          <span className="text-[12px] text-[#8E8E93] italic">Fechado</span>
+                          <span className="text-[12px] text-[#6E6E73] italic">Fechado</span>
                         )}
                       </div>
                     ))}
@@ -1682,33 +1962,33 @@ export function SettingsView({
             {/* ========================================================================= */}
             {subTab === "card_reader" && (
               <div className="space-y-8 animate-in fade-in duration-200">
-                <div className="border-b border-[#E5E5EA] pb-5">
-                  <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Cobrança &amp; Checkout</h2>
-                  <p className="text-[13px] text-[#6E6E73] mt-1">
+                <div className="border-b border-[#E5E5EA] dark:border-[#27272a] pb-5">
+                  <h2 className="text-[20px] font-semibold text-[#1C1C1E] dark:text-white">Cobrança &amp; Checkout</h2>
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1">
                     Configurações de recebimento presencial, pagamentos por aproximação, parcelamento e tributação.
                   </p>
                 </div>
 
                 {/* Hero Editorial de Luxo - Maquininha Luvea Pro & Tap to Pay */}
-                <div className="bg-[#F8F8FA] border border-[#E5E5EA] rounded-2xl p-6 sm:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="bg-[#F8F8FA] dark:bg-[#202023] border border-[#E5E5EA] dark:border-[#27272a] rounded-2xl p-6 sm:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                   <div className="space-y-2.5 max-w-xl">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#E5E5EA] text-[11.5px] font-medium text-[#1C1C1E]">
-                      <Smartphone className="w-3.5 h-3.5 text-[#1C1C1E]" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] text-[11.5px] font-medium text-[#1C1C1E] dark:text-white">
+                      <Smartphone className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
                       <span>Tap to Pay no iPhone &amp; Maquininha Pro</span>
                     </div>
-                    <h3 className="text-[18px] sm:text-[20px] font-semibold text-[#1C1C1E] tracking-tight">
+                    <h3 className="text-[18px] sm:text-[20px] font-semibold text-[#1C1C1E] dark:text-white tracking-tight">
                       Pagamentos por aproximação sem aluguel
                     </h3>
-                    <p className="text-[13px] text-[#6E6E73] leading-relaxed">
+                    <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
                       Nossa solução integrada permite aceitar pagamentos por aproximação (contactless) diretamente no seu smartphone ou pela Maquininha Luvea Pro. Receba pagamentos no débito, crédito à vista ou parcelado com liquidação rápida.
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[#8E8E93]">
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Visa</span>
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Mastercard</span>
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Elo</span>
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Apple Pay</span>
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Google Pay</span>
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#E5E5EA] font-medium text-[#1C1C1E]">Pix Instantâneo</span>
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] font-medium text-[#1C1C1E] dark:text-white">Visa</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] font-medium text-[#1C1C1E] dark:text-white">Mastercard</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] font-medium text-[#1C1C1E] dark:text-white">Elo</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] font-medium text-[#1C1C1E] dark:text-white">Apple Pay</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] font-medium text-[#1C1C1E] dark:text-white">Google Pay</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] font-medium text-[#1C1C1E] dark:text-white">Pix Instantâneo</span>
                     </div>
                   </div>
 
@@ -1716,7 +1996,7 @@ export function SettingsView({
                     <button
                       type="button"
                       onClick={() => setActivePayoutModal("processing_info")}
-                      className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors text-center"
+                      className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors text-center"
                     >
                       Ver taxas e prazos
                     </button>
@@ -1726,17 +2006,17 @@ export function SettingsView({
                 {/* Seção 1: Parcelamento sem Juros & BNPL */}
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[#1C1C1E]">Parcelamento sem Juros &amp; BNPL</h3>
-                    <p className="text-[12px] text-[#6E6E73]">
+                    <h3 className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white">Parcelamento sem Juros &amp; BNPL</h3>
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                       Permita que seus clientes parcelem atendimentos e pacotes no cartão de crédito ou Pix parcelado.
                     </p>
                   </div>
 
                   {!paymentsSetup.identityVerified && (
-                    <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="bg-[#FFFBEB] dark:bg-amber-950/20 border border-[#FDE68A] dark:border-amber-900/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
-                        <p className="text-[12.5px] text-[#92400E]">
+                        <p className="text-[12.5px] text-[#92400E] dark:text-amber-200">
                           Verifique sua identidade para configurar pagamentos e aceitar recebimentos parcelados (BNPL).
                         </p>
                       </div>
@@ -1746,18 +2026,18 @@ export function SettingsView({
                           setSubTab("payout_account");
                           setActivePayoutModal("identity_verification");
                         }}
-                        className="px-3.5 py-1.5 rounded-full bg-white border border-[#FCD34D] text-[12px] font-medium text-[#78350F] hover:bg-[#FEF3C7] shrink-0 transition"
+                        className="px-3.5 py-1.5 rounded-full bg-white dark:bg-[#18181b] border border-[#FCD34D] dark:border-amber-700 text-[12px] font-medium text-[#78350F] dark:text-amber-200 hover:bg-[#FEF3C7] dark:hover:bg-amber-900/30 shrink-0 transition"
                       >
                         Verificar identidade
                       </button>
                     </div>
                   )}
 
-                  <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                  <div className="divide-y divide-[#F2F2F7] dark:divide-[#27272a] border-y border-[#F2F2F7] dark:border-[#27272a]">
                     <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="space-y-0.5 max-w-xl">
-                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Aceitar Parcelamento sem Juros (BNPL &amp; Pix Parcelado)</h4>
-                        <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Aceitar Parcelamento sem Juros (BNPL &amp; Pix Parcelado)</h4>
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
                           Permita que clientes parcelem em até 12x. Taxa do intermediador de {checkoutSettings.bnplFeePercent}% + R$ {(checkoutSettings.bnplFixedFeeCents / 100).toFixed(2).replace(".", ",")} por transação parcelada.
                         </p>
                       </div>
@@ -1774,7 +2054,7 @@ export function SettingsView({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-[#E5E5EA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1C1C1E]"></div>
+                        <div className="w-11 h-6 bg-[#E5E5EA] dark:bg-[#3f3f46] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1C1C1E] dark:peer-checked:bg-white"></div>
                       </label>
                     </div>
                   </div>
@@ -1783,21 +2063,21 @@ export function SettingsView({
                 {/* Seção 2: Taxa de Tecnologia da Plataforma & Tributos */}
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[#1C1C1E]">Taxa de Tecnologia da Plataforma &amp; Tributos</h3>
-                    <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                    <h3 className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white">Taxa de Tecnologia da Plataforma &amp; Tributos</h3>
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
                       Reduza seus custos operacionais escolhendo quem assume a taxa de tecnologia da plataforma. Mantenha as alíquotas fiscais de serviços e varejo configuradas de acordo com seu regime tributário e município.
                     </p>
                   </div>
 
-                  <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                  <div className="divide-y divide-[#F2F2F7] dark:divide-[#27272a] border-y border-[#F2F2F7] dark:border-[#27272a]">
                     {/* Taxa de Tecnologia */}
                     <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="space-y-0.5 max-w-xl">
-                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Taxa de tecnologia da plataforma</h4>
-                        <p className="text-[12.5px] font-medium text-[#1C1C1E] pt-0.5">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Taxa de tecnologia da plataforma</h4>
+                        <p className="text-[12.5px] font-medium text-[#1C1C1E] dark:text-white pt-0.5">
                           {checkoutSettings.technologyFeePayer === "studio" ? "Você paga" : "Cliente paga no checkout"}
                         </p>
-                        <p className="text-[12px] text-[#6E6E73]">
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                           {checkoutSettings.technologyFeePayer === "studio"
                             ? "O estúdio absorve integralmente os custos operacionais da plataforma."
                             : "O encargo de processamento é repassado ao cliente e exibido de forma transparente no checkout."}
@@ -1809,7 +2089,7 @@ export function SettingsView({
                           setTempFeePayer(checkoutSettings.technologyFeePayer);
                           setActiveTaxModal("platform_fee");
                         }}
-                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors shrink-0"
                       >
                         Editar
                       </button>
@@ -1818,11 +2098,11 @@ export function SettingsView({
                     {/* Imposto sobre Serviços */}
                     <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="space-y-0.5 max-w-xl">
-                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Imposto sobre Serviços (ISS / Simples Nacional)</h4>
-                        <p className="text-[12.5px] font-medium text-[#1C1C1E] pt-0.5">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Imposto sobre Serviços (ISS / Simples Nacional)</h4>
+                        <p className="text-[12.5px] font-medium text-[#1C1C1E] dark:text-white pt-0.5">
                           {checkoutSettings.serviceSalesTaxPercent}%
                         </p>
-                        <p className="text-[12px] text-[#6E6E73]">
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                           Alíquota estimada de imposto incidente sobre serviços de corte, coloração, estética e tratamentos para detalhamento em comandas e notas.
                         </p>
                       </div>
@@ -1832,7 +2112,7 @@ export function SettingsView({
                           setTempServiceTax(String(checkoutSettings.serviceSalesTaxPercent));
                           setActiveTaxModal("service_tax");
                         }}
-                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors shrink-0"
                       >
                         Editar
                       </button>
@@ -1841,11 +2121,11 @@ export function SettingsView({
                     {/* Imposto sobre Venda de Produtos */}
                     <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="space-y-0.5 max-w-xl">
-                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Imposto sobre Venda de Produtos (ICMS / Varejo)</h4>
-                        <p className="text-[12.5px] font-medium text-[#1C1C1E] pt-0.5">
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Imposto sobre Venda de Produtos (ICMS / Varejo)</h4>
+                        <p className="text-[12.5px] font-medium text-[#1C1C1E] dark:text-white pt-0.5">
                           {checkoutSettings.retailSalesTaxPercent}%
                         </p>
-                        <p className="text-[12px] text-[#6E6E73]">
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                           Alíquota estimada de tributos incidentes sobre a venda de cosméticos, produtos capilares e home care no salão.
                         </p>
                       </div>
@@ -1855,7 +2135,7 @@ export function SettingsView({
                           setTempRetailTax(String(checkoutSettings.retailSalesTaxPercent));
                           setActiveTaxModal("retail_tax");
                         }}
-                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                        className="px-4 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors shrink-0"
                       >
                         Editar
                       </button>
@@ -1870,65 +2150,65 @@ export function SettingsView({
             {/* ========================================================================= */}
             {subTab === "payout_account" && (
               <div className="space-y-8 animate-in fade-in duration-200">
-                <div className="border-b border-[#E5E5EA] pb-5">
-                  <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Conta de Repasse &amp; Verificação</h2>
-                  <p className="text-[13px] text-[#6E6E73] mt-1 leading-relaxed max-w-2xl">
+                <div className="border-b border-[#E5E5EA] dark:border-[#27272a] pb-5">
+                  <h2 className="text-[20px] font-semibold text-[#1C1C1E] dark:text-white">Conta de Repasse &amp; Verificação</h2>
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-relaxed max-w-2xl">
                     Para receber repasses automáticos de clientes pela LUVEA, é necessário verificar sua identidade e os dados cadastrais da sua empresa conforme as normas regulatórias do Banco Central do Brasil. Dúvidas? Fale com nosso suporte.
                   </p>
                 </div>
 
                 {/* Banner de Ação Necessária */}
                 {!paymentsSetup.identityVerified ? (
-                  <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="bg-[#FFFBEB] dark:bg-amber-950/20 border border-[#FDE68A] dark:border-amber-900/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
-                      <p className="text-[12.5px] font-medium text-[#92400E]">
+                      <p className="text-[12.5px] font-medium text-[#92400E] dark:text-amber-200">
                         Ação necessária! Atualize suas informações cadastrais para continuar recebendo pagamentos e repasses.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActivePayoutModal("identity_verification")}
-                      className="px-3.5 py-1.5 rounded-full bg-white border border-[#FCD34D] text-[12px] font-medium text-[#78350F] hover:bg-[#FEF3C7] shrink-0 transition"
+                      className="px-3.5 py-1.5 rounded-full bg-white dark:bg-[#18181b] border border-[#FCD34D] dark:border-amber-700 text-[12px] font-medium text-[#78350F] dark:text-amber-200 hover:bg-[#FEF3C7] dark:hover:bg-amber-900/30 shrink-0 transition"
                     >
                       Completar dados
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-[#F6FDF9] border border-[#D1F2DF] rounded-2xl p-4 flex items-center justify-between gap-3">
+                  <div className="bg-[#F6FDF9] dark:bg-emerald-950/20 border border-[#D1F2DF] dark:border-emerald-900/40 rounded-2xl p-4 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
-                      <p className="text-[12.5px] font-medium text-emerald-900">
+                      <p className="text-[12.5px] font-medium text-emerald-900 dark:text-emerald-200">
                         Identidade verificada com sucesso. Os repasses de vendas e sinais Pix são efetuados diariamente na sua conta.
                       </p>
                     </div>
-                    <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">
+                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
                       Em dia
                     </span>
                   </div>
                 )}
 
-                <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                <div className="divide-y divide-[#F2F2F7] dark:divide-[#27272a] border-y border-[#F2F2F7] dark:border-[#27272a]">
                   {/* Item 1: Processamento de Pagamentos */}
                   <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2.5">
-                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Processamento de Pagamentos</h4>
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Processamento de Pagamentos</h4>
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
-                          paymentsSetup.identityVerified ? "bg-[#F5F5F7] text-emerald-700" : "bg-[#F5F5F7] text-[#71717A]"
+                          paymentsSetup.identityVerified ? "bg-[#F5F5F7] dark:bg-[#27272a] text-emerald-700 dark:text-emerald-400 border border-[#E5E5EA] dark:border-[#3f3f46]" : "bg-[#F5F5F7] dark:bg-[#27272a] text-[#71717A] dark:text-[#a1a1aa] border border-[#E5E5EA] dark:border-[#3f3f46]"
                         }`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${paymentsSetup.identityVerified ? "bg-emerald-500 ring-2 ring-emerald-500/20" : "bg-[#A1A1AA]"}`} />
                           <span>{paymentsSetup.identityVerified ? "Ativo" : "Inativo"}</span>
                         </span>
                       </div>
-                      <p className="text-[12px] text-[#6E6E73]">
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                         Liquidação de vendas, taxas de no-show via Pix e cobranças presenciais na comanda.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActivePayoutModal("processing_info")}
-                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors shrink-0"
                     >
                       Saiba mais
                     </button>
@@ -1938,44 +2218,44 @@ export function SettingsView({
                   <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2.5">
-                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Verificação de Identidade</h4>
+                        <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Verificação de Identidade</h4>
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
-                          paymentsSetup.identityVerified ? "bg-[#F5F5F7] text-emerald-700" : "bg-[#FFFBEB] text-amber-800 border border-[#FDE68A]"
+                          paymentsSetup.identityVerified ? "bg-[#F5F5F7] dark:bg-[#27272a] text-emerald-700 dark:text-emerald-400 border border-[#E5E5EA] dark:border-[#3f3f46]" : "bg-[#FFFBEB] dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 border border-[#FDE68A] dark:border-amber-800/40"
                         }`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${paymentsSetup.identityVerified ? "bg-emerald-500 ring-2 ring-emerald-500/20" : "bg-amber-500 ring-2 ring-amber-500/20"}`} />
                           <span>{paymentsSetup.identityVerified ? "Verificado" : "Informações pendentes"}</span>
                         </span>
                       </div>
-                      <p className="text-[12px] text-[#6E6E73]">
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                         Validação de conformidade legal perante o Banco Central do Brasil para liberação de repasses.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActivePayoutModal("identity_verification")}
-                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors shrink-0"
                     >
-                      {paymentsSetup.identityVerified ? "Editar ↗" : "Completar ↗"}
+                      {paymentsSetup.identityVerified ? "Editar" : "Completar"}
                     </button>
                   </div>
 
                   {/* Item 3: Conta de Repasse */}
                   <div className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-0.5">
-                      <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Conta de Repasse</h4>
-                      <p className="text-[12px] text-[#1C1C1E] font-medium pt-0.5">
+                      <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Conta de Repasse</h4>
+                      <p className="text-[12px] text-[#1C1C1E] dark:text-white font-medium pt-0.5">
                         {paymentsSetup.payoutMethod === "pix_key"
                           ? `Chave Pix: ${paymentsSetup.pixKeyValue || pixKey}`
                           : `${paymentsSetup.bankName || "Nu Pagamentos S.A."} · Agência ${paymentsSetup.routingOrAgency || "0001"} · C/C ${paymentsSetup.accountNumber || "1234567-8"}`}
                       </p>
-                      <p className="text-[12px] text-[#6E6E73]">
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                         Conta bancária ou chave Pix de titularidade da empresa para onde os valores são transferidos.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActivePayoutModal("payout_account")}
-                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors shrink-0"
                     >
                       {paymentsSetup.setupCompleted ? "Editar" : "Adicionar"}
                     </button>
@@ -1989,27 +2269,27 @@ export function SettingsView({
             {/* ========================================================================= */}
             {subTab === "hipaa" && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="border-b border-[#E5E5EA] pb-5">
+                <div className="border-b border-[#E5E5EA] dark:border-[#27272a] pb-5">
                   <div className="flex items-center gap-2.5">
-                    <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Conformidade LGPD &amp; Privacidade</h2>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide uppercase bg-[#F5F5F7] border border-[#E5E5EA] text-[#52525B]">
+                    <h2 className="text-[20px] font-semibold text-[#1C1C1E] dark:text-white">Conformidade LGPD &amp; Privacidade</h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide uppercase bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#52525B] dark:text-[#a1a1aa]">
                       LGPD
                     </span>
                   </div>
-                  <p className="text-[13px] text-[#6E6E73] mt-1">
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1">
                     Políticas de privacidade de dados sensíveis, prontuários estéticos e fichas de anamnese.
                   </p>
                 </div>
-                <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                <div className="divide-y divide-[#F2F2F7] dark:divide-[#27272a] border-y border-[#F2F2F7] dark:border-[#27272a]">
                   <div className="py-4 space-y-1">
-                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Criptografia e Sigilo Profissional</h4>
-                    <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Criptografia e Sigilo Profissional</h4>
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
                       Fórmulas cosméticas, fotos antes/depois e notas SOAP dos clientes são encriptadas de ponta a ponta e restritas exclusivamente aos profissionais autorizados do estúdio.
                     </p>
                   </div>
                   <div className="py-4 space-y-1">
-                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Termo de Consentimento Livre e Esclarecido (TCLE)</h4>
-                    <p className="text-[12px] text-[#6E6E73] leading-relaxed">
+                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Termo de Consentimento Livre e Esclarecido (TCLE)</h4>
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
                       Assinatura digital dos termos de consentimento para tratamentos invasivos e químicos integrada diretamente na ficha de atendimento.
                     </p>
                   </div>
@@ -2096,9 +2376,9 @@ export function SettingsView({
                     <button
                       type="button"
                       onClick={() => setTopTab("staff")}
-                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] bg-white text-[#1C1C1E] hover:bg-[#F5F5F7] text-[12.5px] font-medium transition-colors shrink-0"
+                      className="px-4 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12.5px] font-medium transition-colors shrink-0"
                     >
-                      Página da Equipe ↗
+                      Página da Equipe
                     </button>
                   </div>
                 </div>
@@ -2110,16 +2390,16 @@ export function SettingsView({
             {/* ========================================================================= */}
             {subTab === "gift_cards" && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="border-b border-[#E5E5EA] pb-5">
-                  <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Vales-Presente</h2>
-                  <p className="text-[13px] text-[#6E6E73] mt-1">
+                <div className="border-b border-[#E5E5EA] dark:border-[#27272a] pb-5">
+                  <h2 className="text-[20px] font-semibold text-[#1C1C1E] dark:text-white">Vales-Presente</h2>
+                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1">
                     Permita a compra de vales-presente com resgate automático de saldo no atendimento.
                   </p>
                 </div>
-                <div className="divide-y divide-[#F2F2F7] border-y border-[#F2F2F7]">
+                <div className="divide-y divide-[#F2F2F7] dark:divide-[#27272a] border-y border-[#F2F2F7] dark:border-[#27272a]">
                   <div className="py-4 space-y-1">
-                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E]">Venda de Vouchers Ativa</h4>
-                    <p className="text-[12px] text-[#6E6E73]">
+                    <h4 className="text-[13.5px] font-medium text-[#1C1C1E] dark:text-white">Venda de Vouchers Ativa</h4>
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                       Os clientes podem adquirir créditos de presente diretamente pelo site público de agendamento e aplicar o código na comanda.
                     </p>
                   </div>
@@ -2132,47 +2412,47 @@ export function SettingsView({
 
       {/* DEMAIS ABAS SUPERIORES (Pessoal, Equipe, WhatsApp, Plano) */}
       {topTab === "personal" && (
-        <div className="bg-white rounded-3xl border border-[#E5E5EA] p-6 lg:p-8 space-y-6 max-w-2xl">
+        <div className="bg-white dark:bg-[#18181b] rounded-3xl border border-[#E5E5EA] dark:border-[#27272a] p-6 lg:p-8 space-y-6 max-w-2xl text-[#1C1C1E] dark:text-white">
           <div>
-            <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Dados Pessoais</h2>
-            <p className="text-[13px] text-[#6E6E73] mt-0.5">Seu nome e contatos como responsável pela conta.</p>
+            <h2 className="text-[20px] font-semibold text-[#1C1C1E] dark:text-white">Dados Pessoais</h2>
+            <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">Seu nome e contatos como responsável pela conta.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Primeiro Nome</label>
+              <label className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Primeiro Nome</label>
               <input
                 type="text"
                 value={personalFirst}
                 onChange={(e) => setPersonalFirst(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
               />
             </div>
             <div>
-              <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Sobrenome</label>
+              <label className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Sobrenome</label>
               <input
                 type="text"
                 value={personalLast}
                 onChange={(e) => setPersonalLast(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
               />
             </div>
             <div>
-              <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">E-mail</label>
+              <label className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">E-mail</label>
               <input
                 type="email"
                 value={personalEmail}
                 onChange={(e) => setPersonalEmail(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
               />
             </div>
             <div>
-              <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Telefone WhatsApp</label>
+              <label className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Telefone WhatsApp</label>
               <input
                 type="text"
                 value={personalPhone}
                 onChange={(e) => setPersonalPhone(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
               />
             </div>
           </div>
@@ -2244,19 +2524,19 @@ export function SettingsView({
           </div>
 
           {/* Sessão & Acesso */}
-          <div className="pt-6 border-t border-[#E5E5EA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="pt-6 border-t border-[#E5E5EA] dark:border-[#27272a] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h3 className="text-[14px] font-semibold text-[#1C1C1E]">Sessão da Conta</h3>
-              <p className="text-[12px] text-[#6E6E73]">
-                Conectado atualmente como <span className="font-medium text-[#1C1C1E]">{personalEmail || state.settings.personal.email}</span>
+              <h3 className="text-[14px] font-semibold text-[#1C1C1E] dark:text-white">Sessão da Conta</h3>
+              <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                Conectado atualmente como <span className="font-medium text-[#1C1C1E] dark:text-white">{personalEmail || state.settings.personal.email}</span>
               </p>
             </div>
             <button
               type="button"
               onClick={() => signOutUser()}
-              className="px-4 py-2 rounded-full border border-[#D4D4D8] bg-white hover:bg-[#F5F5F7] text-[#1C1C1E] text-[12.5px] font-medium transition shadow-2xs self-start sm:self-auto flex items-center gap-2"
+              className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium transition shadow-2xs self-start sm:self-auto flex items-center gap-2"
             >
-              <LogOut className="w-3.5 h-3.5 text-zinc-600" />
+              <LogOut className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
               <span>Sair da conta</span>
             </button>
           </div>
@@ -2264,17 +2544,17 @@ export function SettingsView({
       )}
 
       {topTab === "staff" && (
-        <div className="bg-white rounded-3xl border border-[#E5E5EA] p-6 lg:p-8 space-y-6">
+        <div className="bg-white dark:bg-[#18181b] rounded-3xl border border-[#E5E5EA] dark:border-[#27272a] p-6 lg:p-8 space-y-6 text-[#1C1C1E] dark:text-white">
           <div>
-            <h2 className="text-[20px] font-semibold text-[#1C1C1E]">Equipe de Especialistas</h2>
-            <p className="text-[13px] text-[#6E6E73] mt-0.5">
+            <h2 className="text-[20px] font-semibold text-[#1C1C1E] dark:text-white">Equipe de Especialistas</h2>
+            <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
               Profissionais cadastrados, comissões de serviço e metas de faturamento.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {state.staff.map((member) => (
-              <div key={member.id} className="p-4 rounded-2xl border border-[#E5E5EA] bg-[#FAFAFA] space-y-2">
+              <div key={member.id} className="p-4 rounded-2xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-[#FAFAFA] dark:bg-[#27272a] space-y-2">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-zinc-800"
@@ -2283,11 +2563,11 @@ export function SettingsView({
                     {member.initials}
                   </div>
                   <div>
-                    <p className="font-semibold text-[13.5px] text-[#1C1C1E]">{member.fullName}</p>
-                    <p className="text-[12px] text-[#6E6E73]">{member.role}</p>
+                    <p className="font-semibold text-[13.5px] text-[#1C1C1E] dark:text-white">{member.fullName}</p>
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">{member.role}</p>
                   </div>
                 </div>
-                <p className="text-[11.5px] text-[#71717A] pt-2 border-t border-[#E5E5EA]">
+                <p className="text-[11.5px] text-[#71717A] dark:text-[#a1a1aa] pt-2 border-t border-[#E5E5EA] dark:border-[#3f3f46]">
                   Comissão: {member.serviceCommissionPercent}% serviços • {member.productCommissionPercent}% produtos
                 </p>
               </div>
@@ -2297,10 +2577,10 @@ export function SettingsView({
       )}
 
       {topTab === "whatsapp" && (
-        <div className="bg-white rounded-3xl border border-[#E5E5EA] p-6 lg:p-8 space-y-6">
+        <div className="bg-white dark:bg-[#18181b] rounded-3xl border border-[#E5E5EA] dark:border-[#27272a] p-6 lg:p-8 space-y-6 text-[#1C1C1E] dark:text-white">
           <div>
-            <h2 className="text-[20px] font-semibold text-[#1C1C1E]">WhatsApp &amp; Automação de Atendimento</h2>
-            <p className="text-[13px] text-[#6E6E73] mt-0.5">
+            <h2 className="text-[20px] font-semibold text-[#1C1C1E] dark:text-white">WhatsApp &amp; Automação de Atendimento</h2>
+            <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
               Conexão com a Evolution API, sincronização 2-Way e disparos automáticos de confirmação.
             </p>
           </div>
@@ -2327,253 +2607,61 @@ export function SettingsView({
         </div>
       )}
 
-      {topTab === "subscription" && (() => {
-        const currentTier = (state.onboarding?.planTier || "Gold").toLowerCase();
-        const subStatus = state.onboarding?.subscriptionStatus || "trialing";
-        const trialDays = state.onboarding?.trialDaysLeft ?? 14;
-        const isTrialActive = subStatus === "trialing" && trialDays > 0;
-        const isTrialExpired = subStatus === "trialing" && trialDays <= 0;
-        const isSubActive = subStatus === "active";
-        const isPastDue = subStatus === "past_due";
-
-        // Nome formatado do plano atual
-        const currentPlanFormatted =
-          currentTier.includes("platinum") ? "Platinum" :
-          currentTier.includes("essencial") ? "Essencial" : "Gold";
-
-        return (
-          <div className="bg-white dark:bg-[#18181b] rounded-3xl border border-[#E5E5EA] dark:border-[#27272a] p-6 lg:p-8 space-y-8">
-            {/* Header com Status Atual */}
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h2 className="text-[22px] font-serif font-normal text-[#1C1C1E] dark:text-white">
-                    Plano &amp; Assinatura LUVEA
-                  </h2>
-                  <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
-                    Gerencie a potência da sua recepção, limites de equipe e integrações oficiais.
-                  </p>
-                </div>
-
-                {/* Alternador de Ciclo Mensal / Anual */}
-                <div className="inline-flex items-center p-1 bg-[#F5F5F7] dark:bg-[#27272a] rounded-full border border-[#E5E5EA] dark:border-[#3f3f46] shrink-0 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCycle("monthly")}
-                    className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all ${
-                      selectedCycle === "monthly"
-                        ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
-                        : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
-                    }`}
-                  >
-                    Mensal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCycle("yearly")}
-                    className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all flex items-center gap-1.5 ${
-                      selectedCycle === "yearly"
-                        ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
-                        : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
-                    }`}
-                  >
-                    <span>Anual</span>
-                    <span className="text-[10px] font-semibold tracking-wide uppercase px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      -15%
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Card de Status da Assinatura Atual */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#F5F5F7] dark:bg-[#202023] border border-[#E5E5EA] dark:border-[#2e2e32] flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-medium bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white shadow-xs">
-                    {isSubActive ? (
-                      <>
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                        <span>Assinatura Ativa • Plano {currentPlanFormatted}</span>
-                      </>
-                    ) : isPastDue ? (
-                      <>
-                        <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
-                        <span>Pagamento Pendente • Plano {currentPlanFormatted}</span>
-                      </>
-                    ) : isTrialExpired ? (
-                      <>
-                        <div className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-500/20" />
-                        <span>Avaliação Expirada • Plano {currentPlanFormatted}</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
-                        <span>
-                          Avaliação Ativa • {trialDays} {trialDays === 1 ? "dia restante" : "dias restantes"} (Plano {currentPlanFormatted})
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-2xl leading-relaxed">
-                    {isSubActive
-                      ? `Sua assinatura está ativa e sendo renovada automaticamente no ciclo ${selectedCycle === "yearly" ? "anual" : "mensal"}. Seus recursos estão liberados.`
-                      : isPastDue
-                      ? "Identificamos uma pendência na última renovação. Atualize sua forma de pagamento para evitar bloqueio da agenda."
-                      : isTrialExpired
-                      ? "O período de 14 dias de teste gratuito foi concluído. Selecione um plano abaixo para manter seu link da bio e atendimentos online operando."
-                      : "Durante o período de testes, todos os recursos avançados estão disponíveis. Adicione sua forma de pagamento para manter seu estúdio 100% ativo ao fim da avaliação."}
-                  </p>
-                </div>
-
-                {!isSubActive && (
-                  <Link
-                    href={`/checkout?plan=${currentTier}&cycle=${selectedCycle}`}
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium shadow-sm hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all shrink-0 active:scale-[0.98]"
-                  >
-                    <CreditCard className="w-3.5 h-3.5" />
-                    <span>{isTrialExpired ? "Reativar com Cartão" : "Efetivar Assinatura"}</span>
-                  </Link>
-                )}
-              </div>
-            </div>
-
-            {/* Grid dos 3 Planos Canônicos */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-              {PLANS_CATALOG.map((plan) => {
-                const isCurrentPlan = currentTier.includes(plan.id);
-                const price = selectedCycle === "yearly" ? plan.annualMonthlyPriceReais : plan.monthlyPriceReais;
-
-                return (
-                  <div
-                    key={plan.id}
-                    className={`relative p-6 sm:p-7 rounded-2xl flex flex-col justify-between transition-all ${
-                      plan.isPopular
-                        ? "border-2 border-[#1C1C1E] dark:border-white bg-[#FAFAFA] dark:bg-[#202023] shadow-sm"
-                        : "border border-[#E5E5EA] dark:border-[#2e2e32] bg-white dark:bg-[#18181b]"
-                    }`}
-                  >
-                    {plan.isPopular && (
-                      <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-[10.5px] font-semibold uppercase tracking-wider bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-xs">
-                        Mais Popular
-                      </span>
-                    )}
-
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-[17px] text-[#1C1C1E] dark:text-white">
-                            {plan.name}
-                          </h3>
-                          {isCurrentPlan && (
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-zinc-200 border border-[#E5E5EA] dark:border-[#3f3f46]">
-                              Plano Atual
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-snug min-h-[36px]">
-                          {plan.tagline}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-[#F2F2F7] dark:border-[#27272a]">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-[28px] sm:text-[32px] font-serif font-normal text-[#1C1C1E] dark:text-white">
-                            R$ {price}
-                          </span>
-                          <span className="text-[12px] font-sans text-[#6E6E73] dark:text-[#a1a1aa]">
-                            /mês {selectedCycle === "yearly" && "no anual"}
-                          </span>
-                        </div>
-                        <p className="text-[11.5px] text-[#8E8E93] dark:text-[#71717a] mt-0.5">
-                          {plan.maxStaffLabel} • {plan.aiReceptionLimit}
-                        </p>
-                      </div>
-
-                      <div className="pt-3 space-y-2 border-t border-[#F2F2F7] dark:border-[#27272a]">
-                        <p className="text-[11px] font-medium uppercase tracking-wider text-[#8E8E93] dark:text-[#71717a]">
-                          Incluso no plano:
-                        </p>
-                        <ul className="space-y-1.5">
-                          {plan.highlights.slice(0, 5).map((feature, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-[12px] text-[#1C1C1E] dark:text-zinc-300">
-                              <Check className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white shrink-0 mt-0.5" />
-                              <span className="leading-tight">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="pt-6">
-                      {isCurrentPlan && isSubActive ? (
-                        <div className="w-full py-2.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[#8E8E93] dark:text-zinc-400 text-[12.5px] font-medium text-center border border-[#E5E5EA] dark:border-[#3f3f46]">
-                          Plano Ativo
-                        </div>
-                      ) : (
-                        <Link
-                          href={`/checkout?plan=${plan.id}&cycle=${selectedCycle}`}
-                          className={`w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full text-[12.5px] font-medium transition-all ${
-                            plan.isPopular || isCurrentPlan
-                              ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 shadow-sm"
-                              : "border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#323238]"
-                          }`}
-                        >
-                          <span>{isCurrentPlan ? "Continuar com " + plan.name : "Assinar " + plan.name}</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Micro-garantias e Segurança */}
-            <div className="pt-4 border-t border-[#E5E5EA] dark:border-[#27272a] flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
-              <div className="flex items-center gap-2">
-                <Lock className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
-                <span>Processamento criptografado de ponta a ponta</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
-                <span>Cancele a qualquer momento sem burocracia</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#1C1C1E] dark:text-white" />
-                <span>Dados de clientes e agenda 100% seguros</span>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {topTab === "subscription" && (
+        <SubscriptionSettingsSection
+          state={state}
+          onUpdateState={onUpdateState}
+          selectedCycle={selectedCycle}
+          onSelectCycle={setSelectedCycle}
+        />
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL 1: PRÉVIA DA NOTIFICAÇÃO (WhatsApp vs E-mail)                       */}
       {/* ========================================================================= */}
       {previewNotification && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-preview-title"
+          aria-describedby="modal-preview-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-4 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none max-h-[90vh] flex flex-col"
+          >
+            {/* Header do Diálogo */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a] shrink-0">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Prévia da Notificação</h3>
-                <p className="text-[12px] text-[#6E6E73]">Como seu cliente receberá o comunicado</p>
+                <h3 id="modal-preview-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">
+                  Prévia da Notificação
+                </h3>
+                <p id="modal-preview-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">{previewNotification.title}</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar prévia da notificação"
                 onClick={() => setPreviewNotification(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Alternador de Canal */}
-            <div className="flex items-center gap-2 p-1 bg-[#F5F5F7] rounded-xl">
+            <div className="flex items-center gap-2 p-1 bg-[#F5F5F7] dark:bg-[#27272a] rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] shrink-0">
               <button
                 type="button"
                 onClick={() => setNotificationPreviewChannel("whatsapp")}
                 className={`flex-1 py-1.5 rounded-lg text-[12px] font-medium transition ${
-                  notificationPreviewChannel === "whatsapp" ? "bg-white text-[#1C1C1E] shadow-sm" : "text-[#6E6E73]"
+                  notificationPreviewChannel === "whatsapp"
+                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
+                    : "text-[#6E6E73] dark:text-[#a1a1aa]"
                 }`}
               >
                 WhatsApp
@@ -2582,63 +2670,194 @@ export function SettingsView({
                 type="button"
                 onClick={() => setNotificationPreviewChannel("email")}
                 className={`flex-1 py-1.5 rounded-lg text-[12px] font-medium transition ${
-                  notificationPreviewChannel === "email" ? "bg-white text-[#1C1C1E] shadow-sm" : "text-[#6E6E73]"
+                  notificationPreviewChannel === "email"
+                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
+                    : "text-[#6E6E73] dark:text-[#a1a1aa]"
                 }`}
               >
-                E-mail
+                Layout HTML de E-mail
               </button>
             </div>
 
-            {/* Prévia Visual */}
-            {notificationPreviewChannel === "whatsapp" ? (
-              <div className="bg-[#EFEAE2] p-4 rounded-2xl border border-[#D1D1D6] space-y-2">
-                <div className="bg-white rounded-2xl rounded-tl-sm p-3.5 shadow-sm max-w-[88%] text-[13px] leading-relaxed text-[#1C1C1E] space-y-2">
-                  <p className="whitespace-pre-wrap">
-                    {previewNotification.templateBody
-                      .replace("{nome}", "Stefany")
-                      .replace("{estudio}", businessName)
-                      .replace("{data}", "24/10/2026")
-                      .replace("{horario}", "14:30")
-                      .replace("{servicos}", "Coloração & Iluminação")
-                      .replace("{google_review_link}", notificationsConfig.googleReviewLink || fullBookingUrl)}
-                  </p>
-                  <p className="text-[10px] text-right text-[#8E8E93]">14:31</p>
+            {/* Prévia Visual com Rolagem Suave */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+              {notificationPreviewChannel === "whatsapp" ? (
+                /* Prévia Fiel do WhatsApp */
+                <div className="bg-[#EFEAE2] dark:bg-[#242628] p-4 sm:p-5 rounded-2xl border border-[#D1D1D6] dark:border-[#3a3c3e] space-y-2">
+                  <div className="bg-white dark:bg-[#1f2c34] rounded-2xl rounded-tl-sm p-4 shadow-sm max-w-[90%] text-[13px] leading-relaxed text-[#1C1C1E] dark:text-[#e9edef] space-y-2">
+                    <p className="whitespace-pre-wrap">
+                      {previewNotification.templateBody
+                        .replace(/{nome}/g, "Stefany")
+                        .replace(/{estudio}/g, businessName)
+                        .replace(/{data}/g, "24/10/2026")
+                        .replace(/{horario}/g, "14:30")
+                        .replace(/{servicos}/g, "Coloração & Iluminação")
+                        .replace(/{google_review_link}/g, notificationsConfig.googleReviewLink || fullBookingUrl)}
+                    </p>
+                    <p className="text-[10px] text-right text-[#6E6E73] dark:text-[#a1a1aa]">14:31</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="border border-[#E5E5EA] rounded-2xl p-4 bg-white space-y-3">
-                <div className="border-b border-[#F2F2F7] pb-2 text-[12px] space-y-1">
-                  <p className="text-[#8E8E93]">
-                    De: <strong className="text-[#1C1C1E]">{businessName}</strong> &lt;notificacoes@luvea.app&gt;
-                  </p>
-                  <p className="text-[#8E8E93]">
-                    Assunto:{" "}
-                    <strong className="text-[#1C1C1E]">
-                      {previewNotification.templateSubject?.replace("{estudio}", businessName) ||
-                        previewNotification.title}
-                    </strong>
-                  </p>
-                </div>
-                <div className="text-[13px] leading-relaxed text-[#1C1C1E] whitespace-pre-wrap py-2">
-                  {previewNotification.templateBody
-                    .replace("{nome}", "Stefany")
-                    .replace("{estudio}", businessName)
-                    .replace("{data}", "24/10/2026")
-                    .replace("{horario}", "14:30")
-                    .replace("{servicos}", "Coloração & Iluminação")
-                    .replace("{google_review_link}", notificationsConfig.googleReviewLink || fullBookingUrl)}
-                </div>
-                <div className="pt-2 border-t border-[#F2F2F7] text-[10.5px] text-[#8E8E93] text-center">
-                  Enviado com carinho por {businessName} via LUVEA
-                </div>
-              </div>
-            )}
+              ) : (
+                /* Prévia Fiel do Layout HTML de E-mail (Editorial Clean & Luxury Salon OS) */
+                <div className="space-y-3">
+                  {/* Cabeçalho do Cliente de E-mail */}
+                  <div className="p-3.5 rounded-xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#3f3f46] text-[12px] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] flex items-center justify-center font-bold text-[11px]">
+                          {(businessName || "L").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1C1C1E] dark:text-white leading-tight">
+                            {businessName}
+                          </p>
+                          <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                            &lt;notificacoes@luvea.app&gt;
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10.5px] text-[#6E6E73] dark:text-[#a1a1aa]">Hoje, 14:30</span>
+                    </div>
 
-            <div className="flex justify-end">
+                    <div className="pt-2 border-t border-[#E5E5EA]/70 dark:border-[#3f3f46] flex flex-col gap-0.5">
+                      <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Para: <span className="text-[#1C1C1E] dark:text-white font-medium">Stefany &lt;stefany@exemplo.com&gt;</span>
+                      </p>
+                      <p className="text-[12px] text-[#1C1C1E] dark:text-white font-semibold">
+                        {previewNotification.templateSubject
+                          ?.replace(/{estudio}/g, businessName)
+                          .replace(/{nome}/g, "Stefany") || previewNotification.title}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Canvas do Email HTML (Padrão Dark Luxury Studio) */}
+                  <div className="p-4 sm:p-6 rounded-2xl bg-[#09090b] border border-[#27272a]">
+                    <div className="bg-[#18181b] rounded-[12px] border border-[#27272a] p-6 sm:p-8 space-y-6 max-w-[480px] mx-auto text-center font-sans">
+                      {/* Top Brand Header */}
+                      <div className="space-y-1">
+                        <span className="text-[22px] font-bold tracking-[3px] text-white uppercase block">
+                          LUVEA
+                        </span>
+                        <span className="text-[11px] font-medium tracking-[1.5px] text-[#a1a1aa] uppercase block">
+                          {businessName || "Studio"}
+                        </span>
+                      </div>
+
+                      {/* Divisor */}
+                      <div className="h-px bg-[#27272a] w-full" />
+
+                      {/* Título Principal */}
+                      <div>
+                        <h4 className="text-[19px] font-semibold text-white tracking-tight">
+                          {previewNotification.id === "birthday"
+                            ? "Parabéns, Stefany!"
+                            : previewNotification.id === "post_service_review"
+                            ? "Como foi sua experiência, Stefany?"
+                            : previewNotification.id.includes("reminder")
+                            ? "Lembrete de Horário"
+                            : "Agendamento Confirmado"}
+                        </h4>
+                      </div>
+
+                      {/* Corpo do Texto Personalizado */}
+                      <div className="text-[13px] leading-relaxed text-[#a1a1aa] whitespace-pre-wrap text-center">
+                        {previewNotification.templateBody
+                          .replace(/{nome}/g, "Stefany")
+                          .replace(/{estudio}/g, businessName)
+                          .replace(/{data}/g, "24/10/2026")
+                          .replace(/{horario}/g, "14:30")
+                          .replace(/{servicos}/g, "Coloração & Iluminação")
+                          .replace(/{google_review_link}/g, notificationsConfig.googleReviewLink || fullBookingUrl)}
+                      </div>
+
+                      {/* Card de Detalhes em #121214 */}
+                      <div className="bg-[#121214] rounded-lg p-4 border border-[#27272a] space-y-2.5 text-left text-[12px]">
+                        <div className="grid grid-cols-2 gap-2 pb-2.5 border-b border-[#27272a]">
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-[#71717a] block font-semibold">
+                              SERVIÇO
+                            </span>
+                            <span className="font-medium text-white">
+                              Coloração &amp; Iluminação
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-[#71717a] block font-semibold">
+                              PROFISSIONAL
+                            </span>
+                            <span className="font-medium text-white">
+                              Bruno Fernandes
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pb-2.5 border-b border-[#27272a]">
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-[#71717a] block font-semibold">
+                              DATA
+                            </span>
+                            <span className="font-medium text-white">
+                              24/10/2026
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-[#71717a] block font-semibold">
+                              HORÁRIO
+                            </span>
+                            <span className="font-medium text-white">
+                              14:30
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] uppercase tracking-wider text-[#71717a] block font-semibold">
+                            LOCAL
+                          </span>
+                          <span className="text-[#a1a1aa] block text-[11.5px]">
+                            {addressLine1 || "Atendimento presencial no estúdio"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Botão de Ação CTA Branco */}
+                      <div className="pt-2">
+                        <span className="inline-block px-7 py-3 rounded-lg bg-white text-[#09090b] text-[13px] font-semibold tracking-wide shadow-sm">
+                          {previewNotification.id === "post_service_review"
+                            ? "Avaliar no Google Reviews"
+                            : "Gerenciar Agendamento"}
+                        </span>
+                      </div>
+
+                      {/* Link alternativo */}
+                      <div className="text-[11px] text-[#71717a] leading-relaxed text-center">
+                        Se o botão acima não funcionar, copie e cole o link abaixo no seu navegador:<br />
+                        <span className="text-[#a1a1aa] underline break-all">
+                          {notificationsConfig.googleReviewLink || fullBookingUrl}
+                        </span>
+                      </div>
+
+                      {/* Divisor Footer */}
+                      <div className="h-px bg-[#27272a] w-full" />
+
+                      {/* Rodapé Editorial do E-mail */}
+                      <div className="text-[11px] text-[#52525b] leading-relaxed text-center space-y-1">
+                        <p>Notificação gerada automaticamente por {businessName}.</p>
+                        <p>&copy; Luvea Studio &bull; luvea.app</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Ação de Fechamento */}
+            <div className="flex justify-end pt-2 border-t border-[#E5E5EA] dark:border-[#27272a] shrink-0">
               <button
                 type="button"
                 onClick={() => setPreviewNotification(null)}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition"
               >
                 Fechar prévia
               </button>
@@ -2651,40 +2870,148 @@ export function SettingsView({
       {/* MODAL 2: PERSONALIZAR MODELO                                              */}
       {/* ========================================================================= */}
       {editNotification && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-edit-notif-title"
+          aria-describedby="modal-edit-notif-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Personalizar Mensagem</h3>
-                <p className="text-[12px] text-[#6E6E73]">{editNotification.title}</p>
+                <h3 id="modal-edit-notif-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">
+                  Personalizar Notificação
+                </h3>
+                <p id="modal-edit-notif-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">{editNotification.title}</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar personalização da notificação"
                 onClick={() => setEditNotification(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div>
-              <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Assunto do E-mail</label>
-              <input
-                type="text"
-                value={editNotification.templateSubject || ""}
-                onChange={(e) =>
-                  setEditNotification({
-                    ...editNotification,
-                    templateSubject: e.target.value,
-                  })
-                }
-                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
-              />
+            {/* Status e Canais de Envio */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/50 border border-[#E5E5EA] dark:border-[#3f3f46]">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={editNotification.enabled}
+                  aria-label={`Ativar ou pausar ${editNotification.title}`}
+                  onClick={() =>
+                    setEditNotification({
+                      ...editNotification,
+                      enabled: !editNotification.enabled,
+                    })
+                  }
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1C1C1E] dark:focus:ring-white focus:ring-offset-2 ${
+                    editNotification.enabled
+                      ? "bg-[#1C1C1E] dark:bg-white"
+                      : "bg-[#E5E5EA] dark:bg-[#3f3f46]"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#18181b] shadow ring-0 transition duration-200 ease-in-out ${
+                      editNotification.enabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <span className="text-[12.5px] font-medium text-[#1C1C1E] dark:text-white">
+                  {editNotification.enabled ? "Notificação ativa" : "Notificação pausada"}
+                </span>
+              </div>
+
+              {/* Seletor de Canais */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hasWpp = editNotification.channels.includes("whatsapp");
+                    const newChannels: ("email" | "whatsapp" | "sms")[] = hasWpp
+                      ? editNotification.channels.filter((c) => c !== "whatsapp")
+                      : [...editNotification.channels, "whatsapp"];
+                    setEditNotification({
+                      ...editNotification,
+                      channels: newChannels,
+                      enabled: newChannels.length > 0 ? editNotification.enabled : false,
+                    });
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11.5px] font-medium transition ${
+                    editNotification.channels.includes("whatsapp")
+                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-2xs"
+                      : "border border-[#D4D4D8] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa]"
+                  }`}
+                >
+                  WhatsApp
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hasEmail = editNotification.channels.includes("email");
+                    const newChannels: ("email" | "whatsapp" | "sms")[] = hasEmail
+                      ? editNotification.channels.filter((c) => c !== "email")
+                      : [...editNotification.channels, "email"];
+                    setEditNotification({
+                      ...editNotification,
+                      channels: newChannels,
+                      enabled: newChannels.length > 0 ? editNotification.enabled : false,
+                    });
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11.5px] font-medium transition ${
+                    editNotification.channels.includes("email")
+                      ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-2xs"
+                      : "border border-[#D4D4D8] dark:border-[#3f3f46] text-[#6E6E73] dark:text-[#a1a1aa]"
+                  }`}
+                >
+                  E-mail
+                </button>
+              </div>
             </div>
 
+            {editNotification.channels.includes("email") && (
+              <div>
+                <label htmlFor="edit-notif-subject" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">
+                  Assunto do E-mail
+                </label>
+                <input
+                  id="edit-notif-subject"
+                  type="text"
+                  value={editNotification.templateSubject || ""}
+                  onChange={(e) =>
+                    setEditNotification({
+                      ...editNotification,
+                      templateSubject: e.target.value,
+                    })
+                  }
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E]"
+                />
+              </div>
+            )}
+
             <div>
-              <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Texto da Mensagem</label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="edit-notif-body" className="text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa]">
+                  Texto da Mensagem
+                </label>
+                <span className="text-[10.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                  {editNotification.templateBody.length} caracteres
+                </span>
+              </div>
               <textarea
+                ref={editTemplateTextareaRef}
+                id="edit-notif-body"
                 rows={5}
                 value={editNotification.templateBody}
                 onChange={(e) =>
@@ -2693,24 +3020,31 @@ export function SettingsView({
                     templateBody: e.target.value,
                   })
                 }
-                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E] resize-none"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition resize-none"
               />
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-[11px] text-[#8E8E93]">Variáveis disponíveis (toque para inserir):</p>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+                  Variáveis disponíveis (toque para inserir na posição do cursor):
+                </p>
+              </div>
               <div className="flex flex-wrap gap-1.5">
-                {["{nome}", "{estudio}", "{data}", "{horario}", "{servicos}", "{google_review_link}"].map((tag) => (
+                {[
+                  { tag: "{nome}", label: "Nome do cliente" },
+                  { tag: "{estudio}", label: "Nome do estúdio" },
+                  { tag: "{data}", label: "Data do serviço" },
+                  { tag: "{horario}", label: "Horário" },
+                  { tag: "{servicos}", label: "Serviços agendados" },
+                  { tag: "{google_review_link}", label: "Link de avaliação Google" },
+                ].map(({ tag, label }) => (
                   <button
                     key={tag}
                     type="button"
-                    onClick={() => {
-                      setEditNotification({
-                        ...editNotification,
-                        templateBody: `${editNotification.templateBody} ${tag}`,
-                      });
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-[#F5F5F7] border border-[#E5E5EA] text-[11px] font-mono text-[#1C1C1E] hover:bg-[#E5E5EA] transition"
+                    onClick={() => handleInsertVariable(tag)}
+                    title={`Inserir ${label} no cursor`}
+                    className="px-2.5 py-1 rounded-md bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[11px] font-mono text-[#1C1C1E] dark:text-white hover:bg-[#E5E5EA] dark:hover:bg-[#3f3f46] transition cursor-pointer active:scale-95"
                   >
                     {tag}
                   </button>
@@ -2718,11 +3052,11 @@ export function SettingsView({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
               <button
                 type="button"
                 onClick={() => setEditNotification(null)}
-                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
               >
                 Cancelar
               </button>
@@ -2736,7 +3070,7 @@ export function SettingsView({
                   setEditNotification(null);
                   handleSaveAll();
                 }}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200"
               >
                 Salvar modelo
               </button>
@@ -2749,17 +3083,31 @@ export function SettingsView({
       {/* MODAL 3: TAXA DE TECNOLOGIA DA PLATAFORMA                                 */}
       {/* ========================================================================= */}
       {activeTaxModal === "platform_fee" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-platform-fee-title"
+          aria-describedby="modal-platform-fee-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Taxa de Tecnologia da Plataforma</h3>
-                <p className="text-[12px] text-[#6E6E73]">Escolha quem assume a taxa operacional</p>
+                <h3 id="modal-platform-fee-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">Taxa de Tecnologia da Plataforma</h3>
+                <p id="modal-platform-fee-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">Escolha quem assume a taxa operacional</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar taxa de tecnologia"
                 onClick={() => setActiveTaxModal(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2770,21 +3118,21 @@ export function SettingsView({
                 onClick={() => setTempFeePayer("studio")}
                 className={`p-4 rounded-2xl border cursor-pointer block transition-all ${
                   tempFeePayer === "studio"
-                    ? "border-[#1C1C1E] bg-[#FAFAFA]"
-                    : "border-[#E5E5EA] hover:border-[#D4D4D8] bg-white"
+                    ? "border-[#1C1C1E] dark:border-white bg-[#FAFAFA] dark:bg-[#27272a]"
+                    : "border-[#E5E5EA] dark:border-[#3f3f46] hover:border-[#D4D4D8] dark:hover:border-[#52525b] bg-white dark:bg-[#18181b]"
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-semibold text-[#1C1C1E]">Você paga (Estúdio absorve)</span>
+                  <span className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">Você paga (Estúdio absorve)</span>
                   <div
                     className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      tempFeePayer === "studio" ? "border-[#1C1C1E] bg-[#1C1C1E]" : "border-[#D4D4D8]"
+                      tempFeePayer === "studio" ? "border-[#1C1C1E] dark:border-white bg-[#1C1C1E] dark:bg-white" : "border-[#D4D4D8] dark:border-[#52525b]"
                     }`}
                   >
-                    {tempFeePayer === "studio" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    {tempFeePayer === "studio" && <div className="w-1.5 h-1.5 rounded-full bg-white dark:bg-[#18181b]" />}
                   </div>
                 </div>
-                <p className="text-[12px] text-[#6E6E73] mt-1 leading-relaxed">
+                <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-relaxed">
                   O estúdio assume integralmente os custos operacionais da plataforma. O cliente visualiza e paga exatamente o valor anunciado do serviço.
                 </p>
               </label>
@@ -2793,31 +3141,31 @@ export function SettingsView({
                 onClick={() => setTempFeePayer("client")}
                 className={`p-4 rounded-2xl border cursor-pointer block transition-all ${
                   tempFeePayer === "client"
-                    ? "border-[#1C1C1E] bg-[#FAFAFA]"
-                    : "border-[#E5E5EA] hover:border-[#D4D4D8] bg-white"
+                    ? "border-[#1C1C1E] dark:border-white bg-[#FAFAFA] dark:bg-[#27272a]"
+                    : "border-[#E5E5EA] dark:border-[#3f3f46] hover:border-[#D4D4D8] dark:hover:border-[#52525b] bg-white dark:bg-[#18181b]"
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-semibold text-[#1C1C1E]">Cliente paga no checkout</span>
+                  <span className="text-[13.5px] font-semibold text-[#1C1C1E] dark:text-white">Cliente paga no checkout</span>
                   <div
                     className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      tempFeePayer === "client" ? "border-[#1C1C1E] bg-[#1C1C1E]" : "border-[#D4D4D8]"
+                      tempFeePayer === "client" ? "border-[#1C1C1E] dark:border-white bg-[#1C1C1E] dark:bg-white" : "border-[#D4D4D8] dark:border-[#52525b]"
                     }`}
                   >
-                    {tempFeePayer === "client" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    {tempFeePayer === "client" && <div className="w-1.5 h-1.5 rounded-full bg-white dark:bg-[#18181b]" />}
                   </div>
                 </div>
-                <p className="text-[12px] text-[#6E6E73] mt-1 leading-relaxed">
+                <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-1 leading-relaxed">
                   A taxa de tecnologia é discriminada no subtotal e cobrada do cliente no ato do checkout com transparência total.
                 </p>
               </label>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
               <button
                 type="button"
                 onClick={() => setActiveTaxModal(null)}
-                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
                 Cancelar
               </button>
@@ -2831,7 +3179,7 @@ export function SettingsView({
                     updateWebsiteSetupConfig(prev, { checkoutSettings: updated })
                   );
                 }}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition"
               >
                 Salvar Opção
               </button>
@@ -2844,48 +3192,63 @@ export function SettingsView({
       {/* MODAL 4: ALÍQUOTA DE SERVIÇOS (ISS)                                       */}
       {/* ========================================================================= */}
       {activeTaxModal === "service_tax" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-service-tax-title"
+          aria-describedby="modal-service-tax-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Imposto sobre Serviços</h3>
-                <p className="text-[12px] text-[#6E6E73]">ISS / Simples Nacional</p>
+                <h3 id="modal-service-tax-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">Imposto sobre Serviços</h3>
+                <p id="modal-service-tax-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">ISS / Simples Nacional</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar imposto sobre serviços"
                 onClick={() => setActiveTaxModal(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-[12px] font-medium text-[#71717A]">
+              <label htmlFor="modal-service-tax-input" className="block text-[12px] font-medium text-[#71717A] dark:text-[#a1a1aa]">
                 Alíquota estimada de imposto (%)
               </label>
               <div className="relative">
                 <input
+                  id="modal-service-tax-input"
                   type="number"
                   min="0"
                   max="100"
                   step="0.1"
                   value={tempServiceTax}
                   onChange={(e) => setTempServiceTax(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-[15px] font-medium font-mono text-[#1C1C1E] pr-8 focus:outline-none focus:border-[#1C1C1E]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[15px] font-medium font-mono text-[#1C1C1E] dark:text-white pr-8 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                 />
-                <span className="absolute right-3.5 top-2.5 text-[14px] text-[#71717A] pointer-events-none">%</span>
+                <span className="absolute right-3.5 top-2.5 text-[14px] text-[#71717A] dark:text-[#a1a1aa] pointer-events-none">%</span>
               </div>
-              <p className="text-[11.5px] text-[#8E8E93] leading-relaxed">
+              <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
                 Utilizada para discriminar encargos tributários nas comandas e faturas de serviços emitidas aos clientes.
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
               <button
                 type="button"
                 onClick={() => setActiveTaxModal(null)}
-                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
                 Cancelar
               </button>
@@ -2900,7 +3263,7 @@ export function SettingsView({
                     updateWebsiteSetupConfig(prev, { checkoutSettings: updated })
                   );
                 }}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition"
               >
                 Salvar Alíquota
               </button>
@@ -2913,48 +3276,63 @@ export function SettingsView({
       {/* MODAL 5: ALÍQUOTA DE VAREJO / PRODUTOS (ICMS)                              */}
       {/* ========================================================================= */}
       {activeTaxModal === "retail_tax" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-retail-tax-title"
+          aria-describedby="modal-retail-tax-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Imposto sobre Produtos</h3>
-                <p className="text-[12px] text-[#6E6E73]">ICMS / Varejo Home Care</p>
+                <h3 id="modal-retail-tax-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">Imposto sobre Produtos</h3>
+                <p id="modal-retail-tax-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">ICMS / Varejo Home Care</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar imposto sobre produtos"
                 onClick={() => setActiveTaxModal(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-[12px] font-medium text-[#71717A]">
+              <label htmlFor="modal-retail-tax-input" className="block text-[12px] font-medium text-[#71717A] dark:text-[#a1a1aa]">
                 Alíquota estimada sobre produtos (%)
               </label>
               <div className="relative">
                 <input
+                  id="modal-retail-tax-input"
                   type="number"
                   min="0"
                   max="100"
                   step="0.1"
                   value={tempRetailTax}
                   onChange={(e) => setTempRetailTax(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-[15px] font-medium font-mono text-[#1C1C1E] pr-8 focus:outline-none focus:border-[#1C1C1E]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[15px] font-medium font-mono text-[#1C1C1E] dark:text-white pr-8 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                 />
-                <span className="absolute right-3.5 top-2.5 text-[14px] text-[#71717A] pointer-events-none">%</span>
+                <span className="absolute right-3.5 top-2.5 text-[14px] text-[#71717A] dark:text-[#a1a1aa] pointer-events-none">%</span>
               </div>
-              <p className="text-[11.5px] text-[#8E8E93] leading-relaxed">
+              <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
                 Incidente sobre cosméticos, shampoos, óleos e tratamentos capilares vendidos presencialmente no salão.
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
               <button
                 type="button"
                 onClick={() => setActiveTaxModal(null)}
-                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
                 Cancelar
               </button>
@@ -2969,7 +3347,7 @@ export function SettingsView({
                     updateWebsiteSetupConfig(prev, { checkoutSettings: updated })
                   );
                 }}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition"
               >
                 Salvar Alíquota
               </button>
@@ -2982,17 +3360,31 @@ export function SettingsView({
       {/* MODAL 6: VERIFICAÇÃO DE IDENTIDADE & KYC                                  */}
       {/* ========================================================================= */}
       {activePayoutModal === "identity_verification" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-identity-title"
+          aria-describedby="modal-identity-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Verificação de Identidade (KYC)</h3>
-                <p className="text-[12px] text-[#6E6E73]">Conformidade regulatória Banco Central do Brasil</p>
+                <h3 id="modal-identity-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">Verificação de Identidade (KYC)</h3>
+                <p id="modal-identity-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">Conformidade regulatória Banco Central do Brasil</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar verificação de identidade"
                 onClick={() => setActivePayoutModal(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3000,59 +3392,63 @@ export function SettingsView({
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Razão Social ou Nome Fantasia</label>
+                <label htmlFor="modal-id-legalname" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Razão Social ou Nome Fantasia</label>
                 <input
+                  id="modal-id-legalname"
                   type="text"
                   value={idLegalName}
                   onChange={(e) => setIdLegalName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">CNPJ ou CPF do Negócio</label>
+                  <label htmlFor="modal-id-cnpjcpf" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">CNPJ ou CPF do Negócio</label>
                   <input
+                    id="modal-id-cnpjcpf"
                     type="text"
                     value={idCnpjCpf}
                     onChange={(e) => setIdCnpjCpf(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">CPF do Titular Administrador</label>
+                  <label htmlFor="modal-id-repcpf" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">CPF do Titular Administrador</label>
                   <input
+                    id="modal-id-repcpf"
                     type="text"
                     value={idRepCpf}
                     onChange={(e) => setIdRepCpf(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Nome Completo do Responsável</label>
+                <label htmlFor="modal-id-repname" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Nome Completo do Responsável</label>
                 <input
+                  id="modal-id-repname"
                   type="text"
                   value={idRepName}
                   onChange={(e) => setIdRepName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                 />
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                <p className="text-[11.5px] text-[#52525B] leading-relaxed">
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <p className="text-[11.5px] text-[#52525B] dark:text-[#d4d4d8] leading-relaxed">
                   Seus dados e documentos são criptografados com certificado TLS 1.3 de nível bancário e validados com as bases oficiais da Receita Federal.
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
               <button
                 type="button"
                 onClick={() => setActivePayoutModal(null)}
-                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
                 Cancelar
               </button>
@@ -3069,7 +3465,7 @@ export function SettingsView({
                     updateWebsiteSetupConfig(prev, { paymentsSetup: updatedPayments })
                   );
                 }}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition"
               >
                 Confirmar e Validar Identidade
               </button>
@@ -3082,31 +3478,45 @@ export function SettingsView({
       {/* MODAL 7: CONTA DE REPASSE (PIX OU BANCÁRIA)                               */}
       {/* ========================================================================= */}
       {activePayoutModal === "payout_account" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-payout-account-title"
+          aria-describedby="modal-payout-account-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Conta de Repasse</h3>
-                <p className="text-[12px] text-[#6E6E73]">Destino dos repasses e liquidações financeiras</p>
+                <h3 id="modal-payout-account-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">Conta de Repasse</h3>
+                <p id="modal-payout-account-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">Destino dos repasses e liquidações financeiras</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar conta de repasse"
                 onClick={() => setActivePayoutModal(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Alternador de Método */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-[#F5F5F7] rounded-xl">
+            <div className="grid grid-cols-2 gap-2 p-1 bg-[#F5F5F7] dark:bg-[#27272a] rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46]">
               <button
                 type="button"
                 onClick={() => setPayoutMethodInput("pix_key")}
                 className={`py-1.5 text-[12.5px] font-medium rounded-lg transition-all ${
                   payoutMethodInput === "pix_key"
-                    ? "bg-white text-[#1C1C1E] shadow-xs"
-                    : "text-[#71717A] hover:text-[#1C1C1E]"
+                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-xs"
+                    : "text-[#71717A] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
                 }`}
               >
                 Chave Pix
@@ -3116,8 +3526,8 @@ export function SettingsView({
                 onClick={() => setPayoutMethodInput("bank_account")}
                 className={`py-1.5 text-[12.5px] font-medium rounded-lg transition-all ${
                   payoutMethodInput === "bank_account"
-                    ? "bg-white text-[#1C1C1E] shadow-xs"
-                    : "text-[#71717A] hover:text-[#1C1C1E]"
+                    ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-xs"
+                    : "text-[#71717A] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
                 }`}
               >
                 Conta Bancária
@@ -3127,60 +3537,64 @@ export function SettingsView({
             {payoutMethodInput === "pix_key" ? (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">
+                  <label htmlFor="modal-payout-pix-input" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">
                     Chave Pix (E-mail, CPF/CNPJ, Telefone ou Aleatória)
                   </label>
                   <input
+                    id="modal-payout-pix-input"
                     type="text"
                     value={pixKeyValueInput}
                     onChange={(e) => setPixKeyValueInput(e.target.value)}
                     placeholder="ex: contato@luveastudio.app"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E] focus:outline-none focus:border-[#1C1C1E]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717a]"
                   />
                 </div>
-                <p className="text-[11.5px] text-[#8E8E93]">
+                <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
                   Repasses automáticos via Pix são efetuados sem tarifa bancária para o titular da conta.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Banco / Instituição</label>
+                  <label htmlFor="modal-payout-bank-name" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Banco / Instituição</label>
                   <input
+                    id="modal-payout-bank-name"
                     type="text"
                     value={bankNameInput}
                     onChange={(e) => setBankNameInput(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] text-[#1C1C1E]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Agência</label>
+                    <label htmlFor="modal-payout-bank-agency" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Agência</label>
                     <input
+                      id="modal-payout-bank-agency"
                       type="text"
                       value={bankAgencyInput}
                       onChange={(e) => setBankAgencyInput(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11.5px] font-medium text-[#71717A] mb-1">Conta Corrente</label>
+                    <label htmlFor="modal-payout-bank-account" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa] mb-1">Conta Corrente</label>
                     <input
+                      id="modal-payout-bank-account"
                       type="text"
                       value={bankAccountInput}
                       onChange={(e) => setBankAccountInput(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] text-[13px] font-mono text-[#1C1C1E]"
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                     />
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
               <button
                 type="button"
                 onClick={() => setActivePayoutModal(null)}
-                className="px-4 py-2 rounded-full border border-[#D4D4D8] text-[12.5px] font-medium text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] text-[12.5px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
                 Cancelar
               </button>
@@ -3203,7 +3617,7 @@ export function SettingsView({
                     updateWebsiteSetupConfig(prev, { paymentsSetup: updatedPayments })
                   );
                 }}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition"
               >
                 Salvar Conta
               </button>
@@ -3216,69 +3630,83 @@ export function SettingsView({
       {/* MODAL 8: INFORMAÇÕES DE PROCESSAMENTO E TAXAS                             */}
       {/* ========================================================================= */}
       {activePayoutModal === "processing_info" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-processing-info-title"
+          aria-describedby="modal-processing-info-desc"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCurrentModal();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={activeDialogRef}
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
               <div>
-                <h3 className="text-[16px] font-semibold text-[#1C1C1E]">Taxas &amp; Prazos de Liquidação</h3>
-                <p className="text-[12px] text-[#6E6E73]">Condições transparentes integradas à LUVEA</p>
+                <h3 id="modal-processing-info-title" className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">Taxas & Prazos de Liquidação</h3>
+                <p id="modal-processing-info-desc" className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">Condições transparentes integradas à LUVEA</p>
               </div>
               <button
                 type="button"
+                aria-label="Fechar informações de processamento"
                 onClick={() => setActivePayoutModal(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] hover:bg-[#F5F5F7]"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3 text-[13px]">
-              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
-                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
-                  <span>Pix Instantâneo &amp; Sinais</span>
-                  <span className="text-emerald-700 font-semibold">0% · Imediato (D+0)</span>
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E] dark:text-white">
+                  <span>Pix Instantâneo & Sinais</span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">0% · Imediato (D+0)</span>
                 </div>
-                <p className="text-[11.5px] text-[#6E6E73]">
+                <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
                   Sem taxas de intermediação bancária. O valor cai direto na sua conta cadastrada.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
-                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
-                  <span>Cartão Débito &amp; Crédito à Vista</span>
-                  <span className="text-[#1C1C1E] font-semibold">1,99% a 3,19% · 1 dia útil (D+1)</span>
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E] dark:text-white">
+                  <span>Cartão Débito & Crédito à Vista</span>
+                  <span className="text-[#1C1C1E] dark:text-white font-semibold">1,99% a 3,19% · 1 dia útil (D+1)</span>
                 </div>
-                <p className="text-[11.5px] text-[#6E6E73]">
+                <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
                   Liquidação automática na sua conta sem necessidade de solicitar resgate manual.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
-                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E] dark:text-white">
                   <span>Parcelamento sem Juros (BNPL)</span>
-                  <span className="text-[#1C1C1E] font-semibold">6% + R$ 0,30 · D+1 integral</span>
+                  <span className="text-[#1C1C1E] dark:text-white font-semibold">6% + R$ 0,30 · D+1 integral</span>
                 </div>
-                <p className="text-[11.5px] text-[#6E6E73]">
+                <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
                   O estúdio recebe o valor total antecipado em 1 dia útil, enquanto o cliente parcela em até 12x.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] space-y-1">
-                <div className="flex items-center justify-between font-medium text-[#1C1C1E]">
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] space-y-1">
+                <div className="flex items-center justify-between font-medium text-[#1C1C1E] dark:text-white">
                   <span>Maquininha Luvea Pro</span>
-                  <span className="text-emerald-700 font-semibold">R$ 0 aluguel / mês</span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">R$ 0 aluguel / mês</span>
                 </div>
-                <p className="text-[11.5px] text-[#6E6E73]">
+                <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
                   Sem metas mínimas de faturamento ou aluguel mensal de equipamento.
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-[#E5E5EA]">
+            <div className="flex justify-end pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
               <button
                 type="button"
                 onClick={() => setActivePayoutModal(null)}
-                className="px-5 py-2 rounded-full bg-[#1C1C1E] text-white text-[12.5px] font-medium hover:bg-[#2C2C2E]"
+                className="px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition"
               >
                 Entendi
               </button>
@@ -3286,6 +3714,7 @@ export function SettingsView({
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -3,6 +3,8 @@
 // Vocabulário canônico alinhado a CONTEXT.md, ADR-0001 e ADR-0002
 // =============================================================================
 
+import { evaluateOrganizationEntitlements } from "./billing/entitlements";
+
 export type NavigationSectionId =
   | "get_started"
   | "reception"
@@ -267,6 +269,7 @@ export interface InvoiceItem {
   clientId: string;
   clientName: string;
   clientEmail: string;
+  clientPhone?: string;
   memo: string;
   issuedAtISO: string;
   dueDateISO: string;
@@ -278,6 +281,14 @@ export interface InvoiceItem {
   status: "draft" | "sent" | "paid" | "overdue";
   paymentLinkUrl: string;
   pixPayload?: string;
+  deliveryChannels?: ("email" | "whatsapp")[];
+}
+
+export interface SaleHistoryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  amountCents: number;
 }
 
 export interface SaleHistoryRecord {
@@ -286,13 +297,18 @@ export interface SaleHistoryRecord {
   dateISO: string;
   clientId: string;
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
   providerId: string;
   providerName: string;
   itemsSummary: string;
-  status: "Pago" | "Sinal Pago" | "Pendente" | "Reembolsado";
+  items?: SaleHistoryItem[];
+  status: "Pago" | "Sinal Pago" | "Pendente" | "Reembolsado" | "Completed";
   paymentMethod: "Pix" | "Cartão" | "Dinheiro" | "Vale-Presente" | "Pacote";
   amountCents: number;
   tipCents: number;
+  appointmentId?: string;
+  createdAtISO?: string;
 }
 
 export interface GiftCardItem {
@@ -1396,18 +1412,104 @@ export function createInitialStudioState(): StudioState {
     ],
     salesHistory: [
       {
+        id: "sale-nov-2",
+        appointmentTimeLabel: "02 Nov 2026, 17:30",
+        dateISO: "2026-11-02",
+        clientId: "cli-stefany",
+        clientName: "Stefany",
+        clientEmail: "bfernandescorretor@gmail.com",
+        clientPhone: "(520) 788-8522",
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        itemsSummary: "Tratamento de Condicionamento Profundo",
+        items: [
+          {
+            id: "item-nov-1",
+            name: "Tratamento de Condicionamento Profundo",
+            quantity: 1,
+            amountCents: 0,
+          },
+        ],
+        status: "Pago",
+        paymentMethod: "Dinheiro",
+        amountCents: 0,
+        tipCents: 0,
+        createdAtISO: "2026-11-02T17:30:00Z",
+      },
+      {
+        id: "sale-oct-20",
+        appointmentTimeLabel: "20 Out 2026, 09:30",
+        dateISO: "2026-10-20",
+        clientId: "cli-stefany",
+        clientName: "Stefany",
+        clientEmail: "bfernandescorretor@gmail.com",
+        clientPhone: "(520) 788-8522",
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        itemsSummary: "Corte de Cabelo",
+        items: [
+          {
+            id: "item-oct20-1",
+            name: "Corte de Cabelo",
+            quantity: 1,
+            amountCents: 5000,
+          },
+        ],
+        status: "Pago",
+        paymentMethod: "Dinheiro",
+        amountCents: 5000,
+        tipCents: 0,
+        createdAtISO: "2026-10-20T09:30:00Z",
+      },
+      {
+        id: "sale-oct-19",
+        appointmentTimeLabel: "19 Out 2026, 11:04",
+        dateISO: "2026-10-19",
+        clientId: "cli-stefany",
+        clientName: "Stefany",
+        clientEmail: "bfernandescorretor@gmail.com",
+        clientPhone: "(520) 788-8522",
+        providerId: "staff-bruno",
+        providerName: "Bruno Fernandes Malossi Silva",
+        itemsSummary: "Corte de Cabelo",
+        items: [
+          {
+            id: "item-oct19-1",
+            name: "Corte de Cabelo",
+            quantity: 1,
+            amountCents: 5000,
+          },
+        ],
+        status: "Pago",
+        paymentMethod: "Dinheiro",
+        amountCents: 5000,
+        tipCents: 0,
+        createdAtISO: "2026-10-19T11:07:00Z",
+      },
+      {
         id: "sale-1",
         appointmentTimeLabel: "17 Out 2026, 09:00",
         dateISO: "2026-10-17",
         clientId: "cli-stefany",
         clientName: "Stefany",
+        clientEmail: "bfernandescorretor@gmail.com",
+        clientPhone: "(520) 788-8522",
         providerId: "staff-bruno",
         providerName: "Bruno Fernandes Malossi Silva",
         itemsSummary: "Sinal Pix · Coloração Personalizada & Iluminação",
+        items: [
+          {
+            id: "item-1-1",
+            name: "Coloração Personalizada & Iluminação",
+            quantity: 1,
+            amountCents: 11400,
+          },
+        ],
         status: "Sinal Pago",
         paymentMethod: "Pix",
         amountCents: 11400,
         tipCents: 0,
+        createdAtISO: "2026-10-17T09:00:00Z",
       },
       {
         id: "sale-2",
@@ -1415,13 +1517,30 @@ export function createInitialStudioState(): StudioState {
         dateISO: "2026-10-10",
         clientId: "cli-isolde",
         clientName: "Isolde Quinn",
+        clientEmail: "isolde.quinn@example.com",
+        clientPhone: "(11) 98765-4321",
         providerId: "staff-bruno",
         providerName: "Bruno Fernandes Malossi Silva",
         itemsSummary: "Protocolo Rejuvenation & Glow + Ampola",
+        items: [
+          {
+            id: "item-2-1",
+            name: "Protocolo Rejuvenation & Glow",
+            quantity: 1,
+            amountCents: 22000,
+          },
+          {
+            id: "item-2-2",
+            name: "Ampola Nutritiva",
+            quantity: 1,
+            amountCents: 5500,
+          },
+        ],
         status: "Pago",
         paymentMethod: "Pix",
         amountCents: 27500,
         tipCents: 2000,
+        createdAtISO: "2026-10-10T14:00:00Z",
       },
     ],
     giftCards: [
@@ -1895,6 +2014,115 @@ export function getBookingSiteUrl(subdomainSlug?: string): string {
   return `https://${slug}.luvea.app`;
 }
 
+export interface PublicReceiptPayload {
+  receiptNumber: string;
+  clientName: string;
+  studioName: string;
+  studioAddress?: string;
+  paymentDate: string;
+  paymentMethod: string;
+  professionalName?: string;
+  items: {
+    label: string;
+    quantity: number;
+    amountCents: number;
+  }[];
+  subtotalCents: number;
+  discountCents?: number;
+  tipCents?: number;
+  totalCents: number;
+  memo?: string;
+}
+
+export function encodeReceiptPayload(payload: PublicReceiptPayload): string {
+  try {
+    const json = JSON.stringify(payload);
+    if (typeof window !== "undefined") {
+      const utf8 = encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+        String.fromCharCode(parseInt(p1, 16))
+      );
+      return btoa(utf8).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+    return Buffer.from(json, "utf-8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  } catch {
+    return "";
+  }
+}
+
+export function decodeReceiptPayload(encoded: string): PublicReceiptPayload | null {
+  try {
+    if (!encoded) return null;
+    let base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4) {
+      base64 += "=";
+    }
+
+    let json = "";
+    if (typeof window !== "undefined") {
+      const binary = atob(base64);
+      try {
+        json = decodeURIComponent(
+          Array.from(binary)
+            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .join("")
+        );
+      } catch {
+        json = binary;
+      }
+    } else {
+      json = Buffer.from(base64, "base64").toString("utf-8");
+    }
+
+    if (json.startsWith("%7B") || json.startsWith("%22") || json.startsWith("%7b")) {
+      try {
+        json = decodeURIComponent(json);
+      } catch {}
+    }
+
+    const parsed = JSON.parse(json);
+    if (parsed && typeof parsed.receiptNumber === "string") {
+      return parsed as PublicReceiptPayload;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function getPublicReceiptUrl(
+  saleId: string,
+  payload?: PublicReceiptPayload
+): string {
+  const cleanId = (saleId || "sale-1").trim();
+  let baseOrigin = "https://luvea.app";
+
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname?.toLowerCase() || "";
+    if (
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname === "127.0.0.1"
+    ) {
+      baseOrigin = window.location.origin;
+    } else if (process.env.NEXT_PUBLIC_APP_URL) {
+      baseOrigin = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+    } else {
+      baseOrigin = window.location.origin;
+    }
+  } else if (process.env.NEXT_PUBLIC_APP_URL) {
+    baseOrigin = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+
+  const queryPart = payload
+    ? `?d=${encodeURIComponent(encodeReceiptPayload(payload))}`
+    : "";
+  return `${baseOrigin}/comprovante/${cleanId}${queryPart}`;
+}
+
 export function getDefaultBookingControls(): BookingControlsConfig {
   return {
     autoApproveMode: "always",
@@ -2365,6 +2593,26 @@ export function bookFromPublicSite(
     };
   }
 ): { ok: true; state: StudioState } | { ok: false; error: string } {
+  // Trava de Bloqueio Operacional (SaaS Subscription Entitlements)
+  const entitlements = evaluateOrganizationEntitlements({
+    subscriptionStatus: state.onboarding?.subscriptionStatus,
+    planTier: state.onboarding?.planTier,
+    trialEndsAt:
+      state.onboarding?.trialDaysLeft !== undefined && state.onboarding.trialDaysLeft > 0
+        ? new Date(Date.now() + state.onboarding.trialDaysLeft * 86400000)
+        : null,
+    gracePeriodEndsAt: (state.onboarding as any)?.gracePeriodEndsAt,
+    currentPeriodEnd: (state.onboarding as any)?.currentPeriodEnd,
+  });
+
+  if (!entitlements.canAcceptOnlineBookings) {
+    return {
+      ok: false,
+      error:
+        "O agendamento online deste estúdio está temporariamente suspenso para novas reservas.",
+    };
+  }
+
   const service = state.services.find((s) => s.id === input.serviceId);
   if (!service) {
     return { ok: false, error: "Serviço não encontrado." };
@@ -2783,6 +3031,29 @@ export function validateAndCreateCalendarEvent(
 ):
   | { ok: true; state: StudioState; createdEvent: CalendarEventItem }
   | { ok: false; conflictType: "resource" | "provider"; message: string } {
+  // Trava de Bloqueio Operacional para novos agendamentos
+  if (input.eventType === "appointment") {
+    const entitlements = evaluateOrganizationEntitlements({
+      subscriptionStatus: state.onboarding?.subscriptionStatus,
+      planTier: state.onboarding?.planTier,
+      trialEndsAt:
+        state.onboarding?.trialDaysLeft !== undefined && state.onboarding.trialDaysLeft > 0
+          ? new Date(Date.now() + state.onboarding.trialDaysLeft * 86400000)
+          : null,
+      gracePeriodEndsAt: (state.onboarding as any)?.gracePeriodEndsAt,
+      currentPeriodEnd: (state.onboarding as any)?.currentPeriodEnd,
+    });
+
+    if (!entitlements.canCreateNewAppointments) {
+      return {
+        ok: false,
+        conflictType: "provider",
+        message:
+          "Seu estúdio está em Bloqueio Operacional por pendência de pagamento. Conclua os agendamentos já confirmados ou regularize o plano nas Configurações para criar novos agendamentos.",
+      };
+    }
+  }
+
   const provider =
     (state.staff.find((s) => s.id === input.providerId) ||
       state.staff.find(
@@ -3598,6 +3869,60 @@ export function partitionClientAppointments(
   };
 }
 
+/**
+ * Retorna todos os agendamentos que já concluíram o período de atendimento
+ * e estão aguardando baixa financeira (checkout no PDV / Venda Rápida).
+ *
+ * Critérios:
+ * 1. eventType === "appointment" (ignora bloqueios de horário pessoal)
+ * 2. status !== "completed" && status !== "canceled" && status !== "no_show"
+ * 3. dateISO < referenceDateISO (atendimentos de dias anteriores ainda não finalizados)
+ *    OU (dateISO === referenceDateISO && parseTimeMinutes(endTime) <= referenceTimeMinutes)
+ *
+ * Ordenação:
+ * Prioriza os atendimentos mais atrasados primeiro (datas mais antigas, horários de término mais antigos).
+ */
+export function getPendingCheckoutAppointments(
+  events: CalendarEventItem[],
+  referenceDateISO?: string,
+  referenceTimeMinutes?: number
+): CalendarEventItem[] {
+  const todayISO = referenceDateISO || getTodayDateISO();
+  let currentMinutes = referenceTimeMinutes;
+  if (currentMinutes === undefined) {
+    const now = new Date();
+    currentMinutes = now.getHours() * 60 + now.getMinutes();
+  }
+
+  const pending = events.filter((ev) => {
+    if (ev.eventType && ev.eventType !== "appointment") return false;
+    if (
+      ev.status === "completed" ||
+      ev.status === "canceled" ||
+      ev.status === "no_show"
+    ) {
+      return false;
+    }
+
+    if (ev.dateISO < todayISO) {
+      return true;
+    }
+
+    if (ev.dateISO === todayISO) {
+      const endMin = parseTimeMinutes(ev.endTime || "00:00");
+      return endMin <= currentMinutes!;
+    }
+
+    return false;
+  });
+
+  return pending.sort((a, b) => {
+    const dateComp = a.dateISO.localeCompare(b.dateISO);
+    if (dateComp !== 0) return dateComp;
+    return a.endTime.localeCompare(b.endTime);
+  });
+}
+
 export function updateClientNotesAndForms(
   state: StudioState,
   clientId: string,
@@ -3906,6 +4231,10 @@ export function createAndSendInvoice(
     lineItems: InvoiceLineItem[];
     discountCents: number;
     taxCents: number;
+    deliveryChannels?: ("email" | "whatsapp")[];
+    clientEmail?: string;
+    clientPhone?: string;
+    pixPayload?: string;
   }
 ): StudioState {
   const provider =
@@ -3941,7 +4270,8 @@ export function createAndSendInvoice(
     providerName: provider.fullName,
     clientId: client.id,
     clientName: client.fullName,
-    clientEmail: client.email,
+    clientEmail: input.clientEmail || client.email,
+    clientPhone: input.clientPhone || client.phone,
     memo: input.memo,
     issuedAtISO: "2026-10-17",
     dueDateISO: input.dueDateISO || "2026-10-30",
@@ -3952,6 +4282,8 @@ export function createAndSendInvoice(
     totalCents,
     status: "sent",
     paymentLinkUrl: `https://luveastudio.luvea.app/pay/${nextNumber.replace("#", "")}`,
+    pixPayload: input.pixPayload,
+    deliveryChannels: input.deliveryChannels,
   };
 
   return {
@@ -4010,19 +4342,60 @@ export function executeQuickSaleCheckout(
 
   const tip = input.tipCents ?? 0;
   const saleStatus = input.status ?? "Pago";
+
+  const items: SaleHistoryItem[] = [];
+  if (input.soldProducts && input.soldProducts.length > 0) {
+    input.soldProducts.forEach((sp, idx) => {
+      const prod = (state.inventory || []).find((p) => p.id === sp.productId);
+      items.push({
+        id: `item-prod-${idx}`,
+        name: prod?.name || "Produto",
+        quantity: sp.quantity ?? 1,
+        amountCents: (prod?.priceCents ?? 0) * (sp.quantity ?? 1),
+      });
+    });
+  }
+  if (input.itemsSummary) {
+    const parts = input.itemsSummary.split(" + ").map((p) => p.trim());
+    parts.forEach((p, idx) => {
+      const isAlreadyIn = items.some((it) => it.name.toLowerCase() === p.toLowerCase());
+      if (!isAlreadyIn) {
+        items.push({
+          id: `item-srv-${idx}`,
+          name: p,
+          quantity: 1,
+          amountCents: idx === 0 && items.length === 0 ? input.amountCents : 0,
+        });
+      }
+    });
+  }
+  if (items.length === 0) {
+    items.push({
+      id: "item-default",
+      name: input.itemsSummary || "Atendimento",
+      quantity: 1,
+      amountCents: input.amountCents,
+    });
+  }
+
   const newSale: SaleHistoryRecord = {
     id: `sale-${Date.now()}`,
     appointmentTimeLabel: timeLabel,
     dateISO: saleDateISO,
     clientId: client.id,
     clientName: client.fullName,
+    clientEmail: client.email,
+    clientPhone: client.phone,
     providerId: provider.id,
     providerName: provider.fullName,
     itemsSummary: input.itemsSummary,
+    items,
     status: saleStatus,
     paymentMethod: input.paymentMethod,
     amountCents: input.amountCents,
     tipCents: tip,
+    appointmentId: input.appointmentId,
+    createdAtISO: new Date().toISOString(),
   };
 
   const updatedClients = state.clients.map((c) => {

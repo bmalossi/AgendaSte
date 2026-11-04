@@ -11,6 +11,7 @@ import {
 } from "@/lib/agendaste-store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { isValidUuid } from "@/lib/supabase/agendaste-sync";
+import { evaluateOrganizationEntitlements } from "@/lib/billing/entitlements";
 
 interface SitePageProps {
   params: Promise<{
@@ -25,6 +26,8 @@ export default function PublicSitePage({ params }: SitePageProps) {
   const [notFound, setNotFound] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [defaultProfId, setDefaultProfId] = useState<string | null>(null);
+  const [isSoftLocked, setIsSoftLocked] = useState(false);
+  const [contactPhone, setContactPhone] = useState<string | undefined>(undefined);
 
   // Inicializa com estado limpo do próprio estúdio (ZERO dados demo de terceiros)
   const [state, setState] = useState<StudioState>(() => {
@@ -82,7 +85,7 @@ export default function PublicSitePage({ params }: SitePageProps) {
           if (!org) {
             const { data: tableOrg } = await supabase
               .from("organizations")
-              .select("id, name, slug, phone, whatsapp_number, settings")
+              .select("id, name, slug, phone, whatsapp_number, settings, subscription_status, plan_tier, trial_ends_at, grace_period_ends_at, current_period_end")
               .eq("slug", slug)
               .maybeSingle();
             org = tableOrg;
@@ -91,6 +94,16 @@ export default function PublicSitePage({ params }: SitePageProps) {
           if (org && org.id) {
             setOrgId(org.id);
             setNotFound(false);
+            setContactPhone(org.whatsapp_number || org.phone || undefined);
+
+            const entitlements = evaluateOrganizationEntitlements({
+              subscriptionStatus: org.subscription_status,
+              planTier: org.plan_tier,
+              trialEndsAt: org.trial_ends_at,
+              gracePeriodEndsAt: org.grace_period_ends_at,
+              currentPeriodEnd: org.current_period_end,
+            });
+            setIsSoftLocked(entitlements.isSoftLocked);
 
             // Janela para consulta segura de horários ocupados (mês atual + próximo)
             const now = new Date();
@@ -438,6 +451,8 @@ export default function PublicSitePage({ params }: SitePageProps) {
       state={state}
       onUpdateState={handleUpdateStudioState}
       isModal={false}
+      isSoftLocked={isSoftLocked}
+      contactPhone={contactPhone}
     />
   );
 }

@@ -48,6 +48,7 @@ import {
   saveInventoryProduct,
   deleteInventoryProduct,
   adjustInventoryStock,
+  getPendingCheckoutAppointments,
   resolveProductIntendedUse,
   findInventoryProductByBarcode,
   formatBRLCurrencyString,
@@ -911,11 +912,152 @@ describe("Ticket 05 — Pagamentos (Payments): Venda Rápida POS, Faturas (Invoi
     assert.equal(updated.calendarView.selectedDateISO, "2026-10-19");
   });
 
+  it("completes existing appointment, registers sale and updates client stats when checkout is executed with appointmentId", () => {
+    let state = createInitialStudioState();
+    const targetAppointment = state.calendarEvents.find(
+      (ev) => ev.id === "evt-1"
+    )!;
+    assert.ok(targetAppointment, "Should find appointment evt-1 for Stefany");
+    const prevSalesCount = state.salesHistory.length;
+    const clientBefore = state.clients.find((c) => c.id === "cli-stefany")!;
+
+    state = executeQuickSaleCheckout(state, {
+      appointmentId: targetAppointment.id,
+      clientId: "cli-stefany",
+      providerId: targetAppointment.providerId,
+      itemsSummary: targetAppointment.serviceNames.join(" + "),
+      amountCents: targetAppointment.totalCents,
+      tipCents: 2000,
+      paymentMethod: "Cartão",
+      status: "Pago",
+    });
+
+    const updatedAppointment = state.calendarEvents.find((ev) => ev.id === targetAppointment.id)!;
+    assert.equal(updatedAppointment.status, "completed");
+    assert.equal(updatedAppointment.depositPaid, true);
+    assert.equal(state.salesHistory.length, prevSalesCount + 1);
+    assert.equal(state.salesHistory[0].paymentMethod, "Cartão");
+    assert.equal(state.salesHistory[0].amountCents, targetAppointment.totalCents);
+    assert.equal(state.salesHistory[0].tipCents, 2000);
+
+    const clientAfter = state.clients.find((c) => c.id === "cli-stefany")!;
+    assert.equal(clientAfter.visitsCount, clientBefore.visitsCount + 1);
+    assert.equal(clientAfter.totalSpentCents, clientBefore.totalSpentCents + targetAppointment.totalCents + 2000);
+  });
+
   it("formats dates in Brazilian DD/MM/YYYY format with formatDateBR", () => {
     assert.equal(formatDateBR("2026-10-19"), "19/10/2026");
     assert.equal(formatDateBR("2026-05-03"), "03/05/2026");
     assert.equal(formatDateBR("2026-10-19T10:15:00.000Z"), "19/10/2026");
     assert.equal(formatDateBR(""), "");
+  });
+
+  it("filters and sorts appointments pending checkout correctly (Fila de Baixa)", () => {
+    const today = "2026-11-02";
+    const currentMinutes = 15 * 60; // 15:00
+
+    const mockEvents = [
+      // 1. Concluído anteriormente hoje (10:00 - 11:30) -> PENDENTE DE BAIXA
+      {
+        id: "evt-ended-today",
+        eventType: "appointment" as const,
+        dateISO: today,
+        startTime: "10:00",
+        endTime: "11:30",
+        status: "confirmed" as const,
+        clientName: "Cliente Hoje Concluído",
+        totalCents: 15000,
+      },
+      // 2. Passado não baixado de ontem -> PENDENTE DE BAIXA
+      {
+        id: "evt-past-yesterday",
+        eventType: "appointment" as const,
+        dateISO: "2026-11-01",
+        startTime: "16:00",
+        endTime: "17:00",
+        status: "pending" as const,
+        clientName: "Cliente Ontem Pendente",
+        totalCents: 20000,
+      },
+      // 3. Em andamento / Futuro hoje (15:00 - 16:30) -> NÃO PENDENTE (ainda em atendimento)
+      {
+        id: "evt-future-today",
+        eventType: "appointment" as const,
+        dateISO: today,
+        startTime: "15:00",
+        endTime: "16:30",
+        status: "confirmed" as const,
+        clientName: "Cliente Atendimento Atual",
+        totalCents: 18000,
+      },
+      // 4. Futuro amanhã -> NÃO PENDENTE
+      {
+        id: "evt-tomorrow",
+        eventType: "appointment" as const,
+        dateISO: "2026-11-03",
+        startTime: "09:00",
+        endTime: "10:00",
+        status: "confirmed" as const,
+        clientName: "Cliente Amanhã",
+        totalCents: 10000,
+      },
+      // 5. Já baixado/pago (completed) hoje de manhã -> NÃO PENDENTE
+      {
+        id: "evt-already-completed",
+        eventType: "appointment" as const,
+        dateISO: today,
+        startTime: "08:00",
+        endTime: "09:00",
+        status: "completed" as const,
+        clientName: "Cliente Já Pago",
+        totalCents: 12000,
+      },
+      // 6. Cancelado hoje de manhã -> NÃO PENDENTE
+      {
+        id: "evt-canceled",
+        eventType: "appointment" as const,
+        dateISO: today,
+        startTime: "09:00",
+        endTime: "10:00",
+        status: "canceled" as const,
+        clientName: "Cliente Cancelado",
+        totalCents: 12000,
+      },
+      // 7. Não compareceu (no_show) hoje -> NÃO PENDENTE
+      {
+        id: "evt-noshow",
+        eventType: "appointment" as const,
+        dateISO: today,
+        startTime: "10:00",
+        endTime: "11:00",
+        status: "no_show" as const,
+        clientName: "Cliente No Show",
+        totalCents: 12000,
+      },
+      // 8. Bloqueio pessoal / almoço (personal_block) -> NÃO PENDENTE
+      {
+        id: "evt-block",
+        eventType: "personal_block" as const,
+        dateISO: today,
+        startTime: "12:00",
+        endTime: "13:00",
+        status: "confirmed" as const,
+        clientName: "Almoço",
+        totalCents: 0,
+      },
+    ];
+
+    const pending = getPendingCheckoutAppointments(
+      mockEvents as any,
+      today,
+      currentMinutes
+    );
+
+    // Esperado: apenas 2 agendamentos ("evt-past-yesterday" e "evt-ended-today")
+    assert.equal(pending.length, 2);
+    // Ordenação cronológica: ontem (11-01) deve vir antes de hoje (11-02)
+    assert.equal(pending[0].id, "evt-past-yesterday");
+    assert.equal(pending[1].id, "evt-ended-today");
   });
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -34,15 +34,24 @@ import {
   Receipt,
   Banknote,
   ChevronRight,
+  MessageSquare,
+  Send,
+  Phone,
+  Printer,
+  MoreHorizontal,
+  Share2,
 } from "lucide-react";
 import {
   StudioState,
+  InvoiceItem,
   InvoiceLineItem,
   CalendarEventItem,
   SaleHistoryRecord,
+  SaleHistoryItem,
   formatBRL,
   formatDateBR,
   getTodayDateISO,
+  getPendingCheckoutAppointments,
   createAndSendInvoice,
   executeQuickSaleCheckout,
   issueGiftCard,
@@ -50,6 +59,8 @@ import {
   saveCatalogService,
   resolveProductIntendedUse,
   generateUuid,
+  getPublicReceiptUrl,
+  PublicReceiptPayload,
 } from "@/lib/agendaste-store";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
 
@@ -61,6 +72,7 @@ interface PaymentsViewProps {
   state: StudioState;
   onUpdateState: (updater: (prev: StudioState) => StudioState) => void;
   onOpenQuickSale: (prefillAppointment?: CalendarEventItem) => void;
+  onNavigateToClient?: (clientId: string) => void;
 }
 
 export function PaymentsView({
@@ -68,6 +80,7 @@ export function PaymentsView({
   state,
   onUpdateState,
   onOpenQuickSale,
+  onNavigateToClient,
 }: PaymentsViewProps) {
   // Sales History Filters (04-1-sales-history.png)
   const [salesSearch, setSalesSearch] = useState("");
@@ -90,6 +103,17 @@ export function PaymentsView({
   const [invDueDate, setInvDueDate] = useState("2026-10-30");
   const [invDiscountCents, setInvDiscountCents] = useState(0);
   const [invTaxCents, setInvTaxCents] = useState(0);
+  const [invSendEmail, setInvSendEmail] = useState(true);
+  const [invSendWhatsApp, setInvSendWhatsApp] = useState(false);
+  const [invCustomEmail, setInvCustomEmail] = useState("");
+  const [invCustomPhone, setInvCustomPhone] = useState(
+    state.clients.find((c) => c.id === (state.clients[0]?.id ?? "cli-stefany"))?.phone || ""
+  );
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false);
+  const [copiedInvoiceLink, setCopiedInvoiceLink] = useState<string | null>(null);
+  const [copiedPixCode, setCopiedPixCode] = useState<string | null>(null);
+  const [resendingInvoiceId, setResendingInvoiceId] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ id: string; message: string } | null>(null);
   const [invLineItems, setInvLineItems] = useState<InvoiceLineItem[]>([
     {
       id: "li-init-1",
@@ -107,7 +131,271 @@ export function PaymentsView({
   const [giftAmountBRL, setGiftAmountBRL] = useState("250");
 
   // ===========================================================================
-  // 1. SALES HISTORY (04-1-sales-history.png)
+  // SALES DETAILS DRAWER & RECEIPT RE-EMISSION (Matching Reference Model)
+  // ===========================================================================
+  const [selectedSale, setSelectedSale] = useState<SaleHistoryRecord | null>(null);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [receiptTab, setReceiptTab] = useState<"whatsapp" | "email" | "print">("whatsapp");
+  const [receiptTargetPhone, setReceiptTargetPhone] = useState("");
+  const [receiptTargetEmail, setReceiptTargetEmail] = useState("");
+  const [isSendingReceiptEmail, setIsSendingReceiptEmail] = useState(false);
+  const [isSendingReceiptWhatsApp, setIsSendingReceiptWhatsApp] = useState(false);
+  const [receiptFeedback, setReceiptFeedback] = useState<string | null>(null);
+  const [saleMoreMenuOpen, setSaleMoreMenuOpen] = useState(false);
+
+  // Sync contact info whenever selectedSale changes
+  useEffect(() => {
+    if (selectedSale) {
+      const cli = state.clients.find(
+        (c) =>
+          c.id === selectedSale.clientId ||
+          c.fullName.trim().toLowerCase() === selectedSale.clientName.trim().toLowerCase()
+      );
+      setReceiptTargetPhone(selectedSale.clientPhone || cli?.phone || "");
+      setReceiptTargetEmail(selectedSale.clientEmail || cli?.email || "");
+      setSaleMoreMenuOpen(false);
+      setReceiptFeedback(null);
+    }
+  }, [selectedSale, state.clients]);
+
+  // Resolve line items for the selected sale
+  const saleItems = useMemo(() => {
+    if (!selectedSale) return [];
+    if (selectedSale.items && selectedSale.items.length > 0) {
+      return selectedSale.items;
+    }
+    const parts = (selectedSale.itemsSummary || "Atendimento")
+      .split(" + ")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    return parts.map((part, idx) => ({
+      id: `item-${idx}`,
+      name: part,
+      quantity: 1,
+      amountCents: idx === 0 ? selectedSale.amountCents : 0,
+    }));
+  }, [selectedSale]);
+
+  const resolvedSaleClient = useMemo(() => {
+    if (!selectedSale) return null;
+    return (
+      state.clients.find(
+        (c) =>
+          c.id === selectedSale.clientId ||
+          c.fullName.trim().toLowerCase() === selectedSale.clientName.trim().toLowerCase()
+      ) ?? null
+    );
+  }, [selectedSale, state.clients]);
+
+  const resolvedSaleProvider = useMemo(() => {
+    if (!selectedSale) return state.staff[0];
+    return (
+      state.staff.find(
+        (s) =>
+          s.id === selectedSale.providerId ||
+          s.fullName.trim().toLowerCase() === selectedSale.providerName.trim().toLowerCase()
+      ) ?? state.staff[0]
+    );
+  }, [selectedSale, state.staff]);
+
+  const handleSendReceiptWhatsApp = async () => {
+    if (!selectedSale) return;
+    setIsSendingReceiptWhatsApp(true);
+    const cleanPhone = (receiptTargetPhone || "").replace(/\D/g, "");
+    const formattedPhone = cleanPhone.startsWith("55")
+      ? cleanPhone
+      : cleanPhone
+      ? `55${cleanPhone}`
+      : "";
+
+    const itemsText = saleItems
+      .map((it) => `• ${it.quantity}x ${it.name} — ${formatBRL(it.amountCents)}`)
+      .join("\n");
+
+    const receiptCode = `#REC-${selectedSale.id.replace("sale-", "").toUpperCase()}`;
+    const totalCents = selectedSale.amountCents + selectedSale.tipCents;
+    const message = `*COMPROVANTE DE PAGAMENTO (2ª VIA)*\n*${state.settings.business.businessName || "Luvea Studio"}*\n\nOlá, *${selectedSale.clientName}*! Segue a 2ª via oficial do seu comprovante de atendimento:\n\n🗓 *Data:* ${selectedSale.appointmentTimeLabel}\n👤 *Profissional:* ${selectedSale.providerName}\n\n✂️ *Itens consumidos:*\n${itemsText}\n\n💰 *Subtotal:* ${formatBRL(selectedSale.amountCents)}${selectedSale.tipCents > 0 ? `\n🎁 *Gorjeta:* +${formatBRL(selectedSale.tipCents)}` : ""}\n*TOTAL:* *${formatBRL(totalCents)}*\n💳 *Forma de pagamento:* ${selectedSale.paymentMethod} (Pago)\n🧾 *Autenticação:* ${receiptCode}\n\nAgradecemos a sua preferência!`;
+
+    try {
+      await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: selectedSale.clientName,
+          clientPhone: receiptTargetPhone,
+          templateType: "custom",
+          customMessage: message,
+          whatsappConfig: state.reception.userConfig,
+        }),
+      });
+    } catch (err) {
+      console.warn("[Receipt WhatsApp API]", err);
+    }
+
+    const waUrl = formattedPhone
+      ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, "_blank");
+
+    setIsSendingReceiptWhatsApp(false);
+    setReceiptFeedback("Comprovante enviado com sucesso no WhatsApp!");
+    setTimeout(() => {
+      setReceiptFeedback(null);
+      setReceiptModalOpen(false);
+    }, 2000);
+  };
+
+  const handleSendReceiptEmail = async () => {
+    if (!selectedSale) return;
+    if (!receiptTargetEmail) {
+      alert("Por favor, informe o e-mail da cliente para emissão.");
+      return;
+    }
+    setIsSendingReceiptEmail(true);
+    const invoiceNum = `#REC-${selectedSale.id.replace("sale-", "").toUpperCase()}`;
+    const totalCents = selectedSale.amountCents + selectedSale.tipCents;
+
+    const receiptPayload: PublicReceiptPayload = {
+      receiptNumber: invoiceNum,
+      clientName: selectedSale.clientName,
+      studioName: state.settings.business.businessName || "Luvea Studio",
+      studioAddress: state.settings.business.address || "Atendimento presencial no estúdio",
+      paymentDate: `${formatDateBR(selectedSale.dateISO)}, ${selectedSale.appointmentTimeLabel}`,
+      paymentMethod: selectedSale.paymentMethod,
+      professionalName: selectedSale.providerName,
+      items: saleItems.map((it) => ({
+        label: it.name,
+        quantity: it.quantity,
+        amountCents: it.amountCents,
+      })),
+      subtotalCents: selectedSale.amountCents,
+      discountCents: 0,
+      tipCents: selectedSale.tipCents,
+      totalCents: totalCents,
+      memo: `Atendimento realizado com sucesso em ${selectedSale.appointmentTimeLabel}.`,
+    };
+
+    const publicReceiptUrl = getPublicReceiptUrl(selectedSale.id, receiptPayload);
+
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: receiptTargetEmail,
+          subject: `2ª Via - Comprovante de Pagamento de ${state.settings.business.businessName || "Luvea Studio"} (${formatBRL(totalCents)})`,
+          type: "receipt",
+          receiptNumber: invoiceNum,
+          clientName: selectedSale.clientName,
+          studioName: state.settings.business.businessName || "Luvea Studio",
+          studioAddress: state.settings.business.address || "Atendimento presencial no estúdio",
+          paymentDate: `${formatDateBR(selectedSale.dateISO)}, ${selectedSale.appointmentTimeLabel}`,
+          paymentMethod: selectedSale.paymentMethod,
+          professionalName: selectedSale.providerName,
+          items: saleItems.map((it) => ({
+            label: it.name,
+            quantity: it.quantity,
+            amountCents: it.amountCents,
+          })),
+          subtotalCents: selectedSale.amountCents,
+          discountCents: 0,
+          tipCents: selectedSale.tipCents,
+          totalCents: totalCents,
+          receiptUrl: publicReceiptUrl,
+          memo: `Atendimento realizado com sucesso em ${selectedSale.appointmentTimeLabel}.`,
+        }),
+      });
+
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok || !resData.success) {
+        throw new Error(resData.error || "Falha ao enviar comprovante.");
+      }
+
+      setReceiptFeedback(`Comprovante reenviado para ${receiptTargetEmail}!`);
+      setTimeout(() => {
+        setReceiptFeedback(null);
+        setReceiptModalOpen(false);
+      }, 2000);
+    } catch (err) {
+      console.warn("[Receipt Email Dispatch]", err);
+      alert("Erro ao disparar e-mail. Verifique o endereço digitado.");
+    } finally {
+      setIsSendingReceiptEmail(false);
+    }
+  };
+
+  const handleCopySaleSummary = () => {
+    if (!selectedSale) return;
+    const itemsText = saleItems
+      .map((it) => `• ${it.quantity}x ${it.name} — ${formatBRL(it.amountCents)}`)
+      .join("\n");
+    const summary = `COMPROVANTE DE PAGAMENTO - ${state.settings.business.businessName || "LUVEA STUDIO"}\n\nCliente: ${selectedSale.clientName}\nData: ${selectedSale.appointmentTimeLabel}\nProfissional: ${selectedSale.providerName}\nItens:\n${itemsText}\nValor Total: ${formatBRL(selectedSale.amountCents + selectedSale.tipCents)}\nForma de Pagamento: ${selectedSale.paymentMethod}\nStatus: ${selectedSale.status}\nCódigo: #REC-${selectedSale.id.toUpperCase()}`;
+    navigator.clipboard.writeText(summary);
+    setReceiptFeedback("Resumo da venda copiado com sucesso!");
+    setSaleMoreMenuOpen(false);
+    setTimeout(() => setReceiptFeedback(null), 2500);
+  };
+
+  const handlePrintReceipt = () => {
+    window.print();
+  };
+
+  // Navegação direta para a ficha/página do cliente a partir dos Detalhes da venda
+  const handleOpenClientProfile = () => {
+    if (!selectedSale) return;
+
+    const normName = selectedSale.clientName.trim().toLowerCase();
+    const existing = state.clients.find(
+      (c) =>
+        c.id === selectedSale.clientId ||
+        c.fullName.trim().toLowerCase() === normName ||
+        (selectedSale.clientEmail && c.email && c.email.toLowerCase() === selectedSale.clientEmail.toLowerCase()) ||
+        (receiptTargetEmail && c.email && c.email.toLowerCase() === receiptTargetEmail.toLowerCase())
+    );
+
+    let targetClientId = existing?.id;
+
+    // Se o cliente ainda não existir no cadastro oficial, cria seu perfil preservando dados de contato
+    if (!targetClientId) {
+      targetClientId =
+        selectedSale.clientId && !selectedSale.clientId.startsWith("temp")
+          ? selectedSale.clientId
+          : generateUuid();
+
+      onUpdateState((prev) =>
+        createClientProfile(prev, {
+          id: targetClientId!,
+          fullName: selectedSale.clientName,
+          email: receiptTargetEmail || selectedSale.clientEmail || "",
+          phone: receiptTargetPhone || selectedSale.clientPhone || "",
+        })
+      );
+    }
+
+    if (onNavigateToClient && targetClientId) {
+      onNavigateToClient(targetClientId);
+    }
+  };
+
+  const formatSaleStatus = (status: string) => {
+    if (status === "Completed" || status === "Pago") return "Concluído";
+    if (status === "Sinal Pago") return "Sinal pago";
+    if (status === "Pendente") return "Pendente";
+    if (status === "Reembolsado") return "Reembolsado";
+    return status;
+  };
+
+  const formatPaymentMethod = (method: string) => {
+    if (method === "Cash" || method === "Dinheiro") return "Dinheiro";
+    if (method === "Credit Card" || method === "Cartão") return "Cartão";
+    if (method === "Pix") return "Pix";
+    if (method === "Package" || method === "Pacote") return "Pacote";
+    if (method === "Gift Card" || method === "Vale-Presente") return "Vale-presente";
+    return method;
+  };
+
+  // ===========================================================================
+  // 1. SALES HISTORY (04-1-sales-history.png & Reference Model Drawer in pt-BR)
   // ===========================================================================
   if (section === "payments_sales_history") {
     const filteredSales = state.salesHistory.filter((s) => {
@@ -128,26 +416,28 @@ export function PaymentsView({
     );
 
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
+        {/* Top Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-[28px] font-bold text-[#1C1C1E] tracking-tight">
+            <h1 className="text-[26px] sm:text-[28px] font-bold text-[#1C1C1E] dark:text-zinc-100 tracking-tight">
               Histórico de vendas
             </h1>
-            <p className="text-[13px] text-[#6E6E73]">
-              Acompanhe todas as vendas rápidas, sinais Pix, pacotes e atendimentos concluídos.
+            <p className="text-[13px] text-[#6E6E73] dark:text-zinc-400">
+              Acompanhe o histórico de vendas, consulte detalhes e reemita comprovantes a qualquer momento.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-full bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E]">
+            <div className="px-4 py-2 rounded-full bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-zinc-800 text-[13px] font-semibold text-[#1C1C1E] dark:text-zinc-200">
               Volume filtrado:{" "}
               <span className="font-mono font-bold text-[#16A34A]">
                 {formatBRL(totalRevenueCents)}
               </span>
             </div>
             <button
+              type="button"
               onClick={() => onOpenQuickSale()}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold transition"
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-zinc-100 text-white dark:text-[#18181B] hover:bg-[#2C2C2E] dark:hover:bg-white text-[13px] font-semibold transition cursor-pointer shadow-2xs"
             >
               <Plus className="w-4 h-4" />
               <span>Nova venda rápida</span>
@@ -155,7 +445,7 @@ export function PaymentsView({
           </div>
         </div>
 
-        {/* Search & Filter Row (04-1-sales-history.png) */}
+        {/* Search & Filter Row */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[260px] max-w-md">
             <Search className="w-4 h-4 text-[#8E8E93] absolute left-4 top-1/2 -translate-y-1/2" />
@@ -164,91 +454,660 @@ export function PaymentsView({
               value={salesSearch}
               onChange={(e) => setSalesSearch(e.target.value)}
               placeholder="Buscar por cliente, profissional ou item..."
-              className="w-full pl-11 pr-4 py-2.5 rounded-full border border-[#E5E5EA] bg-white text-[13px]"
+              className="w-full pl-11 pr-4 py-2.5 rounded-full border border-[#E5E5EA] dark:border-zinc-800 bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-zinc-100 placeholder-[#8E8E93]"
             />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {["all", "Pix", "Cartão", "Pacote", "Vale-Presente"].map((m) => (
+            {[
+              { id: "all", label: "Todos os métodos" },
+              { id: "Pix", label: "Pix" },
+              { id: "Cartão", label: "Cartão" },
+              { id: "Dinheiro", label: "Dinheiro" },
+              { id: "Pacote", label: "Pacote" },
+              { id: "Vale-Presente", label: "Vale-presente" },
+            ].map((m) => (
               <button
-                key={m}
-                onClick={() => setMethodFilter(m)}
-                className={`px-3.5 py-2 rounded-full text-[12px] font-semibold transition ${
-                  methodFilter === m
-                    ? "bg-[#1C1C1E] text-white"
-                    : "bg-white border border-[#E5E5EA] text-[#6E6E73] hover:text-[#1C1C1E]"
+                key={m.id}
+                type="button"
+                onClick={() => setMethodFilter(m.id)}
+                className={`px-3.5 py-2 rounded-full text-[12px] font-semibold transition cursor-pointer ${
+                  methodFilter === m.id
+                    ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181B]"
+                    : "bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-zinc-800 text-[#6E6E73] dark:text-zinc-400 hover:text-[#1C1C1E] dark:hover:text-zinc-200"
                 }`}
               >
-                {m === "all" ? "Todos os métodos" : m}
+                {m.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Table matching 04-1-sales-history.png */}
-        <div className="bg-white rounded-[20px] border border-[#E5E5EA] shadow-gg-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-[#EFEFF4] text-[12px] font-semibold text-[#8E8E93]">
-                  <th className="py-3.5 px-5">Horário do agendamento</th>
-                  <th className="py-3.5 px-5">Cliente</th>
-                  <th className="py-3.5 px-5">Profissional</th>
-                  <th className="py-3.5 px-5">Itens</th>
-                  <th className="py-3.5 px-5">Status</th>
-                  <th className="py-3.5 px-5">Método</th>
-                  <th className="py-3.5 px-5 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EFEFF4] dark:divide-[#27272a] text-[13px]">
-                {filteredSales.map((sale) => (
-                  <tr
-                    key={sale.id}
-                    className="hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60 transition"
-                  >
-                    <td className="py-4 px-5 font-medium text-[#1C1C1E]">
-                      {sale.appointmentTimeLabel}
-                    </td>
-                    <td className="py-4 px-5 font-bold text-[#1C1C1E]">
-                      {sale.clientName}
-                    </td>
-                    <td className="py-4 px-5 text-[#6E6E73]">
-                      {sale.providerName}
-                    </td>
-                    <td className="py-4 px-5 text-[#1C1C1E]">
-                      {sale.itemsSummary}
-                    </td>
-                    <td className="py-4 px-5">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium shadow-2xs">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            sale.status === "Pago"
-                              ? "bg-emerald-500 ring-2 ring-emerald-500/20"
-                              : sale.status === "Sinal Pago"
-                              ? "bg-[#6E56CF] ring-2 ring-[#6E56CF]/20"
-                              : "bg-[#D97706] ring-2 ring-[#D97706]/20"
-                          }`}
-                        />
-                        <span>{sale.status}</span>
-                      </span>
-                    </td>
-                    <td className="py-4 px-5 font-medium text-[#6E6E73]">
-                      {sale.paymentMethod}
-                    </td>
-                    <td className="py-4 px-5 text-right font-mono font-bold text-[#1C1C1E]">
-                      {formatBRL(sale.amountCents + sale.tipCents)}
-                      {sale.tipCents > 0 && (
-                        <span className="block text-[10px] text-[#16A34A]">
-                          +{formatBRL(sale.tipCents)} gorjeta
-                        </span>
+        {/* Split Container: Sales Table on Left & Sale Details on Right */}
+        <div className="flex flex-col lg:flex-row items-start gap-6 relative">
+          {/* Left Column: Sales Table Card */}
+          <div
+            className={`transition-all duration-300 min-w-0 ${
+              selectedSale ? "flex-1 w-full lg:w-auto" : "w-full"
+            }`}
+          >
+            <div className="bg-white dark:bg-[#18181b] rounded-[22px] border border-[#E5E5EA] dark:border-[#27272a] shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#EFEFF4] dark:border-zinc-800 text-[12px] font-semibold text-[#8E8E93] dark:text-zinc-400">
+                      <th className="py-3.5 px-5">Data e horário</th>
+                      <th className="py-3.5 px-5">Cliente</th>
+                      {!selectedSale && (
+                        <>
+                          <th className="py-3.5 px-5 hidden sm:table-cell">Profissional</th>
+                          <th className="py-3.5 px-5 hidden md:table-cell">Itens</th>
+                        </>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <th className="py-3.5 px-5">Status</th>
+                      <th className="py-3.5 px-5 text-right">Valor total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#EFEFF4] dark:divide-zinc-800 text-[13px]">
+                    {filteredSales.map((sale) => {
+                      const isSelected = selectedSale?.id === sale.id;
+                      const parts = sale.appointmentTimeLabel.split(", ");
+                      const datePart = parts[0] || sale.appointmentTimeLabel;
+                      const timePart = parts.slice(1).join(", ");
+
+                      return (
+                        <tr
+                          key={sale.id}
+                          onClick={() => setSelectedSale(sale)}
+                          className={`transition cursor-pointer select-none ${
+                            isSelected
+                              ? "bg-[#F5F5F7] dark:bg-zinc-800/90"
+                              : "hover:bg-[#FAFAFC] dark:hover:bg-zinc-800/40"
+                          }`}
+                        >
+                          {/* Data e Horário */}
+                          <td className="py-4 px-5">
+                            <div className="font-medium text-[#1C1C1E] dark:text-zinc-100">
+                              {datePart}
+                            </div>
+                            {timePart && (
+                              <div className="text-[11.5px] text-[#8E8E93] dark:text-zinc-400 mt-0.5">
+                                {timePart}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Cliente com Avatar Rosa Pastel Suave */}
+                          <td className="py-4 px-5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-7 h-7 rounded-full bg-[#FCE7F3] dark:bg-pink-950/70 text-[#831843] dark:text-pink-300 font-bold text-xs flex items-center justify-center shrink-0">
+                                {sale.clientName.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="font-semibold text-[#1C1C1E] dark:text-zinc-100 truncate">
+                                {sale.clientName}
+                              </span>
+                            </div>
+                          </td>
+
+                          {!selectedSale && (
+                            <>
+                              <td className="py-4 px-5 text-[#6E6E73] dark:text-zinc-400 hidden sm:table-cell">
+                                {sale.providerName}
+                              </td>
+                              <td className="py-4 px-5 text-[#1C1C1E] dark:text-zinc-300 hidden md:table-cell max-w-xs truncate">
+                                {sale.itemsSummary}
+                              </td>
+                            </>
+                          )}
+
+                          {/* Status com Micro-Indicador */}
+                          <td className="py-4 px-5">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F4F4F5] dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700/80 text-[#1C1C1E] dark:text-zinc-200 text-[11.5px] font-medium shadow-2xs">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  sale.status === "Pago" || sale.status === "Completed"
+                                    ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                                    : sale.status === "Sinal Pago"
+                                    ? "bg-[#6E56CF] ring-2 ring-[#6E56CF]/20"
+                                    : "bg-[#D97706] ring-2 ring-[#D97706]/20"
+                                }`}
+                              />
+                              <span>{formatSaleStatus(sale.status)}</span>
+                            </span>
+                          </td>
+
+                          {/* Valor Total */}
+                          <td className="py-4 px-5 text-right font-mono font-bold text-[#1C1C1E] dark:text-zinc-100">
+                            {formatBRL(sale.amountCents + sale.tipCents)}
+                            {sale.tipCents > 0 && (
+                              <span className="block text-[10px] text-[#16A34A] font-normal">
+                                +{formatBRL(sale.tipCents)} gorjeta
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filteredSales.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="py-12 text-center text-[#8E8E93] dark:text-zinc-400 text-[13px]"
+                        >
+                          Nenhuma venda encontrada para os filtros selecionados.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Table Footer Summary */}
+              <div className="px-5 py-3.5 border-t border-[#EFEFF4] dark:border-zinc-800 bg-[#FAFAFC] dark:bg-zinc-900/40 flex items-center justify-between text-xs text-[#8E8E93] dark:text-zinc-400">
+                <span>
+                  {filteredSales.length}{" "}
+                  {filteredSales.length === 1 ? "venda registrada" : "vendas registradas"}
+                </span>
+                <span>
+                  Volume total:{" "}
+                  <strong className="text-[#1C1C1E] dark:text-zinc-200 font-mono font-semibold">
+                    {formatBRL(totalRevenueCents)}
+                  </strong>
+                </span>
+              </div>
+            </div>
           </div>
+
+          {/* Right Column / Drawer: Detalhes da Venda */}
+          {selectedSale && (
+            <>
+              {/* Mobile / Tablet overlay backdrop */}
+              <div
+                className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity"
+                onClick={() => setSelectedSale(null)}
+              />
+
+              {/* Desktop Sticky Card / Mobile Slide-Over Container */}
+              <aside
+                className={`
+                  fixed lg:static inset-y-0 right-0 z-50 lg:z-10
+                  w-full sm:w-[400px] xl:w-[420px] shrink-0
+                  bg-white dark:bg-[#18181b]
+                  rounded-none lg:rounded-[22px]
+                  border-l lg:border border-[#E5E5EA] dark:border-[#27272a]
+                  shadow-2xl lg:shadow-md
+                  flex flex-col
+                  self-start lg:sticky lg:top-6
+                  overflow-hidden
+                  animate-in slide-in-from-right lg:slide-in-from-right-4 duration-200
+                `}
+              >
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-[#EFEFF4] dark:border-zinc-800 flex items-center justify-between">
+                  <h2 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-zinc-100">
+                    Detalhes da venda
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSale(null)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-zinc-100 hover:bg-[#F5F5F7] dark:hover:bg-zinc-800 transition cursor-pointer"
+                    title="Fechar detalhes"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Body (Scrollable with max height to avoid page stretching) */}
+                <div className="p-5 space-y-4 max-h-[calc(100vh-230px)] lg:max-h-[520px] overflow-y-auto text-[13px]">
+                  {/* Card do Cliente (Clicável para navegar à página do cliente) */}
+                  <button
+                    type="button"
+                    onClick={handleOpenClientProfile}
+                    aria-label={`Ver cadastro e ficha completa de ${selectedSale.clientName}`}
+                    title="Ver cadastro do cliente"
+                    className="w-full text-left flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#F9F9FB] hover:bg-[#F2F2F7] dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-[#EFEFF4] hover:border-[#D1D1D6] dark:border-zinc-800/80 dark:hover:border-zinc-700 transition cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-11 h-11 rounded-full bg-[#FCE7F3] dark:bg-pink-950/70 text-[#831843] dark:text-pink-300 font-bold text-base flex items-center justify-center shrink-0 select-none group-hover:scale-105 transition-transform">
+                        {selectedSale.clientName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[14px] text-[#1C1C1E] dark:text-zinc-100 truncate group-hover:text-black dark:group-hover:text-white flex items-center gap-1">
+                          <span>{selectedSale.clientName}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[12px] text-[#6E6E73] dark:text-zinc-400 truncate mt-0.5">
+                          <Mail className="w-3.5 h-3.5 text-[#8E8E93] group-hover:text-[#6E6E73] shrink-0 transition-colors" />
+                          <span className="truncate">
+                            {receiptTargetEmail || "cliente@exemplo.com"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[12px] text-[#6E6E73] dark:text-zinc-400 mt-0.5">
+                          <Phone className="w-3.5 h-3.5 text-[#8E8E93] group-hover:text-[#6E6E73] shrink-0 transition-colors" />
+                          <span>{receiptTargetPhone || "(11) 99999-9999"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[#8E8E93] group-hover:text-[#1C1C1E] dark:group-hover:text-white group-hover:bg-white dark:group-hover:bg-zinc-700/60 transition shrink-0 shadow-2xs">
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </button>
+
+                  {/* Pílula do Profissional */}
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#E5E5EA] dark:border-zinc-700 bg-white dark:bg-zinc-800/90 text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200">
+                      <div className="w-4 h-4 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[9px] font-bold flex items-center justify-center">
+                        {resolvedSaleProvider.initials || "BF"}
+                      </div>
+                      <span>{selectedSale.providerName}</span>
+                    </div>
+                  </div>
+
+                  {/* Lista de Itens do Atendimento */}
+                  <div className="pt-1">
+                    <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-zinc-400 uppercase tracking-wider block mb-2">
+                      Itens do atendimento
+                    </span>
+                    <div className="space-y-2.5">
+                      {saleItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between text-[13px]"
+                        >
+                          <span className="text-[#1C1C1E] dark:text-zinc-200 font-normal">
+                            {item.quantity}x {item.name}
+                          </span>
+                          <span className="font-medium text-[#1C1C1E] dark:text-zinc-100 font-mono">
+                            {formatBRL(item.amountCents)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Divisor */}
+                  <div className="border-b border-[#EFEFF4] dark:border-zinc-800" />
+
+                  {/* Subtotal, Gorjeta e Total */}
+                  <div className="space-y-2 text-[13px]">
+                    <div className="flex items-center justify-between text-[#6E6E73] dark:text-zinc-400">
+                      <span>Subtotal</span>
+                      <span className="font-mono text-[#1C1C1E] dark:text-zinc-200">
+                        {formatBRL(selectedSale.amountCents)}
+                      </span>
+                    </div>
+                    {selectedSale.tipCents > 0 && (
+                      <div className="flex items-center justify-between text-[#16A34A]">
+                        <span>Gorjeta</span>
+                        <span className="font-mono">+{formatBRL(selectedSale.tipCents)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-[14px] font-bold text-[#1C1C1E] dark:text-zinc-100 pt-0.5">
+                      <span>Total</span>
+                      <span className="font-mono">
+                        {formatBRL(selectedSale.amountCents + selectedSale.tipCents)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Divisor */}
+                  <div className="border-b border-[#EFEFF4] dark:border-zinc-800" />
+
+                  {/* Informações do Pagamento */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[13px] font-medium text-[#1C1C1E] dark:text-zinc-100">
+                      <span>Pagamento</span>
+                      <span className="font-mono">
+                        {formatBRL(selectedSale.amountCents + selectedSale.tipCents)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[12px] text-[#8E8E93] dark:text-zinc-400">
+                      <span>{selectedSale.appointmentTimeLabel}</span>
+                      <span className="font-medium text-[#1C1C1E] dark:text-zinc-300">
+                        {formatPaymentMethod(selectedSale.paymentMethod)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Feedback Inline */}
+                  {receiptFeedback && (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-medium flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{receiptFeedback}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sticky Action Footer */}
+                <div className="p-4 border-t border-[#EFEFF4] dark:border-zinc-800 bg-[#FAFAFC] dark:bg-zinc-900/80 flex items-center gap-3 shrink-0">
+                  {/* [...] Mais Opções */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setSaleMoreMenuOpen(!saleMoreMenuOpen)}
+                      title="Mais opções da venda"
+                      className="w-11 h-11 rounded-full border border-[#D4D4D8] dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-zinc-700 transition cursor-pointer"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+
+                    {/* Popover Menu */}
+                    {saleMoreMenuOpen && (
+                      <div className="absolute bottom-14 left-0 w-56 rounded-2xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-zinc-700 shadow-xl p-1.5 z-30 space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSaleMoreMenuOpen(false);
+                            setReceiptTab("print");
+                            setReceiptModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-[12.5px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-zinc-800 transition cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-[#8E8E93]" />
+                          <span>Imprimir comprovante</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopySaleSummary}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-[12.5px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-zinc-800 transition cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-[#8E8E93]" />
+                          <span>Copiar resumo da venda</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSaleMoreMenuOpen(false);
+                            setReceiptTab("whatsapp");
+                            setReceiptModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-[12.5px] font-medium text-[#1C1C1E] dark:text-zinc-200 hover:bg-[#F5F5F7] dark:hover:bg-zinc-800 transition cursor-pointer"
+                        >
+                          <Share2 className="w-3.5 h-3.5 text-[#8E8E93]" />
+                          <span>Reemitir comprovante</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botão Primário: Enviar comprovante */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReceiptTab("whatsapp");
+                      setReceiptModalOpen(true);
+                    }}
+                    className="flex-1 h-11 px-5 rounded-full bg-[#1C1C1E] dark:bg-zinc-100 hover:bg-[#2C2C2E] dark:hover:bg-white text-white dark:text-[#18181B] font-semibold text-xs tracking-wide transition active:scale-[0.98] shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Enviar comprovante</span>
+                  </button>
+                </div>
+              </aside>
+            </>
+          )}
         </div>
+
+        {/* Modal: Reemitir / Enviar Comprovante (WhatsApp, E-mail, Impressão) */}
+        {receiptModalOpen && selectedSale && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+              onClick={() => setReceiptModalOpen(false)}
+            />
+            <div className="relative w-full max-w-lg bg-white dark:bg-[#18181b] rounded-[24px] border border-[#E5E5EA] dark:border-[#27272a] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] z-10 animate-in fade-in zoom-in-95 duration-200">
+              {/* Cabeçalho do Modal */}
+              <div className="px-6 py-4.5 border-b border-[#EFEFF4] dark:border-zinc-800 flex items-center justify-between">
+                <div>
+                  <h3 className="text-[17px] font-bold text-[#1C1C1E] dark:text-zinc-100">
+                    Reemitir comprovante de venda
+                  </h3>
+                  <p className="text-[12px] text-[#6E6E73] dark:text-zinc-400">
+                    Segunda via oficial · Venda #{selectedSale.id.replace("sale-", "")}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReceiptModalOpen(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-zinc-100 hover:bg-[#F5F5F7] dark:hover:bg-zinc-800 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Seletor de Canais */}
+              <div className="p-4 bg-[#F9F9FB] dark:bg-zinc-900 border-b border-[#EFEFF4] dark:border-zinc-800 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReceiptTab("whatsapp")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    receiptTab === "whatsapp"
+                      ? "bg-white dark:bg-zinc-800 text-[#1C1C1E] dark:text-zinc-100 shadow-2xs border border-[#E5E5EA] dark:border-zinc-700"
+                      : "text-[#6E6E73] dark:text-zinc-400 hover:text-[#1C1C1E]"
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReceiptTab("email")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    receiptTab === "email"
+                      ? "bg-white dark:bg-zinc-800 text-[#1C1C1E] dark:text-zinc-100 shadow-2xs border border-[#E5E5EA] dark:border-zinc-700"
+                      : "text-[#6E6E73] dark:text-zinc-400 hover:text-[#1C1C1E]"
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5 text-sky-600" />
+                  <span>E-mail</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReceiptTab("print")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    receiptTab === "print"
+                      ? "bg-white dark:bg-zinc-800 text-[#1C1C1E] dark:text-zinc-100 shadow-2xs border border-[#E5E5EA] dark:border-zinc-700"
+                      : "text-[#6E6E73] dark:text-zinc-400 hover:text-[#1C1C1E]"
+                  }`}
+                >
+                  <Printer className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                  <span>Imprimir / PDF</span>
+                </button>
+              </div>
+
+              {/* Conteúdo da Aba Ativa */}
+              <div className="p-6 space-y-5 overflow-y-auto flex-1 text-[13px]">
+                {receiptTab === "whatsapp" && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                        WhatsApp do cliente
+                      </label>
+                      <input
+                        type="text"
+                        value={receiptTargetPhone}
+                        onChange={(e) => setReceiptTargetPhone(e.target.value)}
+                        placeholder="(00) 00000-0000"
+                        className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5EA] dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[#1C1C1E] dark:text-zinc-100 text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="block text-xs font-semibold text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                        Prévia da mensagem oficial de 2ª via
+                      </span>
+                      <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-zinc-900 border border-[#E5E5EA] dark:border-zinc-800 text-xs text-[#1C1C1E] dark:text-zinc-200 font-mono whitespace-pre-wrap leading-relaxed">
+                        {`*COMPROVANTE DE PAGAMENTO (2ª VIA)*\n*${state.settings.business.businessName || "Luvea Studio"}*\n\nOlá, *${selectedSale.clientName}*! Segue a 2ª via oficial do seu comprovante de atendimento:\n\n🗓 Data: ${selectedSale.appointmentTimeLabel}\n👤 Profissional: ${selectedSale.providerName}\n\n✂️ Itens consumidos:\n${saleItems.map((it) => `• ${it.quantity}x ${it.name} — ${formatBRL(it.amountCents)}`).join("\n")}\n\n💰 Subtotal: ${formatBRL(selectedSale.amountCents)}${selectedSale.tipCents > 0 ? `\n🎁 Gorjeta: +${formatBRL(selectedSale.tipCents)}` : ""}\n*TOTAL:* ${formatBRL(selectedSale.amountCents + selectedSale.tipCents)}\n💳 Forma de pagamento: ${formatPaymentMethod(selectedSale.paymentMethod)} (Pago)\n🧾 Autenticação: #REC-${selectedSale.id.replace("sale-", "").toUpperCase()}\n\nAgradecemos a sua preferência!`}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isSendingReceiptWhatsApp}
+                      onClick={handleSendReceiptWhatsApp}
+                      className="w-full py-3 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition active:scale-[0.98] shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    >
+                      {isSendingReceiptWhatsApp ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <MessageSquare className="w-4 h-4" />
+                      )}
+                      <span>Enviar comprovante via WhatsApp</span>
+                    </button>
+                  </div>
+                )}
+
+                {receiptTab === "email" && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                        E-mail de destino
+                      </label>
+                      <input
+                        type="email"
+                        value={receiptTargetEmail}
+                        onChange={(e) => setReceiptTargetEmail(e.target.value)}
+                        placeholder="cliente@exemplo.com"
+                        className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5EA] dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[#1C1C1E] dark:text-zinc-100 text-xs"
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-zinc-900 border border-[#E5E5EA] dark:border-zinc-800 space-y-2 text-xs text-[#6E6E73] dark:text-zinc-400">
+                      <div className="flex justify-between">
+                        <span>Assunto:</span>
+                        <span className="font-medium text-[#1C1C1E] dark:text-zinc-200">
+                          2ª Via - Comprovante de Pagamento ({formatBRL(selectedSale.amountCents + selectedSale.tipCents)})
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Remetente:</span>
+                        <span className="font-medium text-[#1C1C1E] dark:text-zinc-200">
+                          {state.settings.business.businessName || "Luvea Studio"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Destinatário:</span>
+                        <span className="font-medium text-[#1C1C1E] dark:text-zinc-200">
+                          {selectedSale.clientName} ({receiptTargetEmail || "não informado"})
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isSendingReceiptEmail || !receiptTargetEmail}
+                      onClick={handleSendReceiptEmail}
+                      className="w-full py-3 rounded-full bg-[#1C1C1E] dark:bg-zinc-100 hover:bg-[#2C2C2E] dark:hover:bg-white text-white dark:text-[#18181B] font-semibold text-xs transition active:scale-[0.98] shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSendingReceiptEmail ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Mail className="w-4 h-4" />
+                      )}
+                      <span>Enviar 2ª via por e-mail</span>
+                    </button>
+                  </div>
+                )}
+
+                {receiptTab === "print" && (
+                  <div className="space-y-4">
+                    {/* Cupom Imprimível */}
+                    <div
+                      id="sale-receipt-printable"
+                      className="p-6 bg-white dark:bg-zinc-900 border border-[#E5E5EA] dark:border-zinc-800 rounded-2xl space-y-4 shadow-2xs font-sans text-[#1C1C1E] dark:text-zinc-100"
+                    >
+                      {/* Cabeçalho da Empresa */}
+                      <div className="text-center pb-3 border-b border-dashed border-[#CBD5E1] dark:border-zinc-700">
+                        <h4 className="text-[16px] font-bold tracking-tight">
+                          {state.settings.business.businessName || "Luvea Studio"}
+                        </h4>
+                        <p className="text-[11px] text-[#6E6E73] dark:text-zinc-400 mt-0.5">
+                          {state.settings.business.address || "Atendimento presencial no estúdio"}
+                        </p>
+                        <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-zinc-800 text-[10.5px] font-semibold text-[#1C1C1E] dark:text-zinc-200 border border-[#E5E5EA] dark:border-zinc-700">
+                          <span>COMPROVANTE DE PAGAMENTO · 2ª VIA</span>
+                        </div>
+                      </div>
+
+                      {/* Metadados da Venda */}
+                      <div className="grid grid-cols-2 gap-2 text-[11.5px] pb-3 border-b border-dashed border-[#CBD5E1] dark:border-zinc-700">
+                        <div>
+                          <span className="text-[#8E8E93] dark:text-zinc-400 block">Cliente:</span>
+                          <span className="font-semibold">{selectedSale.clientName}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#8E8E93] dark:text-zinc-400 block">Profissional:</span>
+                          <span className="font-semibold">{selectedSale.providerName}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#8E8E93] dark:text-zinc-400 block">Data e horário:</span>
+                          <span className="font-semibold">{selectedSale.appointmentTimeLabel}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#8E8E93] dark:text-zinc-400 block">Forma de pagamento:</span>
+                          <span className="font-semibold">
+                            {formatPaymentMethod(selectedSale.paymentMethod)} (Pago)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Itens */}
+                      <div className="space-y-1.5 pb-3 border-b border-dashed border-[#CBD5E1] dark:border-zinc-700 text-[12px]">
+                        <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-zinc-400 block uppercase tracking-wider mb-1">
+                          Itens do atendimento
+                        </span>
+                        {saleItems.map((it) => (
+                          <div key={it.id} className="flex justify-between items-center">
+                            <span>
+                              {it.quantity}x {it.name}
+                            </span>
+                            <span className="font-mono font-medium">
+                              {formatBRL(it.amountCents)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Totais */}
+                      <div className="space-y-1 text-[12px]">
+                        <div className="flex justify-between text-[#6E6E73] dark:text-zinc-400">
+                          <span>Subtotal:</span>
+                          <span className="font-mono">{formatBRL(selectedSale.amountCents)}</span>
+                        </div>
+                        {selectedSale.tipCents > 0 && (
+                          <div className="flex justify-between text-[#16A34A]">
+                            <span>Gorjeta:</span>
+                            <span className="font-mono">+{formatBRL(selectedSale.tipCents)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-[14px] font-bold pt-1 border-t border-[#EFEFF4] dark:border-zinc-800">
+                          <span>TOTAL PAGO:</span>
+                          <span className="font-mono">
+                            {formatBRL(selectedSale.amountCents + selectedSale.tipCents)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Autenticidade */}
+                      <div className="pt-2 text-center text-[10px] text-[#8E8E93] dark:text-zinc-500 font-mono">
+                        Autenticação: #REC-{selectedSale.id.replace("sale-", "").toUpperCase()}
+                        <div className="mt-0.5">Emitido eletronicamente via Luvea Studio OS</div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handlePrintReceipt}
+                      className="w-full py-3 rounded-full bg-[#1C1C1E] dark:bg-zinc-100 hover:bg-[#2C2C2E] dark:hover:bg-white text-white dark:text-[#18181B] font-semibold text-xs transition active:scale-[0.98] shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Imprimir / Salvar em PDF</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -266,49 +1125,234 @@ export function PaymentsView({
       subtotalCents - invDiscountCents + invTaxCents
     );
 
+    const selectedClient = state.clients.find((c) => c.id === invClientId);
+    const targetEmail = invCustomEmail.trim() || selectedClient?.email || "";
+    const targetPhone = invCustomPhone.trim() || selectedClient?.phone || "";
+
+    const handleSendInvoice = async () => {
+      setIsSendingInvoice(true);
+      const nextNumber = `#${1000949 + state.invoices.length}`;
+      const paymentLink = `https://${state.settings.business.bookingSlug || "luveastudio"}.luvea.app/pay/${nextNumber.replace("#", "")}`;
+      const pixCode = `00020101021226840014br.gov.bcb.pix2562luvea.app/pay/${nextNumber.replace("#", "")}520400005303986540${(totalInvoiceCents / 100).toFixed(2)}5802BR5920${(state.settings.business.businessName || "Luvea Studio").slice(0, 20)}6009Sao Paulo62070503***6304`;
+
+      const deliveryChannels: ("email" | "whatsapp")[] = [];
+      if (invSendEmail && targetEmail) deliveryChannels.push("email");
+      if (invSendWhatsApp && targetPhone) deliveryChannels.push("whatsapp");
+
+      // 1. Disparo de E-mail via Resend
+      if (invSendEmail && targetEmail) {
+        try {
+          await fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: targetEmail,
+              subject: `Fatura ${nextNumber} de ${state.settings.business.businessName || "Luvea Studio"} (${formatBRL(totalInvoiceCents)})`,
+              type: "invoice",
+              invoiceNumber: nextNumber,
+              clientName: selectedClient?.fullName || "Cliente",
+              studioName: state.settings.business.businessName || "Luvea Studio",
+              studioAddress: state.settings.business.address || "Atendimento presencial no estúdio",
+              dueDate: formatDateBR(invDueDate),
+              issuedDate: formatDateBR(new Date().toISOString().slice(0, 10)),
+              items: invLineItems.map((li) => ({
+                label: li.label,
+                quantity: li.quantity || 1,
+                amountCents: li.amountCents,
+              })),
+              subtotalCents: subtotalCents,
+              discountCents: invDiscountCents,
+              taxCents: invTaxCents,
+              totalCents: totalInvoiceCents,
+              paymentLinkUrl: paymentLink,
+              pixCopyPasteCode: pixCode,
+              memo: invMemo,
+            }),
+          });
+        } catch (err) {
+          console.warn("[Invoice Email Dispatch]", err);
+        }
+      }
+
+      // 2. Disparo de WhatsApp via API ou automação
+      if (invSendWhatsApp && targetPhone) {
+        try {
+          await fetch("/api/whatsapp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              clientName: selectedClient?.fullName || "Cliente",
+              clientPhone: targetPhone,
+              templateType: "custom",
+              customMessage: `Olá, ${selectedClient?.fullName || "Cliente"}! Sua fatura ${nextNumber} no valor de ${formatBRL(totalInvoiceCents)} do estúdio ${state.settings.business.businessName || "Luvea Studio"} foi emitida.\n\nLink seguro para pagamento (Pix ou Cartão):\n${paymentLink}\n\nCódigo Pix Copia e Cola:\n${pixCode}\n\nVencimento: ${formatDateBR(invDueDate)}`,
+              whatsappConfig: state.reception.userConfig,
+            }),
+          });
+        } catch (err) {
+          console.warn("[Invoice WhatsApp Dispatch]", err);
+        }
+      }
+
+      onUpdateState((prev) =>
+        createAndSendInvoice(prev, {
+          title: invTitle,
+          providerId: invProviderId,
+          clientId: invClientId,
+          memo: invMemo,
+          dueDateISO: invDueDate,
+          lineItems: invLineItems,
+          discountCents: invDiscountCents,
+          taxCents: invTaxCents,
+          deliveryChannels,
+          clientEmail: targetEmail,
+          clientPhone: targetPhone,
+          pixPayload: pixCode,
+        })
+      );
+      setIsSendingInvoice(false);
+      setIsCreatingInvoice(false);
+    };
+
+    // Ação de 1 toque: Copiar Código Pix Copia e Cola
+    const handleCopyPixCode = (inv: InvoiceItem) => {
+      const pixCode =
+        inv.pixPayload ||
+        `00020101021226840014br.gov.bcb.pix2562luvea.app/pay/${inv.invoiceNumber.replace("#", "")}520400005303986540${(inv.totalCents / 100).toFixed(2)}5802BR5920${(state.settings.business.businessName || "Luvea Studio").slice(0, 20)}6009Sao Paulo62070503***6304`;
+      navigator.clipboard.writeText(pixCode);
+      setCopiedPixCode(inv.id);
+      setActionFeedback({ id: inv.id, message: "Código Pix Copia e Cola copiado com sucesso!" });
+      setTimeout(() => {
+        setCopiedPixCode(null);
+        setActionFeedback(null);
+      }, 2500);
+    };
+
+    // Ação de 1 toque: Copiar Link de Pagamento Web
+    const handleCopyPaymentLink = (inv: InvoiceItem) => {
+      const link =
+        inv.paymentLinkUrl ||
+        `https://${state.settings.business.bookingSlug || "luveastudio"}.luvea.app/pay/${inv.invoiceNumber.replace("#", "")}`;
+      navigator.clipboard.writeText(link);
+      setCopiedInvoiceLink(inv.id);
+      setActionFeedback({ id: inv.id, message: "Link da fatura copiado com sucesso!" });
+      setTimeout(() => {
+        setCopiedInvoiceLink(null);
+        setActionFeedback(null);
+      }, 2500);
+    };
+
+    // Ação de 1 toque: Reenviar E-mail via Resend
+    const handleResendInvoiceEmail = async (inv: InvoiceItem) => {
+      if (!inv.clientEmail) {
+        alert("Esta fatura não possui e-mail de destinatário cadastrado.");
+        return;
+      }
+      setResendingInvoiceId(inv.id);
+      try {
+        const pixCode =
+          inv.pixPayload ||
+          `00020101021226840014br.gov.bcb.pix2562luvea.app/pay/${inv.invoiceNumber.replace("#", "")}520400005303986540${(inv.totalCents / 100).toFixed(2)}5802BR5920${(state.settings.business.businessName || "Luvea Studio").slice(0, 20)}6009Sao Paulo62070503***6304`;
+        await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: inv.clientEmail,
+            subject: `Fatura ${inv.invoiceNumber} de ${state.settings.business.businessName || "Luvea Studio"} (${formatBRL(inv.totalCents)})`,
+            type: "invoice",
+            invoiceNumber: inv.invoiceNumber,
+            clientName: inv.clientName,
+            studioName: state.settings.business.businessName || "Luvea Studio",
+            dueDate: formatDateBR(inv.dueDateISO),
+            issuedDate: formatDateBR(inv.issuedAtISO),
+            items: inv.lineItems.map((li: InvoiceLineItem) => ({
+              label: li.label,
+              quantity: li.quantity || 1,
+              amountCents: li.amountCents,
+            })),
+            subtotalCents: inv.subtotalCents,
+            discountCents: inv.discountCents,
+            taxCents: inv.taxCents,
+            totalCents: inv.totalCents,
+            paymentLinkUrl: inv.paymentLinkUrl,
+            pixCopyPasteCode: pixCode,
+            memo: inv.memo,
+          }),
+        });
+        setActionFeedback({ id: inv.id, message: `Fatura reenviada com sucesso para ${inv.clientEmail}!` });
+        setTimeout(() => setActionFeedback(null), 3000);
+      } catch (err) {
+        console.warn("[Resend Invoice Email]", err);
+      } finally {
+        setResendingInvoiceId(null);
+      }
+    };
+
+    // Ação de 1 toque: Enviar / Compartilhar no WhatsApp
+    const handleSendWhatsAppMessage = (inv: InvoiceItem) => {
+      const phone =
+        inv.clientPhone ||
+        state.clients.find((c) => c.id === inv.clientId)?.phone ||
+        "";
+      const cleanPhone = phone.replace(/\D/g, "");
+      const formattedPhone = cleanPhone.startsWith("55")
+        ? cleanPhone
+        : cleanPhone
+        ? `55${cleanPhone}`
+        : "";
+      const paymentLink =
+        inv.paymentLinkUrl ||
+        `https://${state.settings.business.bookingSlug || "luveastudio"}.luvea.app/pay/${inv.invoiceNumber.replace("#", "")}`;
+      const pixCode =
+        inv.pixPayload ||
+        `00020101021226840014br.gov.bcb.pix2562luvea.app/pay/${inv.invoiceNumber.replace("#", "")}520400005303986540${(inv.totalCents / 100).toFixed(2)}5802BR5920${(state.settings.business.businessName || "Luvea Studio").slice(0, 20)}6009Sao Paulo62070503***6304`;
+      const text = `Olá, ${inv.clientName}! Sua fatura ${inv.invoiceNumber} no valor de ${formatBRL(inv.totalCents)} do estúdio ${state.settings.business.businessName || "Luvea Studio"} está disponível.\n\nLink para pagamento (Pix ou Cartão):\n${paymentLink}\n\nCódigo Pix Copia e Cola:\n${pixCode}\n\nVencimento: ${formatDateBR(inv.dueDateISO)}`;
+
+      const url = formattedPhone
+        ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+      setActionFeedback({ id: inv.id, message: "WhatsApp aberto com fatura e código Pix!" });
+      setTimeout(() => setActionFeedback(null), 3000);
+    };
+
     if (isCreatingInvoice) {
       return (
-        <div className="min-h-screen bg-[#FAFAFC] pb-24">
+        <div className="min-h-screen bg-[#FAFAFC] dark:bg-[#18181b] pb-24">
           {/* Top Full-Page Header (04-2-1-invoices.png) */}
-          <div className="px-4 sm:px-8 py-3.5 sm:py-5 bg-white border-b border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
+          <div className="px-4 sm:px-8 py-3.5 sm:py-5 bg-white dark:bg-[#18181b] border-b border-[#E5E5EA] dark:border-[#27272a] flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
             <div className="flex items-center gap-3">
               <button
+                type="button"
                 onClick={() => setIsCreatingInvoice(false)}
-                className="w-9 h-9 rounded-full border border-[#E5E5EA] flex items-center justify-center hover:bg-[#F5F5F7] shrink-0"
+                className="w-9 h-9 rounded-full border border-[#E5E5EA] dark:border-[#3f3f46] flex items-center justify-center hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] shrink-0 transition"
               >
-                <ArrowLeft className="w-4 h-4 text-[#1C1C1E]" />
+                <ArrowLeft className="w-4 h-4 text-[#1C1C1E] dark:text-white" />
               </button>
-              <h1 className="text-[18px] sm:text-[22px] font-bold text-[#1C1C1E] truncate">
+              <h1 className="text-[18px] sm:text-[22px] font-bold text-[#1C1C1E] dark:text-white truncate">
                 Nova fatura (New invoice)
               </h1>
             </div>
 
             <div className="flex items-center gap-2.5">
               <button
+                type="button"
                 onClick={() => setIsCreatingInvoice(false)}
-                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-[#E5E5EA] bg-white text-[12.5px] sm:text-[13px] font-semibold text-[#1C1C1E]"
+                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12.5px] sm:text-[13px] font-semibold text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                  onUpdateState((prev) =>
-                    createAndSendInvoice(prev, {
-                      title: invTitle,
-                      providerId: invProviderId,
-                      clientId: invClientId,
-                      memo: invMemo,
-                      dueDateISO: invDueDate,
-                      lineItems: invLineItems,
-                      discountCents: invDiscountCents,
-                      taxCents: invTaxCents,
-                    })
-                  );
-                  setIsCreatingInvoice(false);
-                }}
-                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[12.5px] sm:text-[13px] font-semibold transition truncate"
+                type="button"
+                disabled={isSendingInvoice}
+                onClick={handleSendInvoice}
+                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-[#18181b] text-[12.5px] sm:text-[13px] font-semibold transition truncate inline-flex items-center gap-2 disabled:opacity-60 shadow-2xs"
               >
-                Enviar fatura ({formatBRL(totalInvoiceCents)})
+                {isSendingInvoice && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>
+                  {isSendingInvoice
+                    ? "Emitindo fatura..."
+                    : `Emitir fatura (${formatBRL(totalInvoiceCents)})`}
+                </span>
               </button>
             </div>
           </div>
@@ -317,10 +1361,10 @@ export function PaymentsView({
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
             {/* Left Anchor Nav */}
             <div className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto no-scrollbar pb-2 lg:pb-0">
-              <div className="px-4 py-2 sm:py-2.5 rounded-[12px] bg-[#1C1C1E] text-white font-semibold text-[13px] shadow-sm whitespace-nowrap shrink-0">
+              <div className="px-4 py-2 sm:py-2.5 rounded-[12px] bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] font-semibold text-[13px] shadow-sm whitespace-nowrap shrink-0">
                 Detalhes básicos
               </div>
-              <div className="px-4 py-2 sm:py-2.5 rounded-[12px] text-[#6E6E73] font-medium text-[13px] whitespace-nowrap shrink-0 hover:bg-[#F5F5F7]">
+              <div className="px-4 py-2 sm:py-2.5 rounded-[12px] text-[#6E6E73] dark:text-[#a1a1aa] font-medium text-[13px] whitespace-nowrap shrink-0 hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition">
                 Itens da fatura
               </div>
             </div>
@@ -328,26 +1372,26 @@ export function PaymentsView({
             {/* Right Form Cards */}
             <div className="lg:col-span-9 space-y-6">
               {/* Card 1: Basic Details */}
-              <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4">
-                <h2 className="text-[18px] font-bold text-[#1C1C1E]">
+              <div className="bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] p-6 shadow-gg-card space-y-4">
+                <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
                   Detalhes básicos
                 </h2>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                  <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                     Título da fatura
                   </label>
                   <input
                     type="text"
                     value={invTitle}
                     onChange={(e) => setInvTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
+                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[14px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                    <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                       Profissional responsável
                     </label>
                     <DropdownSelect
@@ -363,12 +1407,17 @@ export function PaymentsView({
                   </div>
 
                   <div>
-                    <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                    <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                       Cliente destinatário
                     </label>
                     <DropdownSelect
                       value={invClientId}
-                      onChange={(val) => setInvClientId(val)}
+                      onChange={(val) => {
+                        setInvClientId(val);
+                        const cli = state.clients.find((c) => c.id === val);
+                        if (cli?.email) setInvCustomEmail(cli.email);
+                        if (cli?.phone) setInvCustomPhone(cli.phone);
+                      }}
                       options={state.clients.map((cli) => ({
                         value: cli.id,
                         label: cli.fullName,
@@ -379,12 +1428,104 @@ export function PaymentsView({
                   </div>
                 </div>
 
+                {/* Canais de Envio & Contato (E-mail vs WhatsApp) */}
+                <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#3f3f46] space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                        Canais de envio da fatura
+                      </h3>
+                      <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Escolha como o cliente receberá a cobrança com Pix Copia e Cola e link de checkout.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={invSendEmail}
+                        onClick={() => setInvSendEmail(!invSendEmail)}
+                        className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition inline-flex items-center gap-1.5 cursor-pointer ${
+                          invSendEmail
+                            ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-xs"
+                            : "border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#6E6E73] dark:text-[#a1a1aa] hover:border-[#1C1C1E] dark:hover:border-white"
+                        }`}
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>E-mail</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={invSendWhatsApp}
+                        onClick={() => setInvSendWhatsApp(!invSendWhatsApp)}
+                        className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition inline-flex items-center gap-1.5 cursor-pointer ${
+                          invSendWhatsApp
+                            ? "bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] shadow-xs"
+                            : "border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#6E6E73] dark:text-[#a1a1aa] hover:border-[#1C1C1E] dark:hover:border-white"
+                        }`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    {invSendEmail && (
+                      <div className="space-y-1">
+                        <label htmlFor="inv-dest-email" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa]">
+                          E-mail de cobrança do cliente
+                        </label>
+                        <input
+                          id="inv-dest-email"
+                          type="email"
+                          value={invCustomEmail || selectedClient?.email || ""}
+                          onChange={(e) => setInvCustomEmail(e.target.value)}
+                          placeholder="exemplo@cliente.com"
+                          className="w-full px-3.5 py-2 rounded-xl border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+                        />
+                        <p className="text-[10.5px] text-[#8E8E93] dark:text-[#71717a]">
+                          Demonstrativo editorial com chave Pix e detalhamento de valores.
+                        </p>
+                      </div>
+                    )}
+
+                    {invSendWhatsApp && (
+                      <div className="space-y-1">
+                        <label htmlFor="inv-dest-phone" className="block text-[11.5px] font-medium text-[#71717A] dark:text-[#a1a1aa]">
+                          WhatsApp do cliente
+                        </label>
+                        <input
+                          id="inv-dest-phone"
+                          type="tel"
+                          value={invCustomPhone || selectedClient?.phone || ""}
+                          onChange={(e) => setInvCustomPhone(e.target.value)}
+                          placeholder="(11) 98765-4321"
+                          className="w-full px-3.5 py-2 rounded-xl border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition font-mono"
+                        />
+                        <p className="text-[10.5px] text-[#8E8E93] dark:text-[#71717a]">
+                          Mensagem com link de pagamento seguro e chave Pix Copia e Cola.
+                        </p>
+                      </div>
+                    )}
+
+                    {!invSendEmail && !invSendWhatsApp && (
+                      <div className="md:col-span-2 py-2.5 px-3.5 rounded-xl bg-white/70 dark:bg-[#18181b]/70 border border-[#E5E5EA] dark:border-[#3f3f46] text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Nenhum canal automático selecionado. A fatura será gerada para envio manual com as ações de 1 toque (Copiar link Pix / WhatsApp).
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[12px] font-semibold text-[#6E6E73]">
+                    <label className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa]">
                       Mensagem / Memo na fatura
                     </label>
-                    <span className="text-[11px] text-[#8E8E93]">
+                    <span className="text-[11px] text-[#8E8E93] dark:text-[#71717a]">
                       {invMemo.length}/500
                     </span>
                   </div>
@@ -393,27 +1534,27 @@ export function PaymentsView({
                     maxLength={500}
                     value={invMemo}
                     onChange={(e) => setInvMemo(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[13px]"
+                    className="w-full px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#6E6E73] mb-1">
+                  <label className="block text-[12px] font-semibold text-[#6E6E73] dark:text-[#a1a1aa] mb-1">
                     Data de vencimento
                   </label>
                   <input
                     type="date"
                     value={invDueDate}
                     onChange={(e) => setInvDueDate(e.target.value)}
-                    className="w-full max-w-xs px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] text-[14px]"
+                    className="w-full max-w-xs px-4 py-2.5 rounded-[12px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[14px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                   />
                 </div>
               </div>
 
               {/* Card 2: Invoice Items (04-2-1-invoices.png) */}
-              <div className="bg-white rounded-[20px] border border-[#E5E5EA] p-6 shadow-gg-card space-y-4">
+              <div className="bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] p-6 shadow-gg-card space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-[18px] font-bold text-[#1C1C1E]">
+                  <h2 className="text-[18px] font-bold text-[#1C1C1E] dark:text-white">
                     Itens da fatura
                   </h2>
                   <button
@@ -430,7 +1571,7 @@ export function PaymentsView({
                         },
                       ])
                     }
-                    className="px-4 py-2 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[12px] font-semibold text-[#1C1C1E] flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-full border border-[#E5E5EA] dark:border-[#3f3f46] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[12px] font-semibold text-[#1C1C1E] dark:text-white flex items-center gap-1.5 transition"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Adicionar item</span>
@@ -441,7 +1582,7 @@ export function PaymentsView({
                   {invLineItems.map((item, idx) => (
                     <div
                       key={item.id}
-                      className="p-3.5 rounded-[14px] border border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3"
+                      className="p-3.5 rounded-[14px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-[#FAFAFC] dark:bg-[#27272a]/40 flex flex-wrap items-center justify-between gap-3"
                     >
                       <input
                         type="text"
@@ -453,10 +1594,10 @@ export function PaymentsView({
                             )
                           )
                         }
-                        className="flex-1 min-w-[200px] px-3 py-1.5 rounded-[10px] border border-[#E5E5EA] text-[13px] font-semibold"
+                        className="flex-1 min-w-[200px] px-3 py-1.5 rounded-[10px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-semibold text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                       />
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] text-[#6E6E73]">R$</span>
+                        <span className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">R$</span>
                         <input
                           type="number"
                           value={Math.round(item.amountCents / 100)}
@@ -470,7 +1611,7 @@ export function PaymentsView({
                               )
                             );
                           }}
-                          className="w-24 px-3 py-1.5 rounded-[10px] border border-[#E5E5EA] text-[13px] font-mono font-bold"
+                          className="w-24 px-3 py-1.5 rounded-[10px] border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono font-bold text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                         />
                         {invLineItems.length > 1 && (
                           <button
@@ -480,7 +1621,8 @@ export function PaymentsView({
                                 prev.filter((_, i) => i !== idx)
                               )
                             }
-                            className="p-1.5 text-[#8E8E93] hover:text-[#DC2626]"
+                            className="p-1.5 text-[#8E8E93] hover:text-[#DC2626] dark:hover:text-red-400 transition"
+                            title="Remover item"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -491,12 +1633,12 @@ export function PaymentsView({
                 </div>
 
                 {/* Subtotal / Discount / Total Breakdown */}
-                <div className="pt-4 border-t border-[#EFEFF4] space-y-2 text-[13px]">
-                  <div className="flex justify-between text-[#6E6E73]">
+                <div className="pt-4 border-t border-[#EFEFF4] dark:border-[#27272a] space-y-2 text-[13px]">
+                  <div className="flex justify-between text-[#6E6E73] dark:text-[#a1a1aa]">
                     <span>Subtotal</span>
-                    <span className="font-mono">{formatBRL(subtotalCents)}</span>
+                    <span className="font-mono text-[#1C1C1E] dark:text-white">{formatBRL(subtotalCents)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-[#6E6E73]">
+                  <div className="flex items-center justify-between text-[#6E6E73] dark:text-[#a1a1aa]">
                     <span>Desconto (R$)</span>
                     <input
                       type="number"
@@ -506,11 +1648,11 @@ export function PaymentsView({
                           Math.max(0, parseInt(e.target.value || "0", 10)) * 100
                         )
                       }
-                      className="w-24 px-2.5 py-1 rounded-lg border border-[#E5E5EA] text-right font-mono"
+                      className="w-24 px-2.5 py-1 rounded-lg border border-[#E5E5EA] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-right font-mono text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white"
                     />
                   </div>
-                  <div className="flex justify-between text-[16px] font-bold text-[#1C1C1E] pt-2 border-t border-[#EFEFF4]">
-                    <span>Total da Fatura (Link Pix &amp; Cartão)</span>
+                  <div className="flex justify-between text-[16px] font-bold text-[#1C1C1E] dark:text-white pt-2 border-t border-[#EFEFF4] dark:border-[#27272a]">
+                    <span>Total da Fatura (Link Pix & Cartão)</span>
                     <span className="font-mono">
                       {formatBRL(totalInvoiceCents)}
                     </span>
@@ -525,9 +1667,9 @@ export function PaymentsView({
 
     // Default Invoices Landing + List (04-2-invoices.png)
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
         {/* Editorial Hero Card matching 04-2-invoices.png */}
-        <div className="rounded-[24px] bg-gg-hero-gradient dark:bg-none dark:bg-[#121214] border border-[#E5E5EA] dark:border-[#27272a] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
+        <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] dark:border-[#27272a] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
           <div className="lg:col-span-7 space-y-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-[#27272a] border border-[#DDD6FE] dark:border-[#3f3f46] text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
               Apresentando Faturas
@@ -541,7 +1683,7 @@ export function PaymentsView({
             <div className="pt-2">
               <button
                 onClick={() => setIsCreatingInvoice(true)}
-                className="px-6 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[14px] font-semibold transition"
+                className="px-6 py-3 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#f4f4f5] text-white dark:text-[#09090b] text-[14px] font-semibold transition shadow-2xs"
               >
                 Criar fatura
               </button>
@@ -551,82 +1693,218 @@ export function PaymentsView({
           {/* Right Mockup Card (#1000948 from 04-2-invoices.png) */}
           <div className="lg:col-span-5 bg-white dark:bg-[#18181b] rounded-[20px] p-6 border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-card space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[12px] font-mono font-bold text-[#6E56CF]">
+              <span className="text-[12px] font-mono font-bold text-[#6E56CF] dark:text-[#a78bfa]">
                 FATURA #1000948
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium shadow-2xs">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white text-[11px] font-medium shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                <span>Pix &amp; Cartão Ativo</span>
+                <span>Pix & Cartão Ativo</span>
               </span>
             </div>
-            <p className="text-[26px] font-mono font-bold text-[#1C1C1E]">
+            <p className="text-[26px] font-mono font-bold text-[#1C1C1E] dark:text-white">
               R$ 1.125,00
             </p>
-            <p className="text-[12px] text-[#6E6E73]">
+            <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
               Vencimento: 30/10/2026 · Destinatário: Isolde Quinn
             </p>
           </div>
         </div>
 
         {/* Active Invoices Table */}
-        <div className="bg-white rounded-[20px] border border-[#E5E5EA] shadow-gg-card overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#EFEFF4] flex items-center justify-between">
-            <h2 className="text-[16px] font-bold text-[#1C1C1E]">
-              Faturas Emitidas ({state.invoices.length})
-            </h2>
+        <div className="bg-white dark:bg-[#18181b] rounded-[20px] border border-[#E5E5EA] dark:border-[#27272a] shadow-gg-card overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#EFEFF4] dark:border-[#27272a] flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-[16px] font-bold text-[#1C1C1E] dark:text-white">
+                Faturas Emitidas
+              </h2>
+              <span className="px-2 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[11px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+                {state.invoices.length}
+              </span>
+            </div>
             <button
               onClick={() => setIsCreatingInvoice(true)}
-              className="px-4 py-2 rounded-full bg-[#1C1C1E] text-white text-[12px] font-semibold"
+              className="px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12px] font-semibold hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition shadow-2xs"
             >
               + Nova fatura
             </button>
           </div>
-          <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
-            {state.invoices.map((inv) => (
-              <div
-                key={inv.id}
-                className="p-5 flex flex-wrap items-center justify-between gap-4 hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/60"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[13px] font-bold text-[#6E56CF]">
-                      {inv.invoiceNumber}
-                    </span>
-                    <span className="text-[15px] font-bold text-[#1C1C1E]">
-                      {inv.title}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E5E5EA] text-[#1C1C1E] text-[11px] font-medium shadow-2xs">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          inv.status === "paid"
-                            ? "bg-emerald-500 ring-2 ring-emerald-500/20"
-                            : inv.status === "sent"
-                            ? "bg-[#6E56CF] ring-2 ring-[#6E56CF]/20"
-                            : "bg-[#D97706] ring-2 ring-[#D97706]/20"
-                        }`}
-                      />
-                      <span>
-                        {inv.status === "paid"
-                          ? "Paga"
-                          : inv.status === "sent"
-                          ? "Enviada"
-                          : "Pendente"}
-                      </span>
-                    </span>
-                  </div>
-                  <p className="text-[12px] text-[#6E6E73]">
-                    Cliente: {inv.clientName} ({inv.clientEmail}) · Vence em{" "}
-                    {formatDateBR(inv.dueDateISO)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[16px] font-mono font-bold text-[#1C1C1E]">
-                    {formatBRL(inv.totalCents)}
-                  </span>
-                </div>
+
+          {state.invoices.length === 0 ? (
+            <div className="py-14 px-6 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] flex items-center justify-center mx-auto text-[#6E6E73] dark:text-[#a1a1aa]">
+                <FileText className="w-5 h-5" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-[15px] font-semibold text-[#1C1C1E] dark:text-white">
+                Nenhuma fatura emitida ainda
+              </h3>
+              <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-sm mx-auto">
+                Emita faturas personalizadas com Pix Copia e Cola e checkout integrado para enviar aos seus clientes por E-mail ou WhatsApp.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsCreatingInvoice(true)}
+                className="mt-2 px-5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition shadow-2xs"
+              >
+                + Criar primeira fatura
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#EFEFF4] dark:divide-[#27272a]">
+              {state.invoices.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="p-5 transition hover:bg-[#FAFAFC] dark:hover:bg-[#27272a]/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                >
+                  {/* Left Column: Identificação, Título & Metadados */}
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="font-mono text-[13px] font-bold text-[#6E56CF] dark:text-[#a78bfa] shrink-0">
+                        {inv.invoiceNumber}
+                      </span>
+                      <h3 className="text-[14.5px] font-bold text-[#1C1C1E] dark:text-white truncate">
+                        {inv.title}
+                      </h3>
+
+                      {/* Badge de Status Editorial (Anti-AI Slop) */}
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[#1C1C1E] dark:text-white text-[11px] font-medium shadow-2xs shrink-0">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            inv.status === "paid"
+                              ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                              : inv.status === "sent"
+                              ? "bg-[#6E56CF] ring-2 ring-[#6E56CF]/20"
+                              : "bg-[#D97706] ring-2 ring-[#D97706]/20"
+                          }`}
+                        />
+                        <span>
+                          {inv.status === "paid"
+                            ? "Paga"
+                            : inv.status === "sent"
+                            ? "Enviada"
+                            : "Pendente"}
+                        </span>
+                      </span>
+
+                      {/* Badges de canais de entrega */}
+                      {inv.deliveryChannels && inv.deliveryChannels.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          {inv.deliveryChannels.includes("email") && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#F5F5F7] dark:bg-[#27272a] text-[10px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] border border-[#E5E5EA] dark:border-[#3f3f46]">
+                              E-mail
+                            </span>
+                          )}
+                          {inv.deliveryChannels.includes("whatsapp") && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#F5F5F7] dark:bg-[#27272a] text-[10px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] border border-[#E5E5EA] dark:border-[#3f3f46]">
+                              WhatsApp
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      <span>
+                        Cliente: <strong className="font-medium text-[#1C1C1E] dark:text-white">{inv.clientName}</strong>
+                      </span>
+                      {inv.clientEmail && (
+                        <span>· {inv.clientEmail}</span>
+                      )}
+                      <span>· Vencimento: {formatDateBR(inv.dueDateISO)}</span>
+                    </div>
+
+                    {/* Feedback Toast Inline temporário */}
+                    {actionFeedback?.id === inv.id && (
+                      <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-150">
+                        {actionFeedback.message}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Valor Total & Ações de 1 Toque */}
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#F2F2F7] dark:border-[#27272a]">
+                    <div className="text-left sm:text-right">
+                      <span className="text-[17px] font-mono font-bold text-[#1C1C1E] dark:text-white block">
+                        {formatBRL(inv.totalCents)}
+                      </span>
+                      <span className="text-[11px] text-[#8E8E93] dark:text-[#71717a] block">
+                        Pix & Cartão
+                      </span>
+                    </div>
+
+                    {/* Grupo de Ações de 1 Toque */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {/* Ação 1: Copiar Link Pix */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPixCode(inv)}
+                        className={`px-3 py-1.5 rounded-full border text-[11.5px] font-medium inline-flex items-center gap-1.5 transition cursor-pointer ${
+                          copiedPixCode === inv.id
+                            ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+                            : "border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                        }`}
+                        title="Copiar código Pix Copia e Cola para pagamento imediato"
+                      >
+                        {copiedPixCode === inv.id ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        ) : (
+                          <QrCode className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
+                        )}
+                        <span>{copiedPixCode === inv.id ? "Pix copiado" : "Copiar link Pix"}</span>
+                      </button>
+
+                      {/* Ação 2: Reenviar E-mail */}
+                      {inv.clientEmail ? (
+                        <button
+                          type="button"
+                          disabled={resendingInvoiceId === inv.id}
+                          onClick={() => handleResendInvoiceEmail(inv)}
+                          className="px-3 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[11.5px] font-medium inline-flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+                          title="Reenviar fatura por e-mail via Resend"
+                        >
+                          {resendingInvoiceId === inv.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6E6E73] dark:text-[#a1a1aa]" />
+                          ) : (
+                            <Mail className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
+                          )}
+                          <span>{resendingInvoiceId === inv.id ? "Enviando..." : "Reenviar e-mail"}</span>
+                        </button>
+                      ) : null}
+
+                      {/* Ação 3: Enviar WhatsApp */}
+                      <button
+                        type="button"
+                        onClick={() => handleSendWhatsAppMessage(inv)}
+                        className="px-3 py-1.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[11.5px] font-medium inline-flex items-center gap-1.5 transition cursor-pointer"
+                        title="Enviar ou compartilhar fatura via WhatsApp"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
+                        <span>WhatsApp</span>
+                      </button>
+
+                      {/* Ação 4: Copiar link Web */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPaymentLink(inv)}
+                        className={`px-3 py-1.5 rounded-full border text-[11.5px] font-medium inline-flex items-center gap-1.5 transition cursor-pointer ${
+                          copiedInvoiceLink === inv.id
+                            ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+                            : "border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a]"
+                        }`}
+                        title="Copiar URL pública da fatura"
+                      >
+                        {copiedInvoiceLink === inv.id ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5 text-[#6E6E73] dark:text-[#a1a1aa]" />
+                        )}
+                        <span>{copiedInvoiceLink === inv.id ? "Link copiado" : "Copiar link"}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -636,8 +1914,8 @@ export function PaymentsView({
   // 3. GIFT CARDS (Vale-Presentes)
   // ===========================================================================
   return (
-    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-      <div className="rounded-[24px] bg-gg-hero-gradient dark:bg-none dark:bg-[#121214] border border-[#E5E5EA] dark:border-[#27272a] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-6 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
+      <div className="rounded-[24px] bg-gg-hero-gradient border border-[#E5E5EA] dark:border-[#27272a] p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center shadow-gg-card">
         <div className="lg:col-span-7 space-y-4">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-[#27272a] border border-[#DDD6FE] dark:border-[#3f3f46] text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
             <Gift className="w-3.5 h-3.5 text-[#E11D8F]" />
@@ -800,6 +2078,22 @@ export function QuickSaleDrawer({
   // Wizard Navigation Step: 1 = Atendimento, 2 = Itens, 3 = Pagamento & Resumo, 4 = Comprovante
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
+  // Linked Appointment for Auto-Completion on Checkout
+  const [linkedAppointment, setLinkedAppointment] = useState<CalendarEventItem | null>(
+    prefillAppointment ?? null
+  );
+
+  const pendingTodayAppointments = useMemo(() => {
+    const todayISO = getTodayDateISO();
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    return getPendingCheckoutAppointments(
+      state.calendarEvents,
+      todayISO,
+      currentMinutes
+    );
+  }, [state.calendarEvents]);
+
   // Step 1: Atendimento State
   const [clientId, setClientId] = useState<string>(
     prefillAppointment?.clientId ?? ""
@@ -814,6 +2108,64 @@ export function QuickSaleDrawer({
     prefillAppointment?.startTime ??
       new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
   );
+
+  const handleSelectPendingAppointment = (apt: CalendarEventItem) => {
+    setLinkedAppointment(apt);
+    const targetClient =
+      (apt.clientId && state.clients.find((c) => c.id === apt.clientId)) ||
+      state.clients.find(
+        (c) => c.fullName.toLowerCase() === (apt.clientName || "").toLowerCase()
+      );
+    if (targetClient) {
+      setClientId(targetClient.id);
+    } else if (apt.clientId) {
+      setClientId(apt.clientId);
+    }
+    if (apt.providerId) setProviderId(apt.providerId);
+    if (apt.dateISO) setAttendanceDate(apt.dateISO);
+    if (apt.startTime) setAttendanceTime(apt.startTime);
+
+    const items: CartItem[] = [];
+    if (apt.serviceIds && apt.serviceIds.length > 0) {
+      apt.serviceIds.forEach((sid) => {
+        const s = state.services.find((x) => x.id === sid);
+        if (s) {
+          items.push({
+            id: s.id,
+            type: "service",
+            name: s.name,
+            priceCents: s.priceCents,
+            durationMinutes: s.durationMinutes,
+            calendarColor: s.calendarColor,
+            subtitle: `${s.durationMinutes} mins · ${s.category}`,
+          });
+        }
+      });
+    }
+
+    if (items.length > 0) {
+      setSelectedCartItems(items);
+    } else if (apt.serviceNames && apt.serviceNames.length > 0) {
+      setSelectedCartItems(
+        apt.serviceNames.map((name, idx) => ({
+          id: `pref-srv-${idx}`,
+          type: "service" as const,
+          name,
+          priceCents: Math.round(apt.totalCents / apt.serviceNames.length),
+          durationMinutes: apt.activeDurationMinutes,
+          calendarColor: apt.calendarColor,
+          subtitle: `${apt.activeDurationMinutes} mins`,
+        }))
+      );
+    }
+    setPixPayload(null);
+  };
+
+  const handleUnlinkAppointment = () => {
+    setLinkedAppointment(null);
+    setSelectedCartItems([]);
+    setClientId("");
+  };
 
   // Step 2: Items Cart State
   const [selectedCartItems, setSelectedCartItems] = useState<CartItem[]>(() => {
@@ -947,13 +2299,48 @@ export function QuickSaleDrawer({
 
   // Sync prefill appointment if provided or updated
   useEffect(() => {
+    setLinkedAppointment(prefillAppointment ?? null);
     if (prefillAppointment) {
       if (prefillAppointment.clientId) setClientId(prefillAppointment.clientId);
       if (prefillAppointment.providerId) setProviderId(prefillAppointment.providerId);
       if (prefillAppointment.dateISO) setAttendanceDate(prefillAppointment.dateISO);
       if (prefillAppointment.startTime) setAttendanceTime(prefillAppointment.startTime);
+
+      if (prefillAppointment.serviceIds && prefillAppointment.serviceIds.length > 0) {
+        const items: CartItem[] = [];
+        prefillAppointment.serviceIds.forEach((sid) => {
+          const s = state.services.find((x) => x.id === sid);
+          if (s) {
+            items.push({
+              id: s.id,
+              type: "service",
+              name: s.name,
+              priceCents: s.priceCents,
+              durationMinutes: s.durationMinutes,
+              calendarColor: s.calendarColor,
+              subtitle: `${s.durationMinutes} mins · ${s.category}`,
+            });
+          }
+        });
+        if (items.length > 0) {
+          setSelectedCartItems(items);
+        }
+      } else if (prefillAppointment.serviceNames && prefillAppointment.serviceNames.length > 0) {
+        setSelectedCartItems(
+          prefillAppointment.serviceNames.map((name, idx) => ({
+            id: `pref-srv-${idx}`,
+            type: "service" as const,
+            name,
+            priceCents: prefillAppointment.totalCents,
+            durationMinutes: prefillAppointment.activeDurationMinutes,
+            calendarColor: prefillAppointment.calendarColor,
+            subtitle: `${prefillAppointment.activeDurationMinutes} mins`,
+          }))
+        );
+      }
+      setStep(1);
     }
-  }, [prefillAppointment]);
+  }, [prefillAppointment, state.services]);
 
   // Auto-dismiss feedbacks (5 seconds)
   useEffect(() => {
@@ -1031,7 +2418,7 @@ export function QuickSaleDrawer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          appointmentId: prefillAppointment?.id || `venda-rapida-${Date.now()}`,
+          appointmentId: linkedAppointment?.id || prefillAppointment?.id || `venda-rapida-${Date.now()}`,
           clientName: selectedClient?.fullName || "Cliente Venda Rápida",
           clientEmail: selectedClient?.email || "cliente@luvea.app",
           serviceId: selectedCartItems[0]?.id ?? "quick-sale",
@@ -1189,7 +2576,7 @@ export function QuickSaleDrawer({
 
     onUpdateState((prev) =>
       executeQuickSaleCheckout(prev, {
-        appointmentId: prefillAppointment?.id,
+        appointmentId: linkedAppointment?.id || prefillAppointment?.id,
         clientId,
         providerId: providerId || prev.staff[0]?.id || "",
         itemsSummary,
@@ -1310,15 +2697,81 @@ export function QuickSaleDrawer({
       return;
     }
     setIsSendingReceiptEmail(true);
-    setTimeout(() => {
+    setReceiptEmailFeedback(null);
+
+    const invoiceNum = `#REC-${Math.floor(100000 + Math.random() * 900000)}`;
+    const effectiveAmount = paymentMethod === "Pix" ? targetPixCents : finalTotalCents;
+    const clientDisplayName = selectedClient?.fullName || "Cliente";
+
+    const receiptPayload: PublicReceiptPayload = {
+      receiptNumber: invoiceNum,
+      clientName: clientDisplayName,
+      studioName: state.settings.business.businessName || "Luvea Studio",
+      studioAddress: state.settings.business.address || "Atendimento presencial no estúdio",
+      paymentDate: `${formatDateBR(attendanceDate)}, ${attendanceTime}`,
+      paymentMethod: paymentMethod,
+      professionalName: selectedProvider?.fullName || state.staff[0]?.fullName || "Profissional",
+      items: selectedCartItems.map((it) => ({
+        label: it.name,
+        quantity: 1,
+        amountCents: it.priceCents,
+      })),
+      subtotalCents: effectiveAmount,
+      discountCents: 0,
+      tipCents: 0,
+      totalCents: effectiveAmount,
+      memo: `Atendimento realizado com sucesso em ${attendanceTime}.`,
+    };
+
+    const publicReceiptUrl = getPublicReceiptUrl(invoiceNum, receiptPayload);
+
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: receiptEmail.trim(),
+          subject: `Comprovante de Pagamento — ${state.settings.business.businessName || "Luvea Studio"} (${formatBRL(effectiveAmount)})`,
+          type: "receipt",
+          receiptNumber: invoiceNum,
+          clientName: clientDisplayName,
+          studioName: state.settings.business.businessName || "Luvea Studio",
+          studioAddress: state.settings.business.address || "Atendimento presencial no estúdio",
+          paymentDate: `${formatDateBR(attendanceDate)}, ${attendanceTime}`,
+          paymentMethod: paymentMethod,
+          professionalName: selectedProvider?.fullName || state.staff[0]?.fullName || "Profissional",
+          items: selectedCartItems.map((it) => ({
+            label: it.name,
+            quantity: 1,
+            amountCents: it.priceCents,
+          })),
+          subtotalCents: effectiveAmount,
+          discountCents: 0,
+          tipCents: 0,
+          totalCents: effectiveAmount,
+          receiptUrl: publicReceiptUrl,
+          memo: `Atendimento realizado com sucesso em ${attendanceTime}.`,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        setReceiptEmailFeedback(`Comprovante enviado para ${receiptEmail.trim()} com sucesso!`);
+      } else {
+        throw new Error(data?.error || "Falha no envio do e-mail.");
+      }
+    } catch (err) {
+      console.warn("[Wizard Receipt Email Dispatch]", err);
+      setReceiptEmailFeedback("Erro ao disparar e-mail. Verifique o endereço.");
+    } finally {
       setIsSendingReceiptEmail(false);
-      setReceiptEmailFeedback(`Comprovante enviado para ${receiptEmail.trim()} com sucesso!`);
-    }, 800);
+    }
   };
 
   // Reset Wizard for New Sale
   const handleResetForNewSale = () => {
     setStep(1);
+    setLinkedAppointment(null);
     setClientId("");
     setSelectedCartItems([]);
     setCustomItemName("");
@@ -1359,8 +2812,10 @@ export function QuickSaleDrawer({
             </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] flex items-center justify-center text-[#6E6E73] transition"
+            aria-label="Fechar Venda Rápida"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1453,6 +2908,104 @@ export function QuickSaleDrawer({
           {/* ================================================================= */}
           {step === 1 && (
             <div className="space-y-5 animate-in fade-in duration-150">
+              {/* Carrossel de Atendimentos Aguardando Baixa */}
+              {pendingTodayAppointments.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-[#F5F5F7]/80 dark:bg-[#1f1f23] border border-[#E5E5EA] dark:border-[#27272a] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+                      <span className="text-[12px] font-semibold text-[#1C1C1E] dark:text-white">
+                        Aguardando baixa hoje
+                      </span>
+                      <span className="px-1.5 py-0.2 text-[10.5px] rounded-full bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] font-bold text-[#1C1C1E] dark:text-white">
+                        {pendingTodayAppointments.length}
+                      </span>
+                    </div>
+                    {linkedAppointment && (
+                      <button
+                        type="button"
+                        onClick={handleUnlinkAppointment}
+                        className="min-h-[44px] px-2.5 py-1.5 inline-flex items-center text-[12px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition cursor-pointer"
+                      >
+                        Desvincular
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Horizontal Scroll Strip */}
+                  <div className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar pb-1 pt-0.5">
+                    {pendingTodayAppointments.map((apt) => {
+                      const isSelected = linkedAppointment?.id === apt.id;
+                      const initials = apt.clientName
+                        ? apt.clientName
+                            .split(" ")
+                            .slice(0, 2)
+                            .map((p) => p[0]?.toUpperCase())
+                            .join("")
+                        : "CL";
+
+                      const servicesLabel =
+                        apt.serviceNames && apt.serviceNames.length > 0
+                          ? apt.serviceNames.join(", ")
+                          : "Atendimento";
+
+                      return (
+                        <button
+                          key={apt.id}
+                          type="button"
+                          onClick={() => handleSelectPendingAppointment(apt)}
+                          aria-pressed={isSelected}
+                          className={`flex flex-col justify-between text-left p-3 rounded-xl min-w-[210px] max-w-[240px] shrink-0 transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white cursor-pointer border ${
+                            isSelected
+                              ? "bg-white dark:bg-[#18181b] border-[#1C1C1E] dark:border-white shadow-xs ring-2 ring-[#1C1C1E]/10 dark:ring-white/20"
+                              : "bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3F3F46] hover:border-[#1C1C1E]/40 dark:hover:border-white/40 hover:shadow-xs"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2 w-full">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] flex items-center justify-center text-[10px] font-bold shrink-0">
+                                {initials}
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-[12.5px] font-bold text-[#1C1C1E] dark:text-white truncate">
+                                  {apt.clientName}
+                                </h4>
+                                <p className="text-[10.5px] text-[#6E6E73] dark:text-[#a1a1aa] truncate">
+                                  · {apt.providerName}
+                                </p>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <span className="w-4 h-4 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] flex items-center justify-center shrink-0">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-2.5 pt-2 border-t border-[#F5F5F7] dark:border-[#323238] flex items-center justify-between text-[11px] w-full">
+                            <span className="text-[#6E6E73] dark:text-[#a1a1aa] truncate max-w-[120px]">
+                              {servicesLabel}
+                            </span>
+                            <span className="font-bold text-[#1C1C1E] dark:text-white shrink-0">
+                              {formatBRL(apt.totalCents)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {linkedAppointment && (
+                    <div className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] flex items-center gap-2 pt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+                      <span>
+                        Atendimento de <strong>{linkedAppointment.clientName}</strong> vinculado · Baixa automática na conclusão.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Cliente Selector */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -2294,8 +3847,8 @@ export function QuickSaleDrawer({
                               </p>
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                             </div>
-                            <p className="text-[12px] text-[#6E6E73]">
-                              O pagamento foi identificado e confirmado com sucesso.
+                            <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                              Pagamento confirmado e compensado.
                             </p>
                           </div>
                         </div>
@@ -2426,47 +3979,47 @@ export function QuickSaleDrawer({
           {step === 4 && (
             <div className="space-y-5 animate-in fade-in duration-150 py-2">
               <div className="text-center space-y-3">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E5E5EA] text-[12.5px] font-medium text-[#1C1C1E] shadow-2xs mx-auto">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[12.5px] font-medium text-[#1C1C1E] dark:text-white shadow-2xs mx-auto">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                   <span>Venda finalizada</span>
                 </div>
-                <h3 className="font-serif text-[24px] font-normal text-[#1C1C1E] tracking-tight">
+                <h3 className="font-serif text-[24px] font-normal text-[#1C1C1E] dark:text-white tracking-tight">
                   Pagamento confirmado
                 </h3>
-                <p className="text-[13px] text-[#6E6E73] max-w-sm mx-auto">
-                  O atendimento foi registrado na Agenda e o recebimento foi contabilizado no fluxo de caixa.
+                <p className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-sm mx-auto">
+                  Atendimento registrado na agenda e lançamento contabilizado no fluxo de caixa.
                 </p>
               </div>
 
               {/* Card Resumo do Comprovante */}
-              <div className="p-4 rounded-[16px] bg-[#F5F5F7] border border-[#E5E5EA] space-y-2 text-[12.5px]">
-                <div className="flex items-center justify-between pb-2 border-b border-[#E5E5EA]">
-                  <span className="font-semibold text-[#8E8E93]">Comanda / Venda</span>
-                  <span className="font-mono font-bold text-[#1C1C1E]">
+              <div className="p-4 rounded-[16px] bg-[#F5F5F7] dark:bg-[#202024] border border-[#E5E5EA] dark:border-[#27272a] space-y-2 text-[12.5px]">
+                <div className="flex items-center justify-between pb-2 border-b border-[#E5E5EA] dark:border-[#27272a]">
+                  <span className="font-semibold text-[#8E8E93] dark:text-[#71717a]">Comanda / Venda</span>
+                  <span className="font-mono font-bold text-[#1C1C1E] dark:text-white">
                     #{Date.now().toString().slice(-6)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#6E6E73]">Cliente:</span>
-                  <span className="font-semibold text-[#1C1C1E]">{selectedClient?.fullName}</span>
+                  <span className="text-[#6E6E73] dark:text-[#a1a1aa]">Cliente:</span>
+                  <span className="font-semibold text-[#1C1C1E] dark:text-white">{selectedClient?.fullName}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#6E6E73]">Profissional:</span>
-                  <span className="font-semibold text-[#1C1C1E]">{selectedProvider?.fullName}</span>
+                  <span className="text-[#6E6E73] dark:text-[#a1a1aa]">Profissional:</span>
+                  <span className="font-semibold text-[#1C1C1E] dark:text-white">{selectedProvider?.fullName}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#6E6E73]">Data e Horário:</span>
-                  <span className="font-mono font-semibold text-[#1C1C1E]">
+                  <span className="text-[#6E6E73] dark:text-[#a1a1aa]">Data e Horário:</span>
+                  <span className="font-mono font-semibold text-[#1C1C1E] dark:text-white">
                     {formatDateBR(attendanceDate)} às {attendanceTime}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#6E6E73]">Método:</span>
-                  <span className="font-semibold text-[#1C1C1E]">{paymentMethod}</span>
+                  <span className="text-[#6E6E73] dark:text-[#a1a1aa]">Método:</span>
+                  <span className="font-semibold text-[#1C1C1E] dark:text-white">{paymentMethod}</span>
                 </div>
-                <div className="pt-2 border-t border-[#E5E5EA] flex items-center justify-between">
-                  <span className="font-bold text-[#1C1C1E]">Valor Total Pago:</span>
-                  <span className="text-[16px] font-mono font-bold text-[#1C1C1E]">
+                <div className="pt-2 border-t border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
+                  <span className="font-bold text-[#1C1C1E] dark:text-white">Valor Total Pago:</span>
+                  <span className="text-[16px] font-mono font-bold text-[#1C1C1E] dark:text-white">
                     {formatBRL(paymentMethod === "Pix" ? targetPixCents : finalTotalCents)}
                   </span>
                 </div>
@@ -2507,7 +4060,7 @@ export function QuickSaleDrawer({
                       </>
                     ) : (
                       <>
-                        <Check className="w-4 h-4" />
+                        <Send className="w-4 h-4" />
                         <span>Enviar Comprovante por WhatsApp</span>
                       </>
                     )}
@@ -2584,7 +4137,7 @@ export function QuickSaleDrawer({
             <button
               type="button"
               onClick={handleResetForNewSale}
-              className="px-4 py-2.5 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] transition"
+              className="min-h-[44px] px-4 py-2.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-semibold text-[#1C1C1E] dark:text-white transition cursor-pointer flex items-center justify-center"
             >
               Nova Venda Rápida
             </button>
@@ -2592,7 +4145,7 @@ export function QuickSaleDrawer({
             <button
               type="button"
               onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as any) : 1))}
-              className="px-4 py-2.5 rounded-full border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[13px] font-semibold text-[#1C1C1E] flex items-center gap-1.5 transition"
+              className="min-h-[44px] px-4 py-2.5 rounded-full border border-[#E5E5EA] dark:border-[#27272a] hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] text-[13px] font-semibold text-[#1C1C1E] dark:text-white flex items-center gap-1.5 transition cursor-pointer justify-center"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Voltar</span>
@@ -2606,7 +4159,7 @@ export function QuickSaleDrawer({
                 type="button"
                 disabled={!clientId}
                 onClick={() => setStep(2)}
-                className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] disabled:opacity-50 text-white text-[13px] font-semibold flex items-center gap-1.5 shadow-sm transition"
+                className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 disabled:opacity-50 text-white dark:text-[#09090b] text-[13px] font-semibold flex items-center gap-1.5 shadow-sm transition cursor-pointer justify-center"
               >
                 <span>Avançar: Adicionar Itens</span>
                 <ArrowRight className="w-4 h-4" />
@@ -2618,7 +4171,7 @@ export function QuickSaleDrawer({
                 type="button"
                 disabled={finalTotalCents <= 0}
                 onClick={() => setStep(3)}
-                className="px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] disabled:opacity-50 text-white text-[13px] font-semibold flex items-center gap-2 shadow-sm transition"
+                className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 disabled:opacity-50 text-white dark:text-[#09090b] text-[13px] font-semibold flex items-center gap-2 shadow-sm transition cursor-pointer justify-center"
               >
                 <span>Avançar: Pagamento ({formatBRL(finalTotalCents)})</span>
                 <ArrowRight className="w-4 h-4" />
@@ -2630,10 +4183,10 @@ export function QuickSaleDrawer({
                 type="button"
                 disabled={finalTotalCents <= 0 || (paymentMethod === "Pix" && targetPixCents <= 0)}
                 onClick={handleConfirmCheckout}
-                className={`px-6 py-2.5 rounded-full text-white text-[13.5px] font-semibold shadow-sm transition ${
+                className={`min-h-[44px] px-6 py-2.5 rounded-full text-white text-[13.5px] font-semibold shadow-sm transition cursor-pointer flex items-center justify-center ${
                   paymentMethod === "Pix" && isPixPaid
                     ? "bg-emerald-600 hover:bg-emerald-700"
-                    : "bg-[#1C1C1E] hover:bg-[#2C2C2E] disabled:opacity-50"
+                    : "bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] disabled:opacity-50"
                 }`}
               >
                 {paymentMethod === "Pix" && isPixPaid
@@ -2655,7 +4208,7 @@ export function QuickSaleDrawer({
                   }));
                   onClose();
                 }}
-                className="px-6 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-[13px] font-semibold flex items-center gap-1.5 shadow-sm transition"
+                className="min-h-[44px] px-6 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#09090b] text-[13px] font-semibold flex items-center gap-1.5 shadow-sm transition cursor-pointer justify-center"
               >
                 <Calendar className="w-4 h-4" />
                 <span>Ver na Agenda</span>

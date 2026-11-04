@@ -160,7 +160,7 @@ export default function CadastroPage() {
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Ana Paula Ribeiro"
             required
-            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
           />
         </div>
 
@@ -179,7 +179,7 @@ export default function CadastroPage() {
             onChange={(e) => handleBusinessNameChange(e.target.value)}
             placeholder="Studio Ana Paula Visagismo"
             required
-            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
           />
         </div>
 
@@ -191,7 +191,7 @@ export default function CadastroPage() {
           >
             Seu link de agendamento online
           </label>
-          <div className="flex items-center rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
+          <div className="flex items-center rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white transition">
             <input
               id="cadastro-subdomain"
               type="text"
@@ -226,7 +226,7 @@ export default function CadastroPage() {
             placeholder="ana@estudio.com.br"
             autoComplete="email"
             required
-            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
           />
         </div>
 
@@ -247,7 +247,7 @@ export default function CadastroPage() {
               placeholder="Mínimo de 8 caracteres"
               autoComplete="new-password"
               required
-              className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+              className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
             />
             <button
               type="button"
@@ -311,7 +311,7 @@ export default function CadastroPage() {
             placeholder="Repita sua senha"
             autoComplete="new-password"
             required
-            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
           />
         </div>
 
@@ -320,7 +320,7 @@ export default function CadastroPage() {
           <div
             role="alert"
             aria-live="polite"
-            className="p-3.5 rounded-xl bg-[#F5F5F7] dark:bg-[#09090b] border border-[#E5E5EA] dark:border-[#27272a] text-[12.5px] text-[#1C1C1E] dark:text-[#f4f4f5] flex items-center gap-2.5"
+            className="p-3.5 rounded-xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[12.5px] text-[#1C1C1E] dark:text-[#f4f4f5] flex items-center gap-2.5"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
             <span>{errorMessage}</span>

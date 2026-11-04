@@ -37,6 +37,7 @@ import {
   StaffMember,
   generateUuid,
 } from "@/lib/agendaste-store";
+import { evaluateOrganizationEntitlements } from "@/lib/billing/entitlements";
 
 interface TeamViewProps {
   section:
@@ -93,6 +94,19 @@ export function TeamView({
       null
     );
   }, [state.staff, selectedStaffId]);
+
+  // Avaliação memoizada de direitos da organização e cotas de equipe (Anti-AI Slop & Alta Performance)
+  const entitlements = useMemo(() => {
+    return evaluateOrganizationEntitlements({
+      subscriptionStatus: state.onboarding?.subscriptionStatus,
+      planTier: state.onboarding?.planTier,
+      currentPeriodEnd: (state.onboarding as any)?.currentPeriodEnd,
+    });
+  }, [
+    state.onboarding?.subscriptionStatus,
+    state.onboarding?.planTier,
+    (state.onboarding as any)?.currentPeriodEnd,
+  ]);
 
   // Draft form state for the slide-over drawer
   const [draftFullName, setDraftFullName] = useState("");
@@ -191,8 +205,30 @@ export function TeamView({
       return;
     }
 
-    // Previne cadastros duplicados acidentais
+    // Previne cadastros duplicados acidentais e valida limites do plano fora do trial
     if (isAddingStaff) {
+      const isTrial =
+        state.onboarding?.subscriptionStatus === "trialing" &&
+        (state.onboarding?.trialDaysLeft ?? 14) > 0;
+
+      if (!isTrial) {
+        if (state.staff.length >= entitlements.maxStaff) {
+          const planName =
+            entitlements.planTier === "essencial"
+              ? "Essencial"
+              : entitlements.planTier === "gold"
+              ? "Gold"
+              : "Platinum";
+          onUpdateState((prev) => ({
+            ...prev,
+            lastToastMessage: `O Plano ${planName} permite no máximo ${entitlements.maxStaff} profissional${
+              entitlements.maxStaff > 1 ? "s" : ""
+            }. Faça upgrade do seu plano nas Configurações para adicionar novos profissionais.`,
+          }));
+          return;
+        }
+      }
+
       const alreadyExists = state.staff.some(
         (s) => s.fullName.trim().toLowerCase() === draftFullName.trim().toLowerCase()
       );
@@ -1058,7 +1094,7 @@ export function TeamView({
   // ===========================================================================
   if (section === "team_commissions") {
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
         {/* Top Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1119,7 +1155,7 @@ export function TeamView({
   // ===========================================================================
   if (section === "team_payroll") {
     return (
-      <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6">
+      <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
         {/* Top Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1179,7 +1215,7 @@ export function TeamView({
   // 4. TIME TRACKING (TRANCADO / EM BREVE)
   // ===========================================================================
   return (
-    <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6">
+    <div className="w-full px-6 lg:px-8 xl:px-10 py-8 space-y-6 bg-[#FBFBFC] dark:bg-[#18181b] min-h-full pb-16">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
