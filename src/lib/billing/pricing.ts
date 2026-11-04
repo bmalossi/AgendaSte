@@ -86,26 +86,35 @@ export function calculateBonusTrialPeriodEnd(params: {
  * Validação Anti-Overwrite de Subdomínio Multi-Tenant:
  * Impede que requisições não autenticadas ou de usuários de outros estúdios
  * sobrescrevam os dados ou plano de uma organização já cadastrada.
+ * Se a organização existente for órfã (sem perfis vinculados e sem assinatura ativa),
+ * permite a reivindicação segura para que subdomínios não fiquem travados.
  */
 export function validateSubdomainOwnership(params: {
   existingOrg: { id: string; slug: string; name: string } | null;
   requesterUserId: string | null;
   requesterOrgId?: string | null;
   requesterRole?: string | null;
+  isOrphan?: boolean;
 }): {
   canProceed: boolean;
   isUpdate?: boolean;
+  isReclaim?: boolean;
   status?: number;
   error?: string;
 } {
-  const { existingOrg, requesterUserId, requesterOrgId, requesterRole } = params;
+  const { existingOrg, requesterUserId, requesterOrgId, requesterRole, isOrphan } = params;
 
   if (!existingOrg) {
     // Organização inédita -> pode criar livremente
     return { canProceed: true, isUpdate: false };
   }
 
-  // Se já existe, exige que o requisitante seja membro autenticado com papel de owner ou admin
+  // Se a organização existente for órfã (tentativa interrompida sem perfil vinculado)
+  if (isOrphan) {
+    return { canProceed: true, isUpdate: true, isReclaim: true };
+  }
+
+  // Se já existe com membros, exige que o requisitante seja membro autenticado com papel de owner ou admin
   const isAuthorized =
     Boolean(requesterUserId) &&
     requesterOrgId === existingOrg.id &&
@@ -118,8 +127,65 @@ export function validateSubdomainOwnership(params: {
   return {
     canProceed: false,
     status: 409,
-    error: `O subdomínio "${existingOrg.slug}" já está em uso por outro estúdio. Escolha outro subdomínio ou faça login na sua conta existente.`,
+    error: `O subdomínio "${existingOrg.slug}" já está em uso por outro estúdio. Se esta é a sua conta, faça login antes de concluir a assinatura.`,
   };
+}
+
+export interface PromoCoupon {
+  code: string;
+  discountPercent?: number;
+  discountAmountOffCents?: number;
+  description: string;
+}
+
+export const PLATFORM_PROMO_COUPONS: Record<string, PromoCoupon> = {
+  LUVEA10: {
+    code: "LUVEA10",
+    discountPercent: 10,
+    description: "10% de desconto",
+  },
+  LUVEA20: {
+    code: "LUVEA20",
+    discountPercent: 20,
+    description: "20% de desconto especial",
+  },
+  INAUGURA15: {
+    code: "INAUGURA15",
+    discountPercent: 15,
+    description: "15% de desconto de lançamento",
+  },
+  VIP30: {
+    code: "VIP30",
+    discountPercent: 30,
+    description: "30% de desconto VIP",
+  },
+  BETA100: {
+    code: "BETA100",
+    discountPercent: 100,
+    description: "100% de desconto de testes",
+  },
+};
+
+export function calculateDiscountedPrice(
+  originalCents: number,
+  coupon?: { discountPercent?: number; discountAmountOffCents?: number } | null
+): {
+  discountCents: number;
+  finalCents: number;
+} {
+  if (!coupon) {
+    return { discountCents: 0, finalCents: originalCents };
+  }
+
+  let discountCents = 0;
+  if (coupon.discountPercent && coupon.discountPercent > 0) {
+    discountCents = Math.round((originalCents * coupon.discountPercent) / 100);
+  } else if (coupon.discountAmountOffCents && coupon.discountAmountOffCents > 0) {
+    discountCents = Math.min(originalCents, coupon.discountAmountOffCents);
+  }
+
+  const finalCents = Math.max(0, originalCents - discountCents);
+  return { discountCents, finalCents };
 }
 
 const TIER_RANKS: Record<PlanTier, number> = {

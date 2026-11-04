@@ -9,10 +9,13 @@ import {
   resolvePlanPriceCents,
   calculateBonusTrialPeriodEnd,
   validateSubdomainOwnership,
+  calculateDiscountedPrice,
+  PLATFORM_PROMO_COUPONS,
 } from "@/lib/billing/pricing";
 import {
   createOrRetrieveStripeCustomer,
-  createStripeSubscription,
+  createStripeCheckoutSession,
+  validateStripeCouponOrPromoCode,
 } from "@/lib/billing/stripe";
 import {
   isMercadoPagoConfigured,
@@ -45,12 +48,43 @@ export async function POST(request: Request) {
       planTier,
       billingCycle,
       paymentMethod,
+      couponCode,
     } = parseResult.data;
 
     const normalizedSlug = normalizeSubdomain(subdomain);
-    const priceCents = resolvePlanPriceCents(planTier, billingCycle);
+    const basePriceCents = resolvePlanPriceCents(planTier, billingCycle);
 
-    // 1. Identifica usuário autenticado requisitante (se houver) para proteção Anti-Overwrite
+    // Validação de Cupom de Desconto (se informado)
+    let discountCents = 0;
+    let stripeCouponId: string | undefined = undefined;
+    let stripePromotionCodeId: string | undefined = undefined;
+
+    if (couponCode && couponCode.trim()) {
+      const codeUpper = couponCode.trim().toUpperCase();
+      if (PLATFORM_PROMO_COUPONS[codeUpper]) {
+        const promo = PLATFORM_PROMO_COUPONS[codeUpper];
+        const res = calculateDiscountedPrice(basePriceCents, {
+          discountPercent: promo.discountPercent,
+          discountAmountOffCents: promo.discountAmountOffCents,
+        });
+        discountCents = res.discountCents;
+      } else {
+        const stripePromo = await validateStripeCouponOrPromoCode(codeUpper);
+        if (stripePromo.valid) {
+          const res = calculateDiscountedPrice(basePriceCents, {
+            discountPercent: stripePromo.discountPercent,
+            discountAmountOffCents: stripePromo.discountAmountOffCents,
+          });
+          discountCents = res.discountCents;
+          stripeCouponId = stripePromo.couponId;
+          stripePromotionCodeId = stripePromo.promotionCodeId;
+        }
+      }
+    }
+
+    const effectivePriceCents = Math.max(0, basePriceCents - discountCents);
+
+    // 1. Identifica usuário autenticado requisitante (se houver) para proteção Anti-Overwrite e Vinculação de Conta
     let requesterUserId: string | null = null;
     let requesterOrgId: string | null = null;
     let requesterRole: string | null = null;
@@ -80,7 +114,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Consulta existência da organização e valida titularidade
+    // 2. Consulta existência da organização e valida titularidade / recupera órfãos
     let organizationId: string | null = null;
     let existingTrialEndsAt: Date | null = null;
     let existingOrg: any = null;
@@ -95,8 +129,15 @@ export async function POST(request: Request) {
 
         if (org) {
           existingOrg = org;
-          organizationId = org.id;
           existingTrialEndsAt = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+
+          // Verifica se a organização existente possui membros vinculados em profiles
+          const { count: profileCount } = await supabaseAdmin
+            .from("profiles")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org.id);
+
+          const isOrphan = !profileCount || profileCount === 0;
 
           const ownershipCheck = validateSubdomainOwnership({
             existingOrg: {
@@ -107,6 +148,7 @@ export async function POST(request: Request) {
             requesterUserId,
             requesterOrgId,
             requesterRole,
+            isOrphan,
           });
 
           if (!ownershipCheck.canProceed) {
@@ -117,6 +159,28 @@ export async function POST(request: Request) {
               },
               { status: ownershipCheck.status || 409 }
             );
+          }
+
+          // Se a organização encontrada for órfã e o usuário logado já possuir outra org (ex: provisória do cadastro),
+          // limpamos a órfã vazia para que a organização real do usuário assuma o slug desejado.
+          if (requesterUserId && requesterOrgId && requesterOrgId !== org.id && isOrphan) {
+            await supabaseAdmin.from("organizations").delete().eq("id", org.id);
+            organizationId = requesterOrgId;
+          } else {
+            organizationId = org.id;
+            // Se o usuário logado ainda não estiver vinculado a essa org, vincula o profile
+            if (requesterUserId && (!requesterOrgId || requesterOrgId !== org.id)) {
+              await supabaseAdmin
+                .from("profiles")
+                .update({ organization_id: org.id })
+                .eq("id", requesterUserId);
+              requesterOrgId = org.id;
+            }
+          }
+        } else {
+          // Slug inédito: se o usuário já estiver logado com uma organização, reutiliza/atualiza o slug dela!
+          if (requesterUserId && requesterOrgId) {
+            organizationId = requesterOrgId;
           }
         }
       } catch (dbErr) {
@@ -134,11 +198,12 @@ export async function POST(request: Request) {
     // 4. Provisiona ou atualiza a organização no Supabase
     if (isSupabaseConfigured()) {
       try {
-        if (existingOrg && organizationId) {
+        if (organizationId) {
           await supabaseAdmin
             .from("organizations")
             .update({
               name: businessName,
+              slug: normalizedSlug,
               plan_tier: planTier,
               billing_cycle: billingCycle,
               phone: whatsapp,
@@ -169,6 +234,12 @@ export async function POST(request: Request) {
             console.warn("[Checkout] Erro ao criar organização no Supabase:", orgError);
           } else if (newOrg) {
             organizationId = newOrg.id;
+            if (requesterUserId) {
+              await supabaseAdmin
+                .from("profiles")
+                .update({ organization_id: newOrg.id })
+                .eq("id", requesterUserId);
+            }
           }
         }
       } catch (saveErr) {
@@ -178,7 +249,12 @@ export async function POST(request: Request) {
 
     const orgIdForBilling = organizationId || normalizedSlug;
 
-    // 5. Fluxo de Cartão de Crédito (Stripe Payment Element / Subscription)
+    // Resolução da URL base da aplicação
+    const rawHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+    const proto = request.headers.get("x-forwarded-proto") || (rawHost.includes("localhost") ? "http" : "https");
+    const baseUrl = rawHost ? `${proto}://${rawHost}` : (process.env.NEXT_PUBLIC_APP_URL || "https://luvea.app").replace(/\/$/, "");
+
+    // 5. Fluxo de Cartão de Crédito (Stripe Checkout Session Oficial - Opção A)
     if (paymentMethod === "credit_card") {
       let customerId = "";
       try {
@@ -196,16 +272,6 @@ export async function POST(request: Request) {
         customerId = `cus_mock_${Math.random().toString(36).substring(2, 8)}`;
       }
 
-      let subResult: {
-        subscriptionId: string;
-        clientSecret: string | null;
-        status: string;
-      } = {
-        subscriptionId: `sub_mock_${Math.random().toString(36).substring(2, 8)}`,
-        clientSecret: `pi_mock_${Math.random().toString(36).substring(2, 12)}_secret_test`,
-        status: "incomplete",
-      };
-
       // Se estiver migrando do Pix para Cartão com período pago vigente, ancora a cobrança no fim do ciclo pago
       const hasActivePaidPeriod = Boolean(
         existingOrg?.current_period_end &&
@@ -215,23 +281,27 @@ export async function POST(request: Request) {
         ? Math.floor(new Date(existingOrg.current_period_end).getTime() / 1000)
         : undefined;
 
-      try {
-        subResult = await createStripeSubscription({
-          customerId,
+      const checkoutSession = await createStripeCheckoutSession({
+        customerId,
+        planTier,
+        billingCycle,
+        trialEndTimestamp,
+        bonusTrialDays: !hasActivePaidPeriod ? bonusTrial.bonusDaysApplied : undefined,
+        couponId: stripeCouponId,
+        promotionCodeId: stripePromotionCodeId,
+        customPriceCents: effectivePriceCents,
+        successUrl: `${baseUrl}/app?checkout_success=true&session_id={CHECKOUT_SESSION_ID}&subdomain=${encodeURIComponent(normalizedSlug)}&plan=${planTier}&payment_method=card`,
+        cancelUrl: `${baseUrl}/checkout?canceled=true&subdomain=${encodeURIComponent(normalizedSlug)}`,
+        metadata: {
+          organizationId: orgIdForBilling,
+          subdomain: normalizedSlug,
+          userId: requesterUserId || "",
           planTier,
           billingCycle,
-          trialEndTimestamp,
-          bonusTrialDays: !hasActivePaidPeriod ? bonusTrial.bonusDaysApplied : undefined,
-          metadata: {
-            organizationId: orgIdForBilling,
-            subdomain: normalizedSlug,
-            planTier,
-            billingCycle,
-          },
-        });
-      } catch (subErr) {
-        console.warn("[Stripe Subscription Error]:", subErr);
-      }
+          couponCode: couponCode || "",
+          discountCents: String(discountCents),
+        },
+      });
 
       // Registra fatura pendente no Supabase e anula faturas Pix pendentes
       if (isSupabaseConfigured() && organizationId) {
@@ -250,10 +320,10 @@ export async function POST(request: Request) {
             organization_id: organizationId,
             gateway: "stripe",
             external_invoice_id: `inv_str_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            external_payment_id: subResult.subscriptionId,
+            external_payment_id: checkoutSession.sessionId,
             plan_tier: planTier,
             billing_cycle: billingCycle,
-            amount_cents: priceCents,
+            amount_cents: effectivePriceCents,
             bonus_trial_days_applied: hasActivePaidPeriod ? 0 : bonusTrial.bonusDaysApplied,
             status: "pending",
             period_start: periodStart,
@@ -264,7 +334,6 @@ export async function POST(request: Request) {
             .from("organizations")
             .update({
               stripe_customer_id: customerId,
-              stripe_subscription_id: subResult.subscriptionId,
               current_period_start: periodStart,
               current_period_end: periodEnd,
             })
@@ -285,11 +354,12 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         paymentMethod: "credit_card",
-        clientSecret: subResult.clientSecret,
-        subscriptionId: subResult.subscriptionId,
+        checkoutUrl: checkoutSession.checkoutUrl,
+        sessionId: checkoutSession.sessionId,
         organizationId,
         subdomain: normalizedSlug,
-        amountCents: priceCents,
+        amountCents: effectivePriceCents,
+        discountCents,
         bonusDaysApplied: bonusTrial.bonusDaysApplied,
       });
     }
@@ -309,7 +379,7 @@ export async function POST(request: Request) {
             clientEmail: email,
             serviceName: `Plano ${planTier.toUpperCase()} - LUVEA Studio`,
             serviceDescription: `Assinatura ${planTier} (${billingCycle === "yearly" ? "Anual" : "Mensal"})`,
-            amountCents: priceCents,
+            amountCents: effectivePriceCents,
           });
 
           qrCode = mpResult.qrCode;
@@ -340,7 +410,7 @@ export async function POST(request: Request) {
             external_invoice_id: invoiceExternalId,
             plan_tier: planTier,
             billing_cycle: billingCycle,
-            amount_cents: priceCents,
+            amount_cents: effectivePriceCents,
             bonus_trial_days_applied: bonusTrial.bonusDaysApplied,
             status: "pending",
             pix_qr_code: qrCode,
@@ -381,7 +451,8 @@ export async function POST(request: Request) {
         invoiceId: invoiceExternalId,
         organizationId,
         subdomain: normalizedSlug,
-        amountCents: priceCents,
+        amountCents: effectivePriceCents,
+        discountCents,
         bonusDaysApplied: bonusTrial.bonusDaysApplied,
         pix: {
           qrCode,

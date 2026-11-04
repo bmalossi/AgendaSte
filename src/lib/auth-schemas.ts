@@ -51,6 +51,7 @@ export const checkoutFormSchema = z.object({
   planTier: z.enum(["essencial", "gold", "platinum"]),
   billingCycle: z.enum(["monthly", "yearly"]),
   paymentMethod: z.enum(["credit_card", "pix"]),
+  couponCode: z.string().optional().or(z.literal("")),
 });
 
 export type CheckoutFormData = z.infer<typeof checkoutFormSchema>;

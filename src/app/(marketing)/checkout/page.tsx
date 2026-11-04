@@ -27,6 +27,8 @@ import {
 import { PLANS_CATALOG } from "@/lib/marketing-content";
 import { TurnstileWidget, type TurnstileWidgetRef } from "@/components/turnstile-widget";
 import { QRCodeSVG } from "qrcode.react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { resolvePlanPriceCents } from "@/lib/billing/pricing";
 
 function CheckoutContent() {
   const router = useRouter();
@@ -37,6 +39,15 @@ function CheckoutContent() {
 
   // Step state
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+
+  // User session state
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    email: string;
+    fullName?: string;
+    subdomain?: string;
+    businessName?: string;
+  } | null>(null);
 
   // Form Fields
   const [fullName, setFullName] = useState("");
@@ -56,6 +67,19 @@ function CheckoutContent() {
   );
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "pix">("credit_card");
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    description: string;
+    discountPercent?: number;
+    discountAmountOffCents?: number;
+    discountCents: number;
+    finalPriceCents: number;
+  } | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+
   // Validation & Loading
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,9 +87,116 @@ function CheckoutContent() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
+  // Carrega e hidrata dados da conta autenticada automaticamente
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    let isMounted = true;
+    async function loadAuthSession() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user && isMounted) {
+          const user = session.user;
+          const uEmail = user.email || "";
+          const uName =
+            user.user_metadata?.full_name || user.user_metadata?.name || "";
+
+          let orgSlug = "";
+          let orgName = "";
+          let phoneVal = "";
+          let cpfVal = "";
+
+          try {
+            const subRes = await fetch("/api/billing/subscription");
+            if (subRes.ok) {
+              const subData = await subRes.json();
+              if (subData.organization) {
+                orgSlug = subData.organization.slug || "";
+                orgName = subData.organization.name || "";
+                phoneVal =
+                  subData.organization.whatsapp_number ||
+                  subData.organization.phone ||
+                  "";
+                cpfVal = subData.organization.cpf_cnpj || "";
+              }
+            }
+          } catch (fetchErr) {
+            console.warn("[Checkout load subscription info error]:", fetchErr);
+          }
+
+          const resolvedName = uName || "Profissional";
+          const resolvedBusiness = orgName || user.user_metadata?.business_name || "";
+          const resolvedSubdomain = orgSlug || user.user_metadata?.subdomain || "";
+
+          if (isMounted) {
+            setCurrentUser({
+              id: user.id,
+              email: uEmail,
+              fullName: resolvedName,
+              subdomain: resolvedSubdomain,
+              businessName: resolvedBusiness,
+            });
+
+            setFullName((prev) => prev || resolvedName);
+            setEmail((prev) => prev || uEmail);
+            if (phoneVal) setWhatsapp((prev) => prev || phoneVal);
+            if (cpfVal) setCpfCnpj((prev) => prev || cpfVal);
+            if (resolvedBusiness) setBusinessName((prev) => prev || resolvedBusiness);
+            if (resolvedSubdomain) {
+              setSubdomain((prev) => prev || resolvedSubdomain);
+              setUserEditedSubdomain(true);
+            }
+
+            // Se a conta já tiver dados básicos preenchidos, avança com conveniência para o Passo 2
+            if (resolvedSubdomain && resolvedBusiness) {
+              setCurrentStep(2);
+            }
+          }
+        }
+      } catch (authErr) {
+        console.warn("[Checkout loadAuthSession]:", authErr);
+      }
+    }
+
+    loadAuthSession();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Revalida cupom automaticamente caso o usuário troque o plano ou ciclo
+  useEffect(() => {
+    if (!appliedCoupon?.code) return;
+    let isMounted = true;
+    fetch("/api/billing/validate-coupon", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        couponCode: appliedCoupon.code,
+        planTier,
+        billingCycle,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.valid && isMounted) {
+          setAppliedCoupon(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [planTier, billingCycle]);
+
   // Pix Payload & Polling
   const [pixPayload, setPixPayload] = useState<{
     invoiceId?: string;
+    amountCents?: number;
     qrCode?: string;
     qrCodeBase64?: string;
     copiaECola?: string;
@@ -93,6 +224,29 @@ function CheckoutContent() {
     billingCycle === "yearly"
       ? selectedPlan.annualMonthlyPriceReais
       : selectedPlan.monthlyPriceReais;
+
+  const fullCyclePriceCents = resolvePlanPriceCents(planTier, billingCycle);
+  const fullCyclePriceReais = fullCyclePriceCents / 100;
+  const effectivePriceCents = appliedCoupon
+    ? appliedCoupon.finalPriceCents
+    : fullCyclePriceCents;
+  const effectivePriceReais = effectivePriceCents / 100;
+  const effectiveMonthlyEquivalentReais =
+    billingCycle === "yearly" ? effectivePriceReais / 12 : effectivePriceReais;
+
+  const formatBRL = (val: number) =>
+    val.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const trialEndDateFormatted = new Date(
+    Date.now() + 14 * 86400000
+  ).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   // Validate Step 1
   const handleProceedToStep2 = () => {
@@ -192,6 +346,42 @@ function CheckoutContent() {
     }
   };
 
+  // Aplicação e remoção de cupom de desconto
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const res = await fetch("/api/billing/validate-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          couponCode: couponCode.trim(),
+          planTier,
+          billingCycle,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setCouponError(data.error || "Cupom inválido ou expirado.");
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon(data);
+        setCouponError("");
+      }
+    } catch {
+      setCouponError("Erro ao validar cupom.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  };
+
   // Final Submit for Payment Activation
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,6 +397,7 @@ function CheckoutContent() {
       planTier,
       billingCycle,
       paymentMethod,
+      couponCode: appliedCoupon?.code || undefined,
     };
 
     const validationResult = checkoutFormSchema.safeParse(formDataToValidate);
@@ -273,6 +464,7 @@ function CheckoutContent() {
       if (data.paymentMethod === "pix" && data.pix) {
         setPixPayload({
           invoiceId: data.invoiceId,
+          amountCents: data.amountCents,
           qrCode: data.pix.qrCode,
           qrCodeBase64: data.pix.qrCodeBase64,
           copiaECola: data.pix.copiaECola || data.pix.qrCode,
@@ -282,38 +474,12 @@ function CheckoutContent() {
         return;
       }
 
-      // Cartão de Crédito via Stripe Payment Element
+      // Cartão de Crédito via Stripe Checkout Session Oficial (Opção A)
       if (data.paymentMethod === "credit_card") {
-        if (
-          typeof window !== "undefined" &&
-          process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
-          data.clientSecret &&
-          !data.clientSecret.startsWith("pi_mock_") &&
-          !data.clientSecret.startsWith("sim_secret_")
-        ) {
-          try {
-            const { loadStripe } = await import("@stripe/stripe-js");
-            const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
-            if (stripe) {
-              const { error: stripeError } = await stripe.handleNextAction({
-                clientSecret: data.clientSecret,
-              });
-              if (stripeError) {
-                setErrors({
-                  general:
-                    stripeError.message ||
-                    "Falha na autenticação do cartão pelo banco emissor (3DS2). Verifique os dados com sua instituição financeira.",
-                });
-                setIsSubmitting(false);
-                return;
-              }
-            }
-          } catch (stripeInitErr: any) {
-            console.warn("[Stripe 3DS2 handleNextAction exception]:", stripeInitErr);
-          }
-        } else {
-          // Em homologação local / simulação segura sem chaves de produção, aguarda feedback visual
-          await new Promise((resolve) => setTimeout(resolve, 500));
+        if (data.checkoutUrl) {
+          // Redireciona imediatamente para o ambiente oficial seguro e criptografado da Stripe
+          window.location.href = data.checkoutUrl;
+          return;
         }
 
         router.push(
@@ -395,6 +561,40 @@ function CheckoutContent() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        {/* Banner de Conta Conectada e Identificação de Estúdio */}
+        {currentUser && (
+          <div className="max-w-3xl mb-6 px-4 py-3 rounded-2xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[13px] transition-colors shadow-2xs">
+            <div className="flex items-center gap-2.5 text-[#1C1C1E] dark:text-[#f4f4f5]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+              <span className="break-words">
+                Conectado como <strong className="font-semibold">{currentUser.email}</strong>
+                {subdomain && (
+                  <span className="text-[#6E6E73] dark:text-[#a1a1aa] block sm:inline sm:ml-1 mt-0.5 sm:mt-0">
+                    &bull; Subdomínio: <span className="font-mono font-medium text-[#1C1C1E] dark:text-white">{subdomain}.luvea.app</span>
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[12.5px] pt-2 sm:pt-0 border-t sm:border-t-0 border-[#E5E5EA] dark:border-[#27272a] w-full sm:w-auto justify-end">
+              {currentStep === 2 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition-colors underline-offset-4 hover:underline px-3 py-2 cursor-pointer active:scale-[0.98]"
+                >
+                  Alterar dados
+                </button>
+              )}
+              <Link
+                href="/login?switchAccount=true"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition-colors underline-offset-4 hover:underline px-3 py-2 active:scale-[0.98]"
+              >
+                Trocar de conta
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Step Indicator Header */}
         <div className="max-w-3xl mb-8 space-y-2">
           <div className="flex items-center gap-3">
@@ -481,7 +681,7 @@ function CheckoutContent() {
                       required
                       aria-invalid={Boolean(errors.fullName)}
                       aria-describedby={errors.fullName ? "checkout-name-error" : undefined}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.fullName && (
                       <p id="checkout-name-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
@@ -507,7 +707,7 @@ function CheckoutContent() {
                       required
                       aria-invalid={Boolean(errors.email)}
                       aria-describedby={errors.email ? "checkout-email-error" : undefined}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.email && (
                       <p id="checkout-email-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
@@ -533,7 +733,7 @@ function CheckoutContent() {
                       required
                       aria-invalid={Boolean(errors.whatsapp)}
                       aria-describedby={errors.whatsapp ? "checkout-whatsapp-error" : undefined}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.whatsapp && (
                       <p id="checkout-whatsapp-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
@@ -559,7 +759,7 @@ function CheckoutContent() {
                       required
                       aria-invalid={Boolean(errors.cpfCnpj)}
                       aria-describedby={errors.cpfCnpj ? "checkout-cpf-cnpj-error" : undefined}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.cpfCnpj && (
                       <p id="checkout-cpf-cnpj-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
@@ -585,7 +785,7 @@ function CheckoutContent() {
                       required
                       aria-invalid={Boolean(errors.businessName)}
                       aria-describedby={errors.businessName ? "checkout-business-error" : undefined}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
                     />
                     {errors.businessName && (
                       <p id="checkout-business-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
@@ -615,7 +815,7 @@ function CheckoutContent() {
                         required
                         aria-invalid={Boolean(errors.subdomain)}
                         aria-describedby={errors.subdomain ? "checkout-subdomain-error" : "checkout-subdomain-hint"}
-                        className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] focus:outline-none font-mono"
+                        className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none font-mono"
                       />
                       <span className="text-[12.5px] font-mono font-semibold text-[#1C1C1E] dark:text-white shrink-0 pl-1">
                         .luvea.app
@@ -842,18 +1042,23 @@ function CheckoutContent() {
                       Seus dados de pagamento são criptografados de ponta a ponta e processados em ambiente isolado com autenticação biométrica/3DS2. Nenhum dado do seu cartão é armazenado nos servidores da LUVEA.
                     </p>
 
-                    <div className="p-3.5 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-[#F5F5F7] dark:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white">
-                        <CreditCard className="w-4 h-4" />
+                    <div className="p-4 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-[#F5F5F7] dark:bg-[#27272a] flex items-center justify-center text-[#1C1C1E] dark:text-white shrink-0">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div className="text-[12px]">
+                          <p className="font-semibold text-[#1C1C1E] dark:text-white">
+                            Ambiente Seguro Stripe Checkout
+                          </p>
+                          <p className="text-[#6E6E73] dark:text-[#a1a1aa]">
+                            Crédito e Débito &bull; Apple Pay &bull; Google Pay &bull; 3DS2
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-[12px]">
-                        <p className="font-semibold text-[#1C1C1E] dark:text-white">
-                          Stripe Payment Elements
-                        </p>
-                        <p className="text-[#6E6E73] dark:text-[#a1a1aa]">
-                          Tokenização segura &bull; Débito e Crédito aceitos
-                        </p>
-                      </div>
+                      <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed pt-1">
+                        Ao clicar no botão abaixo, você será redirecionado para a página oficial da Stripe para inserir os dados do seu cartão. O teste de 14 dias é ativado imediatamente com <strong className="text-[#1C1C1E] dark:text-white">cobrança de R$ 0,00 hoje</strong>.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -873,8 +1078,46 @@ function CheckoutContent() {
                       </span>
                     </div>
 
+                    {/* Pre-generation explicit price card */}
+                    {!pixPayload && (
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] flex items-center justify-between">
+                        <div>
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-[#6E6E73] dark:text-[#a1a1aa] block">
+                            Valor da cobrança Pix
+                          </span>
+                          <div className="flex items-baseline gap-1.5 mt-0.5">
+                            <span className="text-[18px] font-bold font-mono text-[#1C1C1E] dark:text-white">
+                              R$ {formatBRL(effectivePriceReais)}
+                            </span>
+                            <span className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] font-sans">
+                              ({billingCycle === "yearly" ? "ciclo anual de 12 meses" : "ciclo mensal"})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            +14 dias de bônus
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     {pixPayload ? (
                       <div className="space-y-4 text-center">
+                        {/* Prominent Price Chip above QR Code */}
+                        <div className="p-3 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] max-w-xs mx-auto">
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-[#6E6E73] dark:text-[#a1a1aa] block">
+                            Valor exato a transferir
+                          </span>
+                          <span className="text-2xl font-bold font-mono text-[#1C1C1E] dark:text-white">
+                            R$ {formatBRL((pixPayload.amountCents ?? effectivePriceCents) / 100)}
+                          </span>
+                          <p className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                            Plano {selectedPlan.name} &bull; {billingCycle === "yearly" ? "Ciclo Anual (12 meses)" : "Ciclo Mensal"}
+                          </p>
+                        </div>
+
                         <div className="inline-block p-3 rounded-2xl bg-white dark:bg-white border border-[#E5E5EA] shadow-xs">
                           {pixPayload.qrCodeBase64 ? (
                             <img
@@ -901,7 +1144,7 @@ function CheckoutContent() {
                           <button
                             type="button"
                             onClick={copyPixCode}
-                            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12.5px] font-semibold shadow-xs active:scale-[0.98] transition"
+                            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12.5px] font-semibold shadow-xs active:scale-[0.98] transition cursor-pointer"
                           >
                             <Copy className="w-3.5 h-3.5" />
                             <span>{isCopied ? "Código Pix Copiado!" : "Copiar Código Pix Copia e Cola"}</span>
@@ -915,7 +1158,7 @@ function CheckoutContent() {
                       </div>
                     ) : (
                       <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
-                        Ao clicar no botão abaixo, geraremos a cobrança com QR Code dinâmico e código Copia e Cola. O sistema ativará seu plano automaticamente assim que a transferência for concluída.
+                        Ao gerar a cobrança, o QR Code no valor de <strong className="font-semibold text-[#1C1C1E] dark:text-white font-mono">R$ {formatBRL(effectivePriceReais)}</strong> será exibido com chave Copia e Cola para quitação imediata. O estúdio é ativado na confirmação bancária e os 14 dias de teste são creditados como dias adicionais de bônus.
                       </p>
                     )}
                   </div>
@@ -942,7 +1185,7 @@ function CheckoutContent() {
                           <Loader2 className="w-4 h-4 animate-spin text-white dark:text-[#09090b]" />
                           <span>
                             {paymentMethod === "credit_card"
-                              ? "Processando e autenticando 3DS2..."
+                              ? "Redirecionando para a Stripe..."
                               : "Gerando Pix Dinâmico..."}
                           </span>
                         </div>
@@ -951,7 +1194,7 @@ function CheckoutContent() {
                           <span>
                             {paymentMethod === "credit_card"
                               ? "Concluir assinatura com Cartão"
-                              : "Gerar cobrança Pix e ativar"}
+                              : `Gerar QR Code Pix de R$ ${formatBRL(effectivePriceReais)} e ativar`}
                           </span>
                           <ArrowRight className="w-4 h-4" />
                         </>
@@ -977,10 +1220,12 @@ function CheckoutContent() {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold font-mono text-white">
-                    R$ {priceReais}
+                    R$ {billingCycle === "yearly" ? formatBRL(fullCyclePriceReais) : formatBRL(priceReais)}
                   </p>
                   <p className="text-[11px] text-zinc-400 dark:text-[#a1a1aa] font-sans">
-                    /mês ({billingCycle === "yearly" ? "anual" : "mensal"})
+                    {billingCycle === "yearly"
+                      ? `/ano (equiv. R$ ${formatBRL(selectedPlan.annualMonthlyPriceReais)}/mês)`
+                      : "/mês"}
                   </p>
                 </div>
               </div>
@@ -1022,16 +1267,177 @@ function CheckoutContent() {
                 </ul>
               </div>
 
-              {/* Today Cost: R$ 0.00 (14 days free trial) */}
-              <div className="pt-4 border-t border-zinc-800 dark:border-[#27272a] flex items-center justify-between text-[14px]">
-                <span className="text-zinc-300 dark:text-[#a1a1aa]">Total a pagar hoje:</span>
-                <span className="font-bold text-white font-mono text-xl">
-                  R$ 0,00
-                </span>
+              {/* Cupom de Desconto */}
+              <div className="pt-3 border-t border-zinc-800 dark:border-[#27272a] space-y-2">
+                <div className="flex items-center justify-between text-[12px]">
+                  <label
+                    htmlFor="checkout-coupon"
+                    className="font-mono uppercase tracking-wider text-zinc-400 dark:text-[#a1a1aa] cursor-pointer"
+                  >
+                    Cupom de desconto
+                  </label>
+                  {appliedCoupon && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[12px] text-zinc-400 hover:text-white underline transition-colors cursor-pointer py-1 px-3 active:scale-[0.98]"
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+
+                {appliedCoupon ? (
+                  <div
+                    role="status"
+                    aria-label="Cupom de desconto aplicado"
+                    className="min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[12.5px] text-emerald-400"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span className="font-mono font-semibold">{appliedCoupon.code}</span>
+                      <span className="text-[11.5px] text-emerald-300">
+                        {appliedCoupon.discountPercent
+                          ? `(-${appliedCoupon.discountPercent}%)`
+                          : `(-R$ ${formatBRL(appliedCoupon.discountCents / 100)})`}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-emerald-400 font-mono font-semibold">
+                      - R$ {formatBRL(appliedCoupon.discountCents / 100)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      id="checkout-coupon"
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleApplyCoupon();
+                        }
+                      }}
+                      placeholder="CÓDIGO DO CUPOM"
+                      aria-invalid={Boolean(couponError)}
+                      aria-describedby={couponError ? "checkout-coupon-error" : undefined}
+                      className="min-h-[44px] flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 dark:bg-[#09090b] border border-zinc-800 dark:border-[#27272a] text-[16px] sm:text-[12.5px] uppercase font-mono tracking-wider text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-400 placeholder:opacity-100 focus:outline-none focus:ring-1 focus:ring-white transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading || !couponCode.trim()}
+                      className="min-h-[44px] min-w-[84px] px-4 sm:px-5 py-2.5 rounded-xl bg-white dark:bg-[#f4f4f5] text-[#1C1C1E] dark:text-[#09090b] text-[12.5px] font-semibold hover:bg-zinc-200 disabled:opacity-40 transition-all cursor-pointer inline-flex items-center justify-center active:scale-[0.98]"
+                    >
+                      {couponLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Aplicar"
+                      )}
+                    </button>
+                  </div>
+                )}
+                {couponError && (
+                  <p
+                    id="checkout-coupon-error"
+                    role="alert"
+                    aria-live="polite"
+                    className="text-[11.5px] text-rose-400 font-medium leading-tight"
+                  >
+                    {couponError}
+                  </p>
+                )}
               </div>
-              <p className="text-[11.5px] text-zinc-400 dark:text-[#a1a1aa] leading-relaxed">
-                Você terá 14 dias de acesso completo sem cobrança. Se contratar antecipadamente, os dias restantes são somados ao primeiro período pago.
-              </p>
+
+              {/* Total & Resumo de Valores */}
+              <div className="pt-3 border-t border-zinc-800 dark:border-[#27272a] space-y-2">
+                {/* Linha base do ciclo */}
+                <div className="flex justify-between text-[12px] text-zinc-400">
+                  <span>
+                    {billingCycle === "yearly"
+                      ? "Valor do ciclo anual (12 meses):"
+                      : "Valor do ciclo mensal:"}
+                  </span>
+                  <span
+                    className={`font-mono ${
+                      appliedCoupon ? "line-through text-zinc-500" : "text-zinc-200"
+                    }`}
+                  >
+                    R$ {formatBRL(fullCyclePriceReais)}
+                  </span>
+                </div>
+
+                {/* Detalhamento de desconto de cupom quando aplicado */}
+                {appliedCoupon && (
+                  <>
+                    <div className="flex justify-between text-[12px] text-emerald-400">
+                      <span>Desconto ({appliedCoupon.code}):</span>
+                      <span className="font-mono">
+                        - R$ {formatBRL(appliedCoupon.discountCents / 100)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[12.5px] text-zinc-200 font-medium">
+                      <span>
+                        {paymentMethod === "credit_card"
+                          ? "Subtotal após 14 dias de teste:"
+                          : "Subtotal com desconto:"}
+                      </span>
+                      <span className="font-mono text-emerald-400 font-semibold">
+                        R$ {formatBRL(effectivePriceReais)}/{billingCycle === "yearly" ? "ano" : "mês"}
+                      </span>
+                    </div>
+                    {billingCycle === "yearly" && (
+                      <div className="flex justify-end text-[11px] text-zinc-400">
+                        <span>(equiv. R$ {formatBRL(effectiveMonthlyEquivalentReais)}/mês)</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Se não houver cupom e for ciclo anual, destaca a equivalência mensal */}
+                {!appliedCoupon && billingCycle === "yearly" && (
+                  <div className="flex justify-between text-[11.5px] text-zinc-400">
+                    <span>Mensalidade equivalente:</span>
+                    <span className="font-mono text-zinc-300">
+                      R$ {formatBRL(selectedPlan.annualMonthlyPriceReais)}/mês (15% off incluso)
+                    </span>
+                  </div>
+                )}
+
+                {/* Linha de Total / Cobrança Hoje */}
+                <div className="flex items-center justify-between text-[14px] pt-1.5 border-t border-zinc-800/80 dark:border-[#27272a]">
+                  <span className="text-zinc-300 dark:text-[#a1a1aa] font-medium">
+                    {paymentMethod === "credit_card"
+                      ? "Total a pagar hoje no cartão:"
+                      : "Cobrança gerada hoje (Pix):"}
+                  </span>
+                  <span className="font-bold text-white font-mono text-xl">
+                    {paymentMethod === "credit_card"
+                      ? "R$ 0,00"
+                      : `R$ ${formatBRL(effectivePriceReais)}`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Explicação contextual clara e transparente */}
+              <div className="p-3 rounded-xl bg-zinc-900/80 dark:bg-[#09090b] border border-zinc-800 dark:border-[#27272a] text-[11.5px] text-zinc-300 dark:text-[#a1a1aa] leading-relaxed">
+                {paymentMethod === "credit_card" ? (
+                  <span>
+                    Cobrança de <strong className="text-white font-mono font-semibold">R$ 0,00</strong> hoje. O valor de{" "}
+                    <strong className="text-white font-mono font-semibold">R$ {formatBRL(effectivePriceReais)}</strong> ({billingCycle === "yearly" ? "anual" : "mensal"}) será faturado no cartão somente em{" "}
+                    <strong className="text-white font-semibold">{trialEndDateFormatted}</strong> caso mantenha o plano ativo. Cancele quando quiser sem fidelidade.
+                  </span>
+                ) : (
+                  <span>
+                    No Pix, o QR Code de <strong className="text-white font-mono font-semibold">R$ {formatBRL(effectivePriceReais)}</strong> é gerado para quitação imediata do ciclo {billingCycle === "yearly" ? "anual" : "mensal"}. Seus 14 dias de teste grátis são creditados como{" "}
+                    <strong className="text-emerald-400 font-semibold">+14 dias bônus</strong> adicionados ao fim do seu período.
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Trust Badges */}

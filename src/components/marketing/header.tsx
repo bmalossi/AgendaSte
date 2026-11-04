@@ -27,6 +27,7 @@ import {
 } from "@/lib/marketing-content";
 import { LuveaWordmark } from "@/components/luvea-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export function MarketingHeader() {
   const [activeDropdown, setActiveDropdown] = useState<"how" | "business" | null>(
@@ -37,9 +38,23 @@ export function MarketingHeader() {
   const [mobileHowOpen, setMobileHowOpen] = useState(false);
   const [mobileBusinessOpen, setMobileBusinessOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [userLoggedIn, setUserLoggedIn] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    if (isSupabaseConfigured()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setUserLoggedIn(true);
+        }
+      });
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUserLoggedIn(Boolean(session?.user));
+      });
+      return () => subscription.unsubscribe();
+    }
   }, []);
 
   const navRef = useRef<HTMLElement>(null);
@@ -316,30 +331,42 @@ export function MarketingHeader() {
             {/* Alternador de Tema Oficial */}
             <ThemeToggle variant="icon" />
 
-            <Link
-              href={loginUrl}
-              className="px-4 py-2 text-[13px] font-semibold text-zinc-700 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white transition-colors"
-            >
-              Entrar
-            </Link>
+            {userLoggedIn ? (
+              <Link
+                href="/app"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-100 transition-all shadow-sm active:scale-[0.98]"
+              >
+                <span>Acessar App</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={loginUrl}
+                  className="px-4 py-2 text-[13px] font-semibold text-zinc-700 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white transition-colors"
+                >
+                  Entrar
+                </Link>
 
-            <a
-              href={demoWhatsAppUrl}
-              target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
-              rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-[#18181b] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors shadow-2xs"
-            >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Agendar demonstração</span>
-            </a>
+                <a
+                  href={demoWhatsAppUrl}
+                  target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
+                  rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-[#18181b] text-[13px] font-semibold text-[#18181B] dark:text-white hover:bg-zinc-50 dark:hover:bg-[#27272a] transition-colors shadow-2xs"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Agendar demonstração</span>
+                </a>
 
-            <Link
-              href={primaryCtaUrl}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-100 transition-all shadow-sm active:scale-[0.98]"
-            >
-              <span>Começar teste grátis</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+                <Link
+                  href={primaryCtaUrl}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[13px] font-semibold hover:bg-black dark:hover:bg-zinc-100 transition-all shadow-sm active:scale-[0.98]"
+                >
+                  <span>Começar teste grátis</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Hamburger Button + Theme Toggle */}
@@ -347,10 +374,10 @@ export function MarketingHeader() {
             <ThemeToggle variant="icon" />
 
             <Link
-              href={primaryCtaUrl}
+              href={userLoggedIn ? "/app" : primaryCtaUrl}
               className="px-3.5 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[12px] font-semibold"
             >
-              Testar Grátis
+              {userLoggedIn ? "Acessar App" : "Testar Grátis"}
             </Link>
             <button
               type="button"
@@ -500,33 +527,46 @@ export function MarketingHeader() {
 
             {/* Mobile Action Buttons */}
             <div className="pt-2 space-y-3">
-              <Link
-                href={primaryCtaUrl}
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[14px] font-semibold shadow-sm active:scale-[0.99] transition-all"
-              >
-                <span>Começar teste grátis (14 dias)</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              {userLoggedIn ? (
+                <Link
+                  href="/app"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[14px] font-semibold shadow-sm active:scale-[0.99] transition-all"
+                >
+                  <span>Acessar Painel do Estúdio</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href={primaryCtaUrl}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#09090b] text-[14px] font-semibold shadow-sm active:scale-[0.99] transition-all"
+                  >
+                    <span>Começar teste grátis (14 dias)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
 
-              <a
-                href={demoWhatsAppUrl}
-                onClick={() => setMobileMenuOpen(false)}
-                target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
-                rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white active:scale-[0.99] transition-all"
-              >
-                <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Agendar demonstração via WhatsApp</span>
-              </a>
+                  <a
+                    href={demoWhatsAppUrl}
+                    onClick={() => setMobileMenuOpen(false)}
+                    target={demoWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
+                    rel={demoWhatsAppUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-full border border-zinc-300 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13.5px] font-semibold text-[#18181B] dark:text-white active:scale-[0.99] transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Agendar demonstração via WhatsApp</span>
+                  </a>
 
-              <Link
-                href={loginUrl}
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full block text-center py-2.5 text-[14px] font-semibold text-zinc-700 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white transition-colors"
-              >
-                Já sou cliente · Entrar
-              </Link>
+                  <Link
+                    href={loginUrl}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full block text-center py-2.5 text-[14px] font-semibold text-zinc-700 dark:text-[#a1a1aa] hover:text-black dark:hover:text-white transition-colors"
+                  >
+                    Já sou cliente · Entrar
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>,

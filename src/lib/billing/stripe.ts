@@ -3,7 +3,7 @@ import { resolvePlanPriceCents, PlanTier, BillingCycle } from "./pricing";
 
 /**
  * Módulo de Integração Oficial Stripe Billing (API v1)
- * Suporte a Customer, Subscription, Payment Element e Webhook HMAC-SHA256
+ * Suporte a Customer, Subscription, Stripe Checkout Session, Payment Element e Webhook HMAC-SHA256
  */
 
 export function isStripeConfigured(): boolean {
@@ -75,6 +75,190 @@ export async function createOrRetrieveStripeCustomer(params: {
 
   const customer = await createRes.json();
   return customer.id;
+}
+
+/**
+ * Cria uma Stripe Checkout Session oficial (mode: subscription)
+ * Redireciona o usuário para o ambiente seguro e criptografado da Stripe (PCI-DSS SAQ A)
+ * Suporte nativo a 14 dias de teste grátis (R$ 0,00 hoje), 3DS2, Apple Pay, Google Pay e cupom de desconto.
+ */
+export async function createStripeCheckoutSession(params: {
+  customerId: string;
+  planTier: PlanTier;
+  billingCycle: BillingCycle;
+  successUrl: string;
+  cancelUrl: string;
+  bonusTrialDays?: number;
+  trialEndTimestamp?: number;
+  couponId?: string;
+  promotionCodeId?: string;
+  customPriceCents?: number;
+  metadata?: Record<string, string>;
+}): Promise<{
+  sessionId: string;
+  checkoutUrl: string;
+}> {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const standardPriceCents = resolvePlanPriceCents(params.planTier, params.billingCycle);
+  const priceCents =
+    params.customPriceCents !== undefined && params.customPriceCents >= 0
+      ? params.customPriceCents
+      : standardPriceCents;
+
+  if (!secretKey || !isStripeConfigured()) {
+    return {
+      sessionId: `cs_mock_${Math.random().toString(36).substring(2, 10)}`,
+      checkoutUrl: `${params.successUrl}&mock_checkout=true`,
+    };
+  }
+
+  const body = new URLSearchParams();
+  body.set("mode", "subscription");
+  body.set("customer", params.customerId);
+  body.set("success_url", params.successUrl);
+  body.set("cancel_url", params.cancelUrl);
+  body.set("payment_method_types[0]", "card");
+
+  // Preço unitário e recorrência
+  body.set("line_items[0][price_data][currency]", "brl");
+  body.set(
+    "line_items[0][price_data][product_data][name]",
+    `Plano ${params.planTier.toUpperCase()} - LUVEA Studio`
+  );
+  body.set("line_items[0][price_data][unit_amount]", String(priceCents));
+  body.set(
+    "line_items[0][price_data][recurring][interval]",
+    params.billingCycle === "yearly" ? "year" : "month"
+  );
+  body.set("line_items[0][quantity]", "1");
+
+  // Período de Teste Grátis (14 dias ou restante)
+  if (params.trialEndTimestamp && params.trialEndTimestamp > Math.floor(Date.now() / 1000)) {
+    body.set("subscription_data[trial_end]", String(params.trialEndTimestamp));
+  } else if (params.bonusTrialDays && params.bonusTrialDays > 0) {
+    const trialEnd = Math.floor(
+      (Date.now() + params.bonusTrialDays * 86400000) / 1000
+    );
+    body.set("subscription_data[trial_end]", String(trialEnd));
+  } else {
+    // 14 dias padrão de teste grátis
+    body.set("subscription_data[trial_period_days]", "14");
+  }
+
+  // Cupons / Códigos Promocionais
+  if (params.couponId) {
+    body.set("discounts[0][coupon]", params.couponId);
+  } else if (params.promotionCodeId) {
+    body.set("discounts[0][promotion_code]", params.promotionCodeId);
+  } else if (params.customPriceCents !== undefined && params.customPriceCents < standardPriceCents) {
+    // Desconto de cupom interno (PLATFORM_PROMO_COUPONS) já aplicado no unit_amount; não acumula
+  } else {
+    // Permite que o cliente também insira cupons diretamente na tela oficial da Stripe
+    body.set("allow_promotion_codes", "true");
+  }
+
+  // Metadados para reconciliação via webhook (checkout.session.completed)
+  if (params.metadata) {
+    for (const [k, v] of Object.entries(params.metadata)) {
+      body.set(`metadata[${k}]`, v);
+      body.set(`subscription_data[metadata][${k}]`, v);
+    }
+    if (params.metadata.organizationId) {
+      body.set("client_reference_id", params.metadata.organizationId);
+    }
+  }
+
+  const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+
+  const sessionData = await res.json();
+  if (!res.ok) {
+    throw new Error(
+      sessionData.error?.message || "Erro ao criar sessão de checkout na Stripe"
+    );
+  }
+
+  return {
+    sessionId: sessionData.id,
+    checkoutUrl: sessionData.url,
+  };
+}
+
+/**
+ * Consulta e valida se um cupom ou promotion code existe e está ativo na Stripe
+ */
+export async function validateStripeCouponOrPromoCode(code: string): Promise<{
+  valid: boolean;
+  couponId?: string;
+  promotionCodeId?: string;
+  discountPercent?: number;
+  discountAmountOffCents?: number;
+  name?: string;
+  error?: string;
+}> {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey || !isStripeConfigured()) {
+    return { valid: false, error: "Stripe não configurada" };
+  }
+
+  const normalized = code.trim();
+
+  try {
+    // 1. Busca em promotion_codes
+    const promoRes = await fetch(
+      `https://api.stripe.com/v1/promotion_codes?code=${encodeURIComponent(normalized)}&active=true&limit=1`,
+      {
+        headers: { Authorization: `Bearer ${secretKey}` },
+      }
+    );
+
+    if (promoRes.ok) {
+      const promoData = await promoRes.json();
+      if (promoData.data && promoData.data.length > 0) {
+        const promo = promoData.data[0];
+        const coupon = promo.coupon;
+        return {
+          valid: true,
+          promotionCodeId: promo.id,
+          couponId: coupon?.id,
+          discountPercent: coupon?.percent_off || undefined,
+          discountAmountOffCents: coupon?.amount_off || undefined,
+          name: coupon?.name || promo.code,
+        };
+      }
+    }
+
+    // 2. Busca direta em coupons
+    const couponRes = await fetch(
+      `https://api.stripe.com/v1/coupons/${encodeURIComponent(normalized)}`,
+      {
+        headers: { Authorization: `Bearer ${secretKey}` },
+      }
+    );
+
+    if (couponRes.ok) {
+      const coupon = await couponRes.json();
+      if (coupon.valid) {
+        return {
+          valid: true,
+          couponId: coupon.id,
+          discountPercent: coupon.percent_off || undefined,
+          discountAmountOffCents: coupon.amount_off || undefined,
+          name: coupon.name || coupon.id,
+        };
+      }
+    }
+
+    return { valid: false, error: "Cupom não encontrado ou inativo na Stripe" };
+  } catch (err: any) {
+    return { valid: false, error: err?.message || "Erro ao consultar Stripe" };
+  }
 }
 
 /**

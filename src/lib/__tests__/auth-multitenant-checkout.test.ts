@@ -13,6 +13,11 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from "../auth-schemas";
+import {
+  validateSubdomainOwnership,
+  calculateDiscountedPrice,
+  PLATFORM_PROMO_COUPONS,
+} from "../billing/pricing";
 
 describe("Módulo de Autenticação, Checkout & Multi-Tenant (Luvea.app)", () => {
   describe("1. Normalização de Subdomínios & Validação de Documentos", () => {
@@ -83,6 +88,67 @@ describe("Módulo de Autenticação, Checkout & Multi-Tenant (Luvea.app)", () =>
         assert.equal(keys.includes("cardNumber"), false);
         assert.equal(keys.includes("cardCvc"), false);
       }
+    });
+
+    it("valida payload de checkout com código de cupom promocional", () => {
+      const withCoupon = {
+        fullName: "Camila Valente",
+        email: "camila@estudio.com.br",
+        whatsapp: "(11) 98765-4321",
+        cpfCnpj: "123.456.789-00",
+        businessName: "Studio Camila Valente",
+        subdomain: "studio-camila",
+        planTier: "gold",
+        billingCycle: "monthly",
+        paymentMethod: "credit_card",
+        couponCode: "LUVEA20",
+      };
+
+      const result = checkoutFormSchema.safeParse(withCoupon);
+      assert.equal(result.success, true);
+      if (result.success) {
+        assert.equal(result.data.couponCode, "LUVEA20");
+      }
+    });
+
+    it("permite reivindicação de subdomínio órfão (isOrphan = true) evitando travamento", () => {
+      const check = validateSubdomainOwnership({
+        existingOrg: {
+          id: "orphan-org-id",
+          slug: "bmalossi",
+          name: "espacounikko",
+        },
+        requesterUserId: "user-123",
+        requesterOrgId: "temp-org-id",
+        requesterRole: "owner",
+        isOrphan: true,
+      });
+
+      assert.equal(check.canProceed, true);
+      assert.equal(check.isReclaim, true);
+    });
+
+    it("calcula desconto percentual e fixo de cupons promocionais", () => {
+      // 20% sobre R$ 149,00 (14900 centavos) = R$ 29,80 (2980 centavos)
+      const res20 = calculateDiscountedPrice(14900, { discountPercent: 20 });
+      assert.equal(res20.discountCents, 2980);
+      assert.equal(res20.finalCents, 11920);
+
+      // Desconto fixo de R$ 50,00 (5000 centavos)
+      const resFixed = calculateDiscountedPrice(14900, { discountAmountOffCents: 5000 });
+      assert.equal(resFixed.discountCents, 5000);
+      assert.equal(resFixed.finalCents, 9900);
+
+      // Cupom nulo mantém preço integral
+      const resNull = calculateDiscountedPrice(14900, null);
+      assert.equal(resNull.discountCents, 0);
+      assert.equal(resNull.finalCents, 14900);
+
+      // Catálogo de cupons padrão
+      assert.ok(PLATFORM_PROMO_COUPONS.LUVEA10);
+      assert.equal(PLATFORM_PROMO_COUPONS.LUVEA10.discountPercent, 10);
+      assert.ok(PLATFORM_PROMO_COUPONS.LUVEA20);
+      assert.equal(PLATFORM_PROMO_COUPONS.LUVEA20.discountPercent, 20);
     });
 
     it("valida credenciais de login e rejeita e-mails inválidos", () => {
