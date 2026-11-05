@@ -201,6 +201,22 @@ export default function PublicSitePage({ params }: SitePageProps) {
             );
 
             setState((prev) => {
+              const orgSettings = (org.settings || {}) as Record<string, any>;
+              const dbWebsite = (orgSettings.website || {}) as Record<string, any>;
+              const dbPayments = (dbWebsite.paymentsSetup || {}) as Record<string, any>;
+              const dbBusiness = (orgSettings.business || {}) as Record<string, any>;
+              const primaryProfRow = profsData && profsData[0] ? profsData[0] : null;
+              const studioPixKey =
+                dbPayments.pixKeyValue ||
+                dbBusiness.pixKey ||
+                primaryProfRow?.pix_key ||
+                prev.settings.business.pixKey;
+              const studioPixMode =
+                dbPayments.pixProviderMode ||
+                dbBusiness.pixProviderMode ||
+                prev.settings.business.pixProviderMode ||
+                "direct_pix_key";
+
               const next: StudioState = {
                 ...prev,
                 settings: {
@@ -213,6 +229,8 @@ export default function PublicSitePage({ params }: SitePageProps) {
                     ...prev.settings.business,
                     businessName: org.name || prev.settings.business.businessName,
                     bookingSlug: org.slug,
+                    pixKey: studioPixKey,
+                    pixProviderMode: studioPixMode,
                   },
                   website: {
                     ...(prev.settings.website ?? {
@@ -220,6 +238,15 @@ export default function PublicSitePage({ params }: SitePageProps) {
                       subdomainSlug: org.slug,
                       websitePublished: true,
                     }),
+                    ...dbWebsite,
+                    paymentsSetup: {
+                      ...(prev.settings.website?.paymentsSetup || {}),
+                      ...dbPayments,
+                      pixKeyValue: studioPixKey,
+                      pixProviderMode: studioPixMode,
+                      // Nunca armazena Access Token privado em localStorage público
+                      mercadopagoAccessToken: "",
+                    },
                     subdomainSlug: org.slug,
                     websitePublished: true,
                   },

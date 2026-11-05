@@ -12,9 +12,171 @@ const PLACEHOLDER_TOKENS = new Set([
   "APP_USR-0000000000000000",
 ]);
 
-export function isMercadoPagoConfigured(): boolean {
+export function isValidMercadoPagoToken(token?: string | null): boolean {
+  const clean = (token || "").trim();
+  return Boolean(clean && !PLACEHOLDER_TOKENS.has(clean));
+}
+
+export function isMercadoPagoConfigured(customAccessToken?: string | null): boolean {
+  if (isValidMercadoPagoToken(customAccessToken)) {
+    return true;
+  }
   const token = (process.env.MERCADOPAGO_ACCESS_TOKEN || "").trim();
-  return Boolean(token && !PLACEHOLDER_TOKENS.has(token));
+  return isValidMercadoPagoToken(token);
+}
+
+export type PixKeyTypeOption = "cpf_cnpj" | "email" | "phone" | "random";
+
+/**
+ * Normaliza a Chave Pix para o padrão DICT do Banco Central do Brasil:
+ * - CPF/CNPJ: apenas dígitos (11 ou 14 caracteres)
+ * - Telefone: formato internacional E.164 (+55DDD9XXXXXXXX)
+ * - E-mail: minúsculas sem espaços
+ * - Chave Aleatória (EVP): trim preservando hifens
+ */
+export function normalizePixKey(
+  rawKey: string,
+  keyType?: PixKeyTypeOption
+): string {
+  const trimmed = (rawKey || "").trim();
+  if (!trimmed) return "pix@luveastudio.app";
+
+  if (keyType === "email" || trimmed.includes("@")) {
+    return trimmed.toLowerCase().replace(/\s+/g, "");
+  }
+
+  const digitsOnly = trimmed.replace(/\D/g, "");
+
+  if (keyType === "cpf_cnpj") {
+    return digitsOnly || trimmed;
+  }
+
+  if (keyType === "phone") {
+    if (trimmed.startsWith("+")) {
+      return `+${digitsOnly}`;
+    }
+    if (digitsOnly.length === 10 || digitsOnly.length === 11) {
+      return `+55${digitsOnly}`;
+    }
+    if (digitsOnly.startsWith("55") && (digitsOnly.length === 12 || digitsOnly.length === 13)) {
+      return `+${digitsOnly}`;
+    }
+    return digitsOnly ? `+55${digitsOnly}` : trimmed;
+  }
+
+  // Auto-detecção quando keyType não é especificado ou é random:
+  // Se contém pontuação de CPF/CNPJ (ex: 000.000.000-00 ou 00.000.000/0001-00)
+  if (
+    /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(trimmed) ||
+    /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(trimmed) ||
+    digitsOnly.length === 14
+  ) {
+    return digitsOnly;
+  }
+
+  // Se parece telefone formatado ex: (11) 99999-9999
+  if (/^\(?\d{2}\)?\s*\d{4,5}-\d{4}$/.test(trimmed)) {
+    return `+55${digitsOnly}`;
+  }
+
+  return trimmed;
+}
+
+function formatEmvField(id: string, value: string): string {
+  const len = String(value.length).padStart(2, "0");
+  return `${id}${len}${value}`;
+}
+
+function sanitizeEmvText(input: string, maxLength: number, fallback: string): string {
+  const cleaned = (input || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+  return (cleaned || fallback).slice(0, maxLength);
+}
+
+/**
+ * Calcula o CRC16-CCITT (polinômio 0x1021, valor inicial 0xFFFF)
+ * exigido na Tag 63 do padrão oficial BRCode do Banco Central do Brasil.
+ */
+export function computeCrc16Ccitt(payload: string): string {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let bit = 0; bit < 8; bit++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      } else {
+        crc = (crc << 1) & 0xffff;
+      }
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+
+export interface GeneratePixBrCodeInput {
+  pixKey: string;
+  pixKeyType?: PixKeyTypeOption;
+  merchantName?: string;
+  merchantCity?: string;
+  amountCents?: number;
+  txId?: string;
+}
+
+/**
+ * Gera um payload Pix Copia e Cola (EMV® QRCPS-MPM / BRCode BACEN) 100% válido
+ * diretamente para a chave Pix configurada pelo estúdio (Multi-Tenant).
+ */
+export function generatePixBrCode(input: GeneratePixBrCodeInput): string {
+  const normalizedKey = normalizePixKey(input.pixKey, input.pixKeyType);
+  const merchantName = sanitizeEmvText(
+    input.merchantName || "LUVEA STUDIO",
+    25,
+    "LUVEA STUDIO"
+  );
+  const merchantCity = sanitizeEmvText(
+    input.merchantCity || "SAO PAULO",
+    15,
+    "SAO PAULO"
+  );
+  const cleanTxId =
+    (input.txId || "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase()
+      .slice(0, 25) || "***";
+
+  const guiField = formatEmvField("00", "BR.GOV.BCB.PIX");
+  const keyField = formatEmvField("01", normalizedKey.slice(0, 77));
+  const merchantAccountInfo = formatEmvField("26", `${guiField}${keyField}`);
+
+  const amountField =
+    typeof input.amountCents === "number" && input.amountCents > 0
+      ? formatEmvField("54", (input.amountCents / 100).toFixed(2))
+      : "";
+
+  const additionalDataField = formatEmvField(
+    "62",
+    formatEmvField("05", cleanTxId)
+  );
+
+  const payloadWithoutCrc = [
+    formatEmvField("00", "01"),
+    merchantAccountInfo,
+    formatEmvField("52", "0000"),
+    formatEmvField("53", "986"),
+    amountField,
+    formatEmvField("58", "BR"),
+    formatEmvField("59", merchantName),
+    formatEmvField("60", merchantCity),
+    additionalDataField,
+    "6304",
+  ].join("");
+
+  const crc = computeCrc16Ccitt(payloadWithoutCrc);
+  return `${payloadWithoutCrc}${crc}`;
 }
 
 export interface CreateMercadoPagoPixOrderInput {
@@ -26,6 +188,8 @@ export interface CreateMercadoPagoPixOrderInput {
   serviceDescription?: string;
   amountCents: number;
   stateId?: string;
+  /** Token específico da organização/estúdio (Multi-Tenant) */
+  accessToken?: string;
 }
 
 export interface CreateMercadoPagoPixOrderResult {
@@ -58,10 +222,14 @@ export function splitFullName(fullName: string): {
 export async function createMercadoPagoPixOrder(
   input: CreateMercadoPagoPixOrderInput
 ): Promise<CreateMercadoPagoPixOrderResult> {
-  const accessToken = (process.env.MERCADOPAGO_ACCESS_TOKEN || "").trim();
-  if (!accessToken || PLACEHOLDER_TOKENS.has(accessToken)) {
+  const accessToken = (
+    input.accessToken ||
+    process.env.MERCADOPAGO_ACCESS_TOKEN ||
+    ""
+  ).trim();
+  if (!isValidMercadoPagoToken(accessToken)) {
     throw new Error(
-      "MERCADOPAGO_ACCESS_TOKEN não configurado em .env.local."
+      "Access Token do Mercado Pago não configurado ou inválido para este estúdio."
     );
   }
 

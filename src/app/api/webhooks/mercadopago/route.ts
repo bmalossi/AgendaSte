@@ -1,5 +1,6 @@
 import {
   isMercadoPagoConfigured,
+  isValidMercadoPagoToken,
   verifyMercadoPagoWebhookSignature,
 } from "@/lib/mercadopago";
 import { recordWebhookEventIfNotProcessed } from "@/lib/billing/webhook-events";
@@ -112,8 +113,39 @@ export async function POST(request: Request) {
     let remoteAmountCents = 0;
     let externalReference: string | null = null;
 
-    if (isMercadoPagoConfigured()) {
-      const accessToken = (process.env.MERCADOPAGO_ACCESS_TOKEN || "").trim();
+    // Suporte Multi-Tenant: permite ?subdomain=meu-estudio ou ?orgId=uuid na URL do Webhook do estúdio
+    const tenantSubdomain = url.searchParams.get("subdomain")?.trim().toLowerCase();
+    const tenantOrgId = url.searchParams.get("orgId")?.trim();
+    let tenantAccessToken = "";
+
+    if ((tenantSubdomain || tenantOrgId) && isSupabaseConfigured()) {
+      try {
+        let orgQuery = supabaseAdmin.from("organizations").select("settings");
+        if (tenantOrgId) {
+          orgQuery = orgQuery.eq("id", tenantOrgId);
+        } else if (tenantSubdomain) {
+          orgQuery = orgQuery.eq("slug", tenantSubdomain);
+        }
+        const { data: org } = await orgQuery.maybeSingle();
+        const settings = (org?.settings || {}) as Record<string, any>;
+        const candidateToken = (
+          settings?.website?.paymentsSetup?.mercadopagoAccessToken ||
+          settings?.paymentsSetup?.mercadopagoAccessToken ||
+          settings?.business?.mercadopagoAccessToken ||
+          ""
+        ).trim();
+        if (isValidMercadoPagoToken(candidateToken)) {
+          tenantAccessToken = candidateToken;
+        }
+      } catch {
+        // Fallback silencioso
+      }
+    }
+
+    const effectiveAccessToken =
+      tenantAccessToken || (process.env.MERCADOPAGO_ACCESS_TOKEN || "").trim();
+
+    if (isValidMercadoPagoToken(effectiveAccessToken)) {
       const endpoint =
         topic === "payment"
           ? `https://api.mercadopago.com/v1/payments/${encodeURIComponent(dataId)}`
@@ -124,7 +156,7 @@ export async function POST(request: Request) {
           method: "GET",
           headers: {
             Accept: "application/json",
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${effectiveAccessToken}`,
           },
         });
         if (res.ok) {
@@ -174,14 +206,14 @@ export async function POST(request: Request) {
         });
       }
 
-      // Caso não seja fatura do plano SaaS, verifica se é depósito de agendamento de cliente (B2C)
+      // Caso não seja fatura do plano SaaS, atualiza o depósito do agendamento de cliente do estúdio (Multi-Tenant B2C)
       if (isSupabaseConfigured() && externalReference) {
         try {
           await supabaseAdmin
             .from("appointments")
             .update({
-              payment_status: "deposit_paid",
-              updated_at: new Date().toISOString(),
+              deposit_paid: true,
+              status: "confirmed",
             })
             .eq("id", externalReference);
         } catch (appErr) {

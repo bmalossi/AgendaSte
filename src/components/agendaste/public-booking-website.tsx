@@ -211,6 +211,8 @@ export function PublicBookingWebsite({
 
   // Pix state
   const [pixPayload, setPixPayload] = useState<string | null>(null);
+  const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
+  const [pixModeUsed, setPixModeUsed] = useState<string | null>(null);
   const [isGeneratingPix, setIsGeneratingPix] = useState(false);
   const [copiedPix, setCopiedPix] = useState(false);
 
@@ -270,6 +272,22 @@ export function PublicBookingWebsite({
       ? selectedService.depositCents
       : Math.round(selectedService.priceCents * 0.3);
 
+    const studioPixKey =
+      websiteConfig.paymentsSetup?.pixKeyValue ||
+      state.settings.business.pixKey ||
+      "pix@luveastudio.app";
+    const studioPixKeyType = websiteConfig.paymentsSetup?.pixKeyType;
+    const studioPixMode =
+      websiteConfig.paymentsSetup?.pixProviderMode ||
+      state.settings.business.pixProviderMode ||
+      "direct_pix_key";
+    const studioSubdomain =
+      websiteConfig.subdomainSlug || state.settings.business.bookingSlug;
+    const studioCity =
+      websiteConfig.city ||
+      state.settings.business.cityState?.split(",")[0]?.trim() ||
+      "SAO PAULO";
+
     try {
       const res = await fetch("/api/pix/create", {
         method: "POST",
@@ -281,16 +299,25 @@ export function PublicBookingWebsite({
           serviceId: selectedService.id,
           serviceName: selectedService.name,
           depositCents,
+          subdomain: studioSubdomain,
+          pixProviderMode: studioPixMode,
+          pixKey: studioPixKey,
+          pixKeyType: studioPixKeyType,
+          merchantName: businessName,
+          merchantCity: studioCity,
         }),
       });
       const data = await res.json();
       setPixPayload(
         data.qrCodePayload ||
-          "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
+          data.pixCopiaECola ||
+          `00020126580014BR.GOV.BCB.PIX0136${studioPixKey}5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD`
       );
+      setPixQrBase64(data.qrCodeBase64 || null);
+      setPixModeUsed(data.mode || studioPixMode);
     } catch {
       setPixPayload(
-        "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD"
+        `00020126580014BR.GOV.BCB.PIX0136${studioPixKey}5204000053039865802BR5920LUVEA6009SAO PAULO62070503***6304ABCD`
       );
     } finally {
       setIsGeneratingPix(false);
@@ -696,10 +723,14 @@ export function PublicBookingWebsite({
                 {/* Client Contact Inputs */}
                 <div className="pt-2 border-t border-zinc-100 space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    <label
+                      htmlFor="public-client-name"
+                      className="block text-xs font-semibold text-zinc-700 mb-1"
+                    >
                       Seu Nome Completo *
                     </label>
                     <input
+                      id="public-client-name"
                       type="text"
                       placeholder="Ex: Fernanda Lima"
                       value={clientName}
@@ -710,10 +741,14 @@ export function PublicBookingWebsite({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                      <label
+                        htmlFor="public-client-phone"
+                        className="block text-xs font-semibold text-zinc-700 mb-1"
+                      >
                         WhatsApp *
                       </label>
                       <input
+                        id="public-client-phone"
                         type="text"
                         placeholder="(11) 98765-4321"
                         value={clientPhone}
@@ -722,10 +757,14 @@ export function PublicBookingWebsite({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                      <label
+                        htmlFor="public-client-email"
+                        className="block text-xs font-semibold text-zinc-700 mb-1"
+                      >
                         E-mail
                       </label>
                       <input
+                        id="public-client-email"
                         type="email"
                         placeholder="cliente@exemplo.com"
                         value={clientEmail}
@@ -782,29 +821,58 @@ export function PublicBookingWebsite({
                         Gerando Pix Copia e Cola instantâneo...
                       </div>
                     ) : pixPayload ? (
-                      <div className="space-y-2">
-                        <label className="block text-[11px] font-bold uppercase tracking-wider font-mono text-zinc-500">
-                          Pix Copia e Cola
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            value={pixPayload}
-                            className="flex-1 px-3 py-2 rounded-xl bg-zinc-100 text-xs font-mono border border-zinc-200 select-all"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard?.writeText(pixPayload);
-                              setCopiedPix(true);
-                              setTimeout(() => setCopiedPix(false), 2000);
-                            }}
-                            className="px-3.5 py-2 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black inline-flex items-center gap-1.5 shrink-0"
-                          >
-                            {copiedPix ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedPix ? "Copiado!" : "Copiar"}</span>
-                          </button>
+                      <div className="space-y-3">
+                        {pixQrBase64 && (
+                          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-zinc-200">
+                            <img
+                              src={`data:image/png;base64,${pixQrBase64}`}
+                              alt="QR Code Pix do Estúdio"
+                              className="w-40 h-40 object-contain"
+                            />
+                            <span className="mt-1.5 text-[11px] text-zinc-500">
+                              Confirmação automática via Mercado Pago · {businessName}
+                            </span>
+                          </div>
+                        )}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label
+                              htmlFor="public-pix-copia-cola"
+                              className="block text-[11px] font-bold uppercase tracking-wider font-mono text-zinc-500"
+                            >
+                              Pix Copia e Cola
+                            </label>
+                            <span className="text-[11px] text-zinc-500">
+                              Recebedor: <strong className="text-zinc-800">{businessName}</strong>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              id="public-pix-copia-cola"
+                              type="text"
+                              readOnly
+                              value={pixPayload}
+                              className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl bg-zinc-100 text-xs font-mono border border-zinc-200 select-all"
+                            />
+                            <button
+                              type="button"
+                              aria-label="Copiar código Pix Copia e Cola"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(pixPayload);
+                                setCopiedPix(true);
+                                setTimeout(() => setCopiedPix(false), 2000);
+                              }}
+                              className="min-h-[44px] px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black inline-flex items-center justify-center gap-1.5 shrink-0"
+                            >
+                              {copiedPix ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span>{copiedPix ? "Copiado!" : "Copiar"}</span>
+                            </button>
+                          </div>
+                          {pixModeUsed === "direct_pix_key" && (
+                            <p className="text-[11px] text-zinc-500">
+                              Transferência direta para a chave Pix oficial do estúdio ({websiteConfig.paymentsSetup?.pixKeyValue || state.settings.business.pixKey}).
+                            </p>
+                          )}
                         </div>
                       </div>
                     ) : null}
@@ -833,10 +901,14 @@ export function PublicBookingWebsite({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                      <label
+                        htmlFor="public-card-number"
+                        className="block text-xs font-semibold text-zinc-700 mb-1"
+                      >
                         Número do Cartão
                       </label>
                       <input
+                        id="public-card-number"
                         type="text"
                         placeholder="•••• •••• •••• 4242"
                         value={cardNumber}
@@ -847,10 +919,14 @@ export function PublicBookingWebsite({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                        <label
+                          htmlFor="public-card-expiry"
+                          className="block text-xs font-semibold text-zinc-700 mb-1"
+                        >
                           Validade
                         </label>
                         <input
+                          id="public-card-expiry"
                           type="text"
                           placeholder="MM/AA"
                           value={cardExpiry}
@@ -859,10 +935,14 @@ export function PublicBookingWebsite({
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                        <label
+                          htmlFor="public-card-cvv"
+                          className="block text-xs font-semibold text-zinc-700 mb-1"
+                        >
                           CVV
                         </label>
                         <input
+                          id="public-card-cvv"
                           type="text"
                           placeholder="123"
                           value={cardCvv}

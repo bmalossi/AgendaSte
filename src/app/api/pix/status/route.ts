@@ -1,10 +1,57 @@
-import { isMercadoPagoConfigured } from "@/lib/mercadopago";
+import {
+  isMercadoPagoConfigured,
+  isValidMercadoPagoToken,
+} from "@/lib/mercadopago";
+import { supabaseAdmin } from "@/lib/supabase/service-role";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+
+async function resolveTenantMercadoPagoToken(params: {
+  organizationId?: string | null;
+  subdomain?: string | null;
+}): Promise<string> {
+  const cleanOrgId = (params.organizationId || "").trim();
+  const cleanSubdomain = (params.subdomain || "").trim().toLowerCase();
+
+  if ((cleanOrgId || cleanSubdomain) && isSupabaseConfigured()) {
+    try {
+      let query = supabaseAdmin
+        .from("organizations")
+        .select("settings");
+
+      if (cleanOrgId) {
+        query = query.eq("id", cleanOrgId);
+      } else {
+        query = query.eq("slug", cleanSubdomain);
+      }
+
+      const { data: org } = await query.maybeSingle();
+      if (org?.settings) {
+        const settings = org.settings as Record<string, any>;
+        const token = (
+          settings?.website?.paymentsSetup?.mercadopagoAccessToken ||
+          settings?.paymentsSetup?.mercadopagoAccessToken ||
+          settings?.business?.mercadopagoAccessToken ||
+          ""
+        ).trim();
+        if (isValidMercadoPagoToken(token)) {
+          return token;
+        }
+      }
+    } catch {
+      // Fallback silencioso
+    }
+  }
+
+  return "";
+}
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const paymentId = url.searchParams.get("paymentId")?.trim();
     const orderId = url.searchParams.get("orderId")?.trim();
+    const organizationId = url.searchParams.get("organizationId")?.trim();
+    const subdomain = url.searchParams.get("subdomain")?.trim();
 
     if (!paymentId && !orderId) {
       return Response.json(
@@ -13,7 +60,17 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!isMercadoPagoConfigured()) {
+    const tenantToken = await resolveTenantMercadoPagoToken({
+      organizationId,
+      subdomain,
+    });
+    const hasTenantScope = Boolean(organizationId || subdomain);
+
+    const token = hasTenantScope
+      ? tenantToken
+      : tenantToken || (process.env.MERCADOPAGO_ACCESS_TOKEN || "").trim();
+
+    if (!isValidMercadoPagoToken(token) && !isMercadoPagoConfigured(token)) {
       return Response.json({
         ok: true,
         mode: "sandbox_simulated",
@@ -21,8 +78,6 @@ export async function GET(request: Request) {
         status: "pending",
       });
     }
-
-    const token = (process.env.MERCADOPAGO_ACCESS_TOKEN || "").trim();
 
     // 1. Consulta por Payment ID (mais comum para Pix direto)
     if (paymentId) {

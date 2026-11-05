@@ -1282,6 +1282,81 @@ describe("API Route Integration & Public Site Resource Lock (ADR-0001 & ADR-0002
     assert.equal(json.qrCodePayload, json.pixCopiaECola);
   });
 
+  it("POST /api/pix/create isolates multi-tenant Pix keys, merchant names, and CRC16 per studio", async () => {
+    const { POST: createPixPOST } = await import("../../app/api/pix/create/route.ts");
+    const { computeCrc16Ccitt, normalizePixKey } = await import("../mercadopago.ts");
+
+    assert.equal(normalizePixKey("48.192.301/0001-82", "cpf_cnpj"), "48192301000182");
+    assert.equal(normalizePixKey("(11) 98765-4321", "phone"), "+5511987654321");
+    assert.equal(normalizePixKey("  Financeiro@StudioCamila.com.br ", "email"), "financeiro@studiocamila.com.br");
+
+    // Tenant A: Atelier Camila Borges (E-mail Pix Key)
+    const reqA = new Request("http://localhost:3000/api/pix/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointmentId: "apt-tenant-a",
+        clientName: "Mariana Costa",
+        depositCents: 4500,
+        subdomain: "atelier-camila",
+        pixProviderMode: "direct_pix_key",
+        pixKey: "financeiro@studiocamila.com.br",
+        pixKeyType: "email",
+        merchantName: "Atelier Camila Borges",
+        merchantCity: "Campinas",
+      }),
+    });
+    const resA = await createPixPOST(reqA);
+    assert.equal(resA.status, 200);
+    const jsonA = (await resA.json()) as {
+      ok: boolean;
+      mode: string;
+      pixKeyUsed: string;
+      merchantNameUsed: string;
+      pixCopiaECola: string;
+    };
+    assert.equal(jsonA.ok, true);
+    assert.equal(jsonA.mode, "direct_pix_key");
+    assert.equal(jsonA.pixKeyUsed, "financeiro@studiocamila.com.br");
+    assert.equal(jsonA.merchantNameUsed, "Atelier Camila Borges");
+    assert.ok(jsonA.pixCopiaECola.includes("financeiro@studiocamila.com.br"));
+    assert.ok(jsonA.pixCopiaECola.includes("ATELIER CAMILA BORGES"));
+    assert.ok(jsonA.pixCopiaECola.includes("CAMPINAS"));
+    assert.ok(!jsonA.pixCopiaECola.includes("pix@luveastudio.app"));
+
+    // Verify valid BACEN CRC16-CCITT at the end of the BRCode
+    const bodyWithoutCrcA = jsonA.pixCopiaECola.slice(0, -4);
+    const crcA = jsonA.pixCopiaECola.slice(-4);
+    assert.equal(computeCrc16Ccitt(bodyWithoutCrcA), crcA);
+
+    // Tenant B: Studio Glow SP (CNPJ Pix Key)
+    const reqB = new Request("http://localhost:3000/api/pix/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointmentId: "apt-tenant-b",
+        clientName: "Juliana Paes",
+        depositCents: 9000,
+        subdomain: "studio-glow-sp",
+        pixProviderMode: "direct_pix_key",
+        pixKey: "48.192.301/0001-82",
+        pixKeyType: "cpf_cnpj",
+        merchantName: "Studio Glow SP",
+        merchantCity: "Sao Paulo",
+      }),
+    });
+    const resB = await createPixPOST(reqB);
+    const jsonB = (await resB.json()) as {
+      ok: boolean;
+      pixKeyUsed: string;
+      pixCopiaECola: string;
+    };
+    assert.equal(jsonB.ok, true);
+    assert.equal(jsonB.pixKeyUsed, "48192301000182");
+    assert.ok(jsonB.pixCopiaECola.includes("011448192301000182"));
+    assert.ok(jsonB.pixCopiaECola.includes("STUDIO GLOW SP"));
+  });
+
   it("POST /api/whatsapp/send dispatches 2-way WhatsApp template and listens for webhook reply", async () => {
     const { POST: sendWhatsAppPOST } = await import("../../app/api/whatsapp/send/route.ts");
     const req = new Request("http://localhost:3000/api/whatsapp/send", {

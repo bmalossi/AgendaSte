@@ -634,6 +634,26 @@ export function PublicBookingSiteModal({
 
   const handleGeneratePix = async () => {
     setIsGeneratingPix(true);
+    const studioPixKey =
+      state.settings.website?.paymentsSetup?.pixKeyValue ||
+      state.settings.business.pixKey ||
+      "pix@luveastudio.app";
+    const studioPixKeyType = state.settings.website?.paymentsSetup?.pixKeyType;
+    const studioPixMode =
+      state.settings.website?.paymentsSetup?.pixProviderMode ||
+      state.settings.business.pixProviderMode ||
+      "direct_pix_key";
+    const studioMpToken =
+      state.settings.website?.paymentsSetup?.mercadopagoAccessToken ||
+      state.settings.business.mercadopagoAccessToken ||
+      "";
+    const studioSubdomain =
+      state.settings.website?.subdomainSlug ||
+      state.settings.business.bookingSlug;
+    const studioCity =
+      state.settings.website?.city ||
+      state.settings.business.cityState?.split(",")[0]?.trim() ||
+      "SAO PAULO";
     try {
       const res = await fetch("/api/pix/create", {
         method: "POST",
@@ -645,18 +665,25 @@ export function PublicBookingSiteModal({
           serviceId: selectedService?.id ?? "srv-luvea",
           serviceName: selectedService?.name ?? "Procedimento",
           depositCents: selectedService?.depositCents || 5000,
+          subdomain: studioSubdomain,
+          pixProviderMode: studioPixMode,
+          pixKey: studioPixKey,
+          pixKeyType: studioPixKeyType,
+          merchantName: state.settings.business.businessName,
+          merchantCity: studioCity,
+          mercadopagoAccessToken: studioMpToken || undefined,
         }),
       });
       const data = await res.json();
       setPixPayload(
         data.qrCodePayload ??
-          "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD"
+          `00020126580014BR.GOV.BCB.PIX0136${studioPixKey}5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD`
       );
       if (data.qrCodeBase64) setPixQrBase64(data.qrCodeBase64);
       if (data.ticketUrl) setPixTicketUrl(data.ticketUrl);
     } catch {
       setPixPayload(
-        "00020126580014BR.GOV.BCB.PIX0136pix@luvea.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD"
+        `00020126580014BR.GOV.BCB.PIX0136${studioPixKey}5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD`
       );
     } finally {
       setIsGeneratingPix(false);

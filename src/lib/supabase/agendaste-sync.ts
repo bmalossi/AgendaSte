@@ -192,9 +192,29 @@ export async function loadStudioStateFromSupabase(
       const isPublished = Boolean(
         orgSettings?.website?.websitePublished ?? orgSettings?.websitePublished ?? false
       );
-      if (updated.settings.website) {
+      if (orgSettings?.website && typeof orgSettings.website === "object") {
+        updated.settings.website = {
+          ...updated.settings.website,
+          ...orgSettings.website,
+          paymentsSetup: {
+            ...updated.settings.website.paymentsSetup,
+            ...(orgSettings.website.paymentsSetup || {}),
+          },
+          subdomainSlug: orgData.slug || updated.settings.website.subdomainSlug,
+          websitePublished: isPublished,
+        };
+      } else if (updated.settings.website) {
         updated.settings.website.subdomainSlug = orgData.slug || updated.settings.website.subdomainSlug;
         updated.settings.website.websitePublished = isPublished;
+      }
+
+      if (orgSettings?.business && typeof orgSettings.business === "object") {
+        updated.settings.business = {
+          ...updated.settings.business,
+          ...orgSettings.business,
+          businessName: orgData.name || orgSettings.business.businessName || updated.settings.business.businessName,
+          bookingSlug: orgData.slug || orgSettings.business.bookingSlug || updated.settings.business.bookingSlug,
+        };
       }
       if (isPublished) {
         updated.onboarding.steps = updated.onboarding.steps.map((s) =>

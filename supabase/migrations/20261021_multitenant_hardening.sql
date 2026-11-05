@@ -209,8 +209,11 @@ AS $$
     whatsapp_number, 
     subscription_status, 
     custom_domain,
-    -- Expõe apenas configurações públicas de agendamento e tema, removendo dados fiscais ou privados
-    COALESCE(settings, '{}'::jsonb) - 'stripe_customer_id' - 'tax_id'
+    -- Expõe apenas configurações públicas de agendamento e tema, removendo tokens de API e dados fiscais privados
+    (COALESCE(settings, '{}'::jsonb) - 'stripe_customer_id' - 'tax_id')
+      #- '{website,paymentsSetup,mercadopagoAccessToken}'
+      #- '{paymentsSetup,mercadopagoAccessToken}'
+      #- '{business,mercadopagoAccessToken}'
   FROM public.organizations
   WHERE slug = lower(trim(p_slug))
     AND subscription_status IN ('active', 'trialing')

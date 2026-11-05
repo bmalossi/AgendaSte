@@ -282,12 +282,10 @@ export function LuveaApp({
           }
         })();
 
-        // Sincroniza dados da organização, estoque e site de agendamento quando alterados
+        // Sincroniza dados da organização, configurações de pagamento Pix/Mercado Pago, estoque e site de agendamento quando alterados
         if (
-          next.settings.business.bookingSlug !== prev.settings.business.bookingSlug ||
-          next.settings.business.businessName !== prev.settings.business.businessName ||
-          next.settings.website?.websitePublished !== prev.settings.website?.websitePublished ||
-          next.settings.website?.theme !== prev.settings.website?.theme ||
+          next.settings.business !== prev.settings.business ||
+          next.settings.website !== prev.settings.website ||
           next.inventory !== prev.inventory
         ) {
           supabase
@@ -297,6 +295,7 @@ export function LuveaApp({
               slug: next.settings.business.bookingSlug,
               settings: {
                 website: next.settings.website,
+                business: next.settings.business,
                 websitePublished: next.settings.website?.websitePublished,
                 onboardingSteps: next.onboarding.steps,
                 inventory: next.inventory,
@@ -306,6 +305,24 @@ export function LuveaApp({
             .then(({ error }) => {
               if (error) console.warn("Erro ao sincronizar organização no Supabase:", error);
             });
+
+          if (
+            next.settings.business.pixKey !== prev.settings.business.pixKey ||
+            next.settings.business.defaultDepositPercent !== prev.settings.business.defaultDepositPercent ||
+            next.settings.business.businessName !== prev.settings.business.businessName
+          ) {
+            supabase
+              .from("professionals")
+              .update({
+                pix_key: next.settings.business.pixKey,
+                default_deposit_percent: next.settings.business.defaultDepositPercent,
+                studio_name: next.settings.business.businessName,
+              })
+              .eq("organization_id", tenantOrgId)
+              .then(({ error }) => {
+                if (error) console.warn("Erro ao sincronizar chave Pix do profissional:", error);
+              });
+          }
         }
       }
 

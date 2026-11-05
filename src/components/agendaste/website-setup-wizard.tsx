@@ -187,11 +187,17 @@ export function WebsiteSetupWizard({
   const [payoutMethod, setPayoutMethod] = useState<"pix_key" | "bank_account" | "debit_card">(
     currentConfig.paymentsSetup?.payoutMethod ?? "pix_key"
   );
+  const [pixProviderMode, setPixProviderMode] = useState<"direct_pix_key" | "mercadopago_api">(
+    currentConfig.paymentsSetup?.pixProviderMode ?? state.settings.business.pixProviderMode ?? "direct_pix_key"
+  );
+  const [mercadopagoAccessToken, setMercadopagoAccessToken] = useState(
+    currentConfig.paymentsSetup?.mercadopagoAccessToken ?? state.settings.business.mercadopagoAccessToken ?? ""
+  );
   const [pixKeyType, setPixKeyType] = useState<"cpf_cnpj" | "email" | "phone" | "random">(
     currentConfig.paymentsSetup?.pixKeyType ?? "email"
   );
   const [pixKeyValue, setPixKeyValue] = useState(
-    currentConfig.paymentsSetup?.pixKeyValue ?? "pix@luveastudio.app"
+    currentConfig.paymentsSetup?.pixKeyValue ?? (state.settings.business.pixKey || "pix@luveastudio.app")
   );
   const [bankName, setBankName] = useState(
     currentConfig.paymentsSetup?.bankName ?? "Nu Pagamentos S.A. (Nubank)"
@@ -261,12 +267,20 @@ export function WebsiteSetupWizard({
         ...prev,
         settings: {
           ...prev.settings,
+          business: {
+            ...prev.settings.business,
+            pixKey: pixKeyValue || prev.settings.business.pixKey,
+            pixProviderMode,
+            mercadopagoAccessToken: mercadopagoAccessToken.trim(),
+          },
           website: {
             ...current,
             paymentsSetup: {
               payoutMethod,
               pixKeyType,
               pixKeyValue,
+              pixProviderMode,
+              mercadopagoAccessToken: mercadopagoAccessToken.trim(),
               bankName,
               routingOrAgency,
               accountNumber,
@@ -381,10 +395,14 @@ export function WebsiteSetupWizard({
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-zinc-700">
+                <label
+                  htmlFor="wizard-business-name"
+                  className="block text-xs font-medium text-zinc-700"
+                >
                   Nome do negócio
                 </label>
                 <input
+                  id="wizard-business-name"
                   type="text"
                   value={businessName}
                   onChange={(e) => {
@@ -532,11 +550,15 @@ export function WebsiteSetupWizard({
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-zinc-700">
+                <label
+                  htmlFor="wizard-subdomain-input"
+                  className="block text-xs font-medium text-zinc-700"
+                >
                   Endereço web (URL)
                 </label>
                 <div className="flex items-center rounded-xl border border-zinc-300 bg-white px-3 py-2.5 focus-within:ring-2 focus-within:ring-zinc-900 focus-within:border-transparent">
                   <input
+                    id="wizard-subdomain-input"
                     type="text"
                     value={subdomainInput}
                     onChange={(e) => setSubdomainInput(e.target.value)}
@@ -677,10 +699,14 @@ export function WebsiteSetupWizard({
                 {hasFixedAddress && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-zinc-100 animate-in fade-in">
                     <div className="sm:col-span-2 space-y-1">
-                      <label className="text-[11px] font-medium text-zinc-700">
+                      <label
+                        htmlFor="wizard-address-line1"
+                        className="text-[11px] font-medium text-zinc-700"
+                      >
                         Rua e Número (Obrigatório)
                       </label>
                       <input
+                        id="wizard-address-line1"
                         type="text"
                         value={addressLine1}
                         onChange={(e) => setAddressLine1(e.target.value)}
@@ -689,10 +715,14 @@ export function WebsiteSetupWizard({
                       />
                     </div>
                     <div className="sm:col-span-2 space-y-1">
-                      <label className="text-[11px] font-medium text-zinc-700">
+                      <label
+                        htmlFor="wizard-address-line2"
+                        className="text-[11px] font-medium text-zinc-700"
+                      >
                         Complemento (Opcional)
                       </label>
                       <input
+                        id="wizard-address-line2"
                         type="text"
                         value={addressLine2}
                         onChange={(e) => setAddressLine2(e.target.value)}
@@ -701,10 +731,14 @@ export function WebsiteSetupWizard({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-medium text-zinc-700">
+                      <label
+                        htmlFor="wizard-address-city"
+                        className="text-[11px] font-medium text-zinc-700"
+                      >
                         Cidade (Obrigatório)
                       </label>
                       <input
+                        id="wizard-address-city"
                         type="text"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
@@ -713,10 +747,14 @@ export function WebsiteSetupWizard({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-medium text-zinc-700">
+                      <label
+                        htmlFor="wizard-address-zipcode"
+                        className="text-[11px] font-medium text-zinc-700"
+                      >
                         CEP (Obrigatório)
                       </label>
                       <input
+                        id="wizard-address-zipcode"
                         type="text"
                         value={zipCode}
                         onChange={(e) => setZipCode(e.target.value)}
@@ -1211,8 +1249,9 @@ export function WebsiteSetupWizard({
             <div className="inline-flex items-center p-1 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-medium">
               <button
                 type="button"
+                aria-pressed={payoutMethod === "pix_key"}
                 onClick={() => setPayoutMethod("pix_key")}
-                className={`px-4 py-1.5 rounded-full transition-all ${
+                className={`min-h-[44px] px-4 py-2 rounded-full transition-all inline-flex items-center justify-center ${
                   payoutMethod === "pix_key"
                     ? "bg-white text-zinc-900 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-900"
@@ -1222,8 +1261,9 @@ export function WebsiteSetupWizard({
               </button>
               <button
                 type="button"
+                aria-pressed={payoutMethod === "bank_account"}
                 onClick={() => setPayoutMethod("bank_account")}
-                className={`px-4 py-1.5 rounded-full transition-all ${
+                className={`min-h-[44px] px-4 py-2 rounded-full transition-all inline-flex items-center justify-center ${
                   payoutMethod === "bank_account"
                     ? "bg-white text-zinc-900 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-900"
@@ -1234,7 +1274,46 @@ export function WebsiteSetupWizard({
             </div>
 
             {payoutMethod === "pix_key" ? (
-              <div className="p-5 rounded-2xl border border-zinc-200 bg-white space-y-4">
+              <div className="p-5 rounded-2xl border border-zinc-200 bg-white space-y-5">
+                {/* Seletor de Modo: Chave Pix Direta vs Mercado Pago do Estúdio */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    aria-pressed={pixProviderMode === "direct_pix_key"}
+                    onClick={() => setPixProviderMode("direct_pix_key")}
+                    className={`min-h-[44px] text-left p-3.5 rounded-xl border transition-all ${
+                      pixProviderMode === "direct_pix_key"
+                        ? "border-zinc-900 bg-zinc-50"
+                        : "border-zinc-200 bg-white hover:border-zinc-300"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-zinc-900">
+                      Chave Pix Direta (Sem Taxa)
+                    </p>
+                    <p className="text-[11px] text-zinc-600 mt-0.5 leading-relaxed">
+                      Gera QR Code oficial Banco Central direto para a chave Pix da sua empresa.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-pressed={pixProviderMode === "mercadopago_api"}
+                    onClick={() => setPixProviderMode("mercadopago_api")}
+                    className={`min-h-[44px] text-left p-3.5 rounded-xl border transition-all ${
+                      pixProviderMode === "mercadopago_api"
+                        ? "border-zinc-900 bg-zinc-50"
+                        : "border-zinc-200 bg-white hover:border-zinc-300"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-zinc-900">
+                      Mercado Pago do Estúdio
+                    </p>
+                    <p className="text-[11px] text-zinc-600 mt-0.5 leading-relaxed">
+                      Conecta sua própria conta Mercado Pago com baixa automática na agenda.
+                    </p>
+                  </button>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[11px] font-medium text-zinc-700">
                     Tipo de Chave Pix
@@ -1242,6 +1321,7 @@ export function WebsiteSetupWizard({
                   <DropdownSelect
                     value={pixKeyType}
                     onChange={(val) => setPixKeyType(val)}
+                    className="min-h-[44px]"
                     options={[
                       { value: "email", label: "E-mail" },
                       { value: "cpf_cnpj", label: "CPF / CNPJ" },
@@ -1252,27 +1332,59 @@ export function WebsiteSetupWizard({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-zinc-700">
-                    Chave Pix
+                  <label
+                    htmlFor="wizard-pix-key-value"
+                    className="text-[11px] font-medium text-zinc-700"
+                  >
+                    Chave Pix Oficial do Estúdio
                   </label>
                   <input
+                    id="wizard-pix-key-value"
                     type="text"
                     value={pixKeyValue}
                     onChange={(e) => setPixKeyValue(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900"
+                    className="w-full min-h-[44px] px-3.5 py-2.5 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900 placeholder:text-zinc-400"
                     placeholder="pix@luveastudio.app"
                   />
                 </div>
 
+                {pixProviderMode === "mercadopago_api" && (
+                  <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="wizard-mp-access-token"
+                        className="text-xs font-semibold text-zinc-900 block"
+                      >
+                        Access Token do Mercado Pago da sua empresa
+                      </label>
+                      <p className="text-[11px] text-zinc-600 leading-relaxed">
+                        Acesse <span className="font-mono text-zinc-800">mercadopago.com.br/developers/panel/app</span>, crie uma aplicação <strong>Checkout Transparente (Pix)</strong> e copie o <strong>Access Token de Produção</strong> (<span className="font-mono">APP_USR-...</span>).
+                      </p>
+                    </div>
+                    <input
+                      id="wizard-mp-access-token"
+                      type="password"
+                      value={mercadopagoAccessToken}
+                      onChange={(e) => setMercadopagoAccessToken(e.target.value)}
+                      className="w-full min-h-[44px] px-3.5 py-2.5 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900 bg-white placeholder:text-zinc-400"
+                      placeholder="APP_USR-0000000000000000-000000-..."
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-zinc-700">
+                  <label
+                    htmlFor="wizard-pix-bank-name"
+                    className="text-[11px] font-medium text-zinc-700"
+                  >
                     Banco de Destino
                   </label>
                   <input
+                    id="wizard-pix-bank-name"
                     type="text"
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs text-zinc-900"
+                    className="w-full min-h-[44px] px-3.5 py-2.5 border border-zinc-300 rounded-lg text-xs text-zinc-900 placeholder:text-zinc-400"
                     placeholder="Ex: Nubank, Itaú, Bradesco, Inter"
                   />
                 </div>
@@ -1280,40 +1392,52 @@ export function WebsiteSetupWizard({
             ) : (
               <div className="p-5 rounded-2xl border border-zinc-200 bg-white space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-zinc-700">
+                  <label
+                    htmlFor="wizard-bank-institution-name"
+                    className="text-[11px] font-medium text-zinc-700"
+                  >
                     Instituição Bancária
                   </label>
                   <input
+                    id="wizard-bank-institution-name"
                     type="text"
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs text-zinc-900"
+                    className="w-full min-h-[44px] px-3.5 py-2.5 border border-zinc-300 rounded-lg text-xs text-zinc-900"
                     placeholder="Ex: Banco Itaú S.A."
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-zinc-700">
+                    <label
+                      htmlFor="wizard-bank-agency"
+                      className="text-[11px] font-medium text-zinc-700"
+                    >
                       Agência
                     </label>
                     <input
+                      id="wizard-bank-agency"
                       type="text"
                       value={routingOrAgency}
                       onChange={(e) => setRoutingOrAgency(e.target.value)}
-                      className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900"
+                      className="w-full min-h-[44px] px-3.5 py-2.5 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900"
                       placeholder="0001"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-zinc-700">
+                    <label
+                      htmlFor="wizard-bank-account-number"
+                      className="text-[11px] font-medium text-zinc-700"
+                    >
                       Conta Corrente com Dígito
                     </label>
                     <input
+                      id="wizard-bank-account-number"
                       type="text"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900"
+                      className="w-full min-h-[44px] px-3.5 py-2.5 border border-zinc-300 rounded-lg text-xs font-mono text-zinc-900"
                       placeholder="1234567-8"
                     />
                   </div>
@@ -1341,7 +1465,7 @@ export function WebsiteSetupWizard({
             </div>
 
             <div className="p-5 rounded-2xl border border-zinc-200 bg-white space-y-4">
-              <div className="border-l-2 border-zinc-900 bg-zinc-50 pl-4 py-2.5 space-y-1.5 text-xs">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 space-y-1.5 text-xs">
                 <p className="font-semibold text-zinc-900">
                   Certifique-se de que seus dados correspondam à conta cadastrada:
                 </p>
@@ -1545,14 +1669,14 @@ export function WebsiteSetupWizard({
                   <button
                     type="button"
                     onClick={() => setStep(11)}
-                    className="text-xs text-zinc-500 hover:text-zinc-900 font-medium"
+                    className="min-h-[44px] px-3.5 py-2 text-xs text-zinc-500 hover:text-zinc-900 font-medium inline-flex items-center justify-center"
                   >
                     Pular esta etapa
                   </button>
                   <button
                     type="button"
                     onClick={() => setStep(11)}
-                    className="px-5 py-2 rounded-full bg-[#18181B] text-white text-xs font-semibold hover:bg-black transition-colors"
+                    className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#18181B] text-white text-xs font-semibold hover:bg-black transition-colors inline-flex items-center justify-center"
                   >
                     Avançar
                   </button>

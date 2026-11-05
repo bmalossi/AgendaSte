@@ -122,13 +122,20 @@ export default function TermosDeUsoPage() {
                 </li>
               ))}
             </ul>
-            <div className="pt-3 border-t border-zinc-100 dark:border-[#27272a]">
+            <div className="pt-3 border-t border-zinc-100 dark:border-[#27272a] space-y-2">
               <Link
                 href="/politica-de-privacidade"
-                className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:underline inline-flex items-center gap-1"
+                className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:underline flex items-center justify-between"
               >
-                <span>Ver Política de Privacidade (LGPD)</span>
-                <ArrowRight className="w-3 h-3" />
+                <span>Política de Privacidade (LGPD)</span>
+                <ArrowRight className="w-3 h-3 text-zinc-400" />
+              </Link>
+              <Link
+                href="/politica-de-reembolso"
+                className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:underline flex items-center justify-between"
+              >
+                <span>Política de Reembolso</span>
+                <ArrowRight className="w-3 h-3 text-zinc-400" />
               </Link>
             </div>
           </nav>

@@ -54,6 +54,13 @@ export default function AuthLayout({
           >
             Política de Privacidade
           </Link>
+          <span>•</span>
+          <Link
+            href="/politica-de-reembolso"
+            className="hover:text-[#1C1C1E] dark:hover:text-white transition-colors"
+          >
+            Política de Reembolso
+          </Link>
         </div>
         <p>© {new Date().getFullYear()} LUVEA. Plataforma de Gestão &amp; Agendamento.</p>
       </footer>

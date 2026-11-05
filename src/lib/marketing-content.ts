@@ -48,6 +48,7 @@ export const ALLOWED_NAVIGATION_TARGETS = new Set([
   "/precos",
   "/termos-de-uso",
   "/politica-de-privacidade",
+  "/politica-de-reembolso",
   "/#como-funciona",
   "/#fatos",
   "/#casos-de-uso",
@@ -361,6 +362,7 @@ export const FOOTER_LINKS = {
   legal: [
     { label: "Termos de Uso", href: "/termos-de-uso" },
     { label: "Política de Privacidade (LGPD)", href: "/politica-de-privacidade" },
+    { label: "Política de Reembolso", href: "/politica-de-reembolso" },
   ],
 };
 

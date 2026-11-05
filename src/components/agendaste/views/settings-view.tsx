@@ -272,14 +272,36 @@ export function SettingsView({
   );
   const [idRepCpf, setIdRepCpf] = useState("389.201.948-12");
 
-  // Campos temporários para Conta de Repasse
+  // Campos temporários para Conta de Repasse & Motor Pix Multi-Tenant
   const [bankNameInput, setBankNameInput] = useState(paymentsSetup.bankName || "Nu Pagamentos S.A. (Nubank)");
   const [bankAgencyInput, setBankAgencyInput] = useState(paymentsSetup.routingOrAgency || "0001");
   const [bankAccountInput, setBankAccountInput] = useState(paymentsSetup.accountNumber || "1234567-8");
   const [pixKeyValueInput, setPixKeyValueInput] = useState(paymentsSetup.pixKeyValue || state.settings.business.pixKey || "pix@luveastudio.app");
+  const [pixKeyTypeInput, setPixKeyTypeInput] = useState<"cpf_cnpj" | "email" | "phone" | "random">(
+    paymentsSetup.pixKeyType || "email"
+  );
+  const [pixProviderModeInput, setPixProviderModeInput] = useState<"direct_pix_key" | "mercadopago_api">(
+    paymentsSetup.pixProviderMode || state.settings.business.pixProviderMode || "direct_pix_key"
+  );
+  const [mpAccessTokenInput, setMpAccessTokenInput] = useState(
+    paymentsSetup.mercadopagoAccessToken || state.settings.business.mercadopagoAccessToken || ""
+  );
+  const [mpPublicKeyInput, setMpPublicKeyInput] = useState(
+    paymentsSetup.mercadopagoPublicKey || state.settings.business.mercadopagoPublicKey || ""
+  );
   const [payoutMethodInput, setPayoutMethodInput] = useState<"pix_key" | "bank_account">(
     paymentsSetup.payoutMethod === "bank_account" ? "bank_account" : "pix_key"
   );
+  const [isTestingPix, setIsTestingPix] = useState(false);
+  const [pixTestResult, setPixTestResult] = useState<{
+    ok: boolean;
+    mode: string;
+    payload: string;
+    merchantName: string;
+    pixKeyUsed?: string;
+    fallbackReason?: string;
+  } | null>(null);
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
 
   const [hasFixedAddress, setHasFixedAddress] = useState(initialWebsite.hasFixedAddress ?? true);
   const [doesHouseCalls, setDoesHouseCalls] = useState(initialWebsite.doesHouseCalls ?? false);
@@ -461,8 +483,64 @@ export function SettingsView({
     };
   }, [isAnyModalOpen, previewNotification, editNotification, activeTaxModal, activePayoutModal]);
 
+  const handleTestStudioPix = async () => {
+    setIsTestingPix(true);
+    setPixTestResult(null);
+    const activeKey = pixKeyValueInput.trim() || pixKey.trim() || "pix@luveastudio.app";
+    try {
+      const res = await fetch("/api/pix/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: `teste-${Date.now()}`,
+          clientName: "Teste Configuração Estúdio",
+          serviceName: "Validação Sinal Pix Anti-No-Show",
+          depositCents: 100,
+          subdomain: subdomainSlug,
+          pixProviderMode: pixProviderModeInput,
+          pixKey: activeKey,
+          pixKeyType: pixKeyTypeInput,
+          merchantName: businessName,
+          merchantCity: city || "SAO PAULO",
+          mercadopagoAccessToken: mpAccessTokenInput.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data?.ok) {
+        setPixTestResult({
+          ok: true,
+          mode: data.mode || pixProviderModeInput,
+          payload: data.pixCopiaECola || data.qrCodePayload || "",
+          merchantName: data.merchantNameUsed || businessName,
+          pixKeyUsed: data.pixKeyUsed || activeKey,
+          fallbackReason: data.fallbackReason,
+        });
+      }
+    } catch {
+      // Fallback silencioso
+    } finally {
+      setIsTestingPix(false);
+    }
+  };
+
   const handleSaveAll = () => {
     setIsSaving(true);
+    const syncedPaymentsSetup = {
+      ...paymentsSetup,
+      payoutMethod: payoutMethodInput,
+      pixKeyType: pixKeyTypeInput,
+      pixKeyValue: pixKeyValueInput || pixKey,
+      pixProviderMode: pixProviderModeInput,
+      mercadopagoAccessToken: mpAccessTokenInput.trim(),
+      mercadopagoPublicKey: mpPublicKeyInput.trim(),
+      bankName: bankNameInput,
+      routingOrAgency: bankAgencyInput,
+      accountNumber: bankAccountInput,
+      setupCompleted: true,
+    };
+    setPaymentsSetup(syncedPaymentsSetup);
+    setPixKey(syncedPaymentsSetup.pixKeyValue);
+
     onUpdateState((prev) => {
       const updatedWeb = updateWebsiteSetupConfig(prev, {
         subdomainSlug,
@@ -475,7 +553,7 @@ export function SettingsView({
         clientNotifications: notificationsConfig,
         checkoutSettings,
         chartingSettings,
-        paymentsSetup,
+        paymentsSetup: syncedPaymentsSetup,
         hasFixedAddress,
         doesHouseCalls,
         addressLine1,
@@ -501,7 +579,10 @@ export function SettingsView({
         businessName,
         legalEntityType,
         taxIdCnpjCpf,
-        pixKey: paymentsSetup.pixKeyValue || pixKey,
+        pixKey: syncedPaymentsSetup.pixKeyValue,
+        pixProviderMode: pixProviderModeInput,
+        mercadopagoAccessToken: mpAccessTokenInput.trim(),
+        mercadopagoPublicKey: mpPublicKeyInput.trim(),
         defaultDepositPercent: Math.min(100, Math.max(0, parseInt(defaultDepositPercent || "30", 10))),
       });
 
@@ -2260,6 +2341,268 @@ export function SettingsView({
                       {paymentsSetup.setupCompleted ? "Editar" : "Adicionar"}
                     </button>
                   </div>
+                </div>
+
+                {/* Motor Multi-Tenant Pix Anti-No-Show & Mercado Pago Exclusivo do Estúdio */}
+                <div className="p-6 rounded-2xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E5EA] dark:border-[#27272a] pb-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2.5">
+                        <h3 className="text-[16px] font-semibold text-[#1C1C1E] dark:text-white">
+                          Motor Pix Anti-No-Show do Estúdio
+                        </h3>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white border border-[#E5E5EA] dark:border-[#3f3f46]">
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              pixProviderModeInput === "mercadopago_api" && !mpAccessTokenInput.trim()
+                                ? "bg-amber-500 ring-2 ring-amber-500/20"
+                                : "bg-emerald-500 ring-2 ring-emerald-500/20"
+                            }`}
+                          />
+                          <span>
+                            {pixProviderModeInput === "mercadopago_api"
+                              ? mpAccessTokenInput.trim()
+                                ? "Mercado Pago Conectado"
+                                : "Token Pendente"
+                              : "Chave Pix Direta Ativa"}
+                          </span>
+                        </span>
+                      </div>
+                      <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        Todo sinal pago pelos seus clientes na vitrine online ou no PDV vai 100% direto para a conta do seu estúdio.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Seletor de Modo: Chave Pix Direta vs Mercado Pago Automático */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      aria-pressed={pixProviderModeInput === "direct_pix_key"}
+                      onClick={() => setPixProviderModeInput("direct_pix_key")}
+                      className={`text-left p-4 rounded-xl border transition-all ${
+                        pixProviderModeInput === "direct_pix_key"
+                          ? "bg-white dark:bg-[#27272a] border-[#1C1C1E] dark:border-white shadow-xs"
+                          : "bg-white/60 dark:bg-[#1f1f23] border-[#E5E5EA] dark:border-[#3f3f46] hover:border-[#D4D4D8]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                          Chave Pix Direta (Sem Taxa)
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] text-[#1C1C1E] dark:text-zinc-300 border border-[#E5E5EA] dark:border-[#3f3f46]">
+                          Padrão BACEN
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                        Gera QR Code oficial do Banco Central direto para a chave Pix do seu salão. Zero taxa de gateway e ativação imediata.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={pixProviderModeInput === "mercadopago_api"}
+                      onClick={() => setPixProviderModeInput("mercadopago_api")}
+                      className={`text-left p-4 rounded-xl border transition-all ${
+                        pixProviderModeInput === "mercadopago_api"
+                          ? "bg-white dark:bg-[#27272a] border-[#1C1C1E] dark:border-white shadow-xs"
+                          : "bg-white/60 dark:bg-[#1f1f23] border-[#E5E5EA] dark:border-[#3f3f46] hover:border-[#D4D4D8]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                          Mercado Pago do Estúdio
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] text-[#1C1C1E] dark:text-zinc-300 border border-[#E5E5EA] dark:border-[#3f3f46]">
+                          Baixa Automática
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                        Usa o Access Token da conta Mercado Pago do seu salão. Confirma o agendamento sozinho assim que o cliente paga.
+                      </p>
+                    </button>
+                  </div>
+
+                  {pixProviderModeInput === "direct_pix_key" ? (
+                    <div className="p-5 rounded-xl bg-white dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#3f3f46] space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label htmlFor="studio-pix-key-type" className="block text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                            Tipo da Chave Pix
+                          </label>
+                          <select
+                            id="studio-pix-key-type"
+                            value={pixKeyTypeInput}
+                            onChange={(e) =>
+                              setPixKeyTypeInput(
+                                e.target.value as "cpf_cnpj" | "email" | "phone" | "random"
+                              )
+                            }
+                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] text-[#1C1C1E] dark:text-white focus:outline-none focus:border-[#1C1C1E]"
+                          >
+                            <option value="cpf_cnpj">CPF / CNPJ</option>
+                            <option value="email">E-mail</option>
+                            <option value="phone">Celular</option>
+                            <option value="random">Chave Aleatória (EVP)</option>
+                          </select>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label htmlFor="studio-direct-pix-key" className="block text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                            Chave Pix Oficial do Estúdio
+                          </label>
+                          <input
+                            id="studio-direct-pix-key"
+                            type="text"
+                            value={pixKeyValueInput}
+                            onChange={(e) => {
+                              setPixKeyValueInput(e.target.value);
+                              setPixKey(e.target.value);
+                            }}
+                            placeholder="Ex: 48.192.301/0001-82 ou financeiro@seu-estudio.com.br"
+                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white placeholder:text-[#71717A] focus:outline-none focus:border-[#1C1C1E]"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        O QR Code gerado na sua vitrine (<span className="font-mono text-[#1C1C1E] dark:text-white">{subdomainSlug || "estudio"}.luvea.app</span>) usará o padrão EMV® QRCPS-MPM do Banco Central com o valor exato do sinal e nome <strong>{businessName}</strong>.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-5 rounded-xl bg-white dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#3f3f46] space-y-5">
+                      {/* Guia Passo a Passo para o Dono do Salão */}
+                      <div className="p-4 rounded-xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#3f3f46] space-y-2.5">
+                        <h4 className="text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                          Como conectar a conta Mercado Pago do seu salão (2 minutos)
+                        </h4>
+                        <ol className="list-decimal pl-4 space-y-1.5 text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                          <li>
+                            Acesse{" "}
+                            <a
+                              href="https://www.mercadopago.com.br/developers/panel/app"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-[#1C1C1E] dark:text-white underline underline-offset-2"
+                            >
+                              mercadopago.com.br/developers/panel/app
+                            </a>{" "}
+                            com a conta Mercado Pago da sua empresa e clique em <strong>Criar aplicação</strong>.
+                          </li>
+                          <li>
+                            Informe o nome do seu salão, escolha <strong>Pagamentos online</strong> → <strong>Checkout Transparente</strong> → <strong>Pix</strong>.
+                          </li>
+                          <li>
+                            No menu lateral esquerdo da aplicação, clique em <strong>Credenciais de produção</strong>, escolha a categoria do seu negócio e copie o <strong>Access Token</strong> (iniciado por <code className="font-mono text-[#1C1C1E] dark:text-zinc-200">APP_USR-...</code>).
+                          </li>
+                          <li>
+                            Cole o token no campo abaixo e clique em <strong>Salvar alterações</strong>. Caso não preencha o token, o sistema usará automaticamente sua Chave Pix Direta como contingência.
+                          </li>
+                        </ol>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="sm:col-span-2">
+                          <label htmlFor="studio-mp-access-token" className="block text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                            Access Token de Produção do Mercado Pago (Exclusivo do Estúdio)
+                          </label>
+                          <input
+                            id="studio-mp-access-token"
+                            type="password"
+                            value={mpAccessTokenInput}
+                            onChange={(e) => setMpAccessTokenInput(e.target.value)}
+                            placeholder="APP_USR-0000000000000000-000000-00000000000000000000000000000000-000000000"
+                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white placeholder:text-[#71717A] focus:outline-none focus:border-[#1C1C1E]"
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="studio-mp-fallback-pix" className="block text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                            Chave Pix de Contingência do Estúdio
+                          </label>
+                          <input
+                            id="studio-mp-fallback-pix"
+                            type="text"
+                            value={pixKeyValueInput}
+                            onChange={(e) => {
+                              setPixKeyValueInput(e.target.value);
+                              setPixKey(e.target.value);
+                            }}
+                            placeholder="Ex: financeiro@seu-estudio.com.br"
+                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[13px] font-mono text-[#1C1C1E] dark:text-white placeholder:text-[#71717A] focus:outline-none focus:border-[#1C1C1E]"
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="studio-mp-webhook-url" className="block text-[12px] font-medium text-[#1C1C1E] dark:text-zinc-200 mb-1.5">
+                            URL de Webhook do Estúdio (Opcional no Mercado Pago)
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              id="studio-mp-webhook-url"
+                              type="text"
+                              readOnly
+                              value={`https://luvea.app/api/webhooks/mercadopago?subdomain=${subdomainSlug || "estudio"}`}
+                              className="flex-1 min-h-[44px] px-3 py-2 rounded-xl border border-[#E5E5EA] dark:border-[#3f3f46] bg-[#F5F5F7] dark:bg-[#18181b] text-[12px] font-mono text-[#6E6E73] dark:text-[#a1a1aa] select-all"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(
+                                  `https://luvea.app/api/webhooks/mercadopago?subdomain=${subdomainSlug || "estudio"}`
+                                );
+                                setCopiedWebhookUrl(true);
+                                setTimeout(() => setCopiedWebhookUrl(false), 2000);
+                              }}
+                              className="min-h-[44px] px-3.5 py-2 rounded-xl border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#18181b] text-[12px] font-medium text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] transition shrink-0"
+                            >
+                              {copiedWebhookUrl ? "Copiado" : "Copiar"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Barra de Teste Ao Vivo da Geração de Pix do Estúdio */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                    <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                      Valide se o QR Code do seu estúdio está gerando o payload correto antes de publicar.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleTestStudioPix}
+                      disabled={isTestingPix}
+                      className="min-h-[44px] px-4 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white hover:bg-[#E5E5EA]/50 text-[12.5px] font-medium transition-colors shrink-0 disabled:opacity-50 inline-flex items-center justify-center"
+                    >
+                      {isTestingPix ? "Gerando Pix de teste..." : "Testar geração de Pix (R$ 1,00)"}
+                    </button>
+                  </div>
+
+                  {pixTestResult && (
+                    <div className="p-4 rounded-xl bg-white dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                          <span className="text-[12.5px] font-semibold text-[#1C1C1E] dark:text-white">
+                            {pixTestResult.mode === "mercadopago_orders_api"
+                              ? "Pix Dinâmico Mercado Pago gerado na conta do estúdio"
+                              : "BRCode Oficial Banco Central gerado para a chave do estúdio"}
+                          </span>
+                        </div>
+                        <span className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                          Recebedor: <strong className="text-[#1C1C1E] dark:text-white">{pixTestResult.merchantName}</strong>
+                          {pixTestResult.pixKeyUsed ? ` · Chave: ${pixTestResult.pixKeyUsed}` : ""}
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        readOnly
+                        value={pixTestResult.payload}
+                        aria-label="Payload Pix Copia e Cola de teste"
+                        className="w-full px-3 py-2 rounded-lg bg-[#F5F5F7] dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#3f3f46] text-[11.5px] font-mono text-[#1C1C1E] dark:text-zinc-200 select-all"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

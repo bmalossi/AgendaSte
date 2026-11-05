@@ -597,6 +597,9 @@ export interface WebsiteBookingSetupConfig {
     debitCardLast4: string;
     identityVerified: boolean;
     setupCompleted: boolean;
+    pixProviderMode?: "direct_pix_key" | "mercadopago_api";
+    mercadopagoAccessToken?: string;
+    mercadopagoPublicKey?: string;
   };
   aboutYourBusiness?: string;
   heroImageUrl?: string;
@@ -754,6 +757,9 @@ export interface StudioState {
       requireCardOrPixOnOnlineBooking: boolean;
       cancellationWindowHours: number;
       noShowFeePercent: number;
+      pixProviderMode?: "direct_pix_key" | "mercadopago_api";
+      mercadopagoAccessToken?: string;
+      mercadopagoPublicKey?: string;
     };
     website: WebsiteBookingSetupConfig;
   };
@@ -2356,6 +2362,9 @@ export function getDefaultWebsiteBookingConfig(
       debitCardLast4: "4678",
       identityVerified: false,
       setupCompleted: false,
+      pixProviderMode: "direct_pix_key",
+      mercadopagoAccessToken: "",
+      mercadopagoPublicKey: "",
     },
     aboutYourBusiness:
       "Espaço de beleza e bem-estar especializado em tratamentos personalizados, estética avançada e cuidados com a saúde capilar.",
@@ -5002,6 +5011,9 @@ export function updateStudioSettings(
     taxIdCnpjCpf?: string;
     defaultDepositPercent?: number;
     pixKey?: string;
+    pixProviderMode?: "direct_pix_key" | "mercadopago_api";
+    mercadopagoAccessToken?: string;
+    mercadopagoPublicKey?: string;
   }
 ): StudioState {
   return {
@@ -5030,6 +5042,14 @@ export function updateStudioSettings(
           patch.defaultDepositPercent ??
           state.settings.business.defaultDepositPercent,
         pixKey: patch.pixKey ?? state.settings.business.pixKey,
+        pixProviderMode:
+          patch.pixProviderMode ?? state.settings.business.pixProviderMode,
+        mercadopagoAccessToken:
+          patch.mercadopagoAccessToken ??
+          state.settings.business.mercadopagoAccessToken,
+        mercadopagoPublicKey:
+          patch.mercadopagoPublicKey ??
+          state.settings.business.mercadopagoPublicKey,
       },
     },
     lastToastMessage: "Configurações salvas com sucesso!",

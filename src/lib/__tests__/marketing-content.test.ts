@@ -86,7 +86,7 @@ describe("Ticket 02 — Módulo de Conteúdo do Site Institucional & Navegação
     assert.equal(getLoginUrl(), "/app");
   });
 
-  it("garante links de Termos de Uso e Política de Privacidade no rodapé", () => {
+  it("garante links de Termos de Uso, Política de Privacidade e Política de Reembolso no rodapé", () => {
     const legalHrefs = FOOTER_LINKS.legal.map((l) => l.href);
     assert.ok(
       legalHrefs.includes("/termos-de-uso"),
@@ -95,6 +95,10 @@ describe("Ticket 02 — Módulo de Conteúdo do Site Institucional & Navegação
     assert.ok(
       legalHrefs.includes("/politica-de-privacidade"),
       "Rodapé deve conter link para /politica-de-privacidade"
+    );
+    assert.ok(
+      legalHrefs.includes("/politica-de-reembolso"),
+      "Rodapé deve conter link para /politica-de-reembolso"
     );
   });
 });
@@ -297,6 +301,10 @@ describe("Ticket 10 — SEO, Robots, Sitemap & Proteção da Rota /app", () => {
       allow.includes("/politica-de-privacidade"),
       "Robots deve permitir /politica-de-privacidade"
     );
+    assert.ok(
+      allow.includes("/politica-de-reembolso"),
+      "Robots deve permitir /politica-de-reembolso"
+    );
 
     assert.ok(
       robotsConfig.sitemap?.toString().endsWith("/sitemap.xml"),
@@ -304,12 +312,12 @@ describe("Ticket 10 — SEO, Robots, Sitemap & Proteção da Rota /app", () => {
     );
   });
 
-  it("sitemap() contém exatamente as 4 rotas públicas do site e não inclui /app", () => {
+  it("sitemap() contém exatamente as 5 rotas públicas do site e não inclui /app", () => {
     const sitemapEntries = sitemap();
     assert.equal(
       sitemapEntries.length,
-      4,
-      "Sitemap deve listar as 4 rotas públicas"
+      5,
+      "Sitemap deve listar as 5 rotas públicas"
     );
 
     const urls = sitemapEntries.map((e) => e.url);
@@ -322,7 +330,7 @@ describe("Ticket 10 — SEO, Robots, Sitemap & Proteção da Rota /app", () => {
       );
     }
 
-    // Deve conter homepage, precos, termos de uso e política de privacidade
+    // Deve conter homepage, precos, termos de uso, política de privacidade e política de reembolso
     assert.ok(
       urls.some((u) => u.endsWith("/") || u.endsWith(".br")),
       "Sitemap deve conter a URL raiz"
@@ -338,6 +346,10 @@ describe("Ticket 10 — SEO, Robots, Sitemap & Proteção da Rota /app", () => {
     assert.ok(
       urls.some((u) => u.endsWith("/politica-de-privacidade")),
       "Sitemap deve conter /politica-de-privacidade"
+    );
+    assert.ok(
+      urls.some((u) => u.endsWith("/politica-de-reembolso")),
+      "Sitemap deve conter /politica-de-reembolso"
     );
 
     // Prioridades e frequências válidas

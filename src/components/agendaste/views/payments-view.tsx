@@ -2365,11 +2365,19 @@ export function QuickSaleDrawer({
   useEffect(() => {
     if (!open || step !== 3 || isPixPaid || (!currentPaymentId && !currentOrderId)) return;
 
+    const studioSubdomain =
+      state.settings.website?.subdomainSlug ||
+      state.settings.business.bookingSlug ||
+      "";
+
     const interval = setInterval(async () => {
       try {
-        const query = currentPaymentId
+        const baseQuery = currentPaymentId
           ? `paymentId=${encodeURIComponent(currentPaymentId)}`
           : `orderId=${encodeURIComponent(currentOrderId || "")}`;
+        const query = studioSubdomain
+          ? `${baseQuery}&subdomain=${encodeURIComponent(studioSubdomain)}`
+          : baseQuery;
         const res = await fetch(`/api/pix/status?${query}`);
         if (!res.ok) return;
         const statusData = await res.json();
@@ -2382,7 +2390,7 @@ export function QuickSaleDrawer({
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [open, step, isPixPaid, currentPaymentId, currentOrderId]);
+  }, [open, step, isPixPaid, currentPaymentId, currentOrderId, state.settings.website?.subdomainSlug, state.settings.business.bookingSlug]);
 
   // Toggle Item in Cart
   const toggleCartItem = (item: CartItem) => {
@@ -2401,6 +2409,26 @@ export function QuickSaleDrawer({
   const handleGeneratePix = async () => {
     if (targetPixCents <= 0) return;
     setIsGeneratingPix(true);
+    const studioPixKey =
+      state.settings.website?.paymentsSetup?.pixKeyValue ||
+      state.settings.business.pixKey ||
+      "pix@luveastudio.app";
+    const studioPixKeyType = state.settings.website?.paymentsSetup?.pixKeyType;
+    const studioPixMode =
+      state.settings.website?.paymentsSetup?.pixProviderMode ||
+      state.settings.business.pixProviderMode ||
+      "direct_pix_key";
+    const studioMpToken =
+      state.settings.website?.paymentsSetup?.mercadopagoAccessToken ||
+      state.settings.business.mercadopagoAccessToken ||
+      "";
+    const studioSubdomain =
+      state.settings.website?.subdomainSlug ||
+      state.settings.business.bookingSlug;
+    const studioCity =
+      state.settings.website?.city ||
+      state.settings.business.cityState?.split(",")[0]?.trim() ||
+      "SAO PAULO";
     try {
       const modeLabel =
         pixAmountMode === "integral"
@@ -2432,13 +2460,20 @@ export function QuickSaleDrawer({
             finalTotalCents > 0
               ? Math.round((targetPixCents / finalTotalCents) * 100)
               : 100,
+          subdomain: studioSubdomain,
+          pixProviderMode: studioPixMode,
+          pixKey: studioPixKey,
+          pixKeyType: studioPixKeyType,
+          merchantName: state.settings.business.businessName,
+          merchantCity: studioCity,
+          mercadopagoAccessToken: studioMpToken || undefined,
         }),
       });
       const data = await res.json();
       const code =
         data.qrCodePayload ||
         data.pixCopiaECola ||
-        "00020126580014BR.GOV.BCB.PIX0136pix@luveastudio.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD";
+        `00020126580014BR.GOV.BCB.PIX0136${studioPixKey}5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD`;
       setPixPayload(code);
       if (data.qrCodeBase64) setPixQrBase64(data.qrCodeBase64);
       if (data.ticketUrl) setPixTicketUrl(data.ticketUrl);
@@ -2449,7 +2484,7 @@ export function QuickSaleDrawer({
     } catch (err) {
       console.error("Erro ao gerar Pix no PDV:", err);
       setPixPayload(
-        "00020126580014BR.GOV.BCB.PIX0136pix@luveastudio.app5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD"
+        `00020126580014BR.GOV.BCB.PIX0136${studioPixKey}5204000053039865802BR5920LUVEA STUDIO6009SAO PAULO62070503***6304ABCD`
       );
       setGeneratedAmountCents(targetPixCents);
     } finally {
