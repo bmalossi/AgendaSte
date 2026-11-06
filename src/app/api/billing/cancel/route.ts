@@ -3,13 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service-role";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { isEligibleForCdcRefund } from "@/lib/billing/pricing";
-import { cancelStripeSubscription } from "@/lib/billing/stripe";
+import { cancelStripeSubscription, refundLatestStripeInvoice } from "@/lib/billing/stripe";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { action = "at_period_end" } = body as {
+    const { action = "at_period_end", reason } = body as {
       action: "at_period_end" | "immediate_refund_cdc";
+      reason?: string;
     };
 
     if (!isSupabaseConfigured()) {
@@ -76,9 +77,12 @@ export async function POST(request: Request) {
         );
       }
 
-      // Cancela imediatamente no gateway se for Stripe
+      // Estorna e cancela imediatamente no gateway se for Stripe
+      let refundId: string | undefined;
       if (org.stripe_subscription_id) {
         try {
+          const refundResult = await refundLatestStripeInvoice(org.stripe_subscription_id);
+          refundId = refundResult.refundId;
           await cancelStripeSubscription(org.stripe_subscription_id, false);
         } catch (gateErr) {
           console.warn("[Cancel CDC Stripe Error]:", gateErr);
@@ -92,6 +96,7 @@ export async function POST(request: Request) {
           subscription_status: "canceled",
           canceled_at: nowIso,
           cancel_at_period_end: false,
+          cancel_reason: reason || null,
           updated_at: nowIso,
         })
         .eq("id", org.id);
@@ -120,6 +125,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         action: "immediate_refund_cdc_processed",
+        refundId: refundId || null,
         message:
           "Sua assinatura foi cancelada e o reembolso integral de 100% foi solicitado ao gateway financeiro (Garantia legal Art. 49 do CDC).",
       });
@@ -139,6 +145,7 @@ export async function POST(request: Request) {
       .update({
         cancel_at_period_end: true,
         canceled_at: nowIso,
+        cancel_reason: reason || null,
         updated_at: nowIso,
       })
       .eq("id", org.id);

@@ -76,11 +76,11 @@ export function resolveDemoWhatsAppUrl(phoneNumber?: string | null): string {
 }
 
 export function getPrimaryCtaUrl(): string {
-  return "/app";
+  return "/cadastro";
 }
 
 export function getLoginUrl(): string {
-  return "/app";
+  return "/login";
 }
 
 /**

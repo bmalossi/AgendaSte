@@ -15,6 +15,7 @@ export async function GET() {
           billingCycle: "monthly",
           currentPeriodStart: new Date().toISOString(),
           currentPeriodEnd: new Date(Date.now() + 25 * 86400000).toISOString(),
+          pausedUntil: null,
           cancelAtPeriodEnd: false,
           scheduledPlanTier: null,
           scheduledBillingCycle: null,
@@ -61,13 +62,16 @@ export async function GET() {
       );
     }
 
-    const { data: org } = await supabaseAdmin
+    // select("*") evita falha total (42703) caso colunas opcionais (ex.: paused_until) ainda não tenham sido migradas
+    const { data: org, error: orgError } = await supabaseAdmin
       .from("organizations")
-      .select(
-        "id, name, slug, plan_tier, billing_cycle, subscription_status, current_period_start, current_period_end, cancel_at_period_end, scheduled_plan_tier, scheduled_billing_cycle, grace_period_ends_at, payment_gateway, first_paid_at, stripe_customer_id, stripe_subscription_id"
-      )
+      .select("*")
       .eq("id", profile.organization_id)
       .single();
+
+    if (orgError) {
+      console.warn("[Get Subscription API] Erro ao consultar organização:", orgError.message);
+    }
 
     if (!org) {
       return NextResponse.json({ ok: false, error: "Organização não encontrada." }, { status: 404 });
@@ -92,8 +96,23 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
+      // Dados cadastrais do estúdio logado (usados para pré-preencher o checkout sem pedir cadastro novamente)
+      organization: {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        whatsapp_number: org.whatsapp_number || null,
+        phone: org.phone || null,
+        cpf_cnpj: org.cpf_cnpj || null,
+      },
+      user: {
+        id: user.id,
+        email: user.email || "",
+        fullName: user.user_metadata?.full_name || user.user_metadata?.name || "",
+      },
       subscription: {
         organizationId: org.id,
+        hasStripeSubscription: Boolean(org.stripe_subscription_id),
         name: org.name,
         slug: org.slug,
         status: org.subscription_status || "trialing",
@@ -101,12 +120,14 @@ export async function GET() {
         billingCycle: org.billing_cycle || "monthly",
         currentPeriodStart: org.current_period_start,
         currentPeriodEnd: org.current_period_end,
+        pausedUntil: org.paused_until || null,
         cancelAtPeriodEnd: Boolean(org.cancel_at_period_end),
         scheduledPlanTier: org.scheduled_plan_tier || null,
         scheduledBillingCycle: org.scheduled_billing_cycle || null,
         gracePeriodEndsAt: org.grace_period_ends_at || null,
         paymentGateway: org.payment_gateway || "stripe",
         firstPaidAt: org.first_paid_at || null,
+        trialEndsAt: org.trial_ends_at || null,
         canRefundCdc,
         activeStaffCount: staffCount ?? 1,
         invoices: invoices || [],

@@ -28,6 +28,7 @@ import {
 import { LuveaWordmark } from "@/components/luvea-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { hasLocalStudioSession } from "@/lib/billing/local-studio-profile";
 
 export function MarketingHeader() {
   const [activeDropdown, setActiveDropdown] = useState<"how" | "business" | null>(
@@ -44,9 +45,7 @@ export function MarketingHeader() {
     setMounted(true);
     if (isSupabaseConfigured()) {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          setUserLoggedIn(true);
-        }
+        setUserLoggedIn(Boolean(session?.user));
       });
       const {
         data: { subscription },
@@ -54,6 +53,8 @@ export function MarketingHeader() {
         setUserLoggedIn(Boolean(session?.user));
       });
       return () => subscription.unsubscribe();
+    } else if (hasLocalStudioSession()) {
+      setUserLoggedIn(true);
     }
   }, []);
 

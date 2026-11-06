@@ -29,6 +29,8 @@ import { TurnstileWidget, type TurnstileWidgetRef } from "@/components/turnstile
 import { QRCodeSVG } from "qrcode.react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { resolvePlanPriceCents } from "@/lib/billing/pricing";
+import { readLocalStudioProfile } from "@/lib/billing/local-studio-profile";
+import { validateSubdomainFormat } from "@/lib/subdomain";
 
 function CheckoutContent() {
   const router = useRouter();
@@ -36,6 +38,9 @@ function CheckoutContent() {
 
   const planParam = searchParams.get("plano") || searchParams.get("plan") || "gold";
   const cycleParam = searchParams.get("ciclo") || searchParams.get("cycle") || "monthly";
+  const initialPlanTier: "essencial" | "gold" | "platinum" =
+    planParam === "essencial" || planParam === "platinum" ? planParam : "gold";
+  const initialBillingCycle: "monthly" | "yearly" = cycleParam === "yearly" ? "yearly" : "monthly";
 
   // Step state
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
@@ -57,13 +62,25 @@ function CheckoutContent() {
   const [businessName, setBusinessName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [userEditedSubdomain, setUserEditedSubdomain] = useState(false);
+  const [subdomainStatus, setSubdomainStatus] = useState<
+    "idle" | "checking" | "available" | "unavailable" | "current"
+  >("idle");
+  const [subdomainFeedback, setSubdomainFeedback] = useState("");
+  const subdomainDebounceRef = useRef<number | null>(null);
+
+  // Estúdio já vinculado à conta (fonte: servidor). Quando presente, nome e subdomínio são somente leitura.
+  const [accountOrg, setAccountOrg] = useState<{ slug: string; name: string } | null>(null);
+  // Sessão presente no navegador, mas não reconhecida pelo servidor
+  const [sessionInvalid, setSessionInvalid] = useState(false);
+  const SESSION_INVALID_MESSAGE =
+    "Não foi possível validar sua sessão. Entre novamente para continuar a assinatura.";
 
   // Plan & Payment Selection
   const [planTier, setPlanTier] = useState<"essencial" | "gold" | "platinum">(
-    planParam === "essencial" || planParam === "platinum" ? planParam : "gold"
+    initialPlanTier
   );
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
-    cycleParam === "yearly" ? "yearly" : "monthly"
+    initialBillingCycle
   );
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "pix">("credit_card");
 
@@ -87,74 +104,202 @@ function CheckoutContent() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
-  // Carrega e hidrata dados da conta autenticada automaticamente
-  useEffect(() => {
-    if (!isSupabaseConfigured()) return;
+  // Verificação de disponibilidade imediata do subdomínio com debounce
+  const checkAvailability = React.useCallback((candidate: string) => {
+    if (subdomainDebounceRef.current) {
+      window.clearTimeout(subdomainDebounceRef.current);
+    }
 
+    const trimmed = candidate.trim().toLowerCase();
+    if (!trimmed) {
+      setSubdomainStatus("idle");
+      setSubdomainFeedback("");
+      return;
+    }
+
+    const format = validateSubdomainFormat(trimmed);
+    if (!format.valid) {
+      setSubdomainStatus("unavailable");
+      setSubdomainFeedback(format.message || "Subdomínio inválido");
+      return;
+    }
+
+    setSubdomainStatus("checking");
+    setSubdomainFeedback("Verificando disponibilidade...");
+
+    subdomainDebounceRef.current = window.setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/subdomain/check?slug=${encodeURIComponent(format.normalized)}`
+        );
+        if (!res.ok) {
+          setSubdomainStatus("idle");
+          setSubdomainFeedback("");
+          return;
+        }
+        const data = await res.json();
+        if (data.available) {
+          if (data.isCurrent) {
+            setSubdomainStatus("current");
+            setSubdomainFeedback("Subdomínio atual do seu estúdio");
+          } else {
+            setSubdomainStatus("available");
+            setSubdomainFeedback("Subdomínio disponível para reserva");
+          }
+          setErrors((prev) => {
+            if (!prev.subdomain) return prev;
+            const next = { ...prev };
+            delete next.subdomain;
+            return next;
+          });
+        } else {
+          setSubdomainStatus("unavailable");
+          setSubdomainFeedback(data.message || "Este subdomínio já está em uso.");
+        }
+      } catch {
+        setSubdomainStatus("idle");
+        setSubdomainFeedback("");
+      }
+    }, 280);
+  }, []);
+
+  // Limpa debounce ao desmontar
+  useEffect(() => {
+    return () => {
+      if (subdomainDebounceRef.current) {
+        window.clearTimeout(subdomainDebounceRef.current);
+      }
+    };
+  }, []);
+
+  // Carrega e hidrata dados da conta autenticada automaticamente.
+  // Prioridade dos dados: organização no banco > metadados do usuário > cache local do painel.
+  useEffect(() => {
     let isMounted = true;
+
     async function loadAuthSession() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        let userId: string | null = null;
+        let uEmail = "";
+        let uName = "";
+        let metaBusiness = "";
+        let metaSubdomain = "";
 
-        if (session?.user && isMounted) {
-          const user = session.user;
-          const uEmail = user.email || "";
-          const uName =
-            user.user_metadata?.full_name || user.user_metadata?.name || "";
+        let orgSlug = "";
+        let orgName = "";
+        let phoneVal = "";
+        let cpfVal = "";
+        let serverConfirmedOrg = false;
+        let hasClientSession = false;
 
-          let orgSlug = "";
-          let orgName = "";
-          let phoneVal = "";
-          let cpfVal = "";
+        if (isSupabaseConfigured()) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
 
-          try {
-            const subRes = await fetch("/api/billing/subscription");
-            if (subRes.ok) {
-              const subData = await subRes.json();
-              if (subData.organization) {
-                orgSlug = subData.organization.slug || "";
-                orgName = subData.organization.name || "";
-                phoneVal =
-                  subData.organization.whatsapp_number ||
-                  subData.organization.phone ||
-                  "";
-                cpfVal = subData.organization.cpf_cnpj || "";
+          if (session?.user) {
+            const user = session.user;
+            hasClientSession = true;
+            userId = user.id;
+            uEmail = user.email || "";
+            uName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+            metaBusiness = user.user_metadata?.business_name || "";
+            metaSubdomain = user.user_metadata?.subdomain || "";
+
+            // O servidor é a fonte da verdade da identidade. Se ele não reconhecer a sessão
+            // (ou falhar), o checkout nunca segue com dados de cache local: evita cobrar a conta errada.
+            let serverOk = false;
+            try {
+              const subRes = await fetch("/api/billing/subscription", { cache: "no-store" });
+              if (subRes.ok) {
+                serverOk = true;
+                const subData = await subRes.json();
+                const org = subData.organization;
+                if (org) {
+                  serverConfirmedOrg = true;
+                  orgSlug = org.slug || "";
+                  orgName = org.name || "";
+                  phoneVal = org.whatsapp_number || org.phone || "";
+                  cpfVal = org.cpf_cnpj || "";
+                }
+                if (!uName && subData.user?.fullName) uName = subData.user.fullName;
+              } else if (subRes.status === 404) {
+                // Conta autenticada ainda sem estúdio: segue o fluxo de criação com metadados do usuário
+                serverOk = true;
               }
-            }
-          } catch (fetchErr) {
-            console.warn("[Checkout load subscription info error]:", fetchErr);
-          }
-
-          const resolvedName = uName || "Profissional";
-          const resolvedBusiness = orgName || user.user_metadata?.business_name || "";
-          const resolvedSubdomain = orgSlug || user.user_metadata?.subdomain || "";
-
-          if (isMounted) {
-            setCurrentUser({
-              id: user.id,
-              email: uEmail,
-              fullName: resolvedName,
-              subdomain: resolvedSubdomain,
-              businessName: resolvedBusiness,
-            });
-
-            setFullName((prev) => prev || resolvedName);
-            setEmail((prev) => prev || uEmail);
-            if (phoneVal) setWhatsapp((prev) => prev || phoneVal);
-            if (cpfVal) setCpfCnpj((prev) => prev || cpfVal);
-            if (resolvedBusiness) setBusinessName((prev) => prev || resolvedBusiness);
-            if (resolvedSubdomain) {
-              setSubdomain((prev) => prev || resolvedSubdomain);
-              setUserEditedSubdomain(true);
+            } catch (fetchErr) {
+              console.warn("[Checkout load subscription info error]:", fetchErr);
             }
 
-            // Se a conta já tiver dados básicos preenchidos, avança com conveniência para o Passo 2
-            if (resolvedSubdomain && resolvedBusiness) {
-              setCurrentStep(2);
+            if (!serverOk) {
+              if (isMounted) {
+                setSessionInvalid(true);
+                setCurrentUser({ id: userId, email: uEmail, fullName: uName || undefined });
+              }
+              return;
             }
           }
+        }
+
+        // Fallback de cache local apenas em modo demonstração (sem Supabase / sem sessão real)
+        const local = hasClientSession ? null : readLocalStudioProfile(userId);
+
+        if (!userId && !local) return;
+        if (!isMounted) return;
+
+        const resolvedEmail = uEmail || local?.email || "";
+        const resolvedName = uName || local?.fullName || "Profissional";
+        const resolvedBusiness = serverConfirmedOrg
+          ? orgName
+          : orgName || metaBusiness || local?.businessName || "";
+        const resolvedSubdomain = serverConfirmedOrg
+          ? orgSlug
+          : orgSlug || metaSubdomain || local?.subdomain || "";
+        const resolvedPhone = phoneVal || local?.phone || "";
+        const resolvedCpf = cpfVal || local?.cpfCnpj || "";
+
+        setCurrentUser({
+          id: userId || "local",
+          email: resolvedEmail,
+          fullName: resolvedName,
+          subdomain: resolvedSubdomain,
+          businessName: resolvedBusiness,
+        });
+
+        setFullName((prev) => prev || resolvedName);
+        setEmail((prev) => prev || resolvedEmail);
+        if (resolvedPhone) setWhatsapp((prev) => prev || resolvedPhone);
+        if (resolvedCpf) setCpfCnpj((prev) => prev || resolvedCpf);
+        if (serverConfirmedOrg && orgSlug) {
+          setAccountOrg({ slug: orgSlug, name: orgName });
+          setBusinessName(orgName);
+          setSubdomain(orgSlug);
+          setUserEditedSubdomain(true);
+          setSubdomainStatus("current");
+          setSubdomainFeedback("Subdomínio atual do seu estúdio");
+        } else {
+          if (resolvedBusiness) setBusinessName((prev) => prev || resolvedBusiness);
+          if (resolvedSubdomain) {
+            setSubdomain((prev) => prev || resolvedSubdomain);
+            setUserEditedSubdomain(true);
+            checkAvailability(resolvedSubdomain);
+          }
+        }
+
+        // Se os dados cadastrais já estão completos, avança direto para o Passo 2 (plano e pagamento)
+        const completeness = checkoutFormSchema.safeParse({
+          fullName: resolvedName,
+          email: resolvedEmail,
+          whatsapp: resolvedPhone,
+          cpfCnpj: resolvedCpf,
+          businessName: resolvedBusiness,
+          subdomain: resolvedSubdomain,
+          planTier: initialPlanTier,
+          billingCycle: initialBillingCycle,
+          paymentMethod: "credit_card",
+        });
+        if (completeness.success) {
+          setCurrentStep(2);
         }
       } catch (authErr) {
         console.warn("[Checkout loadAuthSession]:", authErr);
@@ -165,6 +310,7 @@ function CheckoutContent() {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Revalida cupom automaticamente caso o usuário troque o plano ou ciclo
@@ -207,13 +353,18 @@ function CheckoutContent() {
   const handleBusinessNameChange = (val: string) => {
     setBusinessName(val);
     if (!userEditedSubdomain) {
-      setSubdomain(normalizeSubdomain(val));
+      const generated = normalizeSubdomain(val);
+      setSubdomain(generated);
+      checkAvailability(generated);
     }
   };
 
   const handleSubdomainChange = (val: string) => {
     setUserEditedSubdomain(true);
-    setSubdomain(normalizeSubdomain(val));
+    // Permite digitação contínua mantendo apenas caracteres válidos
+    const sanitized = val.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    setSubdomain(sanitized);
+    checkAvailability(sanitized);
   };
 
   // Selected Plan Object
@@ -251,6 +402,10 @@ function CheckoutContent() {
   // Validate Step 1
   const handleProceedToStep2 = () => {
     setErrors({});
+    if (sessionInvalid) {
+      setErrors({ general: SESSION_INVALID_MESSAGE });
+      return;
+    }
     const validationResult = checkoutFormSchema.safeParse({
       fullName,
       email,
@@ -284,12 +439,25 @@ function CheckoutContent() {
       }
     }
 
+    if (subdomainStatus === "checking") {
+      setErrors({ subdomain: "Aguarde a verificação de disponibilidade do subdomínio..." });
+      return;
+    }
+    if (subdomainStatus === "unavailable") {
+      setErrors({ subdomain: subdomainFeedback || "Subdomínio indisponível para reserva." });
+      return;
+    }
+
     setCurrentStep(2);
   };
 
   // Quick Start Free Trial (14 days without payment method)
   const handleStartFreeTrialOnly = async () => {
     setErrors({});
+    if (sessionInvalid) {
+      setErrors({ general: SESSION_INVALID_MESSAGE });
+      return;
+    }
     const validationResult = checkoutFormSchema.safeParse({
       fullName,
       email,
@@ -386,6 +554,10 @@ function CheckoutContent() {
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    if (sessionInvalid) {
+      setErrors({ general: SESSION_INVALID_MESSAGE });
+      return;
+    }
 
     const formDataToValidate: CheckoutFormData = {
       fullName,
@@ -544,11 +716,11 @@ function CheckoutContent() {
       <div className="border-b border-[#E5E5EA] dark:border-[#27272a] bg-zinc-50/70 dark:bg-[#18181b]/70 py-3 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           <Link
-            href="/precos"
+            href={currentUser ? "/app?view=settings&tab=subscription" : "/precos"}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white transition-colors min-h-[44px] py-2 px-1"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Voltar para planos</span>
+            <span>{currentUser ? "Voltar ao painel" : "Voltar para planos"}</span>
           </Link>
 
           <div className="flex items-center gap-2 text-xs font-mono text-[#6E6E73] dark:text-[#a1a1aa]">
@@ -565,7 +737,21 @@ function CheckoutContent() {
         {currentUser && (
           <div className="max-w-3xl mb-6 px-4 py-3 rounded-2xl bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[13px] transition-colors shadow-2xs">
             <div className="flex items-center gap-2.5 text-[#1C1C1E] dark:text-[#f4f4f5]">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  sessionInvalid
+                    ? "bg-zinc-400 ring-2 ring-zinc-400/20"
+                    : "bg-emerald-500 ring-2 ring-emerald-500/20"
+                }`}
+              />
+              {sessionInvalid ? (
+                <span className="break-words" role="alert">
+                  Sessão não reconhecida
+                  <span className="text-[#6E6E73] dark:text-[#a1a1aa] block sm:inline sm:ml-1 mt-0.5 sm:mt-0">
+                    &bull; Entre novamente para assinar na sua conta
+                  </span>
+                </span>
+              ) : (
               <span className="break-words">
                 Conectado como <strong className="font-semibold">{currentUser.email}</strong>
                 {subdomain && (
@@ -574,9 +760,20 @@ function CheckoutContent() {
                   </span>
                 )}
               </span>
+              )}
             </div>
             <div className="flex items-center gap-2 text-[12.5px] pt-2 sm:pt-0 border-t sm:border-t-0 border-[#E5E5EA] dark:border-[#27272a] w-full sm:w-auto justify-end">
-              {currentStep === 2 && (
+              {sessionInvalid && (
+                <Link
+                  href={`/login?redirect=${encodeURIComponent(
+                    `/checkout?plan=${initialPlanTier}&cycle=${initialBillingCycle}&source=app`
+                  )}`}
+                  className="min-h-[44px] inline-flex items-center justify-center px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#202023] text-[12.5px] font-medium transition-colors"
+                >
+                  Entrar novamente
+                </Link>
+              )}
+              {currentStep === 2 && !sessionInvalid && (
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
@@ -633,12 +830,16 @@ function CheckoutContent() {
 
           <h1 className="font-serif text-3xl sm:text-4xl font-normal text-[#1C1C1E] dark:text-white tracking-tight">
             {currentStep === 1
-              ? "Crie sua conta e reserve seu subdomínio"
+              ? currentUser
+                ? "Confirme seus dados de faturamento"
+                : "Crie sua conta e reserve seu subdomínio"
               : "Escolha seu plano e ative sua operação"}
           </h1>
           <p className="text-[13.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
             {currentStep === 1
-              ? "14 dias de teste grátis com acesso total a todas as ferramentas. Sem cartão de crédito."
+              ? currentUser
+                ? "Seu estúdio já está criado. Complete os dados abaixo para ativar a assinatura."
+                : "14 dias de teste grátis com acesso total a todas as ferramentas. Sem cartão de crédito."
               : "Ativação instantânea com proteção antifraude e garantia total de cancelamento sem fidelidade."}
           </p>
         </div>
@@ -783,9 +984,11 @@ function CheckoutContent() {
                       onChange={(e) => handleBusinessNameChange(e.target.value)}
                       placeholder="Espaço Unniko Beauty"
                       required
+                      readOnly={Boolean(accountOrg)}
+                      aria-readonly={Boolean(accountOrg)}
                       aria-invalid={Boolean(errors.businessName)}
                       aria-describedby={errors.businessName ? "checkout-business-error" : undefined}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#09090b] text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none focus:border-[#1C1C1E] dark:focus:border-white transition read-only:bg-[#F5F5F7] dark:read-only:bg-[#18181b] read-only:cursor-default"
                     />
                     {errors.businessName && (
                       <p id="checkout-business-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
@@ -794,16 +997,45 @@ function CheckoutContent() {
                     )}
                   </div>
 
-                  {/* Subdomínio Personalizado */}
-                  <div className="space-y-1 sm:col-span-2">
-                    <label
-                      htmlFor="checkout-subdomain"
-                      className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
-                    >
-                      Subdomínio do seu site de agendamento online
-                    </label>
+                  {/* Subdomínio Personalizado (Alterável com checagem imediata) */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="checkout-subdomain"
+                        className="block text-[12.5px] font-medium text-[#1C1C1E] dark:text-[#f4f4f5]"
+                      >
+                        Subdomínio do seu site de agendamento online
+                      </label>
+
+                      {/* Micro-indicador de disponibilidade (Anti-AI Slop & Editorial Clean) */}
+                      {subdomainStatus === "checking" && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />
+                          <span>Verificando...</span>
+                        </div>
+                      )}
+                      {subdomainStatus === "available" && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-zinc-200">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                          <span>Disponível</span>
+                        </div>
+                      )}
+                      {subdomainStatus === "current" && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-zinc-200">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                          <span>Subdomínio atual</span>
+                        </div>
+                      )}
+                      {subdomainStatus === "unavailable" && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/50 text-rose-700 dark:text-rose-400">
+                          <span className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-500/20" />
+                          <span>Indisponível</span>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex items-center rounded-xl border border-[#D4D4D8] dark:border-[#27272a] bg-[#F5F5F7] dark:bg-[#09090b] px-3.5 py-2.5 focus-within:border-[#1C1C1E] dark:focus-within:border-white focus-within:bg-white dark:focus-within:bg-[#09090b] transition">
-                      <span className="text-[12px] font-mono text-[#6E6E73] dark:text-[#a1a1aa] pr-1">
+                      <span className="text-[12px] font-mono text-[#6E6E73] dark:text-[#a1a1aa] pr-1 select-none">
                         https://
                       </span>
                       <input
@@ -813,22 +1045,41 @@ function CheckoutContent() {
                         onChange={(e) => handleSubdomainChange(e.target.value)}
                         placeholder="espaco-unniko"
                         required
-                        aria-invalid={Boolean(errors.subdomain)}
-                        aria-describedby={errors.subdomain ? "checkout-subdomain-error" : "checkout-subdomain-hint"}
+                        readOnly={Boolean(accountOrg)}
+                        aria-readonly={Boolean(accountOrg)}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        aria-invalid={Boolean(errors.subdomain || subdomainStatus === "unavailable")}
+                        aria-describedby={
+                          errors.subdomain || (subdomainStatus === "unavailable" && subdomainFeedback)
+                            ? "checkout-subdomain-error"
+                            : "checkout-subdomain-hint"
+                        }
                         className="flex-1 bg-transparent text-[13.5px] text-[#1C1C1E] dark:text-white placeholder:text-[#6E6E73] dark:placeholder:text-[#a1a1aa] placeholder:opacity-100 focus:outline-none font-mono"
                       />
-                      <span className="text-[12.5px] font-mono font-semibold text-[#1C1C1E] dark:text-white shrink-0 pl-1">
+                      <span className="text-[12.5px] font-mono font-semibold text-[#1C1C1E] dark:text-white shrink-0 pl-1 select-none">
                         .luvea.app
                       </span>
                     </div>
-                    {errors.subdomain && (
+
+                    {errors.subdomain ? (
                       <p id="checkout-subdomain-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
                         {errors.subdomain}
                       </p>
+                    ) : subdomainStatus === "unavailable" && subdomainFeedback ? (
+                      <p id="checkout-subdomain-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
+                        {subdomainFeedback}
+                      </p>
+                    ) : (
+                      <p id="checkout-subdomain-hint" className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        {accountOrg
+                          ? "Endereço do seu estúdio. Para alterá-lo, use Configurações > Negócio."
+                          : subdomainStatus === "available" || subdomainStatus === "current"
+                          ? (subdomainFeedback || "Endereço exclusivo para divulgação no link da bio e confirmação de horários.")
+                          : "Endereço exclusivo para divulgação no link da bio e confirmação de horários."}
+                      </p>
                     )}
-                    <p id="checkout-subdomain-hint" className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
-                      Endereço exclusivo para divulgação no link da bio e confirmação de horários.
-                    </p>
                   </div>
                 </div>
 
@@ -846,7 +1097,7 @@ function CheckoutContent() {
                     type="button"
                     onClick={handleStartFreeTrialOnly}
                     disabled={isSubmitting}
-                    className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white text-[13px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#202023] transition-all"
+                    className={`${currentUser ? "hidden" : "inline-flex"} items-center justify-center gap-2 px-5 py-3.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white text-[13px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#202023] transition-all`}
                   >
                     <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>Iniciar teste grátis (14 dias)</span>

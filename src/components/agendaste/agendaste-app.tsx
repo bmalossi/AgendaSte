@@ -38,6 +38,7 @@ import {
   createEmptyTenantStudioState,
   getTodayDateISO,
   getBookingSiteUrl,
+  calculateRemainingTrialDays,
 } from "@/lib/agendaste-store";
 import { evaluateOrganizationEntitlements } from "@/lib/billing/entitlements";
 import { LuveaSidebar } from "@/components/agendaste/sidebar";
@@ -101,6 +102,7 @@ export function LuveaApp({
     useState<CalendarEventItem | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [authChecking, setAuthChecking] = useState(() => isSupabaseConfigured());
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [tenantOrgId, setTenantOrgId] = useState<string | null>(null);
   const [selectedClientForView, setSelectedClientForView] =
@@ -370,6 +372,31 @@ export function LuveaApp({
               setState(initial);
             }
 
+            // Confirmação síncrona do retorno do Stripe Checkout (ativa instantaneamente no banco sem esperar webhook)
+            if (typeof window !== "undefined") {
+              const urlParams = new URLSearchParams(window.location.search);
+              const checkoutSuccess = urlParams.get("checkout_success") === "true";
+              const sessionId = urlParams.get("session_id");
+              if (checkoutSuccess && sessionId) {
+                try {
+                  await fetch("/api/billing/confirm-checkout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sessionId }),
+                  });
+                } catch (confErr) {
+                  console.warn("[Synchronous Confirm Checkout Exception]:", confErr);
+                } finally {
+                  urlParams.delete("checkout_success");
+                  urlParams.delete("session_id");
+                  urlParams.delete("payment_method");
+                  const newSearch = urlParams.toString();
+                  const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+                  window.history.replaceState({}, "", newUrl);
+                }
+              }
+            }
+
             // Busca contexto do tenant (organização) do usuário
             const tenantCtx = await getCurrentTenantContext();
             if (tenantCtx?.organizationId) {
@@ -413,11 +440,66 @@ export function LuveaApp({
                 )
                 .subscribe();
             }
+
+            // Fonte da verdade do plano/assinatura: API server-side (service role).
+            // Independe de RLS no cliente e sobrescreve qualquer cache local desatualizado.
+            try {
+              const subRes = await fetch("/api/billing/subscription", { cache: "no-store" });
+              const subJson = subRes.ok ? await subRes.json() : null;
+              const sub = subJson?.ok ? subJson.subscription : null;
+              if (sub) {
+                const tierRaw = String(sub.planTier || "gold").toLowerCase();
+                const tierLabel =
+                  tierRaw === "platinum" ? "Platinum" : tierRaw === "essencial" ? "Essencial" : "Gold";
+                const status = sub.status || "trialing";
+                const trialEndsAt: string | undefined = sub.trialEndsAt || undefined;
+                const daysLeft = status === "active" ? 0 : calculateRemainingTrialDays(trialEndsAt);
+                setState((prev) => {
+                  const next = {
+                    ...prev,
+                    onboarding: {
+                      ...prev.onboarding,
+                      planTier: tierLabel,
+                      subscriptionStatus: status,
+                      trialDaysLeft: daysLeft,
+                      trialEndsAtISO: trialEndsAt,
+                      billingCycle: sub.billingCycle || (prev.onboarding as any).billingCycle,
+                      currentPeriodEnd: sub.currentPeriodEnd || undefined,
+                      gracePeriodEndsAt: sub.gracePeriodEndsAt || undefined,
+                    } as any,
+                  } as StudioState;
+                  try {
+                    localStorage.setItem(userCacheKey, JSON.stringify(next));
+                  } catch {}
+                  return next;
+                });
+              }
+            } catch (billingErr) {
+              console.warn("[Luvea Billing] Falha ao sincronizar assinatura:", billingErr);
+            }
+
+            setAuthChecking(false);
+            return;
+          }
+
+          // Se não há usuário autenticado no Supabase, verifica se há cookie explícito de preview local
+          const hasLocalPreviewCookie =
+            typeof document !== "undefined" &&
+            document.cookie.includes("luvea_local_preview=1") || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"));
+
+          if (!hasLocalPreviewCookie) {
+            if (typeof window !== "undefined") {
+              window.location.href = "/login?redirect=/app";
+            }
             return;
           }
         } catch (err) {
           console.warn("[Luvea Multi-Tenant] Erro ao sincronizar tenant do usuário:", err);
+        } finally {
+          setAuthChecking(false);
         }
+      } else {
+        setAuthChecking(false);
       }
 
       // Fallback em ambiente local / dev sem Supabase conectado
@@ -514,6 +596,19 @@ export function LuveaApp({
       default:
         return "Primeiros Passos";
     }
+  }
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFC] dark:bg-[#18181b] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#E5E5EA] dark:border-[#27272a] border-t-[#1C1C1E] dark:border-t-white animate-spin" />
+          <p className="text-[12.5px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+            Carregando estúdio...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1038,6 +1133,8 @@ export function LuveaApp({
         totalOnboardingCount={totalOnboardingCount}
         providerFullName={providerFullName}
         providerShortName={providerShortName}
+        planTier={state.onboarding?.planTier}
+        subscriptionStatus={state.onboarding?.subscriptionStatus}
         onSignOut={signOutUser}
       />
 

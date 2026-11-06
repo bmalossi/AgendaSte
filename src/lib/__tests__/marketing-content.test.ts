@@ -81,9 +81,9 @@ describe("Ticket 02 — Módulo de Conteúdo do Site Institucional & Navegação
     assert.equal(resolveDemoWhatsAppUrl("() -"), "/app");
   });
 
-  it("resolve botões de conversão primária e entrar diretamente para /app", () => {
-    assert.equal(getPrimaryCtaUrl(), "/app");
-    assert.equal(getLoginUrl(), "/app");
+  it("resolve botões de conversão primária para /cadastro e login para /login", () => {
+    assert.equal(getPrimaryCtaUrl(), "/cadastro");
+    assert.equal(getLoginUrl(), "/login");
   });
 
   it("garante links de Termos de Uso, Política de Privacidade e Política de Reembolso no rodapé", () => {

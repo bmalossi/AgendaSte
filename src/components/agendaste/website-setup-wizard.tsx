@@ -125,7 +125,7 @@ export function WebsiteSetupWizard({
 
   // Phase 1 Local State
   const [businessName, setBusinessName] = useState(
-    state.settings.business.businessName || "Bruno Fernandes Malossi Silva"
+    state.settings.business.businessName || "Meu Estúdio"
   );
   const [selectedTheme, setSelectedTheme] = useState<BookingSiteThemeId>(
     currentConfig.theme || "classic"

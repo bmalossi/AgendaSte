@@ -1754,7 +1754,7 @@ export function CalendarView({
               <button
                 type="button"
                 onClick={handleHeaderOpenNewAppointment}
-                className="min-h-[44px] h-11 px-4 sm:px-4.5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#18181b] text-[13px] font-semibold shrink-0 flex items-center justify-center cursor-pointer whitespace-nowrap active:scale-[0.98] shadow-sm"
+                className="min-h-[44px] h-11 px-4 sm:px-5 rounded-full bg-[#1C1C1E] dark:bg-white hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 text-white dark:text-[#18181b] text-[13px] font-semibold shrink-0 flex items-center justify-center cursor-pointer whitespace-nowrap active:scale-[0.98] shadow-sm"
               >
                 <Plus className="w-4 h-4 mr-1 shrink-0 stroke-[2.25]" />
                 <span>Agendar</span>

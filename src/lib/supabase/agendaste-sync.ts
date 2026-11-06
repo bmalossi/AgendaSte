@@ -52,7 +52,9 @@ export function isDemoEntity(nameOrEmail?: string | null): boolean {
   return (
     lower.includes("stefany cristina") ||
     lower.includes("isolde ramos") ||
-    lower.includes("bfernandescorretor@gmail.com")
+    lower.includes("bfernandescorretor@gmail.com") ||
+    lower.includes("contato@estudioexemplo.com.br") ||
+    lower.includes("stefany@cliente.com.br")
   );
 }
 

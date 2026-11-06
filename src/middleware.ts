@@ -6,13 +6,14 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for:
-     * - api (API routes)
+     * - api (API routes), exceto /api/billing, /api/checkout e /api/subdomain,
+     *   que dependem do token Supabase renovado nos cookies de sessão
      * - tv (Standalone Kiosk mode para Smart TVs)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, manifest.json, robots.txt, sitemap.xml
      */
-    "/((?!api|tv|_next/static|_next/image|favicon.ico|manifest.json|robots.txt|sitemap.xml|icon-.*|apple-touch-icon.*).*)",
+    "/((?!api/(?!billing|checkout|subdomain)|tv|_next/static|_next/image|favicon.ico|manifest.json|robots.txt|sitemap.xml|icon-.*|apple-touch-icon.*).*)",
   ],
 };
 
@@ -91,23 +92,27 @@ export async function middleware(req: NextRequest) {
     url.pathname === "/esqueci-senha" ||
     url.pathname === "/redefinir-senha";
 
-  // Em desenvolvimento local no localhost, permite navegação livre para auditorias e testes de interface
+  // Bypass de pré-visualização em desenvolvimento local no localhost ou via cookie de teste
   const isLocalDev =
-    process.env.NODE_ENV !== "production" &&
-    (currentHost === "localhost" ||
-      currentHost === "127.0.0.1" ||
-      req.cookies.get("luvea_local_preview")?.value === "1");
+    req.cookies.get("luvea_local_preview")?.value === "1" ||
+    (process.env.NODE_ENV !== "production" &&
+      (currentHost === "localhost" || currentHost === "127.0.0.1"));
 
-  // Se o Supabase estiver configurado em produção e o usuário não estiver autenticado
+  // Se o Supabase estiver configurado e o usuário não estiver autenticado
   if (isAppRoute && !user && isSupabaseConfigured() && !isLocalDev) {
     const redirectUrl = new URL("/login", req.url);
     redirectUrl.searchParams.set("redirect", url.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Se o usuário já estiver autenticado e tentar acessar telas de login/cadastro
+  // Se o usuário já estiver autenticado e tentar acessar telas de autenticação
   if (isAuthRoute && user) {
-    return NextResponse.redirect(new URL("/app", req.url));
+    const redirectParam = url.searchParams.get("redirect");
+    const safeRedirect =
+      redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+        ? redirectParam
+        : "/app";
+    return NextResponse.redirect(new URL(safeRedirect, req.url));
   }
 
   return supabaseResponse;

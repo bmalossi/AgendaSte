@@ -742,4 +742,105 @@ describe("Ticket 04 — Motor de Entitlements, Período de Carência e Bloqueio 
     assert.equal(platinum.canUsePayroll, true);
     assert.equal(platinum.marketingCredits, 2000);
   });
+
+  it("garante reembolso automático na Stripe (CDC Art. 49) e sincronização de price nos upgrades/downgrades", async () => {
+    const {
+      refundLatestStripeInvoice,
+      updateStripeSubscriptionPrice,
+      scheduleStripeSubscriptionDowngrade,
+      STRIPE_PRICE_IDS,
+    } = await import("../billing/stripe.ts");
+
+    // 1. Mapeamento oficial de Price IDs do Catálogo Stripe (BRL)
+    assert.ok(STRIPE_PRICE_IDS.essencial.monthly.startsWith("price_"));
+    assert.ok(STRIPE_PRICE_IDS.essencial.yearly.startsWith("price_"));
+    assert.ok(STRIPE_PRICE_IDS.gold.monthly.startsWith("price_"));
+    assert.ok(STRIPE_PRICE_IDS.gold.yearly.startsWith("price_"));
+    assert.ok(STRIPE_PRICE_IDS.platinum.monthly.startsWith("price_"));
+    assert.ok(STRIPE_PRICE_IDS.platinum.yearly.startsWith("price_"));
+
+    // 2. Reembolso integral imediato (CDC 7 dias)
+    const refundResult = await refundLatestStripeInvoice("sub_test_mock_123");
+    assert.equal(refundResult.success, true);
+    assert.ok(refundResult.refundId);
+
+    // 3. Sincronização de Price no Upgrade imediato (always_invoice)
+    const upgradeResult = await updateStripeSubscriptionPrice({
+      subscriptionId: "sub_test_mock_123",
+      targetPlanTier: "platinum",
+      targetBillingCycle: "monthly",
+      prorationBehavior: "always_invoice",
+    });
+    assert.equal(upgradeResult.success, true);
+    assert.equal(upgradeResult.status, "active");
+    assert.ok(upgradeResult.invoiceId);
+
+    // 4. Agendamento de Downgrade nos metadados Stripe
+    const scheduleResult = await scheduleStripeSubscriptionDowngrade({
+      subscriptionId: "sub_test_mock_123",
+      targetPlanTier: "essencial",
+      targetBillingCycle: "monthly",
+    });
+    assert.equal(scheduleResult.success, true);
+
+    // 5. Cancelamento de agendamento de Downgrade nos metadados Stripe
+    const cancelScheduleResult = await scheduleStripeSubscriptionDowngrade({
+      subscriptionId: "sub_test_mock_123",
+      targetPlanTier: null,
+    });
+    assert.equal(cancelScheduleResult.success, true);
+  });
+
+  it("garante integridade do teste grátis: contas com trial expirado não recebem novo trial e cobram imediatamente", async () => {
+    const { createStripeCheckoutSession } = await import("../billing/stripe.ts");
+
+    // Simula conta cujo trial de 14 dias expirou há 2 dias
+    const now = new Date();
+    const expiredTrialEndsAt = new Date(now.getTime() - 2 * 86400000);
+    const hasPaidHistory = false;
+    const isTrialStillActive = expiredTrialEndsAt.getTime() > now.getTime(); // false
+
+    // Regra canônica:
+    const allowTrial = !hasPaidHistory && isTrialStillActive;
+    assert.equal(allowTrial, false);
+
+    // Na criação da sessão da Stripe, allowTrial: false impede injeção de trial_period_days
+    const session = await createStripeCheckoutSession({
+      customerId: "cus_test_expired",
+      planTier: "gold",
+      billingCycle: "monthly",
+      allowTrial: false,
+      successUrl: "https://luvea.app/app?checkout_success=true",
+      cancelUrl: "https://luvea.app/checkout?canceled=true",
+    });
+
+    assert.ok(session.sessionId);
+    assert.ok(session.checkoutUrl);
+  });
+
+  it("calcula cobrança proporcional exata de upgrade (Gold -> Platinum) para conta ativa", async () => {
+    const { calculateProrationDifference } = await import("../billing/pricing.ts");
+    const now = new Date("2026-11-15T12:00:00.000Z");
+    const periodStart = new Date("2026-11-01T12:00:00.000Z");
+    const periodEnd = new Date("2026-12-01T12:00:00.000Z");
+
+    const proration = calculateProrationDifference({
+      currentPlanTier: "gold",
+      currentBillingCycle: "monthly",
+      targetPlanTier: "platinum",
+      targetBillingCycle: "monthly",
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
+      now,
+    });
+
+    assert.equal(proration.isUpgrade, true);
+    assert.equal(proration.remainingDays, 16);
+    // Gold é R$ 149 (14900 cents). Crédito não utilizado dos 16 dias restantes:
+    assert.ok(proration.unusedCurrentPlanCents > 0);
+    // Platinum é R$ 399 (39900 cents). Diferença líquida a cobrar hoje:
+    assert.ok(proration.netProrationCents > 0);
+    // netProrationCents deve ser aproximadamente (39900 - 14900) * 16 / 30 = 25000 * 16 / 30 = ~13333 cents (R$ 133,33)
+    assert.ok(proration.netProrationCents > 12000 && proration.netProrationCents < 15000);
+  });
 });

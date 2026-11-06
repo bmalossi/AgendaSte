@@ -8,7 +8,8 @@ import { PlanTier, PLAN_STAFF_LIMITS } from "./pricing";
 export type AccessState =
   | "full_access"
   | "grace_period_warning"
-  | "operational_soft_lock";
+  | "operational_soft_lock"
+  | "hibernation_paused";
 
 export interface OrganizationBillingContext {
   subscriptionStatus?: string | null;
@@ -16,6 +17,7 @@ export interface OrganizationBillingContext {
   trialEndsAt?: Date | string | null;
   gracePeriodEndsAt?: Date | string | null;
   currentPeriodEnd?: Date | string | null;
+  pausedUntil?: Date | string | null;
   now?: Date | string;
 }
 
@@ -23,6 +25,7 @@ export interface OrganizationEntitlements {
   accessState: AccessState;
   isSoftLocked: boolean;
   isGracePeriod: boolean;
+  isPaused: boolean;
   graceDaysLeft: number;
   planTier: PlanTier;
   maxStaff: number;
@@ -85,7 +88,11 @@ export function evaluateOrganizationEntitlements(
       accessState = "operational_soft_lock";
     }
   }
-  // 4. Status 'canceled': Se ainda houver período pago vigente, mantém full_access
+  // 4. Status 'paused': Modo Hibernação (sem cobrança, consulta e histórico liberados)
+  else if (subStatus === "paused") {
+    accessState = "hibernation_paused";
+  }
+  // 5. Status 'canceled': Se ainda houver período pago vigente, mantém full_access
   else if (subStatus === "canceled") {
     const periodEnd = context.currentPeriodEnd
       ? new Date(context.currentPeriodEnd)
@@ -97,11 +104,12 @@ export function evaluateOrganizationEntitlements(
       accessState = "operational_soft_lock";
     }
   }
-  // 5. Qualquer outro status (ex: unpaid, incomplete, etc.)
+  // 6. Qualquer outro status (ex: unpaid, incomplete, etc.)
   else {
     accessState = "operational_soft_lock";
   }
 
+  const isPaused = accessState === "hibernation_paused";
   const isSoftLocked = accessState === "operational_soft_lock";
   const isGracePeriod = accessState === "grace_period_warning";
 
@@ -112,21 +120,22 @@ export function evaluateOrganizationEntitlements(
   const marketingCredits =
     planTier === "essencial" ? 100 : planTier === "gold" ? 500 : 2000;
 
-  // Em Bloqueio Operacional (Soft-Lock):
+  // Em Bloqueio Operacional (Soft-Lock) ou Pausa (Modo Hibernação):
   // - Novas reservas e novos agendamentos são suspensos
   // - Recepção IA e campanhas de marketing são suspensas
   // - MAS dar baixa em agendamentos já confirmados é 100% PERMITIDO (protege o cliente que pagou sinal)
   // - Exportação de dados e relatórios LGPD é 100% PERMITIDA
-  const canCreateNewAppointments = !isSoftLocked;
-  const canAcceptOnlineBookings = !isSoftLocked;
-  const canSendMarketingCampaigns = !isSoftLocked;
+  const canCreateNewAppointments = !isSoftLocked && !isPaused;
+  const canAcceptOnlineBookings = !isSoftLocked && !isPaused;
+  const canSendMarketingCampaigns = !isSoftLocked && !isPaused;
   const canUseAiReception =
-    !isSoftLocked && (planTier === "gold" || planTier === "platinum");
+    !isSoftLocked && !isPaused && (planTier === "gold" || planTier === "platinum");
 
   return {
     accessState,
     isSoftLocked,
     isGracePeriod,
+    isPaused,
     graceDaysLeft,
     planTier,
     maxStaff,

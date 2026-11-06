@@ -31,7 +31,7 @@ export async function signOutUser(): Promise<void> {
     }
   }
 
-  // Limpa o cache local de estado para evitar vazamento entre contas no mesmo dispositivo/navegador
+  // Limpa o cache local de estado e cookies para evitar vazamento entre contas no mesmo dispositivo/navegador
   if (typeof window !== "undefined") {
     try {
       const keysToRemove: string[] = [];
@@ -39,15 +39,20 @@ export async function signOutUser(): Promise<void> {
         const key = localStorage.key(i);
         if (
           key &&
-          (key.startsWith("luvea_studio_state_v1") ||
-            key.startsWith("agendaste_studio_state_v1") ||
-            key.startsWith("luvea_public_site_") ||
-            key.startsWith("luvea_user_"))
+          (key.startsWith("luvea_") ||
+            key.startsWith("agendaste_"))
         ) {
-          keysToRemove.push(key);
+          // Preserva preferências puras de tema se existirem
+          if (key !== "luvea_theme" && key !== "theme") {
+            keysToRemove.push(key);
+          }
         }
       }
       keysToRemove.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.clear();
+      // Remove cookie de preview local se houver
+      document.cookie =
+        "luvea_local_preview=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
     } catch (err) {
       console.warn("[Luvea Auth] Erro ao limpar cache local no logout:", err);
     }

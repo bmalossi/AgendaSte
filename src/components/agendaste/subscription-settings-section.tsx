@@ -56,6 +56,8 @@ interface SubscriptionData {
   billingCycle: string;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
+  pausedUntil: string | null;
+  hasStripeSubscription?: boolean;
   cancelAtPeriodEnd: boolean;
   scheduledPlanTier: string | null;
   scheduledBillingCycle: string | null;
@@ -91,10 +93,28 @@ export function SubscriptionSettingsSection({
 
   // Modais de ação
   const [upgradeTarget, setUpgradeTarget] = useState<PlanTier | null>(null);
+  const [upgradePreview, setUpgradePreview] = useState<{
+    amountDueCents: number;
+    subtotalCents: number;
+    prorationCostCents?: number;
+    prorationCreditCents: number;
+    isTrial: boolean;
+    trialEnd?: string | null;
+    currentPeriodEnd?: string | null;
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [downgradeTarget, setDowngradeTarget] = useState<PlanTier | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [pauseMonths, setPauseMonths] = useState<1 | 2 | 3>(1);
+  const [cancelStep, setCancelStep] = useState<1 | 2>(1);
+  const [cancelReason, setCancelReason] = useState<
+    "vacation_renovation" | "budget_cost" | "low_usage" | "other" | null
+  >(null);
   const [cancelChoice, setCancelChoice] = useState<"at_period_end" | "immediate_refund_cdc">("at_period_end");
   const modalContainerRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const isAnyModalOpen = Boolean(upgradeTarget || downgradeTarget || showCancelModal || showPauseModal);
 
   // Carrega status da assinatura da API
   const fetchSubscription = async () => {
@@ -121,30 +141,108 @@ export function SubscriptionSettingsSection({
     fetchSubscription();
   }, []);
 
-  // Fechamento acessível de modais via tecla Escape
+  // Consulta prévia oficial de Upgrade da API Stripe (ou prorrata local) ao selecionar o plano alvo
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setUpgradeTarget(null);
-        setDowngradeTarget(null);
-        setShowCancelModal(false);
-      }
-    };
-    if (upgradeTarget || downgradeTarget || showCancelModal) {
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
+    if (!upgradeTarget) {
+      setUpgradePreview(null);
+      return;
     }
-  }, [upgradeTarget, downgradeTarget, showCancelModal]);
 
-  // Foco programático no modal aberto (WCAG 2.1 - 2.4.3 Focus Order)
+    let isMounted = true;
+    setPreviewLoading(true);
+
+    fetch(
+      `/api/billing/change-plan?targetPlanTier=${encodeURIComponent(
+        upgradeTarget
+      )}&targetBillingCycle=${encodeURIComponent(selectedCycle)}`
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.ok && data.preview) {
+          setUpgradePreview(data.preview);
+        }
+      })
+      .catch((err) => console.warn("[Upgrade Preview Fetch Error]:", err))
+      .finally(() => {
+        if (isMounted) setPreviewLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [upgradeTarget, selectedCycle]);
+
+  // Fechamento acessível de modais via tecla Escape, contenção de foco (Focus Trap) e restauração de foco (WCAG 2.1)
   useEffect(() => {
-    if (upgradeTarget || downgradeTarget || showCancelModal) {
+    if (isAnyModalOpen) {
+      // Salva elemento que possuía foco antes da abertura do modal
+      if (document.activeElement instanceof HTMLElement) {
+        previousActiveElementRef.current = document.activeElement;
+      }
+
+      // Foca automaticamente o primeiro elemento interativo do modal (ou o container)
       const timer = setTimeout(() => {
-        modalContainerRef.current?.focus();
+        if (modalContainerRef.current) {
+          const focusables = modalContainerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusables.length > 0) {
+            focusables[0].focus();
+          } else {
+            modalContainerRef.current.focus();
+          }
+        }
       }, 50);
-      return () => clearTimeout(timer);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setUpgradeTarget(null);
+          setDowngradeTarget(null);
+          setShowCancelModal(false);
+          setShowPauseModal(false);
+          setCancelStep(1);
+          setCancelReason(null);
+        }
+
+        // Focus Trap para navegação cíclica segura por Tab
+        if (e.key === "Tab" && modalContainerRef.current) {
+          const focusables = modalContainerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusables.length === 0) {
+            e.preventDefault();
+            return;
+          }
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+
+          if (e.shiftKey) {
+            if (document.activeElement === first || !modalContainerRef.current.contains(document.activeElement)) {
+              last.focus();
+              e.preventDefault();
+            }
+          } else {
+            if (document.activeElement === last || !modalContainerRef.current.contains(document.activeElement)) {
+              first.focus();
+              e.preventDefault();
+            }
+          }
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    } else {
+      // Restaura foco no elemento de origem quando o modal é fechado
+      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === "function") {
+        previousActiveElementRef.current.focus();
+        previousActiveElementRef.current = null;
+      }
     }
-  }, [upgradeTarget, downgradeTarget, showCancelModal]);
+  }, [isAnyModalOpen]);
 
   // Dados consolidados (API ou fallback do estado do estúdio)
   const currentTier = (subData?.planTier || state.onboarding?.planTier || "gold").toLowerCase() as PlanTier;
@@ -154,13 +252,18 @@ export function SubscriptionSettingsSection({
   const isTrialActive = subStatus === "trialing" && trialDays > 0;
   const isTrialExpired = subStatus === "trialing" && trialDays <= 0;
   const isSubActive = subStatus === "active";
+  // Pausar/cancelar ficam disponíveis para assinatura ativa ou para teste com cartão já cadastrado na Stripe
+  const canManageSubscription =
+    isSubActive || (subStatus === "trialing" && Boolean(subData?.hasStripeSubscription));
+  const isPaused = subStatus === "paused";
   const isPastDue = subStatus === "past_due";
   const cancelAtPeriodEnd = Boolean(subData?.cancelAtPeriodEnd);
   const scheduledTier = subData?.scheduledPlanTier;
   const activeStaffCount = subData?.activeStaffCount ?? (state.staff?.length || 1);
 
-  // Verifica se faltam 5 dias ou menos para o vencimento do Pix
+  // Períodos e datas
   const periodEndDate = subData?.currentPeriodEnd ? new Date(subData.currentPeriodEnd) : null;
+  const pausedUntilDate = subData?.pausedUntil ? new Date(subData.pausedUntil) : null;
   const daysUntilRenewal = periodEndDate
     ? Math.ceil((periodEndDate.getTime() - Date.now()) / 86400000)
     : null;
@@ -284,19 +387,81 @@ export function SubscriptionSettingsSection({
     }
   };
 
-  // Executa cancelamento (CDC ou ao fim do ciclo)
+  // Executa Pausa da Assinatura (Modo Hibernação)
+  const handleConfirmPause = async () => {
+    try {
+      setActionLoading(true);
+      const res = await fetch("/api/billing/pause", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ months: pauseMonths }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setFeedbackMessage({ type: "success", text: data.message });
+        setShowPauseModal(false);
+        setShowCancelModal(false);
+        setCancelStep(1);
+        setCancelReason(null);
+        await fetchSubscription();
+        onUpdateState((prev) => ({
+          ...prev,
+          onboarding: {
+            ...prev.onboarding,
+            subscriptionStatus: "paused",
+          },
+        }));
+      } else {
+        setFeedbackMessage({ type: "error", text: data.error || "Erro ao pausar assinatura." });
+      }
+    } catch {
+      setFeedbackMessage({ type: "error", text: "Erro de rede ao pausar assinatura." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Retoma assinatura pausada (Modo Hibernação -> Ativa)
+  const handleResumeSubscription = async () => {
+    try {
+      setActionLoading(true);
+      const res = await fetch("/api/billing/resume", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setFeedbackMessage({ type: "success", text: data.message });
+        await fetchSubscription();
+        onUpdateState((prev) => ({
+          ...prev,
+          onboarding: {
+            ...prev.onboarding,
+            subscriptionStatus: "active",
+          },
+        }));
+      } else {
+        setFeedbackMessage({ type: "error", text: data.error || "Erro ao reativar assinatura." });
+      }
+    } catch {
+      setFeedbackMessage({ type: "error", text: "Erro ao reativar assinatura." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Executa cancelamento (CDC ou ao fim do ciclo) com registro de motivo
   const handleConfirmCancel = async () => {
     try {
       setActionLoading(true);
       const res = await fetch("/api/billing/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: cancelChoice }),
+        body: JSON.stringify({ action: cancelChoice, reason: cancelReason }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
         setFeedbackMessage({ type: "success", text: data.message });
         setShowCancelModal(false);
+        setCancelStep(1);
+        setCancelReason(null);
         await fetchSubscription();
       } else {
         setFeedbackMessage({ type: "error", text: data.error || "Erro ao cancelar assinatura." });
@@ -358,7 +523,7 @@ export function SubscriptionSettingsSection({
             <button
               type="button"
               onClick={() => onSelectCycle("monthly")}
-              className={`min-h-[44px] px-4 py-2 rounded-full text-[12.5px] font-medium transition-all ${
+              className={`h-9 px-4 rounded-full text-[12.5px] font-medium transition-all ${
                 selectedCycle === "monthly"
                   ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
                   : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
@@ -369,7 +534,7 @@ export function SubscriptionSettingsSection({
             <button
               type="button"
               onClick={() => onSelectCycle("yearly")}
-              className={`min-h-[44px] px-4 py-2 rounded-full text-[12.5px] font-medium transition-all flex items-center gap-1.5 ${
+              className={`h-9 px-4 rounded-full text-[12.5px] font-medium transition-all flex items-center gap-1.5 ${
                 selectedCycle === "yearly"
                   ? "bg-white dark:bg-[#18181b] text-[#1C1C1E] dark:text-white shadow-sm"
                   : "text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white"
@@ -383,9 +548,18 @@ export function SubscriptionSettingsSection({
           </div>
         </div>
 
+        {/* Status Live Regions para Leitores de Tela */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {copiedPix ? "Código Pix copiado para a área de transferência." : ""}
+          {actionLoading ? "Processando solicitação com o servidor..." : ""}
+        </div>
+
         {/* Feedback Alert */}
         {feedbackMessage && (
           <div
+            role={feedbackMessage.type === "error" ? "alert" : "status"}
+            aria-live={feedbackMessage.type === "error" ? "assertive" : "polite"}
+            aria-atomic="true"
             className={`p-3.5 rounded-2xl text-[12.5px] flex items-center justify-between border ${
               feedbackMessage.type === "success"
                 ? "bg-[#F5F5F7] border-[#E5E5EA] text-[#1C1C1E] dark:bg-[#27272a] dark:border-[#27272a] dark:text-white"
@@ -403,7 +577,7 @@ export function SubscriptionSettingsSection({
             <button
               type="button"
               onClick={() => setFeedbackMessage(null)}
-              aria-label="Fechar mensagem"
+              aria-label="Fechar mensagem de feedback"
               className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition"
             >
               <X className="w-4 h-4" />
@@ -415,7 +589,12 @@ export function SubscriptionSettingsSection({
         <div className="p-5 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-medium bg-white dark:bg-[#27272a] border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-white shadow-xs">
-              {isSubActive ? (
+              {isPaused ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                  <span>Assinatura em Pausa • Modo Hibernação (Plano {currentPlanFormatted})</span>
+                </>
+              ) : isSubActive ? (
                 <>
                   <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
                   <span>Assinatura Ativa • Plano {currentPlanFormatted}</span>
@@ -441,7 +620,11 @@ export function SubscriptionSettingsSection({
             </div>
 
             <p className="text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] max-w-2xl leading-relaxed">
-              {isSubActive
+              {isPaused
+                ? `Sua assinatura está temporariamente pausada sem cobranças na Stripe. Seus dados, histórico e configurações permanecem 100% preservados para consulta. A reativação automática ocorrerá em ${
+                    pausedUntilDate ? pausedUntilDate.toLocaleDateString("pt-BR") : "breve"
+                  }.`
+                : isSubActive
                 ? `Assinatura ativa no ciclo ${currentCycle === "yearly" ? "anual" : "mensal"}${
                     periodEndDate
                       ? ` com próxima renovação em ${periodEndDate.toLocaleDateString("pt-BR")}`
@@ -465,7 +648,7 @@ export function SubscriptionSettingsSection({
                   type="button"
                   onClick={handleCancelScheduledDowngrade}
                   disabled={actionLoading}
-                  className="min-h-[44px] px-2.5 py-1 rounded-lg underline text-[#1C1C1E] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium inline-flex items-center"
+                  className="px-2.5 py-1 rounded-lg underline text-[#1C1C1E] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium inline-flex items-center text-[12px]"
                 >
                   Cancelar agendamento
                 </button>
@@ -484,7 +667,7 @@ export function SubscriptionSettingsSection({
                   type="button"
                   onClick={handleReactivateSubscription}
                   disabled={actionLoading}
-                  className="min-h-[44px] px-2.5 py-1 rounded-lg underline text-[#1C1C1E] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium inline-flex items-center"
+                  className="px-2.5 py-1 rounded-lg underline text-[#1C1C1E] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium inline-flex items-center text-[12px]"
                 >
                   Reativar renovação
                 </button>
@@ -493,38 +676,66 @@ export function SubscriptionSettingsSection({
           </div>
 
           {/* Ações Primárias / Secundárias */}
-          <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
-            {subData?.paymentGateway === "stripe" && (
+          <div className="flex flex-wrap items-center gap-2 shrink-0 self-start md:self-center">
+            {isPaused ? (
               <button
                 type="button"
-                onClick={handleOpenStripePortal}
+                onClick={handleResumeSubscription}
                 disabled={actionLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all"
+                className="h-9 inline-flex items-center justify-center gap-2 px-5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium shadow-sm hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all shrink-0 whitespace-nowrap active:scale-[0.98]"
               >
-                <span>Portal Stripe</span>
-                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{actionLoading ? "Reativando..." : "Reativar Assinatura Agora"}</span>
               </button>
-            )}
+            ) : (
+              <>
+                {subData?.paymentGateway === "stripe" && (
+                  <button
+                    type="button"
+                    onClick={handleOpenStripePortal}
+                    disabled={actionLoading}
+                    className="h-9 inline-flex items-center justify-center gap-1.5 px-4 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all active:scale-[0.98] shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
+                  >
+                    <span>Portal Stripe</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                  </button>
+                )}
 
-            {isSubActive && !cancelAtPeriodEnd && (
-              <button
-                type="button"
-                onClick={() => setShowCancelModal(true)}
-                disabled={actionLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all"
-              >
-                Cancelar renovação
-              </button>
-            )}
+                {canManageSubscription && !cancelAtPeriodEnd && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowPauseModal(true)}
+                      disabled={actionLoading}
+                      className="h-9 inline-flex items-center justify-center gap-1.5 px-4 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all active:scale-[0.98] shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
+                    >
+                      Pausar assinatura
+                    </button>
 
-            {!isSubActive && (
-              <Link
-                href={`/checkout?plan=${currentTier}&cycle=${selectedCycle}`}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium shadow-sm hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all shrink-0 active:scale-[0.98]"
-              >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>{isTrialExpired ? "Reativar Assinatura" : "Efetivar Assinatura"}</span>
-              </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelStep(1);
+                        setCancelReason(null);
+                        setShowCancelModal(true);
+                      }}
+                      disabled={actionLoading}
+                      className="h-9 inline-flex items-center justify-center gap-1.5 px-4 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all active:scale-[0.98] shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
+                    >
+                      Cancelar assinatura
+                    </button>
+                  </>
+                )}
+
+                {!canManageSubscription && (
+                  <Link
+                    href={`/checkout?plan=${currentTier}&cycle=${selectedCycle}&source=app`}
+                    className="h-9 inline-flex items-center justify-center gap-2 px-5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium shadow-sm hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all shrink-0 whitespace-nowrap active:scale-[0.98]"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>{isTrialExpired ? "Reativar Assinatura" : "Efetivar Assinatura"}</span>
+                  </Link>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -587,7 +798,7 @@ export function SubscriptionSettingsSection({
                 <button
                   type="button"
                   onClick={() => handleCopyPix(latestPixInvoice.pix_qr_code || "")}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all"
+                  className="h-9 inline-flex items-center justify-center gap-1.5 px-4 rounded-full border border-[#D4D4D8] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all active:scale-[0.98] shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[#1C1C1E] dark:focus-visible:ring-white focus-visible:outline-none"
                 >
                   {copiedPix ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedPix ? "Código Pix Copiado" : "Copiar Código Pix"}</span>
@@ -667,11 +878,11 @@ export function SubscriptionSettingsSection({
               </div>
 
               <div className="pt-6">
-                {isCurrentPlan && isSubActive ? (
+                {isCurrentPlan && (isSubActive || Boolean(subData?.hasStripeSubscription)) ? (
                   <div className="w-full py-2.5 rounded-full bg-[#F5F5F7] dark:bg-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa] text-[12.5px] font-medium text-center border border-[#E5E5EA] dark:border-[#27272a]">
-                    Plano Ativo
+                    {subStatus === "trialing" ? "Plano em Degustação" : "Plano Ativo"}
                   </div>
-                ) : isSubActive ? (
+                ) : (isSubActive || Boolean(subData?.hasStripeSubscription)) ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -702,10 +913,10 @@ export function SubscriptionSettingsSection({
                   </button>
                 ) : (
                   <Link
-                    href={`/checkout?plan=${plan.id}&cycle=${selectedCycle}`}
+                    href={`/checkout?plan=${plan.id}&cycle=${selectedCycle}&source=app`}
                     className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium shadow-sm hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all"
                   >
-                    <span>Assinar {plan.name}</span>
+                    <span>{isCurrentPlan ? `Ativar Assinatura ${plan.name}` : `Assinar ${plan.name}`}</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
                 )}
@@ -797,7 +1008,7 @@ export function SubscriptionSettingsSection({
                             href={inv.hosted_invoice_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11.5px] text-[#6E6E73] hover:text-[#1C1C1E] dark:text-[#a1a1aa] dark:hover:text-white"
+                            className="min-h-[44px] inline-flex items-center gap-1 text-[11.5px] text-[#6E6E73] hover:text-[#1C1C1E] dark:text-[#a1a1aa] dark:hover:text-white"
                           >
                             <span>Fatura</span>
                             <ExternalLink className="w-3 h-3" />
@@ -807,7 +1018,7 @@ export function SubscriptionSettingsSection({
                             href={inv.pix_ticket_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11.5px] text-[#6E6E73] hover:text-[#1C1C1E] dark:text-[#a1a1aa] dark:hover:text-white"
+                            className="min-h-[44px] inline-flex items-center gap-1 text-[11.5px] text-[#6E6E73] hover:text-[#1C1C1E] dark:text-[#a1a1aa] dark:hover:text-white"
                           >
                             <span>Comprovante</span>
                             <ExternalLink className="w-3 h-3" />
@@ -895,24 +1106,68 @@ export function SubscriptionSettingsSection({
                   {selectedCycle === "yearly" ? "anual" : "mensal"}.
                 </p>
 
-                <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] space-y-2">
-                  <div className="flex justify-between">
-                    <span>Dias restantes no ciclo:</span>
-                    <span className="font-medium text-[#1C1C1E] dark:text-white">{proration.remainingDays} dias</span>
+                {previewLoading ? (
+                  <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] text-center text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] py-6 animate-pulse">
+                    Calculando prévia da cobrança...
                   </div>
-                  <div className="flex justify-between">
-                    <span>Crédito do plano atual:</span>
-                    <span className="font-medium text-[#1C1C1E] dark:text-white">
-                      R$ {(proration.unusedCurrentPlanCents / 100).toFixed(2)}
-                    </span>
+                ) : (upgradePreview ? Boolean(upgradePreview.isTrial) : (subStatus === "trialing" && trialDays > 0)) ? (
+                  <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] space-y-2.5">
+                    <div className="flex justify-between items-center text-[12.5px]">
+                      <span>Condição especial:</span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span>Período de Degustação</span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-baseline text-[12.5px]">
+                      <span className="text-[#1C1C1E] dark:text-white font-medium">Cobrança hoje:</span>
+                      <span className="font-serif text-[18px] font-medium text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
+                    </div>
+                    <div className="flex justify-between text-[12px] pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
+                      <span>Primeira cobrança após o teste:</span>
+                      <span className="font-medium text-[#1C1C1E] dark:text-white">
+                        R$ {selectedCycle === "yearly" ? targetPlan?.annualMonthlyPriceReais : targetPlan?.monthlyPriceReais}
+                        <span className="text-[11px] font-normal text-[#6E6E73] dark:text-[#a1a1aa]">/mês</span>
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between pt-2 border-t border-[#E5E5EA] dark:border-[#27272a] text-[14px]">
-                    <span className="font-medium text-[#1C1C1E] dark:text-white">Diferença proporcional:</span>
-                    <span className="font-serif text-[18px] font-medium text-[#1C1C1E] dark:text-white">
-                      R$ {(proration.netProrationCents / 100).toFixed(2)}
-                    </span>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] space-y-2">
+                    <div className="flex justify-between text-[12.5px]">
+                      <span>Dias restantes no ciclo:</span>
+                      <span className="font-medium tabular-nums text-[#1C1C1E] dark:text-white">{proration.remainingDays} dias</span>
+                    </div>
+                    <div className="flex justify-between text-[12.5px]">
+                      <span>Proporcional do Plano {targetPlan?.name}:</span>
+                      <span className="font-medium tabular-nums text-[#1C1C1E] dark:text-white">
+                        R${" "}
+                        {(
+                          (upgradePreview?.prorationCostCents ||
+                            upgradePreview?.subtotalCents ||
+                            proration.costTargetPlanRemainingCents) / 100
+                        ).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[12.5px]">
+                      <span>Crédito do plano atual ({currentPlanFormatted}):</span>
+                      <span className="font-medium tabular-nums text-[#1C1C1E] dark:text-white">
+                        - R${" "}
+                        {(
+                          (upgradePreview?.prorationCreditCents ?? proration.unusedCurrentPlanCents) / 100
+                        ).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-baseline pt-2 border-t border-[#E5E5EA] dark:border-[#27272a]">
+                      <span className="font-medium text-[#1C1C1E] dark:text-white text-[13px]">Diferença proporcional hoje:</span>
+                      <span className="font-serif text-[18px] font-medium tabular-nums text-[#1C1C1E] dark:text-white">
+                        R${" "}
+                        {(
+                          (upgradePreview?.amountDueCents ?? proration.netProrationCents) / 100
+                        ).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <p className="text-[12px] leading-relaxed">
                   Os novos recursos do Plano {targetPlan?.name} serão liberados imediatamente.
@@ -1026,12 +1281,16 @@ export function SubscriptionSettingsSection({
       })()}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: CANCELAMENTO (CDC ART. 49 vs AO FIM DO CICLO)                     */}
+      {/* MODAL 3: CANCELAMENTO ÉTICO EM 2 ETAPAS                                    */}
       {/* ========================================================================= */}
       {showCancelModal && (
         <div
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCancelModal(false);
+            if (e.target === e.currentTarget) {
+              setShowCancelModal(false);
+              setCancelStep(1);
+              setCancelReason(null);
+            }
           }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
         >
@@ -1045,10 +1304,21 @@ export function SubscriptionSettingsSection({
             className="bg-white dark:bg-[#18181b] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none focus:outline-none"
           >
             <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
-              <h3 id="modal-cancel-title" className="text-[17px] font-medium">Cancelamento de Assinatura</h3>
+              <div>
+                <h3 id="modal-cancel-title" className="text-[17px] font-medium">
+                  {cancelStep === 1 ? "Motivo do Cancelamento" : "Confirmar Cancelamento"}
+                </h3>
+                <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa]">
+                  Etapa {cancelStep} de 2
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => setShowCancelModal(false)}
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelStep(1);
+                  setCancelReason(null);
+                }}
                 aria-label="Fechar modal de cancelamento"
                 className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
               >
@@ -1056,100 +1326,329 @@ export function SubscriptionSettingsSection({
               </button>
             </div>
 
-            <div id="modal-cancel-description" className="space-y-3 text-[13px] text-[#6E6E73] dark:text-[#a1a1aa]">
-              {subData?.canRefundCdc ? (
+            <div id="modal-cancel-description" className="space-y-4 text-[13px] text-[#6E6E73] dark:text-[#a1a1aa]">
+              {cancelStep === 1 ? (
                 <>
                   <p>
-                    Seu estúdio está no período de garantia legal de 7 dias corridos (Art. 49 do Código de
-                    Defesa do Consumidor). Escolha como deseja proceder:
+                    Sentiremos sua falta! Para nos ajudar a evoluir a plataforma, qual é o principal motivo da sua saída?
                   </p>
 
-                  <div className="space-y-2 pt-1">
-                    <label
-                      className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        cancelChoice === "immediate_refund_cdc"
-                          ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]/60"
-                          : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="cancel_option"
-                        checked={cancelChoice === "immediate_refund_cdc"}
-                        onChange={() => setCancelChoice("immediate_refund_cdc")}
-                        className="mt-0.5"
-                      />
-                      <div>
-                        <p className="font-medium text-[#1C1C1E] dark:text-white text-[13px]">
-                          Estorno integral imediato (Garantia CDC 7 dias)
-                        </p>
-                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
-                          Cancela o acesso imediatamente e solicita 100% de reembolso ao meio de pagamento.
-                        </p>
-                      </div>
-                    </label>
-
-                    <label
-                      className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        cancelChoice === "at_period_end"
-                          ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]/60"
-                          : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="cancel_option"
-                        checked={cancelChoice === "at_period_end"}
-                        onChange={() => setCancelChoice("at_period_end")}
-                        className="mt-0.5"
-                      />
-                      <div>
-                        <p className="font-medium text-[#1C1C1E] dark:text-white text-[13px]">
-                          Manter acesso até o final do ciclo pago
-                        </p>
-                        <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
-                          Desativa a renovação automática e preserva o estúdio ativo até{" "}
-                          {periodEndDate ? periodEndDate.toLocaleDateString("pt-BR") : "o fim do ciclo"}.
-                        </p>
-                      </div>
-                    </label>
+                  <div className="space-y-2">
+                    {[
+                      {
+                        id: "vacation_renovation",
+                        label: "Férias, reforma ou pausa temporária do espaço",
+                        desc: "Não preciso do sistema no momento, mas pretendo voltar.",
+                      },
+                      {
+                        id: "budget_cost",
+                        label: "Orçamento / Redução de custos",
+                        desc: "Preciso enxugar os custos mensais do estúdio.",
+                      },
+                      {
+                        id: "low_usage",
+                        label: "Pouco uso ou dificuldade de adaptação",
+                        desc: "Não consegui aproveitar todos os recursos disponíveis.",
+                      },
+                      {
+                        id: "other",
+                        label: "Outro motivo",
+                        desc: "Mudança de modelo ou preferência pessoal.",
+                      },
+                    ].map((item) => (
+                      <label
+                        key={item.id}
+                        className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                          cancelReason === item.id
+                            ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]/60 shadow-xs"
+                            : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:border-[#D4D4D8]"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="cancel_reason"
+                          checked={cancelReason === item.id}
+                          onChange={() => setCancelReason(item.id as any)}
+                          className="mt-0.5"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-[#1C1C1E] dark:text-white">
+                            {item.label}
+                          </p>
+                          <p className="text-[11.5px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                            {item.desc}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
+
+                  {/* Sugestão contextual de Pausa */}
+                  {cancelReason === "vacation_renovation" && (
+                    <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] space-y-2.5 animate-in fade-in duration-150">
+                      <p className="text-[12.5px] text-[#1C1C1E] dark:text-white font-medium">
+                        Precisa apenas de um tempo?
+                      </p>
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                        Você pode pausar sua assinatura por 1 a 3 meses sem perder nenhum dado, cliente ou histórico. Zero cobranças durante a pausa.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCancelModal(false);
+                          setCancelStep(1);
+                          setShowPauseModal(true);
+                        }}
+                        className="min-h-[44px] px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12px] font-medium inline-flex items-center gap-1.5 hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all shadow-xs"
+                      >
+                        <span>Pausar assinatura por 1 a 3 meses</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Sugestão contextual de Downgrade */}
+                  {cancelReason === "budget_cost" && currentTier !== "essencial" && (
+                    <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] space-y-2.5 animate-in fade-in duration-150">
+                      <p className="text-[12.5px] text-[#1C1C1E] dark:text-white font-medium">
+                        Mudar para o Plano Essencial por R$ 59/mês
+                      </p>
+                      <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] leading-relaxed">
+                        Mantenha sua agenda online, cobranças Pix e clientes ativos com uma mensalidade mais leve, sem perder nenhum histórico.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCancelModal(false);
+                          setCancelStep(1);
+                          setDowngradeTarget("essencial");
+                        }}
+                        className="min-h-[44px] px-4 py-2 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium inline-flex items-center gap-1.5 hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 transition-all shadow-xs"
+                      >
+                        <span>Agendar mudança para o Plano Essencial</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
-                  <p>
-                    Ao cancelar, a renovação automática da sua assinatura será desativada.
-                  </p>
-                  <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] text-[12.5px] space-y-1.5">
-                    <p>
-                      • Seu estúdio e todos os recursos permanecerão 100% disponíveis até{" "}
-                      <strong className="text-[#1C1C1E] dark:text-white">
-                        {periodEndDate ? periodEndDate.toLocaleDateString("pt-BR") : "o final do ciclo pago"}
-                      </strong>.
-                    </p>
-                    <p>• Nenhuma cobrança futura será realizada.</p>
-                    <p>• Seus dados de clientes e histórico continuam salvos e seguros.</p>
-                  </div>
+                  {subData?.canRefundCdc ? (
+                    <>
+                      <p>
+                        Seu estúdio está no período de garantia legal de 7 dias corridos (Art. 49 do Código de Defesa do Consumidor). Escolha como deseja proceder:
+                      </p>
+
+                      <div className="space-y-2 pt-1">
+                        <label
+                          className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                            cancelChoice === "immediate_refund_cdc"
+                              ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]/60"
+                              : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="cancel_option"
+                            checked={cancelChoice === "immediate_refund_cdc"}
+                            onChange={() => setCancelChoice("immediate_refund_cdc")}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <p className="font-medium text-[#1C1C1E] dark:text-white text-[13px]">
+                              Estorno integral imediato (Garantia CDC 7 dias)
+                            </p>
+                            <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                              Cancela o acesso imediatamente e solicita 100% de reembolso ao meio de pagamento.
+                            </p>
+                          </div>
+                        </label>
+
+                        <label
+                          className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                            cancelChoice === "at_period_end"
+                              ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a]/60"
+                              : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b]"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="cancel_option"
+                            checked={cancelChoice === "at_period_end"}
+                            onChange={() => setCancelChoice("at_period_end")}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <p className="font-medium text-[#1C1C1E] dark:text-white text-[13px]">
+                              Manter acesso até o final do ciclo pago
+                            </p>
+                            <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa] mt-0.5">
+                              Desativa a renovação automática e preserva o estúdio ativo até{" "}
+                              {periodEndDate ? periodEndDate.toLocaleDateString("pt-BR") : "o fim do ciclo"}.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        Ao cancelar, a renovação automática da sua assinatura será desativada.
+                      </p>
+                      <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] text-[12.5px] space-y-1.5">
+                        <p>
+                          • Seu estúdio e todos os recursos permanecerão 100% disponíveis até{" "}
+                          <strong className="text-[#1C1C1E] dark:text-white">
+                            {periodEndDate ? periodEndDate.toLocaleDateString("pt-BR") : "o final do ciclo pago"}
+                          </strong>.
+                        </p>
+                        <p>• Nenhuma cobrança futura será realizada.</p>
+                        <p>• Seus dados de clientes e histórico continuam salvos e seguros.</p>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
 
-            {/* Botões do Modal: Anti-AI Slop (pílula secundária sóbria, zero bordas vermelhas estridentes) */}
+            {/* Botões de Ação do Modal */}
+            <div className="flex items-center justify-end gap-3 pt-3">
+              {cancelStep === 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCancelModal(false);
+                      setCancelReason(null);
+                    }}
+                    className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46]"
+                  >
+                    Manter assinatura
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCancelStep(2)}
+                    className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all"
+                  >
+                    Continuar para cancelamento
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCancelStep(1)}
+                    className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46]"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmCancel}
+                    disabled={actionLoading}
+                    className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all"
+                  >
+                    {actionLoading ? "Processando..." : "Confirmar Cancelamento"}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: PAUSA DE ASSINATURA (MODO HIBERNAÇÃO)                            */}
+      {/* ========================================================================= */}
+      {showPauseModal && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPauseModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            ref={modalContainerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-pause-title"
+            aria-describedby="modal-pause-description"
+            tabIndex={-1}
+            className="bg-white dark:bg-[#18181b] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E5EA] dark:border-[#27272a] space-y-5 animate-in zoom-in-95 duration-200 text-[#1C1C1E] dark:text-white outline-none focus:outline-none"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA] dark:border-[#27272a]">
+              <h3 id="modal-pause-title" className="text-[17px] font-medium">
+                Pausar Assinatura (Modo Hibernação)
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPauseModal(false)}
+                aria-label="Fechar modal de pausa"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-[#6E6E73] dark:text-[#a1a1aa] hover:text-[#1C1C1E] dark:hover:text-white hover:bg-[#F5F5F7] dark:hover:bg-[#27272a] transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div id="modal-pause-description" className="space-y-4 text-[13px] text-[#6E6E73] dark:text-[#a1a1aa]">
+              <p>
+                Precisa de uma pausa por férias, reforma ou viagem? Congele suas cobranças sem perder seus dados, configurações e histórico de clientes.
+              </p>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-medium uppercase tracking-wider text-[#6E6E73] dark:text-[#a1a1aa] block">
+                  Escolha o período da pausa:
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {([1, 2, 3] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPauseMonths(m)}
+                      className={`min-h-[44px] p-3 rounded-2xl border text-center transition-all ${
+                        pauseMonths === m
+                          ? "border-[#1C1C1E] dark:border-white bg-[#F5F5F7] dark:bg-[#27272a] text-[#1C1C1E] dark:text-white font-semibold shadow-xs"
+                          : "border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[#6E6E73] dark:text-[#a1a1aa] hover:border-[#D4D4D8]"
+                      }`}
+                    >
+                      <div className="text-[13px] font-medium">{m} {m === 1 ? "mês" : "meses"}</div>
+                      <div className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa] font-normal">{m * 30} dias</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#F5F5F7] dark:bg-[#27272a]/60 border border-[#E5E5EA] dark:border-[#27272a] space-y-2 text-[12.5px]">
+                <p className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>Nenhuma fatura será gerada durante os {pauseMonths * 30} dias.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>Agenda, clientes, equipe e financeiro continuam 100% salvos.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>Você pode reativar a qualquer momento antes do prazo em 1 clique.</span>
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-3">
               <button
                 type="button"
-                onClick={() => setShowCancelModal(false)}
+                onClick={() => setShowPauseModal(false)}
                 className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46]"
               >
                 Voltar
               </button>
               <button
                 type="button"
-                onClick={handleConfirmCancel}
+                onClick={handleConfirmPause}
                 disabled={actionLoading}
-                className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#D4D4D8] dark:border-[#27272a] bg-white dark:bg-[#27272a] text-[#1C1C1E] dark:text-white text-[12.5px] font-medium hover:bg-[#F5F5F7] dark:hover:bg-[#3f3f46] transition-all"
+                className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#1C1C1E] dark:bg-white text-white dark:text-[#18181b] text-[12.5px] font-medium hover:bg-[#2C2C2E] dark:hover:bg-zinc-200 shadow-sm"
               >
-                {actionLoading ? "Processando..." : "Confirmar Cancelamento"}
+                {actionLoading ? "Pausando..." : `Confirmar Pausa por ${pauseMonths} ${pauseMonths === 1 ? "mês" : "meses"}`}
               </button>
             </div>
           </div>

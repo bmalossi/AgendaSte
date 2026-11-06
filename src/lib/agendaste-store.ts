@@ -669,7 +669,7 @@ export interface StudioState {
     importedData: boolean;
     trialDaysLeft: number;
     planTier: "Gold" | "Platinum" | "Standard" | "Essencial";
-    subscriptionStatus?: "trialing" | "active" | "past_due" | "canceled";
+    subscriptionStatus?: "trialing" | "active" | "past_due" | "canceled" | "paused";
     trialEndsAtISO?: string;
     billingCycle?: "monthly" | "yearly";
   };
@@ -950,14 +950,14 @@ export function createInitialStudioState(): StudioState {
     reception: {
       activeStep: "meet",
       whatsappConnected: true,
-      whatsappNumber: "+55 (11) 94447-7528",
+      whatsappNumber: "+55 (11) 98765-4321",
       autoReplyMissedCallsAndTexts: true,
       send24hReminder: true,
       send2hReminder: true,
       userConfig: {
         provider: "evolution_api",
-        phoneNumber: "+55 (11) 94447-7528",
-        instanceName: "pessoal",
+        phoneNumber: "+55 (11) 98765-4321",
+        instanceName: "estudio-oficial",
         apiUrl: "https://api.automab.dev",
         apiKey: "",
         connected: true,
@@ -981,7 +981,7 @@ export function createInitialStudioState(): StudioState {
           id: "rec-log-1",
           timestampLabel: "Hoje, 08:42",
           clientName: "Stefany",
-          clientPhone: "(520) 788-8522",
+          clientPhone: "(11) 98765-4321",
           direction: "outbound",
           channel: "WhatsApp 2-Way",
           messageText:
@@ -1213,8 +1213,8 @@ export function createInitialStudioState(): StudioState {
       {
         id: "cli-stefany",
         fullName: "Stefany",
-        email: "bfernandescorretor@gmail.com",
-        phone: "(520) 788-8522",
+        email: "stefany@cliente.com.br",
+        phone: "(11) 98765-4321",
         avatarColor: "#FBCFE8",
         createdAtISO: "2026-10-17",
         lastVisitISO: "2026-10-02",
@@ -1324,7 +1324,7 @@ export function createInitialStudioState(): StudioState {
         processingDurationMinutes: 30,
         blockAfterMinutes: 15,
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         clientId: "cli-stefany",
         clientName: "Stefany",
         serviceIds: ["srv-color"],
@@ -1352,7 +1352,7 @@ export function createInitialStudioState(): StudioState {
         processingDurationMinutes: 0,
         blockAfterMinutes: 10,
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         clientId: "cli-isolde",
         clientName: "Isolde Quinn",
         serviceIds: ["srv-rejuv"],
@@ -1377,7 +1377,7 @@ export function createInitialStudioState(): StudioState {
         clientName: "Mariana Albuquerque",
         clientPhone: "(11) 98821-7700",
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         serviceId: "srv-hydration",
         serviceName: "Tratamento Condicionamento Profundo",
         preferredDateISO: "2026-10-17",
@@ -1392,7 +1392,7 @@ export function createInitialStudioState(): StudioState {
         invoiceNumber: "#1000948",
         title: "Rejuvenation Package",
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         clientId: "cli-isolde",
         clientName: "Isolde Quinn",
         clientEmail: "isolde.quinn@luveastudio.app",
@@ -1423,10 +1423,10 @@ export function createInitialStudioState(): StudioState {
         dateISO: "2026-11-02",
         clientId: "cli-stefany",
         clientName: "Stefany",
-        clientEmail: "bfernandescorretor@gmail.com",
-        clientPhone: "(520) 788-8522",
+        clientEmail: "stefany@cliente.com.br",
+        clientPhone: "(11) 98765-4321",
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         itemsSummary: "Tratamento de Condicionamento Profundo",
         items: [
           {
@@ -1448,10 +1448,10 @@ export function createInitialStudioState(): StudioState {
         dateISO: "2026-10-20",
         clientId: "cli-stefany",
         clientName: "Stefany",
-        clientEmail: "bfernandescorretor@gmail.com",
-        clientPhone: "(520) 788-8522",
+        clientEmail: "stefany@cliente.com.br",
+        clientPhone: "(11) 98765-4321",
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         itemsSummary: "Corte de Cabelo",
         items: [
           {
@@ -1473,10 +1473,10 @@ export function createInitialStudioState(): StudioState {
         dateISO: "2026-10-19",
         clientId: "cli-stefany",
         clientName: "Stefany",
-        clientEmail: "bfernandescorretor@gmail.com",
-        clientPhone: "(520) 788-8522",
+        clientEmail: "stefany@cliente.com.br",
+        clientPhone: "(11) 98765-4321",
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         itemsSummary: "Corte de Cabelo",
         items: [
           {
@@ -1498,10 +1498,10 @@ export function createInitialStudioState(): StudioState {
         dateISO: "2026-10-17",
         clientId: "cli-stefany",
         clientName: "Stefany",
-        clientEmail: "bfernandescorretor@gmail.com",
-        clientPhone: "(520) 788-8522",
+        clientEmail: "stefany@cliente.com.br",
+        clientPhone: "(11) 98765-4321",
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         itemsSummary: "Sinal Pix · Coloração Personalizada & Iluminação",
         items: [
           {
@@ -1526,7 +1526,7 @@ export function createInitialStudioState(): StudioState {
         clientEmail: "isolde.quinn@example.com",
         clientPhone: "(11) 98765-4321",
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         itemsSummary: "Protocolo Rejuvenation & Glow + Ampola",
         items: [
           {
@@ -1554,7 +1554,7 @@ export function createInitialStudioState(): StudioState {
         id: "gc-1",
         code: "LUVEA-GIFT-200",
         recipientName: "Stefany",
-        recipientEmail: "bfernandescorretor@gmail.com",
+        recipientEmail: "stefany@cliente.com.br",
         initialBalanceCents: 20000,
         remainingBalanceCents: 20000,
         status: "active",
@@ -1565,13 +1565,13 @@ export function createInitialStudioState(): StudioState {
     staff: [
       {
         id: "staff-bruno",
-        firstName: "Bruno",
-        lastName: "Fernandes Malossi Silva",
-        fullName: "Bruno Fernandes Malossi Silva",
-        initials: "BS",
+        firstName: "Profissional",
+        lastName: "Principal",
+        fullName: "Profissional Principal",
+        initials: "PP",
         role: "Proprietário & Especialista Master",
-        email: "bfernandescorretor@gmail.com",
-        phone: "+1 (520) 752-5522",
+        email: "contato@estudioexemplo.com.br",
+        phone: "+55 (11) 98765-4321",
         avatarColor: "#FBCFE8",
         serviceCommissionPercent: 60,
         productCommissionPercent: 20,
@@ -1609,7 +1609,7 @@ export function createInitialStudioState(): StudioState {
         {
           id: "ts-1",
           staffId: "staff-bruno",
-          staffName: "Bruno Fernandes Malossi Silva",
+          staffName: "Profissional Principal",
           dateISO: "2026-10-16",
           checkInTime: "09:00",
           checkOutTime: "18:15",
@@ -1694,7 +1694,7 @@ export function createInitialStudioState(): StudioState {
         serviceIds: [],
         serviceNames: [],
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         status: "completed",
         version: 2,
         createdDateLabel: "Oct 29, 2026",
@@ -1723,7 +1723,7 @@ export function createInitialStudioState(): StudioState {
             status: "superseded",
             timestampISO: "2026-10-17T14:10:00.000Z",
             savedAtLabel: "17 de out. de 2026 14:10",
-            amendedBy: "Bruno Fernandes Malossi Silva",
+            amendedBy: "Profissional Responsável",
             chartName: "Oct 17, 2026",
             photos: [],
             productsUsed: [
@@ -1754,7 +1754,7 @@ export function createInitialStudioState(): StudioState {
         serviceIds: ["srv-1"],
         serviceNames: ["Mechas Criativas"],
         providerId: "staff-bruno",
-        providerName: "Bruno Fernandes Malossi Silva",
+        providerName: "Profissional Responsável",
         status: "created",
         version: 3,
         createdDateLabel: "Oct 29, 2026",
@@ -1791,7 +1791,7 @@ export function createInitialStudioState(): StudioState {
             status: "superseded",
             timestampISO: "2026-10-29T15:38:00.000Z",
             savedAtLabel: "29 de out. de 2026 15:38",
-            amendedBy: "Bruno Fernandes Malossi Silva",
+            amendedBy: "Profissional Responsável",
             chartName: "Oct 17, 2026",
             photos: [],
             productsUsed: [
@@ -1817,7 +1817,7 @@ export function createInitialStudioState(): StudioState {
             status: "superseded",
             timestampISO: "2026-10-17T14:10:00.000Z",
             savedAtLabel: "17 de out. de 2026 14:10",
-            amendedBy: "Bruno Fernandes Malossi Silva",
+            amendedBy: "Profissional Responsável",
             chartName: "Oct 17, 2026",
             photos: [],
             productsUsed: [
@@ -1843,11 +1843,11 @@ export function createInitialStudioState(): StudioState {
     ],
     settings: {
       personal: {
-        firstName: "Bruno",
-        lastName: "Fernandes Malossi Silva",
-        email: "bfernandescorretor@gmail.com",
-        phone: "+1 (520) 752-5522",
-        phoneVerified: true,
+        firstName: "Administrador",
+        lastName: "do Estúdio",
+        email: "contato@estudioexemplo.com.br",
+        phone: "+55 (11) 98765-4321",
+        phoneVerified: false,
         licenseNumber: "",
         smsConsent: false,
       },
@@ -1860,7 +1860,7 @@ export function createInitialStudioState(): StudioState {
         notifyNewReviews: true,
         captureClientNotesFromMe: true,
         sendMeClientNotesBeforeAppointment: true,
-        calendarSyncUrl: "webcal://luveastudio.luvea.app/cal/bruno-sync.ics",
+        calendarSyncUrl: "",
         waitlistNotifications: {
           email: true,
           text: true,
@@ -1868,19 +1868,19 @@ export function createInitialStudioState(): StudioState {
         },
       },
       business: {
-        businessName: "Bruno Fernandes Malossi Silva",
-        bookingSlug: "luvea-studio-bruno",
+        businessName: "Meu Estúdio",
+        bookingSlug: "meu-estudio",
         legalEntityType: "Sociedade Limitada (LTDA) / Salão Parceiro",
-        taxIdCnpjCpf: "48.192.301/0001-82",
-        address: "Av. Brigadeiro Faria Lima, 2355 - Sala 804",
+        taxIdCnpjCpf: "00.000.000/0001-00",
+        address: "Av. Paulista, 1000 - Conjunto 101",
         cityState: "São Paulo, SP",
-        pixKey: "pix@luveastudio.app",
+        pixKey: "contato@estudioexemplo.com.br",
         defaultDepositPercent: 30,
         requireCardOrPixOnOnlineBooking: true,
         cancellationWindowHours: 24,
         noShowFeePercent: 50,
       },
-      website: getDefaultWebsiteBookingConfig("Bruno Fernandes Malossi Silva"),
+      website: getDefaultWebsiteBookingConfig("Meu Estúdio"),
     },
     lastToastMessage: null,
   };
@@ -1994,7 +1994,7 @@ export function normalizeSubdomainSlug(raw: string): string {
     return slug || "meu-estudio";
   }
 
-  // Caso seja nome alfanumérico com espaços (ex: "Bruno Fernandes Malossi Silva"), une sem espaço
+  // Caso seja nome alfanumérico com espaços (ex: "Meu Estúdio de Beleza"), une sem espaço
   const compact = cleaned.replace(/\s+/g, "");
   return compact || "meu-estudio";
 }
@@ -2328,7 +2328,7 @@ export function getDefaultChartingSettings(): ChartingSettingsConfig {
 }
 
 export function getDefaultWebsiteBookingConfig(
-  businessName = "Bruno Fernandes Malossi Silva"
+  businessName = "Meu Estúdio"
 ): WebsiteBookingSetupConfig {
   return {
     theme: "classic",
@@ -2336,10 +2336,10 @@ export function getDefaultWebsiteBookingConfig(
     websitePublished: false,
     hasFixedAddress: true,
     doesHouseCalls: false,
-    addressLine1: "Rua Mateus Cipullo, 49 casa 7",
+    addressLine1: "Av. Paulista, 1000 - Conjunto 101",
     addressLine2: "",
-    city: "Praia Grande",
-    zipCode: "11724-000",
+    city: "São Paulo",
+    zipCode: "01310-100",
     state: "SP",
     businessHours: [
       { dayOfWeek: 0, label: "Domingo", isOpen: false, startTime: "08:00", endTime: "14:00" },
@@ -4698,9 +4698,9 @@ export function updateUserWhatsAppConfig(
 ): StudioState {
   const currentConfig: UserWhatsAppConfig = state.reception.userConfig ?? {
     provider: "evolution_api",
-    phoneNumber: state.reception.whatsappNumber || "+55 (11) 94447-7528",
-    instanceName: "pessoal",
-    apiUrl: "https://api.automab.dev",
+    phoneNumber: state.reception.whatsappNumber || "",
+    instanceName: "",
+    apiUrl: "",
     apiKey: "",
     connected: false,
     templates: {

@@ -66,6 +66,7 @@ import {
 } from "@/lib/agendaste-store";
 import { WhatsAppConfigCard } from "@/components/agendaste/whatsapp-config-card";
 import { signOutUser } from "@/lib/supabase/client";
+import { validateSubdomainFormat } from "@/lib/subdomain";
 
 interface SettingsViewProps {
   state: StudioState;
@@ -169,6 +170,59 @@ export function SettingsView({
 
   // Estados - Site & Rastreamento
   const [subdomainSlug, setSubdomainSlug] = useState(initialWebsite.subdomainSlug);
+  const [subdomainCheckStatus, setSubdomainCheckStatus] = useState<
+    "idle" | "checking" | "available" | "unavailable" | "current"
+  >("idle");
+  const [subdomainCheckMessage, setSubdomainCheckMessage] = useState<string>("");
+  const subdomainDebounceRef = useRef<number | null>(null);
+
+  const checkSubdomainSlug = React.useCallback((candidate: string) => {
+    if (subdomainDebounceRef.current) {
+      window.clearTimeout(subdomainDebounceRef.current);
+    }
+    const trimmed = candidate.trim().toLowerCase();
+    if (!trimmed) {
+      setSubdomainCheckStatus("idle");
+      setSubdomainCheckMessage("");
+      return;
+    }
+    const format = validateSubdomainFormat(trimmed);
+    if (!format.valid) {
+      setSubdomainCheckStatus("unavailable");
+      setSubdomainCheckMessage(format.message || "Subdomínio inválido");
+      return;
+    }
+    setSubdomainCheckStatus("checking");
+    subdomainDebounceRef.current = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/subdomain/check?slug=${encodeURIComponent(format.normalized)}`);
+        if (!res.ok) {
+          setSubdomainCheckStatus("idle");
+          return;
+        }
+        const data = await res.json();
+        if (data.available) {
+          setSubdomainCheckStatus(data.isCurrent ? "current" : "available");
+          setSubdomainCheckMessage(
+            data.isCurrent ? "Subdomínio atual do seu estúdio" : "Subdomínio disponível para uso"
+          );
+        } else {
+          setSubdomainCheckStatus("unavailable");
+          setSubdomainCheckMessage(data.message || "Este subdomínio já está em uso.");
+        }
+      } catch {
+        setSubdomainCheckStatus("idle");
+      }
+    }, 280);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (subdomainDebounceRef.current) {
+        window.clearTimeout(subdomainDebounceRef.current);
+      }
+    };
+  }, []);
   const [aboutYourBusiness, setAboutYourBusiness] = useState(
     initialWebsite.aboutYourBusiness ??
       "Espaço de beleza e bem-estar especializado em tratamentos personalizados, estética avançada e cuidados com a saúde capilar."
@@ -268,7 +322,7 @@ export function SettingsView({
   const [idLegalName, setIdLegalName] = useState(state.settings.business.businessName || "Luvea Studio");
   const [idCnpjCpf, setIdCnpjCpf] = useState(state.settings.business.taxIdCnpjCpf || "48.192.301/0001-82");
   const [idRepName, setIdRepName] = useState(
-    `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() || "Bruno Fernandes Malossi"
+    `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() || "Responsável Legal"
   );
   const [idRepCpf, setIdRepCpf] = useState("389.201.948-12");
 
@@ -1175,23 +1229,66 @@ export function SettingsView({
                   </div>
                 </div>
 
-                {/* Link do Agendamento */}
+                {/* Link do Agendamento (Alterável com checagem de disponibilidade) */}
                 <div className="space-y-2 pt-2 border-t border-[#F2F2F7]">
-                  <label className="block text-[13px] font-semibold text-[#1C1C1E]">Endereço do Site (URL)</label>
-                  <p className="text-[12px] text-[#6E6E73]">
+                  <div className="flex items-center justify-between max-w-lg">
+                    <label className="block text-[13px] font-semibold text-[#1C1C1E] dark:text-white">
+                      Endereço do Site (URL)
+                    </label>
+
+                    {/* Micro-indicador de disponibilidade (Anti-AI Slop & Editorial Clean) */}
+                    {subdomainCheckStatus === "checking" && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[#6E6E73] dark:text-[#a1a1aa]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />
+                        <span>Verificando...</span>
+                      </div>
+                    )}
+                    {subdomainCheckStatus === "available" && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-zinc-200">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                        <span>Disponível</span>
+                      </div>
+                    )}
+                    {subdomainCheckStatus === "current" && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F7] dark:bg-[#18181b] border border-[#E5E5EA] dark:border-[#27272a] text-[#1C1C1E] dark:text-zinc-200">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                        <span>Subdomínio atual</span>
+                      </div>
+                    )}
+                    {subdomainCheckStatus === "unavailable" && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/50 text-rose-700 dark:text-rose-400">
+                        <span className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-500/20" />
+                        <span>Indisponível</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-[12px] text-[#6E6E73] dark:text-[#a1a1aa]">
                     O identificador exclusivo do seu estúdio dentro do domínio oficial Luvea.
                   </p>
-                  <div className="flex items-center rounded-xl border border-[#E5E5EA] bg-white px-3 py-2 max-w-lg focus-within:border-[#1C1C1E] focus-within:ring-1 focus-within:ring-[#1C1C1E]">
-                    <span className="text-[13px] text-[#6E6E73] font-mono select-none">https://</span>
+                  <div className="flex items-center rounded-xl border border-[#E5E5EA] dark:border-[#27272a] bg-white dark:bg-[#18181b] px-3 py-2 max-w-lg focus-within:border-[#1C1C1E] dark:focus-within:border-white focus-within:ring-1 focus-within:ring-[#1C1C1E] dark:focus-within:ring-white">
+                    <span className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] font-mono select-none">https://</span>
                     <input
                       type="text"
                       value={subdomainSlug}
-                      onChange={(e) => setSubdomainSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                      className="flex-1 bg-transparent border-0 outline-none px-1 text-[13px] font-mono text-[#1C1C1E]"
+                      onChange={(e) => {
+                        const cleaned = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                        setSubdomainSlug(cleaned);
+                        checkSubdomainSlug(cleaned);
+                      }}
+                      className="flex-1 bg-transparent border-0 outline-none px-1 text-[13px] font-mono text-[#1C1C1E] dark:text-white"
                       placeholder="seuestudio"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                     />
-                    <span className="text-[13px] text-[#6E6E73] font-mono select-none">.luvea.app</span>
+                    <span className="text-[13px] text-[#6E6E73] dark:text-[#a1a1aa] font-mono select-none">.luvea.app</span>
                   </div>
+                  {subdomainCheckStatus === "unavailable" && subdomainCheckMessage && (
+                    <p className="text-[11.5px] text-rose-700 dark:text-rose-400 font-medium">
+                      {subdomainCheckMessage}
+                    </p>
+                  )}
                 </div>
 
                 {/* Sobre o Estúdio */}

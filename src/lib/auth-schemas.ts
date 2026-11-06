@@ -1,18 +1,7 @@
 import { z } from "zod";
+import { normalizeSubdomain, validateSubdomainFormat, RESERVED_SUBDOMAINS } from "./subdomain";
 
-/**
- * Normaliza e valida um slug de subdomínio para estúdios (ex: "espaco-uniko").
- */
-export function normalizeSubdomain(value: string): string {
-  return value
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+export { normalizeSubdomain, validateSubdomainFormat, RESERVED_SUBDOMAINS };
 
 /**
  * Validação simplificada de CPF/CNPJ (apenas dígitos válidos).
@@ -47,7 +36,10 @@ export const checkoutFormSchema = z.object({
     .regex(
       /^[a-z0-9]+(-[a-z0-9]+)*$/,
       "Subdomínio pode conter apenas letras minúsculas, números e hífens."
-    ),
+    )
+    .refine((val) => validateSubdomainFormat(val).valid, {
+      message: "Subdomínio inválido ou reservado pela plataforma.",
+    }),
   planTier: z.enum(["essencial", "gold", "platinum"]),
   billingCycle: z.enum(["monthly", "yearly"]),
   paymentMethod: z.enum(["credit_card", "pix"]),

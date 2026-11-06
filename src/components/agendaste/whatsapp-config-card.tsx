@@ -82,9 +82,9 @@ export function WhatsAppConfigCard({
 }: WhatsAppConfigCardProps) {
   const currentConfig: UserWhatsAppConfig = state.reception.userConfig ?? {
     provider: "evolution_api",
-    phoneNumber: state.reception.whatsappNumber || "+55 (11) 94447-7528",
-    instanceName: "pessoal",
-    apiUrl: "https://api.automab.dev",
+    phoneNumber: state.reception.whatsappNumber || "",
+    instanceName: "",
+    apiUrl: "",
     apiKey: "",
     connected: state.reception.whatsappConnected ?? false,
     templates: {
@@ -101,7 +101,7 @@ export function WhatsAppConfigCard({
   };
 
   const [phoneNumber, setPhoneNumber] = useState(
-    currentConfig.phoneNumber || state.reception.whatsappNumber || "+55 (11) 94447-7528"
+    currentConfig.phoneNumber || state.reception.whatsappNumber || ""
   );
   const [isConnected, setIsConnected] = useState(currentConfig.connected);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
@@ -1058,7 +1058,7 @@ export function WhatsAppConfigCard({
             type="text"
             value={testRecipient}
             onChange={(e) => setTestRecipient(e.target.value)}
-            placeholder="+55 (11) 94447-7528"
+            placeholder="+55 (11) 99999-0000"
             className="w-full sm:w-72 px-4 py-2.5 rounded-xl border border-[#D4D4D8] text-[13.5px] font-medium text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none focus:border-[#1C1C1E] transition"
           />
 

@@ -110,6 +110,9 @@ export async function processStripeWebhookEvent(
         .eq("id", orgId)
         .maybeSingle();
 
+      const metaPlanTier = eventData.metadata?.planTier;
+      const metaBillingCycle = eventData.metadata?.billingCycle;
+
       await supabaseAdmin
         .from("organizations")
         .update({
@@ -119,17 +122,26 @@ export async function processStripeWebhookEvent(
           payment_gateway: "stripe",
           cancel_at_period_end: false,
           grace_period_ends_at: null,
+          ...(metaPlanTier ? { plan_tier: metaPlanTier.toLowerCase() } : {}),
+          ...(metaBillingCycle ? { billing_cycle: metaBillingCycle } : {}),
           first_paid_at: currentOrg?.first_paid_at || nowIso,
           updated_at: nowIso,
         })
         .eq("id", orgId);
 
-      // Anula faturas Pix pendentes para evitar duplicidade
+      // Anula faturas Pix pendentes e limpa rascunhos preliminares da Stripe para evitar duplicidade
       const { count } = await supabaseAdmin
         .from("subscription_invoices")
         .update({ status: "void", updated_at: nowIso })
         .eq("organization_id", orgId)
         .eq("gateway", "mercadopago")
+        .eq("status", "pending");
+
+      await supabaseAdmin
+        .from("subscription_invoices")
+        .delete()
+        .eq("organization_id", orgId)
+        .eq("gateway", "stripe")
         .eq("status", "pending");
 
       return {
@@ -165,17 +177,23 @@ export async function processStripeWebhookEvent(
     if (subscriptionId) {
       const { data: org } = await supabaseAdmin
         .from("organizations")
-        .select("id, plan_tier, billing_cycle, first_paid_at")
+        .select("id, plan_tier, billing_cycle, first_paid_at, scheduled_plan_tier, scheduled_billing_cycle")
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
 
       if (org) {
         const nowIso = new Date().toISOString();
+        const effectivePlanTier = org.scheduled_plan_tier || org.plan_tier || "gold";
+        const effectiveBillingCycle = org.scheduled_billing_cycle || org.billing_cycle || "monthly";
 
         await supabaseAdmin
           .from("organizations")
           .update({
             subscription_status: "active",
+            plan_tier: effectivePlanTier,
+            billing_cycle: effectiveBillingCycle,
+            scheduled_plan_tier: null,
+            scheduled_billing_cycle: null,
             grace_period_ends_at: null,
             cancel_at_period_end: false,
             first_paid_at: org.first_paid_at || nowIso,
@@ -191,8 +209,8 @@ export async function processStripeWebhookEvent(
               organization_id: org.id,
               gateway: "stripe",
               external_invoice_id: invoiceId,
-              plan_tier: org.plan_tier || "gold",
-              billing_cycle: org.billing_cycle || "monthly",
+              plan_tier: effectivePlanTier,
+              billing_cycle: effectiveBillingCycle,
               amount_cents: amountPaid,
               status: "paid",
               paid_at: nowIso,
@@ -201,12 +219,19 @@ export async function processStripeWebhookEvent(
             { onConflict: "external_invoice_id" }
           );
 
-        // Anula quaisquer faturas Pix pendentes concorrentes
+        // Anula quaisquer faturas Pix pendentes concorrentes e limpa rascunhos preliminares da Stripe
         const { count } = await supabaseAdmin
           .from("subscription_invoices")
           .update({ status: "void", updated_at: nowIso })
           .eq("organization_id", org.id)
           .eq("gateway", "mercadopago")
+          .eq("status", "pending");
+
+        await supabaseAdmin
+          .from("subscription_invoices")
+          .delete()
+          .eq("organization_id", org.id)
+          .eq("gateway", "stripe")
           .eq("status", "pending");
 
         return {
@@ -311,7 +336,7 @@ export async function processStripeWebhookEvent(
     if (subscriptionId) {
       const { data: org } = await supabaseAdmin
         .from("organizations")
-        .select("id, grace_period_ends_at")
+        .select("id, grace_period_ends_at, scheduled_plan_tier, scheduled_billing_cycle")
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
 
@@ -332,6 +357,17 @@ export async function processStripeWebhookEvent(
         } else if (status === "canceled") {
           updatePayload.subscription_status = "canceled";
           updatePayload.canceled_at = new Date().toISOString();
+        }
+
+        // Se havia downgrade agendado e os metadados da assinatura já refletem a transição
+        const currentMetaPlan = eventData.metadata?.plan_tier || eventData.items?.data?.[0]?.price?.metadata?.plan_tier;
+        if (org.scheduled_plan_tier && (!currentMetaPlan || currentMetaPlan === org.scheduled_plan_tier)) {
+          updatePayload.plan_tier = org.scheduled_plan_tier;
+          if (org.scheduled_billing_cycle) {
+            updatePayload.billing_cycle = org.scheduled_billing_cycle;
+          }
+          updatePayload.scheduled_plan_tier = null;
+          updatePayload.scheduled_billing_cycle = null;
         }
 
         if (eventData.current_period_start) {

@@ -1338,7 +1338,7 @@ const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
     serviceIds: [],
     serviceNames: [],
     providerId: "staff-bruno",
-    providerName: "Bruno Fernandes Malossi Silva",
+    providerName: "Profissional Responsável",
     status: "completed",
     version: 2,
     createdDateLabel: "Oct 29, 2026",
@@ -1367,7 +1367,7 @@ const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
         status: "superseded",
         timestampISO: "2026-10-17T14:10:00.000Z",
         savedAtLabel: "17 de out. de 2026 14:10",
-        amendedBy: "Bruno Fernandes Malossi Silva",
+        amendedBy: "Profissional Responsável",
         chartName: "Oct 17, 2026",
         photos: [],
         productsUsed: [
@@ -1398,7 +1398,7 @@ const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
     serviceIds: ["srv-1"],
     serviceNames: ["Mechas Criativas"],
     providerId: "staff-bruno",
-    providerName: "Bruno Fernandes Malossi Silva",
+    providerName: "Profissional Responsável",
     status: "created",
     version: 3,
     createdDateLabel: "Oct 29, 2026",
@@ -1435,7 +1435,7 @@ const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
         status: "superseded",
         timestampISO: "2026-10-29T15:38:00.000Z",
         savedAtLabel: "29 de out. de 2026 15:38",
-        amendedBy: "Bruno Fernandes Malossi Silva",
+        amendedBy: "Profissional Responsável",
         chartName: "Oct 17, 2026",
         photos: [],
         productsUsed: [
@@ -1461,7 +1461,7 @@ const DEFAULT_FALLBACK_CHARTS: ClinicalChartEntry[] = [
         status: "superseded",
         timestampISO: "2026-10-17T14:10:00.000Z",
         savedAtLabel: "17 de out. de 2026 14:10",
-        amendedBy: "Bruno Fernandes Malossi Silva",
+        amendedBy: "Profissional Responsável",
         chartName: "Oct 17, 2026",
         photos: [],
         productsUsed: [
@@ -1557,7 +1557,7 @@ function ClinicalChartsSection({
 
   const ownerFullName =
     `${state.settings.personal.firstName} ${state.settings.personal.lastName}`.trim() ||
-    "Bruno Fernandes Malossi Silva";
+    "Profissional Responsável";
 
   const activeChart =
     charts.find((c) => c.id === activeChartId) ?? null;

@@ -396,7 +396,7 @@ function LoginFormContent() {
       <div className="pt-2 text-center text-[12.5px] text-[#6E6E73] dark:text-[#a1a1aa] border-t border-[#F5F5F7] dark:border-[#27272a]">
         Não tem uma conta?{" "}
         <Link
-          href="/checkout"
+          href="/cadastro"
           className="font-semibold text-[#1C1C1E] dark:text-white hover:underline"
         >
           Criar estúdio

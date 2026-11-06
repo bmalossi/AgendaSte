@@ -36,6 +36,9 @@ interface SidebarProps {
   totalOnboardingCount: number;
   providerFullName: string;
   providerShortName: string;
+  planTier?: string;
+  subscriptionStatus?: string;
+  planLabel?: string;
   onSignOut?: () => void;
 }
 
@@ -46,6 +49,9 @@ export function LuveaSidebar({
   totalOnboardingCount,
   providerFullName,
   providerShortName,
+  planTier,
+  subscriptionStatus,
+  planLabel,
   onSignOut,
 }: SidebarProps) {
   const { isDark, toggleTheme } = useAppTheme();
@@ -90,6 +96,16 @@ export function LuveaSidebar({
   const isCatalogGroup = activeSection.startsWith("catalog_");
   const isTeamGroup = activeSection.startsWith("team_");
   const isInsightsGroup = activeSection.startsWith("insights");
+
+  const resolveDisplayPlan = () => {
+    if (planLabel) return planLabel;
+    const tier = (planTier || "gold").toLowerCase();
+    if (tier.includes("plat")) return "Plano Platinum";
+    if (tier.includes("essen") || tier.includes("stand")) return "Plano Essencial";
+    return "Plano Gold";
+  };
+  const displayPlan = resolveDisplayPlan();
+  const isSubActive = subscriptionStatus === "active";
 
   useEffect(() => {
     if (activeSection.startsWith("payments_")) setOpenDropdown("payments");
@@ -277,9 +293,14 @@ export function LuveaSidebar({
                   }`}
                 />
               </div>
-              <p className="text-[11px] text-zinc-500 dark:text-[#a1a1aa] leading-tight truncate">
-                {providerShortName}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                {isSubActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ring-2 ring-emerald-500/20" />
+                )}
+                <p className="text-[11px] font-medium text-[#6E6E73] dark:text-[#a1a1aa] leading-tight truncate">
+                  {displayPlan}
+                </p>
+              </div>
             </div>
           </button>
 
@@ -301,8 +322,16 @@ export function LuveaSidebar({
                 {providerFullName}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-                <span className="text-[11px] text-[#6E6E73] dark:text-[#a1a1aa]">Assinatura Ativa</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    isSubActive
+                      ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                      : "bg-zinc-400"
+                  }`}
+                />
+                <span className="text-[11px] font-medium text-[#6E6E73] dark:text-[#a1a1aa]">
+                  {displayPlan} · {isSubActive ? "Assinatura Ativa" : "Período de Teste"}
+                </span>
               </div>
             </div>
 

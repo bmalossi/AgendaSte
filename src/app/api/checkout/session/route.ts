@@ -3,6 +3,7 @@ import { checkoutFormSchema, normalizeSubdomain } from "@/lib/auth-schemas";
 import { supabaseAdmin } from "@/lib/supabase/service-role";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
+import { resolveCheckoutIdentity } from "@/lib/billing/checkout-identity";
 import { resend, getSenderEmail, isResendConfigured } from "@/lib/resend";
 import { WelcomeEmail } from "@/emails/WelcomeEmail";
 import {
@@ -41,17 +42,17 @@ export async function POST(request: Request) {
     const {
       fullName,
       email,
-      whatsapp,
-      cpfCnpj,
-      businessName,
-      subdomain,
       planTier,
       billingCycle,
       paymentMethod,
       couponCode,
     } = parseResult.data;
 
-    const normalizedSlug = normalizeSubdomain(subdomain);
+    // Dados cadastrais do estúdio: para usuário logado com organização, o servidor é a fonte
+    // da verdade (ver bloco "identidade autoritativa" abaixo) e estes valores do corpo são ignorados.
+    let { whatsapp, cpfCnpj, businessName, subdomain } = parseResult.data;
+
+    let normalizedSlug = normalizeSubdomain(subdomain);
     const basePriceCents = resolvePlanPriceCents(planTier, billingCycle);
 
     // Validação de Cupom de Desconto (se informado)
@@ -119,16 +120,66 @@ export async function POST(request: Request) {
     let existingTrialEndsAt: Date | null = null;
     let existingOrg: any = null;
 
+    // Identidade autoritativa: usuário logado com estúdio vinculado nunca altera nome, slug,
+    // CPF/CNPJ ou WhatsApp pelo checkout. Esses dados vêm da organização salva no banco.
+    // (CPF/WhatsApp só são aceitos do corpo quando a organização ainda não os possui.)
+    if (isSupabaseConfigured() && requesterUserId && requesterOrgId) {
+      try {
+        const { data: ownOrg } = await supabaseAdmin
+          .from("organizations")
+          .select("id, slug, name, cpf_cnpj, whatsapp_number, phone, trial_ends_at, subscription_status, current_period_end, payment_gateway, stripe_subscription_id, first_paid_at")
+          .eq("id", requesterOrgId)
+          .maybeSingle();
+
+        if (ownOrg) {
+          const identity = resolveCheckoutIdentity(
+            { slug: normalizedSlug, businessName, cpfCnpj, whatsapp },
+            ownOrg
+          );
+          normalizedSlug = identity.slug;
+          subdomain = identity.slug;
+          businessName = identity.businessName;
+          cpfCnpj = identity.cpfCnpj;
+          whatsapp = identity.whatsapp;
+          existingOrg = ownOrg;
+          organizationId = ownOrg.id;
+          if (ownOrg.trial_ends_at) {
+            existingTrialEndsAt = new Date(ownOrg.trial_ends_at);
+          }
+        }
+      } catch (ownOrgErr) {
+        console.warn("[Checkout Authoritative Identity Error]:", ownOrgErr);
+      }
+    }
+
     if (isSupabaseConfigured()) {
       try {
         const { data: org } = await supabaseAdmin
           .from("organizations")
-          .select("id, slug, name, trial_ends_at, subscription_status, current_period_end, payment_gateway")
+          .select("id, slug, name, trial_ends_at, subscription_status, current_period_end, payment_gateway, stripe_subscription_id, first_paid_at")
           .eq("slug", normalizedSlug)
           .maybeSingle();
 
         if (org) {
           existingOrg = org;
+
+          // Trava contra assinatura duplicada na Stripe: quem já tem assinatura ativa/trialing
+          // deve utilizar o fluxo in-app de Upgrade/Downgrade (/api/billing/change-plan)
+          if (
+            existingOrg?.stripe_subscription_id &&
+            ["active", "trialing"].includes(existingOrg.subscription_status)
+          ) {
+            return NextResponse.json(
+              {
+                ok: false,
+                code: "HAS_ACTIVE_SUBSCRIPTION",
+                error:
+                  "Seu estúdio já possui uma assinatura cadastrada. Para alterar seu plano, utilize o botão de Upgrade ou Downgrade diretamente nas configurações.",
+              },
+              { status: 409 }
+            );
+          }
+
           existingTrialEndsAt = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
 
           // Verifica se a organização existente possui membros vinculados em profiles
@@ -188,9 +239,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Calcula bônus de dias restantes do Teste Grátis (Free Trial)
+    // 3. Regra Canônica de Faturamento:
+    // O período de teste de 14 dias pertence exclusivamente à CONTA (estúdio).
+    // Se a organização já existe e o trial expirou (trial_ends_at <= now), ou se já realizou
+    // pagamento histórico (first_paid_at), NÃO HÁ DIREITO A TRIAL. A cobrança é imediata.
+    const hasPaidHistory = Boolean(existingOrg?.first_paid_at);
+    const isTrialStillActive = Boolean(
+      existingTrialEndsAt && existingTrialEndsAt.getTime() > Date.now()
+    );
+    const allowTrial = !existingOrg || (!hasPaidHistory && isTrialStillActive);
+
     const bonusTrial = calculateBonusTrialPeriodEnd({
-      trialEndsAt: existingTrialEndsAt,
+      trialEndsAt: allowTrial ? existingTrialEndsAt : null,
       billingCycle,
       now: new Date(),
     });
@@ -210,10 +270,23 @@ export async function POST(request: Request) {
               whatsapp_number: whatsapp,
               cpf_cnpj: cpfCnpj,
               payment_gateway: paymentMethod === "credit_card" ? "stripe" : "mercadopago",
+              ...(!allowTrial && existingOrg?.subscription_status === "trialing" ? { subscription_status: "active" } : {}),
               updated_at: new Date().toISOString(),
             })
             .eq("id", organizationId);
+
+          await supabaseAdmin
+            .from("professionals")
+            .update({
+              studio_name: businessName,
+              slug: normalizedSlug,
+            })
+            .eq("organization_id", organizationId);
         } else {
+          const trialEndsAtIso = allowTrial
+            ? new Date(Date.now() + 14 * 86400000).toISOString()
+            : null;
+
           const { data: newOrg, error: orgError } = await supabaseAdmin
             .from("organizations")
             .insert({
@@ -221,7 +294,8 @@ export async function POST(request: Request) {
               slug: normalizedSlug,
               plan_tier: planTier,
               billing_cycle: billingCycle,
-              subscription_status: "trialing",
+              subscription_status: allowTrial ? "trialing" : "active",
+              trial_ends_at: trialEndsAtIso,
               phone: whatsapp,
               whatsapp_number: whatsapp,
               cpf_cnpj: cpfCnpj,
@@ -272,21 +346,32 @@ export async function POST(request: Request) {
         customerId = `cus_mock_${Math.random().toString(36).substring(2, 8)}`;
       }
 
-      // Se estiver migrando do Pix para Cartão com período pago vigente, ancora a cobrança no fim do ciclo pago
+      // Se for uma assinatura já PAGA e ativa (ex: migrando do Pix para Cartão com ciclo vigente),
+      // ancora a cobrança no fim do ciclo pago para não cobrar antes da hora.
       const hasActivePaidPeriod = Boolean(
-        existingOrg?.current_period_end &&
+        existingOrg?.subscription_status === "active" &&
+          existingOrg?.first_paid_at &&
+          existingOrg?.current_period_end &&
           new Date(existingOrg.current_period_end).getTime() > Date.now()
       );
-      const trialEndTimestamp = hasActivePaidPeriod
+      const paidPeriodEndTimestamp = hasActivePaidPeriod
         ? Math.floor(new Date(existingOrg.current_period_end).getTime() / 1000)
+        : undefined;
+
+      // Se a conta tem direito ao restante do trial original, ancora ao trial_ends_at original
+      const effectiveTrialEndTimestamp = hasActivePaidPeriod
+        ? paidPeriodEndTimestamp
+        : allowTrial && existingOrg && isTrialStillActive && existingTrialEndsAt
+        ? Math.floor(existingTrialEndsAt.getTime() / 1000)
         : undefined;
 
       const checkoutSession = await createStripeCheckoutSession({
         customerId,
         planTier,
         billingCycle,
-        trialEndTimestamp,
-        bonusTrialDays: !hasActivePaidPeriod ? bonusTrial.bonusDaysApplied : undefined,
+        allowTrial,
+        trialEndTimestamp: effectiveTrialEndTimestamp,
+        bonusTrialDays: allowTrial && !hasActivePaidPeriod && !existingOrg ? bonusTrial.bonusDaysApplied : undefined,
         couponId: stripeCouponId,
         promotionCodeId: stripePromotionCodeId,
         customPriceCents: effectivePriceCents,
@@ -300,6 +385,7 @@ export async function POST(request: Request) {
           billingCycle,
           couponCode: couponCode || "",
           discountCents: String(discountCents),
+          allowTrial: allowTrial ? "true" : "false",
         },
       });
 
@@ -330,12 +416,13 @@ export async function POST(request: Request) {
             period_end: periodEnd,
           });
 
+          // Atualiza apenas o customer ID na organização. As datas de período vigente
+          // da organização são gravadas exclusivamente quando o pagamento é confirmado.
           await supabaseAdmin
             .from("organizations")
             .update({
               stripe_customer_id: customerId,
-              current_period_start: periodStart,
-              current_period_end: periodEnd,
+              updated_at: new Date().toISOString(),
             })
             .eq("id", organizationId);
 
